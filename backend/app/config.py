@@ -1,8 +1,37 @@
+"""
+Application configuration from environment variables.
+
+All settings loaded from .env file.
+Never commit .env file to git.
+"""
+
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Dora"
+    """
+    Application settings.
+    
+    Attributes:
+        APP_NAME: Application name
+        DEBUG: Debug mode (disable in production)
+        SUPABASE_URL: Supabase project URL
+        SUPABASE_ANON_KEY: Supabase anonymous key (safe for frontend)
+        SUPABASE_DB_URL: PostgreSQL connection string
+        FOURSQUARE_API_KEY: Foursquare Places API key
+        MAPBOX_API_KEY: Mapbox API key
+        SECRET_KEY: Backend secret for internal use (NOT for JWT)
+        ALLOWED_ORIGINS: CORS allowed origins (comma-separated)
+        
+    Note:
+        - No SUPABASE_JWT_SECRET (uses JWKS verification)
+        - No ALGORITHM config (hardcoded to ES256)
+        - No ACCESS_TOKEN_EXPIRE_MINUTES (Supabase controls token expiry)
+    """
+    
+    # App
+    APP_NAME: str = "Travel Memory Vault API"
     DEBUG: bool = True
     
     # Supabase
@@ -14,11 +43,12 @@ class Settings(BaseSettings):
     FOURSQUARE_API_KEY: str
     MAPBOX_API_KEY: str
     
-    # Backend secret (NOT for JWT verification, only for internal use)
-    SECRET_KEY: str = "6mviiwo4eweuvtuyer7stj3uylnxd3q0"
+    # Backend secret (for internal use only, NOT for JWT verification)
+    SECRET_KEY: str = "your-secret-key-change-this"
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    
     
     class Config:
         env_file = ".env"

@@ -1,13 +1,27 @@
+"""
+FastAPI application entry point.
+
+Configures:
+    - CORS middleware
+    - API routers
+    - Global exception handlers
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
+# Import routers
+from app.api.v1 import auth
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
-    version="1.0.0"
+    version="1.0.0",
+    description="Travel Memory Vault - Personal travel journal with AI-powered search"
 )
 
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS.split(","),
@@ -16,12 +30,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register routers
+app.include_router(auth.router, prefix="/api/v1")
+
 
 @app.get("/")
 def root():
-    return {"message": "Dora", "version": "1.0.0"}
+    """API root endpoint."""
+    return {
+        "message": "Travel Memory Vault API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
 
 
 @app.get("/health")
 def health():
+    """Health check endpoint."""
     return {"status": "healthy"}
+

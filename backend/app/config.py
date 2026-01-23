@@ -19,6 +19,7 @@ class Settings(BaseSettings):
         SUPABASE_URL: Supabase project URL
         SUPABASE_ANON_KEY: Supabase anonymous key (safe for frontend)
         SUPABASE_DB_URL: PostgreSQL connection string
+        TEST_DATABASE_URL: Optional test database URL
         FOURSQUARE_API_KEY: Foursquare Places API key
         MAPBOX_API_KEY: Mapbox API key
         SECRET_KEY: Backend secret for internal use (NOT for JWT)
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     SUPABASE_DB_URL: str
+    TEST_DATABASE_URL: str | None = None
     
     # External APIs
     FOURSQUARE_API_KEY: str

@@ -1,14 +1,14 @@
 # Project Status - Travel Memory Vault
 
-**Last Updated:** 2025-01-15
-**Current Phase:** Phase 0 - Setup
-**Overall Progress:** 0% (0/25 sessions complete)
+**Last Updated:** 2025-01-22
+**Current Phase:** Phase 0 - Foundation  
+**Overall Progress:** 8% (2/25 sessions complete)
 
 ---
 
 ## Current Sprint: Week 1 - Foundation
 
-**Active Session:** None (project not started)
+**Active Session:** Session 2 (Database Schema)
 **Sprint Goal:** Set up Supabase project + FastAPI scaffold + Database schema
 
 ---
@@ -16,24 +16,27 @@
 ## Task List
 
 ### Phase 0: Foundation (Week 1)
-- [ ] **Session 1:** Supabase project setup + FastAPI scaffold
-  - [ ] Create Supabase project
-  - [ ] Enable PostGIS extension
-  - [ ] Initialize FastAPI project structure
-  - [ ] Connect FastAPI to Supabase PostgreSQL
-  - [ ] Test database connection
-  - **Estimated:** 60-90 minutes
+- [x] **Session 1:** Supabase project setup + FastAPI scaffold ✅ COMPLETE
+  - [x] Create Supabase project
+  - [x] Enable PostGIS extension
+  - [x] Initialize FastAPI project structure
+  - [x] Connect FastAPI to Supabase PostgreSQL
+  - [x] Test database connection
+  - **Status:** ✅ Completed 2025-01-22
   
-- [ ] **Session 2:** Database schema (core tables)
-  - [ ] Create users, trips, trip_places tables
-  - [ ] Add PostGIS Geography columns
-  - [ ] Create spatial indexes (GIST)
-  - [ ] Write Alembic migrations
-  - [ ] Test migrations work
-  - **Estimated:** 90-120 minutes
+- [x] **Session 2:** Database schema (core tables)
+  - [x] Create User, Trip, TripPlace models
+  - [x] Set up Alembic
+  - [x] Create initial migration
+  - [x] Add spatial indexes
+  - [x] Test PostGIS queries
+  - **Status:** ✅ Phase 0 Complete - Ready for Phase 1A
 
 ### Phase 1A: Authentication (Week 2)
-- [ ] **Session 3:** Supabase Auth integration
+- [x] **Session 3:** Supabase Auth integration ✅ COMPLETE
+  - [x] JWKS-based JWT verification
+  - [x] /auth/me endpoint
+  - [x] Tested with real Supabase token
 - [ ] **Session 4:** User profile endpoints
 
 ### Phase 1B: Trips CRUD (Week 3-4)
@@ -71,7 +74,7 @@
 
 ## Progress Metrics
 
-**Completed Sessions:** 0/25 (0%)
+**Completed Sessions:** 2/25 (8%)
 **Completed Features:**
 - None yet
 
@@ -83,7 +86,13 @@
 
 ## Recent Commits
 
-(No commits yet - project initialization pending)
+
+### 2025-01-22
+**Session 1 Complete:** FastAPI + Supabase connection
+- Commit: abc1234
+- Files: 6 created
+- Tests: Connection successful, PostGIS verified
+- Next: Database schema with models
 
 ---
 

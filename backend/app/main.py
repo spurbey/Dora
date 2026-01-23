@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 # Import routers
-from app.api.v1 import auth
+from app.api.v1 import auth, users
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -32,6 +32,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -48,4 +49,3 @@ def root():
 def health():
     """Health check endpoint."""
     return {"status": "healthy"}
-

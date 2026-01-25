@@ -2,12 +2,12 @@
 
 **Last Updated:** 2025-01-25
 **Current Phase:** Phase 1C: Places + PostGIS
-**Overall Progress:** 28% (7/25 sessions complete)
+**Overall Progress:** 32% (8/25 sessions complete)
 
 ---
 
 
-**Active Session:** Session 9: Place API endpoints (NEXT)
+**Active Session:** Session 10: Geospatial queries (NEXT)
 
 ---
 
@@ -63,7 +63,14 @@
   - [x] Unit tests (17 tests, all passing)
   - [x] PostGIS POINT format: SRID=4326;POINT(lng lat)
   - **Status:** ✅ Completed 2025-01-25
-- [ ] **Session 9:** Place CRUD endpoints (NEXT)
+- [x] **Session 9:** Place CRUD endpoints âœ… COMPLETE
+  - [x] Created Place API routes (POST, GET list, GET detail, PATCH, DELETE)
+  - [x] Implemented access control based on trip visibility
+  - [x] Ownership validation for create/update/delete
+  - [x] Geography conversion for lat/lng (POINT)
+  - [x] Order management with order_in_trip
+  - [x] Integration tests (25 tests via Codex)
+  - **Status:** ✅ Completed 2025-01-25
 - [ ] **Session 10:** Geospatial queries
 
 ### Phase 2A: Media Upload (Week 5-6)
@@ -91,7 +98,7 @@
 
 ## Progress Metrics
 
-**Completed Sessions:** 7/25 (28%)
+**Completed Sessions:** 8/25 (32%)
 **Completed Features:**
 - ✅ User authentication with Supabase JWT
 - ✅ User profile CRUD endpoints
@@ -99,149 +106,40 @@
 - ✅ Trip REST API with visibility-based access control
 - ✅ Place schemas and service layer with PostGIS Geography
 
+- ✅ Place CRUD API endpoints with access control
+
 **Blockers:** None
 
-**Next Milestone:** Complete Phase 1C (Sessions 9-10)
+**Next Milestone:** Complete Phase 1C (Session 10)
 
 ---
 
 ## Recent Commits
 
-### 2025-01-25 (Session 8)
-feat(places): add Place schemas and service layer with PostGIS
+### 2025-01-25 (Session 9)
+feat(places): add Place REST API endpoints
 COMPLETED:
-- Created Place schemas (PlaceBase, PlaceCreate, PlaceUpdate, PlaceResponse, PlaceListResponse)
-- Created PlaceService with business logic layer
-- Implemented create_place with PostGIS Geography conversion (lat/lng to POINT)
-- Implemented list_trip_places (ordered by order_in_trip)
-- Implemented update_place with Geography recalculation
-- Implemented delete_place with ownership validation
-- Implemented get_places_near_location with PostGIS ST_DWithin (geospatial query)
-- Added premium_user fixture to conftest.py
-- Created comprehensive unit tests (17 tests)
-
-POSTGIS IMPLEMENTATION:
-- Uses Geography(POINT, 4326) for accurate distance calculations
-- WKT format: SRID=4326;POINT(longitude latitude)
-- IMPORTANT: Longitude first, then latitude in ST_MakePoint
-- ST_DWithin for radius searches (meters)
-- ST_Distance for ordering by proximity
-- GIST spatial index on location column
-
-FILES CHANGED:
-- backend/app/schemas/place.py (new, 205 lines)
-- backend/app/services/place_service.py (new, 471 lines)
-- backend/tests/test_place_service.py (new, 570 lines)
-- backend/tests/conftest.py (modified, added premium_user fixture)
-
-TESTS: 17 passed in 4.36s
----
-
-### 2025-01-25 (Session 6)
-feat(trips): add Trip REST API endpoints
-COMPLETED:
-- Created Trip API routes in backend/app/api/v1/trips.py
-- Implemented POST /api/v1/trips (create trip with free tier limit)
-- Implemented GET /api/v1/trips (list user's trips with pagination)
-- Implemented GET /api/v1/trips/{id} (get trip detail with access control)
-- Implemented PATCH /api/v1/trips/{id} (update trip with ownership check)
-- Implemented DELETE /api/v1/trips/{id} (delete trip with cascade)
-- Registered trips router in backend/app/main.py
-- Comprehensive docstrings with examples for all endpoints
-- Integration tests (29 tests via Codex)
+- Created Place API routes in backend/app/api/v1/places.py
+- Implemented POST /api/v1/places (create with Geography conversion)
+- Implemented GET /api/v1/places (list by trip_id with visibility access control)
+- Implemented GET /api/v1/places/{id} (detail with access control)
+- Implemented PATCH /api/v1/places/{id} (update with ownership + Geography recalculation)
+- Implemented DELETE /api/v1/places/{id} (delete with ownership)
+- Registered places router in backend/app/main.py
+- Integration tests (25 tests via Codex)
 
 BUSINESS LOGIC:
-- Authentication required on all endpoints
-- Free tier limit enforced via service layer
-- Ownership validation prevents unauthorized updates/deletes
-- Visibility-based access control (private/unlisted/public)
-- Views counter increments only for non-owners
-- Pagination with query params
-- Partial updates supported
-- Cascade deletes to related records
+- Geography conversion uses SRID=4326;POINT(lng lat)
+- Trip visibility gates read access for non-owners
+- Ownership checks prevent unauthorized modifications
+- order_in_trip auto-set when not provided
 
 FILES CHANGED:
-- backend/app/api/v1/trips.py (new, 338 lines)
-- backend/app/main.py (modified, added trips router)
-- backend/tests/test_trip_endpoints.py (new, 29 tests via Codex)
+- backend/app/api/v1/places.py (new, 277 lines)
+- backend/app/main.py (modified, 43 lines)
+- backend/tests/test_place_endpoints.py (new, 268 lines)
 
-TESTS: 29 passed in 3.69s
+TESTS: 25 passed in 6.91s
 ---
 
-### 2025-01-25 (Session 5)
-feat(trips): add Trip schemas and service layer
-COMPLETED:
-- Created Trip schemas (TripBase, TripCreate, TripUpdate, TripResponse, TripListResponse)
-- Created TripService with business logic layer
-- Implemented get_trip_by_id (fetch trip by UUID)
-- Implemented get_user_trip_count (count user's trips)
-- Implemented create_trip with free tier limit check (3 trips max for non-premium users)
-- Implemented list_user_trips with pagination support
-- Implemented update_trip with ownership validation
-- Implemented delete_trip with ownership validation
-- Added date validation (end_date >= start_date) in both schema and service
-- Added visibility validation (private|unlisted|public)
-- Created comprehensive unit tests (15 test cases)
-- All tests passing with 89% coverage
-
-BUSINESS LOGIC:
-- Free tier users: max 3 trips (enforced in _check_free_tier_limit)
-- Premium users: unlimited trips
-- Ownership checks prevent unauthorized updates/deletes
-- Date validation handles partial updates correctly
-- Pagination capped at 100 items per page
-- Trips ordered by created_at DESC (newest first)
-
-NEXT SESSION:
-- Create Trip API endpoints in backend/app/api/v1/trips.py
-- Implement POST /trips, GET /trips, GET /trips/{id}, PATCH /trips/{id}, DELETE /trips/{id}
-- Add authentication with Depends(get_current_user)
-- Integrate TripService into API layer
-- Write integration tests (full request/response cycle)
-
-FILES CHANGED:
-- backend/app/schemas/trip.py (new, 201 lines)
-- backend/app/services/trip_service.py (new, 369 lines)
-- backend/tests/test_trip_service.py (new, 483 lines)
-
-TESTS: 15 passed, 89% coverage
----
-
-### 2025-01-24
-feat(users): add user profile CRUD endpoints
-COMPLETED:
-- Created user schemas (UserUpdate, UserResponse, UserStats)
-- Created UserService with business logic layer
-- Implemented GET /users/me (get profile)
-- Implemented PATCH /users/me (update profile)
-- Implemented GET /users/me/stats (detailed statistics)
-- Implemented GET /users/me/profile (combined response)
-- Added username uniqueness validation
-- Added username format validation (alphanumeric + underscore)
-- Comprehensive docstrings on all functions
-- Unit tests for user endpoints
-- Test fixtures for database and test user
-
-BUSINESS LOGIC:
-- Username must be unique across all users
-- Partial updates (only provided fields are updated)
-- Statistics calculated in real-time
-- Email changes must go through Supabase Auth
-
-NEXT SESSION:
-- Create Trip model endpoints (POST, GET, PATCH, DELETE)
-- Implement trip limit for free users (3 trips)
-- Add trip visibility filtering
-- Create trip service layer
-
-FILES CHANGED:
-- backend/app/schemas/user.py (new, 145 lines)
-- backend/app/services/user_service.py (new, 185 lines)
-- backend/app/api/v1/users.py (new, 195 lines)
-- backend/app/main.py (modified, added users router)
-- backend/tests/conftest.py (new, 75 lines)
-- backend/tests/test_users.py (new, 85 lines)
-
-TESTS: All user endpoint tests passing (4/4)
----
 

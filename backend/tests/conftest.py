@@ -171,3 +171,36 @@ def test_user(db):
     db.refresh(user)
 
     return user
+
+
+@pytest.fixture
+def premium_user(db):
+    """
+    Create premium test user.
+
+    Parameters:
+    ----------
+    db : Session
+        Test database session.
+
+    Returns:
+    -------
+    User
+        Premium user instance.
+    """
+    unique_id = str(uuid4())[:8]
+
+    user = User(
+        id=uuid4(),
+        email=f"premium_{unique_id}@example.com",
+        username=f"premium_{unique_id}",
+        hashed_password="hashed",
+        is_premium=True,  # Premium status
+        is_verified=True
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user

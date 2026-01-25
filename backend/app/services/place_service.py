@@ -9,7 +9,7 @@ Handles:
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, desc
+from sqlalchemy import func, cast, desc, select
 from geoalchemy2 import Geography
 from fastapi import HTTPException, status
 from typing import Optional, List
@@ -426,3 +426,59 @@ class PlaceService:
         )
 
         return query.all()
+
+    def calculate_distance(
+        self,
+        place1_id: UUID,
+        place2_id: UUID
+    ) -> float:
+        """
+        Calculate distance between two places using PostGIS ST_Distance.
+
+        Args:
+            place1_id: First place UUID
+            place2_id: Second place UUID
+
+        Returns:
+            Distance in kilometers
+
+        Raises:
+            HTTPException 404: One or both places not found
+
+        PostGIS Query:
+            - Uses ST_Distance to calculate geodesic distance
+            - Geography type uses WGS84 ellipsoid for accuracy
+            - Returns distance in meters (converted to km)
+
+        Business Logic:
+            - Both places must exist
+            - Returns straight-line distance (as the crow flies)
+            - Uses accurate ellipsoidal calculation (not planar)
+
+        Query Pattern:
+            1. Fetch both places
+            2. Use ST_Distance to calculate distance
+            3. Convert from meters to kilometers
+            4. Return distance
+        """
+        # Fetch both places
+        place1 = self.get_place_by_id(place1_id)
+        place2 = self.get_place_by_id(place2_id)
+
+        if not place1 or not place2:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or both places not found"
+            )
+
+        # Calculate distance using PostGIS ST_Distance
+        # ST_Distance returns meters for Geography type
+        distance_meters = self.db.query(
+            func.ST_Distance(
+                TripPlace.location,
+                (select(TripPlace.location).where(TripPlace.id == place2_id).scalar_subquery())
+            )
+        ).filter(TripPlace.id == place1_id).scalar()
+
+        # Convert meters to kilometers
+        return distance_meters / 1000.0 if distance_meters else 0.0

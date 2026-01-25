@@ -196,10 +196,10 @@ class PlaceListResponse(BaseModel):
     Attributes:
         places: List of places
         total: Total number of places
-        trip_id: Parent trip ID (for context)
+        trip_id: Parent trip ID (for context), None for nearby queries
 
-    Used for GET /places?trip_id={trip_id} endpoint.
+    Used for GET /places?trip_id={trip_id} and GET /places/nearby endpoints.
     """
     places: List[PlaceResponse]
     total: int
-    trip_id: UUID
+    trip_id: Optional[UUID] = None

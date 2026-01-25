@@ -16,6 +16,7 @@ from uuid import UUID
 
 from app.models.trip import Trip
 from app.models.user import User
+from app.models.place import TripPlace
 from app.schemas.trip import TripCreate, TripUpdate, TripListResponse, TripResponse
 
 
@@ -368,3 +369,69 @@ class TripService:
         # Delete
         self.db.delete(trip)
         self.db.commit()
+
+    def calculate_trip_bounds(self, trip_id: UUID) -> Optional[dict]:
+        """
+        Calculate geographic bounding box for a trip based on its places.
+
+        Args:
+            trip_id: Trip UUID
+
+        Returns:
+            Dictionary with min/max lat/lng, or None if trip has no places:
+            {
+                "min_lat": float,
+                "min_lng": float,
+                "max_lat": float,
+                "max_lng": float,
+                "center_lat": float,
+                "center_lng": float
+            }
+
+        Raises:
+            HTTPException 404: Trip not found
+
+        Business Logic:
+            - Calculates bounding box from all places in trip
+            - Returns None if trip has no places
+            - Useful for auto-centering map on trip
+            - Center point is average of bounds (not geographic center)
+
+        Query Pattern:
+            1. Verify trip exists
+            2. Query min/max of lat/lng from all trip places
+            3. Calculate center point
+            4. Return bounds + center
+        """
+        # Verify trip exists
+        trip = self.get_trip_by_id(trip_id)
+        if not trip:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Trip not found"
+            )
+
+        # Calculate bounds using SQL aggregation
+        result = self.db.query(
+            func.min(TripPlace.lat).label('min_lat'),
+            func.min(TripPlace.lng).label('min_lng'),
+            func.max(TripPlace.lat).label('max_lat'),
+            func.max(TripPlace.lng).label('max_lng')
+        ).filter(TripPlace.trip_id == trip_id).first()
+
+        # Return None if trip has no places
+        if result.min_lat is None:
+            return None
+
+        # Calculate center point (simple average of bounds)
+        center_lat = (result.min_lat + result.max_lat) / 2
+        center_lng = (result.min_lng + result.max_lng) / 2
+
+        return {
+            "min_lat": result.min_lat,
+            "min_lng": result.min_lng,
+            "max_lat": result.max_lat,
+            "max_lng": result.max_lng,
+            "center_lat": center_lat,
+            "center_lng": center_lng
+        }

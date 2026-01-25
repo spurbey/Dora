@@ -152,6 +152,87 @@ async def list_places(
     return result
 
 
+@router.get("/nearby", response_model=PlaceListResponse)
+async def get_nearby_places(
+    lat: float = Query(..., description="Search center latitude"),
+    lng: float = Query(..., description="Search center longitude"),
+    radius: float = Query(5.0, ge=0.1, le=50.0, description="Search radius in kilometers"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Find places near a location using PostGIS spatial query.
+
+    **Authentication:** Required
+
+    **Query Parameters:**
+    - lat: Center latitude (required, -90 to 90)
+    - lng: Center longitude (required, -180 to 180)
+    - radius: Search radius in km (default: 5.0, max: 50.0)
+
+    **Returns:**
+    List of user's places within radius, ordered by distance
+
+    **Response Example:**
+```json
+    {
+        "places": [
+            {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": "Eiffel Tower",
+                "lat": 48.8584,
+                "lng": 2.2945,
+                "distance_km": 0.0,
+                ...
+            },
+            {
+                "id": "987e6543-e21b-12d3-a456-426614174000",
+                "name": "Arc de Triomphe",
+                "lat": 48.8738,
+                "lng": 2.2950,
+                "distance_km": 2.1,
+                ...
+            }
+        ],
+        "total": 2,
+        "search_center": {"lat": 48.8584, "lng": 2.2945},
+        "radius_km": 5.0
+    }
+```
+
+    **Errors:**
+    - 400: Invalid coordinates or radius
+    - 401: Not authenticated
+
+    **Business Logic:**
+    - Only returns current user's places
+    - Uses PostGIS ST_DWithin for efficient spatial search
+    - Results ordered by distance (closest first)
+    - Maximum radius capped at 50km
+    - Uses GIST spatial index for fast queries
+
+    **PostGIS Query:**
+    - ST_DWithin: Find places within radius
+    - ST_Distance: Calculate distance for ordering
+    - Geography type: Accurate ellipsoidal calculations
+    """
+    service = PlaceService(db)
+
+    # Get places within radius (already filtered by user_id)
+    places = service.get_places_near_location(
+        lat=lat,
+        lng=lng,
+        radius_km=radius,
+        user_id=current_user.id
+    )
+
+    return PlaceListResponse(
+        places=[PlaceResponse.model_validate(place) for place in places],
+        total=len(places),
+        trip_id=None  # Not filtering by trip
+    )
+
+
 @router.get("/{place_id}", response_model=PlaceResponse)
 async def get_place(
     place_id: UUID,

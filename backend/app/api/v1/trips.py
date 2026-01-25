@@ -321,3 +321,82 @@ async def delete_trip(
     service = TripService(db)
     service.delete_trip(trip_id, current_user.id)
     # No return value for 204 No Content
+
+
+@router.get("/{trip_id}/bounds")
+async def get_trip_bounds(
+    trip_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get geographic bounding box for a trip based on its places.
+
+    **Authentication:** Required
+
+    **Permissions:**
+    - Trip owner can always view
+    - Non-owner can view if trip is public/unlisted
+
+    **Path Parameters:**
+    - trip_id: Trip UUID
+
+    **Returns:**
+    Bounding box with min/max coordinates and center point, or null if no places
+
+    **Response Example:**
+```json
+    {
+        "min_lat": 48.8530,
+        "min_lng": 2.2945,
+        "max_lat": 48.8738,
+        "max_lng": 2.3499,
+        "center_lat": 48.8634,
+        "center_lng": 2.3222
+    }
+```
+
+    **Null Response (no places):**
+```json
+    null
+```
+
+    **Errors:**
+    - 401: Not authenticated
+    - 403: Trip is private and user is not owner
+    - 404: Trip not found
+
+    **Business Logic:**
+    - Calculates bounding box from all places in trip
+    - Returns null if trip has no places
+    - Access control based on trip visibility
+    - Useful for auto-centering map on trip
+    - Center is simple average of bounds (not geographic centroid)
+
+    **Use Cases:**
+    - Auto-fit map to show all places in trip
+    - Calculate zoom level for trip map view
+    - Determine trip geographic span
+    """
+    service = TripService(db)
+
+    # Get trip to check access
+    trip = service.get_trip_by_id(trip_id)
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trip not found"
+        )
+
+    # Access control
+    is_owner = trip.user_id == current_user.id
+    if not is_owner and trip.visibility == "private":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this trip"
+        )
+
+    # Calculate bounds
+    bounds = service.calculate_trip_bounds(trip_id)
+
+    return bounds

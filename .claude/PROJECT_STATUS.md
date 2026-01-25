@@ -1,13 +1,13 @@
 # Project Status - Travel Memory Vault
 
 **Last Updated:** 2025-01-25
-**Current Phase:** Phase 1B: Trips CRUD
-**Overall Progress:** 20% (5/25 sessions complete)
+**Current Phase:** Phase 1C: Places + PostGIS
+**Overall Progress:** 24% (6/25 sessions complete)
 
 ---
 
 
-**Active Session:** Session 6: Trip API endpoints (NEXT)
+**Active Session:** Session 8: Place models with PostGIS (NEXT)
 
 ---
 
@@ -37,7 +37,7 @@
   - [x] Tested with real Supabase token
 - [x] **Session 4:** User profile endpoints
 
-### Phase 1B: Trips CRUD (Week 3-4)
+### Phase 1B: Trips CRUD (Week 3-4) ✅ COMPLETE
 - [x] **Session 5:** Trip models + schemas ✅ COMPLETE
   - [x] Created Trip schemas (TripBase, TripCreate, TripUpdate, TripResponse, TripListResponse)
   - [x] Created TripService with business logic
@@ -45,11 +45,18 @@
   - [x] Implemented ownership validation
   - [x] Unit tests (15 tests, 89% coverage)
   - **Status:** ✅ Completed 2025-01-25
-- [ ] **Session 6:** Trip API endpoints
-- [ ] **Session 7:** Trip tests
+- [x] **Session 6:** Trip API endpoints ✅ COMPLETE
+  - [x] Created 5 REST API endpoints (POST, GET list, GET detail, PATCH, DELETE)
+  - [x] Implemented authentication on all endpoints
+  - [x] Implemented visibility-based access control (private/unlisted/public)
+  - [x] Implemented pagination with query params
+  - [x] Views tracking (increments for non-owners)
+  - [x] Integration tests (29 tests via Codex)
+  - **Status:** ✅ Completed 2025-01-25
+- [x] **Session 7:** Trip tests ✅ SKIPPED (tests completed in Session 6)
 
 ### Phase 1C: Places + PostGIS (Week 4-5)
-- [ ] **Session 8:** Place models with PostGIS
+- [ ] **Session 8:** Place models with PostGIS (NEXT)
 - [ ] **Session 9:** Place CRUD endpoints
 - [ ] **Session 10:** Geospatial queries
 
@@ -78,19 +85,53 @@
 
 ## Progress Metrics
 
-**Completed Sessions:** 5/25 (20%)
+**Completed Sessions:** 6/25 (24%)
 **Completed Features:**
-- Trip schemas and service layer with free tier enforcement
+- ✅ User authentication with Supabase JWT
+- ✅ User profile CRUD endpoints
+- ✅ Trip schemas and service layer with free tier enforcement
+- ✅ Trip REST API with visibility-based access control
 
 **Blockers:** None
 
-**Next Milestone:** Complete Phase 1B (Sessions 6-7)
+**Next Milestone:** Complete Phase 1C (Sessions 8-10)
 
 ---
 
 ## Recent Commits
 
-### 2025-01-25
+### 2025-01-25 (Session 6)
+feat(trips): add Trip REST API endpoints
+COMPLETED:
+- Created Trip API routes in backend/app/api/v1/trips.py
+- Implemented POST /api/v1/trips (create trip with free tier limit)
+- Implemented GET /api/v1/trips (list user's trips with pagination)
+- Implemented GET /api/v1/trips/{id} (get trip detail with access control)
+- Implemented PATCH /api/v1/trips/{id} (update trip with ownership check)
+- Implemented DELETE /api/v1/trips/{id} (delete trip with cascade)
+- Registered trips router in backend/app/main.py
+- Comprehensive docstrings with examples for all endpoints
+- Integration tests (29 tests via Codex)
+
+BUSINESS LOGIC:
+- Authentication required on all endpoints
+- Free tier limit enforced via service layer
+- Ownership validation prevents unauthorized updates/deletes
+- Visibility-based access control (private/unlisted/public)
+- Views counter increments only for non-owners
+- Pagination with query params
+- Partial updates supported
+- Cascade deletes to related records
+
+FILES CHANGED:
+- backend/app/api/v1/trips.py (new, 338 lines)
+- backend/app/main.py (modified, added trips router)
+- backend/tests/test_trip_endpoints.py (new, 29 tests via Codex)
+
+TESTS: 29 passed in 3.69s
+---
+
+### 2025-01-25 (Session 5)
 feat(trips): add Trip schemas and service layer
 COMPLETED:
 - Created Trip schemas (TripBase, TripCreate, TripUpdate, TripResponse, TripListResponse)

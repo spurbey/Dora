@@ -2,12 +2,12 @@
 
 **Last Updated:** 2025-01-25
 **Current Phase:** Phase 1C: Places + PostGIS
-**Overall Progress:** 24% (6/25 sessions complete)
+**Overall Progress:** 28% (7/25 sessions complete)
 
 ---
 
 
-**Active Session:** Session 8: Place models with PostGIS (NEXT)
+**Active Session:** Session 9: Place API endpoints (NEXT)
 
 ---
 
@@ -56,8 +56,14 @@
 - [x] **Session 7:** Trip tests ✅ SKIPPED (tests completed in Session 6)
 
 ### Phase 1C: Places + PostGIS (Week 4-5)
-- [ ] **Session 8:** Place models with PostGIS (NEXT)
-- [ ] **Session 9:** Place CRUD endpoints
+- [x] **Session 8:** Place models with PostGIS ✅ COMPLETE
+  - [x] Created Place schemas with coordinate validation
+  - [x] Created PlaceService with PostGIS Geography conversion
+  - [x] Implemented geospatial query (get_places_near_location with ST_DWithin)
+  - [x] Unit tests (17 tests, all passing)
+  - [x] PostGIS POINT format: SRID=4326;POINT(lng lat)
+  - **Status:** ✅ Completed 2025-01-25
+- [ ] **Session 9:** Place CRUD endpoints (NEXT)
 - [ ] **Session 10:** Geospatial queries
 
 ### Phase 2A: Media Upload (Week 5-6)
@@ -85,20 +91,51 @@
 
 ## Progress Metrics
 
-**Completed Sessions:** 6/25 (24%)
+**Completed Sessions:** 7/25 (28%)
 **Completed Features:**
 - ✅ User authentication with Supabase JWT
 - ✅ User profile CRUD endpoints
 - ✅ Trip schemas and service layer with free tier enforcement
 - ✅ Trip REST API with visibility-based access control
+- ✅ Place schemas and service layer with PostGIS Geography
 
 **Blockers:** None
 
-**Next Milestone:** Complete Phase 1C (Sessions 8-10)
+**Next Milestone:** Complete Phase 1C (Sessions 9-10)
 
 ---
 
 ## Recent Commits
+
+### 2025-01-25 (Session 8)
+feat(places): add Place schemas and service layer with PostGIS
+COMPLETED:
+- Created Place schemas (PlaceBase, PlaceCreate, PlaceUpdate, PlaceResponse, PlaceListResponse)
+- Created PlaceService with business logic layer
+- Implemented create_place with PostGIS Geography conversion (lat/lng to POINT)
+- Implemented list_trip_places (ordered by order_in_trip)
+- Implemented update_place with Geography recalculation
+- Implemented delete_place with ownership validation
+- Implemented get_places_near_location with PostGIS ST_DWithin (geospatial query)
+- Added premium_user fixture to conftest.py
+- Created comprehensive unit tests (17 tests)
+
+POSTGIS IMPLEMENTATION:
+- Uses Geography(POINT, 4326) for accurate distance calculations
+- WKT format: SRID=4326;POINT(longitude latitude)
+- IMPORTANT: Longitude first, then latitude in ST_MakePoint
+- ST_DWithin for radius searches (meters)
+- ST_Distance for ordering by proximity
+- GIST spatial index on location column
+
+FILES CHANGED:
+- backend/app/schemas/place.py (new, 205 lines)
+- backend/app/services/place_service.py (new, 471 lines)
+- backend/tests/test_place_service.py (new, 570 lines)
+- backend/tests/conftest.py (modified, added premium_user fixture)
+
+TESTS: 17 passed in 4.36s
+---
 
 ### 2025-01-25 (Session 6)
 feat(trips): add Trip REST API endpoints

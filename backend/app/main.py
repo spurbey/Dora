@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 # Import routers
-from app.api.v1 import auth, users, trips, places
+from app.api.v1 import auth, users, trips, places, media
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -35,7 +35,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(trips.router, prefix="/api/v1")
 app.include_router(places.router, prefix="/api/v1")
-
+app.include_router(media.router, prefix="/api/v1")
 
 @app.get("/")
 def root():

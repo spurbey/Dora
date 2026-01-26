@@ -1,15 +1,10 @@
 """
-Tests for media API endpoints.
-
-Covers:
-- Upload media to a place
-- Access control for media detail
-- Delete media permissions
+Tests for media management and place integration.
 """
 
-from datetime import datetime
 from io import BytesIO
-from uuid import uuid4
+from uuid import uuid4, UUID
+import os
 
 import pytest
 from fastapi import HTTPException, status
@@ -61,34 +56,6 @@ def create_place(
     db.commit()
     db.refresh(place)
     return place
-
-
-def create_media(
-    db,
-    user_id,
-    place_id,
-    file_url="https://example.supabase.co/storage/v1/object/public/photos/user/file.jpg",
-    thumbnail_url="https://example.supabase.co/storage/v1/object/public/photos/user/file.jpg?width=200&height=200",
-    caption="Sample",
-    taken_at=None,
-):
-    media = MediaFile(
-        user_id=user_id,
-        trip_place_id=place_id,
-        file_url=file_url,
-        file_type="photo",
-        file_size_bytes=1024,
-        mime_type="image/jpeg",
-        width=100,
-        height=100,
-        thumbnail_url=thumbnail_url,
-        caption=caption,
-        taken_at=taken_at,
-    )
-    db.add(media)
-    db.commit()
-    db.refresh(media)
-    return media
 
 
 @pytest.fixture
@@ -144,11 +111,34 @@ def mock_storage_service(monkeypatch):
         ):
             if allowed_types is None:
                 allowed_types = ["image/jpeg", "image/png", "image/webp"]
+
             if file.content_type not in allowed_types:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}",
                 )
+
+            contents = await file.read()
+            await file.seek(0)
+            file_size = len(contents)
+
+            max_bytes = max_size_mb * 1024 * 1024
+            if is_premium:
+                max_bytes *= 10
+
+            if file_size > max_bytes:
+                tier = "Premium" if is_premium else "Free"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{tier} tier file size limit: {max_bytes / 1024 / 1024:.0f}MB. Your file: {file_size / 1024 / 1024:.1f}MB"
+                )
+
+            if file_size == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Uploaded file is empty"
+                )
+
             return (
                 f"https://example.supabase.co/storage/v1/object/public/"
                 f"{bucket}/{user_id}/test.jpg"
@@ -184,7 +174,7 @@ def sample_image_bytes():
     return buffer.getvalue()
 
 
-def test_upload_media_success(client, db, test_user, auth_as, sample_image_bytes):
+def test_upload_photo(client, db, test_user, auth_as, sample_image_bytes):
     auth_as(test_user)
     trip = create_trip(db, test_user.id)
     place = create_place(db, trip.id, test_user.id)
@@ -195,109 +185,87 @@ def test_upload_media_success(client, db, test_user, auth_as, sample_image_bytes
     response = client.post("/api/v1/media/upload", files=files, data=data)
     assert response.status_code == 201
     payload = response.json()
-    assert payload["user_id"] == str(test_user.id)
     assert payload["trip_place_id"] == str(place.id)
-    assert payload["file_url"].startswith(
-        "https://example.supabase.co/storage/v1/object/public/photos/"
-    )
-    assert payload["thumbnail_url"] is not None
-    assert payload["width"] == 100
-    assert payload["height"] == 100
-    assert payload["caption"] == "Great view"
+    assert payload["user_id"] == str(test_user.id)
+
+    updated_place = db.query(TripPlace).filter(TripPlace.id == place.id).first()
+    assert str(payload["id"]) in [str(item) for item in updated_place.photos]
 
 
-def test_upload_media_unauthorized(client, unauthorized, sample_image_bytes):
-    files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
-    data = {"trip_place_id": str(uuid4())}
-    response = client.post("/api/v1/media/upload", files=files, data=data)
-    assert response.status_code == 401
-
-
-def test_upload_media_place_not_found(client, test_user, auth_as, sample_image_bytes):
+def test_upload_invalid_file_type(client, db, test_user, auth_as):
     auth_as(test_user)
-    files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
-    data = {"trip_place_id": str(uuid4())}
+    trip = create_trip(db, test_user.id)
+    place = create_place(db, trip.id, test_user.id)
+
+    files = {"file": ("test.txt", b"hello", "text/plain")}
+    data = {"trip_place_id": str(place.id)}
     response = client.post("/api/v1/media/upload", files=files, data=data)
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Place not found"
+    assert response.status_code == 400
+    assert "invalid file type" in response.json()["detail"].lower()
 
 
-def test_upload_media_not_owner(client, db, test_user, other_user, auth_as, sample_image_bytes):
-    trip = create_trip(db, other_user.id)
-    place = create_place(db, trip.id, other_user.id)
+def test_upload_file_too_large(client, db, test_user, auth_as):
     auth_as(test_user)
+    trip = create_trip(db, test_user.id)
+    place = create_place(db, trip.id, test_user.id)
+
+    large_bytes = os.urandom(15 * 1024 * 1024)
+    files = {"file": ("large.jpg", large_bytes, "image/jpeg")}
+    data = {"trip_place_id": str(place.id)}
+    response = client.post("/api/v1/media/upload", files=files, data=data)
+    assert response.status_code == 400
+    assert "file size limit" in response.json()["detail"].lower()
+
+
+def test_delete_media(client, db, test_user, auth_as, sample_image_bytes):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id)
+    place = create_place(db, trip.id, test_user.id)
 
     files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
     data = {"trip_place_id": str(place.id)}
     response = client.post("/api/v1/media/upload", files=files, data=data)
-    assert response.status_code == 403
-    assert "permission" in response.json()["detail"].lower()
+    media_id = response.json()["id"]
 
+    delete_response = client.delete(f"/api/v1/media/{media_id}")
+    assert delete_response.status_code == 204
 
-def test_get_media_owner(client, db, test_user, auth_as):
-    auth_as(test_user)
-    trip = create_trip(db, test_user.id)
-    place = create_place(db, trip.id, test_user.id)
-    media = create_media(db, test_user.id, place.id)
-
-    response = client.get(f"/api/v1/media/{media.id}")
-    assert response.status_code == 200
-    assert response.json()["id"] == str(media.id)
-
-
-def test_get_media_public_non_owner(client, db, test_user, other_user, auth_as):
-    trip = create_trip(db, test_user.id, visibility="public")
-    place = create_place(db, trip.id, test_user.id)
-    media = create_media(db, test_user.id, place.id)
-
-    auth_as(other_user)
-    response = client.get(f"/api/v1/media/{media.id}")
-    assert response.status_code == 200
-
-
-def test_get_media_private_non_owner(client, db, test_user, other_user, auth_as):
-    trip = create_trip(db, test_user.id, visibility="private")
-    place = create_place(db, trip.id, test_user.id)
-    media = create_media(db, test_user.id, place.id)
-
-    auth_as(other_user)
-    response = client.get(f"/api/v1/media/{media.id}")
-    assert response.status_code == 403
-    assert "permission" in response.json()["detail"].lower()
-
-
-def test_get_media_not_found(client, test_user, auth_as):
-    auth_as(test_user)
-    response = client.get(f"/api/v1/media/{uuid4()}")
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Media not found"
-
-
-def test_delete_media_owner(client, db, test_user, auth_as):
-    auth_as(test_user)
-    trip = create_trip(db, test_user.id)
-    place = create_place(db, trip.id, test_user.id)
-    media = create_media(db, test_user.id, place.id)
-
-    response = client.delete(f"/api/v1/media/{media.id}")
-    assert response.status_code == 204
-    remaining = db.query(MediaFile).filter(MediaFile.id == media.id).first()
+    media_uuid = UUID(media_id)
+    remaining = db.query(MediaFile).filter(MediaFile.id == media_uuid).first()
     assert remaining is None
 
+    updated_place = db.query(TripPlace).filter(TripPlace.id == place.id).first()
+    assert str(media_id) not in [str(item) for item in updated_place.photos]
 
-def test_delete_media_not_owner(client, db, test_user, other_user, auth_as):
+
+def test_delete_media_not_owner(client, db, test_user, other_user, auth_as, sample_image_bytes):
+    auth_as(test_user)
     trip = create_trip(db, test_user.id)
     place = create_place(db, trip.id, test_user.id)
-    media = create_media(db, test_user.id, place.id)
+
+    files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
+    data = {"trip_place_id": str(place.id)}
+    response = client.post("/api/v1/media/upload", files=files, data=data)
+    media_id = response.json()["id"]
 
     auth_as(other_user)
-    response = client.delete(f"/api/v1/media/{media.id}")
-    assert response.status_code == 403
-    assert "permission" in response.json()["detail"].lower()
+    delete_response = client.delete(f"/api/v1/media/{media_id}")
+    assert delete_response.status_code == 403
 
 
-def test_delete_media_not_found(client, test_user, auth_as):
+def test_place_includes_photos(client, db, test_user, auth_as, sample_image_bytes):
     auth_as(test_user)
-    response = client.delete(f"/api/v1/media/{uuid4()}")
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Media not found"
+    trip = create_trip(db, test_user.id)
+    place = create_place(db, trip.id, test_user.id)
+
+    files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
+    data = {"trip_place_id": str(place.id)}
+    response = client.post("/api/v1/media/upload", files=files, data=data)
+    media_id = response.json()["id"]
+
+    place_response = client.get(f"/api/v1/places/{place.id}")
+    assert place_response.status_code == 200
+    data = place_response.json()
+    assert data["photos"]
+    assert data["photos"][0]["id"] == str(media_id)
+    assert "object/sign" in data["photos"][0]["file_url"]

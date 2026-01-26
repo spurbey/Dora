@@ -5,7 +5,7 @@ Schemas for place CRUD requests and responses.
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from uuid import UUID
 
@@ -158,7 +158,7 @@ class PlaceResponse(BaseModel):
         user_notes: Personal notes
         user_rating: Rating 1-5
         visit_date: Date of visit
-        photos: Array of photo metadata
+        photos: Array of photo metadata or media objects
         videos: Array of video metadata
         external_data: Cached API data
         order_in_trip: Position in itinerary
@@ -178,7 +178,7 @@ class PlaceResponse(BaseModel):
     user_notes: Optional[str] = None
     user_rating: Optional[int] = None
     visit_date: Optional[date] = None
-    photos: List[Dict[str, Any]] = []
+    photos: List[Union[UUID, Dict[str, Any]]] = []
     videos: List[Dict[str, Any]] = []
     external_data: Optional[Dict[str, Any]] = None
     order_in_trip: Optional[int] = None

@@ -226,6 +226,72 @@ class StorageService:
 
         # CHANGED: remove trailing "?"
         return response.rstrip("?") if response.endswith("?") else response
+
+    def build_thumbnail_url(
+        self,
+        base_url: str,
+        width: int = 200,
+        height: int = 200
+    ) -> str:
+        """
+        Build thumbnail URL with Supabase image transformations.
+
+        Args:
+            base_url: Base URL (public or signed)
+            width: Thumbnail width in pixels
+            height: Thumbnail height in pixels
+
+        Returns:
+            str: URL with transformation parameters
+        """
+        separator = "&" if "?" in base_url else "?"
+        return f"{base_url}{separator}width={width}&height={height}"
+
+    def get_signed_url(
+        self,
+        bucket: str,
+        file_path: str,
+        expires_in: int = 3600
+    ) -> str:
+        """
+        Get signed URL for private access.
+
+        Args:
+            bucket: Storage bucket name
+            file_path: File path within bucket
+            expires_in: Expiration time in seconds
+
+        Returns:
+            str: Signed URL
+        """
+        try:
+            response = self.supabase.storage.from_(bucket).create_signed_url(
+                file_path,
+                expires_in
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Signed URL generation failed: {str(e)}"
+            )
+
+        signed_url = None
+        if isinstance(response, dict):
+            signed_url = (
+                response.get("signedURL")
+                or response.get("signedUrl")
+                or response.get("signed_url")
+            )
+        elif isinstance(response, str):
+            signed_url = response
+
+        if not signed_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Signed URL generation failed"
+            )
+
+        return signed_url
     
     def get_thumbnail_url(
         self, 
@@ -253,8 +319,4 @@ class StorageService:
             Supabase automatically generates thumbnails on-the-fly.
         """
         base_url = self.get_public_url(bucket, file_path)
-
-        # CHANGED: avoid ??
-        separator = "&" if "?" in base_url else "?"
-
-        return f"{base_url}{separator}width={width}&height={height}"
+        return self.build_thumbnail_url(base_url, width=width, height=height)

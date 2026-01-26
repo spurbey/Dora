@@ -103,6 +103,73 @@ class MediaService:
             return img.width, img.height
         except Exception:
             return None, None
+
+    def _extract_file_path(self, file_url: str, bucket: str = "photos") -> str:
+        """
+        Extract storage file path from public URL.
+
+        Args:
+            file_url: Full public URL
+            bucket: Storage bucket name
+
+        Returns:
+            File path within bucket
+        """
+        marker = f"/storage/v1/object/public/{bucket}/"
+        if marker not in file_url:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Invalid file URL format"
+            )
+
+        return file_url.split(marker, 1)[1].split("?")[0]
+
+    def _add_media_to_place_photos(self, place: TripPlace, media_id: UUID) -> None:
+        """
+        Add media ID to place photos array.
+
+        Args:
+            place: TripPlace instance
+            media_id: Media UUID to add
+        """
+        photos = place.photos or []
+        media_id_str = str(media_id)
+
+        existing_ids = set()
+        for item in photos:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                if item_id:
+                    existing_ids.add(str(item_id))
+            else:
+                existing_ids.add(str(item))
+
+        if media_id_str not in existing_ids:
+            photos.append(media_id_str)
+
+        place.photos = photos
+
+    def _remove_media_from_place_photos(self, place: TripPlace, media_id: UUID) -> None:
+        """
+        Remove media ID from place photos array.
+
+        Args:
+            place: TripPlace instance
+            media_id: Media UUID to remove
+        """
+        media_id_str = str(media_id)
+        updated_photos = []
+
+        for item in place.photos or []:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+            else:
+                item_id = item
+
+            if str(item_id) != media_id_str:
+                updated_photos.append(item)
+
+        place.photos = updated_photos
     
     async def upload_photo(
         self,
@@ -161,8 +228,7 @@ class MediaService:
         )
         
         # Extract file path from URL for thumbnail
-        # URL: https://xxx.supabase.co/storage/v1/object/public/photos/user_id/file.jpg
-        file_path = file_url.split('/storage/v1/object/public/photos/')[1].split("?")[0]
+        file_path = self._extract_file_path(file_url)
         
         # Get image dimensions
         width, height = self._get_image_dimensions(file_bytes)
@@ -191,6 +257,10 @@ class MediaService:
         )
         
         self.db.add(media)
+        self.db.flush()
+
+        self._add_media_to_place_photos(place, media.id)
+
         self.db.commit()
         self.db.refresh(media)
         
@@ -250,18 +320,59 @@ class MediaService:
                 detail="You do not have permission to delete this media"
             )
         
-        # Extract file path from URL
-        # URL: https://xxx.supabase.co/storage/v1/object/public/photos/user_id/file.jpg
+        # Delete from Supabase Storage
         try:
-            file_path = media.file_url.split('/storage/v1/object/public/photos/')[1].split("?")[0]
-            
-            # Delete from Supabase Storage
+            file_path = self._extract_file_path(media.file_url)
             self.storage_service.delete_file("photos", file_path)
-            
         except Exception as e:
-            # Log error but continue with database deletion
             print(f"Warning: Failed to delete file from storage: {e}")
-        
-        # Delete from database
+
+        place = self.db.query(TripPlace).filter(
+            TripPlace.id == media.trip_place_id
+        ).first()
+        if place:
+            self._remove_media_from_place_photos(place, media.id)
+
         self.db.delete(media)
         self.db.commit()
+
+    def build_media_response(
+        self,
+        media: MediaFile,
+        signed: bool = False,
+        expires_in: int = 3600
+    ) -> MediaResponse:
+        """
+        Build MediaResponse with optional signed URLs.
+
+        Args:
+            media: MediaFile instance
+            signed: Whether to use signed URLs
+            expires_in: Signed URL expiration in seconds
+
+        Returns:
+            MediaResponse
+        """
+        response = MediaResponse.model_validate(media)
+
+        if not signed:
+            return response
+
+        file_path = self._extract_file_path(response.file_url)
+        signed_url = self.storage_service.get_signed_url(
+            bucket="photos",
+            file_path=file_path,
+            expires_in=expires_in
+        )
+        signed_thumbnail = self.storage_service.build_thumbnail_url(
+            signed_url,
+            width=200,
+            height=200
+        )
+
+        return response.model_copy(
+            update={
+                "file_url": signed_url,
+                "thumbnail_url": signed_thumbnail
+            }
+        )

@@ -183,7 +183,8 @@ async def get_media(
             detail="You do not have permission to view this media"
         )
     
-    return MediaResponse.model_validate(media)
+    use_signed = trip.visibility == "private"
+    return service.build_media_response(media, signed=use_signed)
 
 
 @router.delete("/{media_id}", status_code=status.HTTP_204_NO_CONTENT)

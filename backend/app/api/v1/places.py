@@ -18,8 +18,10 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.trip import Trip
+from app.models.media import MediaFile
 from app.schemas.place import PlaceCreate, PlaceUpdate, PlaceResponse, PlaceListResponse
 from app.services.place_service import PlaceService
+from app.services.media_service import MediaService
 
 
 router = APIRouter(prefix="/places", tags=["Places"])
@@ -313,7 +315,36 @@ async def get_place(
             detail="You do not have permission to view this place"
         )
 
-    return PlaceResponse.model_validate(place)
+    media_service = MediaService(db)
+
+    photo_ids = []
+    for item in place.photos or []:
+        if isinstance(item, dict):
+            item_id = item.get("id")
+            if item_id:
+                photo_ids.append(str(item_id))
+        else:
+            photo_ids.append(str(item))
+
+    photos = []
+    if photo_ids:
+        media_items = db.query(MediaFile).filter(
+            MediaFile.id.in_(photo_ids)
+        ).all()
+        media_map = {str(media_item.id): media_item for media_item in media_items}
+        use_signed = trip.visibility == "private"
+        photos = [
+            media_service.build_media_response(
+                media_map[photo_id],
+                signed=use_signed
+            ).model_dump()
+            for photo_id in photo_ids
+            if photo_id in media_map
+        ]
+
+    place_data = PlaceResponse.model_validate(place).model_dump()
+    place_data["photos"] = photos
+    return PlaceResponse.model_validate(place_data)
 
 
 @router.patch("/{place_id}", response_model=PlaceResponse)

@@ -121,7 +121,7 @@ class TripPlace(Base):
     photos = Column(
         JSONB,
         default=list,
-        comment="Array of photo objects: [{url, caption, order}]"
+        comment="Array of photo media IDs"
     )
     videos = Column(
         JSONB,

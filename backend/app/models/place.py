@@ -6,7 +6,7 @@ Uses PostGIS Geography type for accurate distance calculations.
 """
 
 from sqlalchemy import Column, String, Text, Date, Integer, Float, DateTime, ForeignKey, CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TSVECTOR
 from geoalchemy2 import Geography
 from sqlalchemy.sql import func
 import uuid
@@ -140,7 +140,13 @@ class TripPlace(Base):
         Integer,
         comment="Position in trip itinerary"
     )
-    
+
+    # Full-text search (Session 14)
+    search_vector = Column(
+        TSVECTOR,
+        comment="Full-text search vector (auto-updated by trigger)"
+    )
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),

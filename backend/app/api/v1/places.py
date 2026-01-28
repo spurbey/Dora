@@ -9,7 +9,7 @@ Endpoints:
     - DELETE /places/{id}: Delete place
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
@@ -22,6 +22,7 @@ from app.models.media import MediaFile
 from app.schemas.place import PlaceCreate, PlaceUpdate, PlaceResponse, PlaceListResponse
 from app.services.place_service import PlaceService
 from app.services.media_service import MediaService
+from app.services.search_service import log_place_view, log_place_save
 
 
 router = APIRouter(prefix="/places", tags=["Places"])
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/places", tags=["Places"])
 @router.post("", response_model=PlaceResponse, status_code=status.HTTP_201_CREATED)
 async def create_place(
     place_data: PlaceCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -89,6 +91,15 @@ async def create_place(
     """
     service = PlaceService(db)
     place = service.create_place(current_user.id, place_data)
+
+    # Log place save in background (strongest signal for ranking)
+    background_tasks.add_task(
+        log_place_save,
+        db=next(get_db()),  # New session for background task
+        user_id=str(current_user.id),
+        place_id=str(place.id)
+    )
+
     return PlaceResponse.model_validate(place)
 
 
@@ -238,6 +249,7 @@ async def get_nearby_places(
 @router.get("/{place_id}", response_model=PlaceResponse)
 async def get_place(
     place_id: UUID,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -344,6 +356,16 @@ async def get_place(
 
     place_data = PlaceResponse.model_validate(place).model_dump()
     place_data["photos"] = photos
+
+    # Log place view in background (user clicked to view details)
+    background_tasks.add_task(
+        log_place_view,
+        db=next(get_db()),  # New session for background task
+        user_id=str(current_user.id),
+        place_id=str(place_id),
+        source="local"  # All places in DB are local source
+    )
+
     return PlaceResponse.model_validate(place_data)
 
 

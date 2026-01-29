@@ -26,7 +26,7 @@ src/
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
 api.interceptors.request.use((config) => {
@@ -54,23 +54,27 @@ export function useTrips() {
 ### Mapbox Integration
 ```typescript
 // components/Map/MapView.tsx
-import Map, { Marker } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { mapboxgl } from '@/lib/mapbox';
 
 export function MapView({ places }) {
-  return (
-    <Map
-      mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-      style={{ width: '100%', height: '100%' }}
-      mapStyle="mapbox://styles/mapbox/streets-v12"
-    >
-      {places.map(place => (
-        <Marker key={place.id} latitude={place.lat} longitude={place.lng} />
-      ))}
-    </Map>
-  );
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+  });
 }
 ```
+
+## Environment Variables
+```
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_MAPBOX_TOKEN=your_token_here
+```
+
+## Type Convention
+- Use snake_case for all API-facing interfaces (match backend exactly)
 
 ## Commands
 ```bash

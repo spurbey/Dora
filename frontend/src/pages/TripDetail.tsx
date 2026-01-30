@@ -6,23 +6,32 @@ import { Sidebar } from '@/components/Layout/Sidebar';
 import { PageContainer } from '@/components/Layout/PageContainer';
 import { TripHeader } from '@/components/Trip/TripHeader';
 import { TripForm } from '@/components/Trip/TripForm';
+import { TripTimeline } from '@/components/Trip/TripTimeline';
 import { EmptyState } from '@/components/Shared/EmptyState';
 import { LoadingPage } from '@/components/Shared/LoadingSpinner';
 import { ConfirmDialog } from '@/components/Shared/ConfirmDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTrip, useUpdateTrip, useDeleteTrip } from '@/hooks/useTrips';
+import { usePlaces } from '@/hooks/usePlaces';
 import type { TripUpdate } from '@/types/trip';
 
 export function TripDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: trip, isLoading, error } = useTrip(id ?? '');
+  const { data: places = [] } = usePlaces(id ?? '');
   const updateTrip = useUpdateTrip();
   const deleteTrip = useDeleteTrip();
 
   const [formOpen, setFormOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('places');
+  const [activeTab, setActiveTab] = useState('timeline');
+
+  // Calculate center location from first place, or default to Paris
+  const centerLocation =
+    places.length > 0
+      ? { lat: places[0].lat, lng: places[0].lng }
+      : { lat: 48.8566, lng: 2.3522 };
 
   const handleEditSubmit = async (data: TripUpdate) => {
     if (!id) return;
@@ -94,19 +103,19 @@ export function TripDetail() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
           <TabsList className="border-b border-white/10 bg-transparent">
             <TabsTrigger
-              value="places"
+              value="timeline"
               className="data-[state=active]:border-b-2 data-[state=active]:border-emerald-400 data-[state=active]:text-emerald-400"
             >
-              <MapPin className="mr-2 h-4 w-4" />
-              Places
+              <Clock className="mr-2 h-4 w-4" />
+              Timeline
             </TabsTrigger>
             <TabsTrigger
-              value="timeline"
+              value="map"
               disabled
               className="text-white/40"
             >
-              <Clock className="mr-2 h-4 w-4" />
-              Timeline (Phase 3)
+              <MapPin className="mr-2 h-4 w-4" />
+              Map (Phase 4)
             </TabsTrigger>
             <TabsTrigger
               value="photos"
@@ -118,20 +127,15 @@ export function TripDetail() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="places" className="mt-6">
-            <EmptyState
-              icon={MapPin}
-              title="No places added yet"
-              description="Search for places to add to your trip. You can add restaurants, attractions, hotels, and more."
-              actionLabel="Search Places (Phase 3)"
-            />
+          <TabsContent value="timeline" className="mt-6">
+            <TripTimeline tripId={id ?? ''} centerLocation={centerLocation} />
           </TabsContent>
 
-          <TabsContent value="timeline" className="mt-6">
+          <TabsContent value="map" className="mt-6">
             <EmptyState
-              icon={Clock}
-              title="Timeline coming soon"
-              description="View your trip as a chronological timeline of all the places you visited."
+              icon={MapPin}
+              title="Map coming soon"
+              description="Visualize all your places on an interactive map."
             />
           </TabsContent>
 

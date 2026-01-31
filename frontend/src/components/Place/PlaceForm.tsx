@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -147,6 +148,11 @@ export function PlaceForm({
           <DialogTitle className="text-xl">
             {isEditing ? 'Edit Place' : initialData ? `Adding: ${initialData.name}` : 'Add Place'}
           </DialogTitle>
+          <DialogDescription className="text-white/60">
+            {isEditing
+              ? 'Update the place details below.'
+              : 'Fill in the details for this place. Required fields are marked with *.'}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">

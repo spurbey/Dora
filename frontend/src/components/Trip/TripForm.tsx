@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -91,6 +92,11 @@ export function TripForm({ trip, open, onOpenChange, onSubmit, isLoading }: Trip
           <DialogTitle className="text-white">
             {isEditing ? 'Edit Trip' : 'Create New Trip'}
           </DialogTitle>
+          <DialogDescription className="text-white/60">
+            {isEditing
+              ? 'Update your trip details below.'
+              : 'Fill in the details to create a new trip.'}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>

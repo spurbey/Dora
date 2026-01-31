@@ -1,3 +1,5 @@
+import { MediaFile } from './media';
+
 // Matches backend TripPlace model
 export interface Place {
   id: string;                           // UUID
@@ -8,7 +10,7 @@ export interface Place {
   lng: number;                          // -180 to 180
   place_type: string | null;            // 'restaurant', 'hotel', etc.
   user_notes: string | null;
-  photos: string[];                     // JSONB array of URLs
+  photos: MediaFile[];                  // Array of full media objects
   external_place_id: string | null;
   order_in_trip: number | null;
   created_at: string;                   // ISO datetime

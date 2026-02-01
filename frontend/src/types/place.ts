@@ -1,4 +1,4 @@
-import { MediaFile } from './media';
+import type { MediaFile } from './media';
 
 // Matches backend TripPlace model
 export interface Place {

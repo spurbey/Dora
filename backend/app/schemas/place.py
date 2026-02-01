@@ -9,6 +9,8 @@ from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from uuid import UUID
 
+from app.schemas.media import MediaResponse
+
 
 class PlaceBase(BaseModel):
     """
@@ -178,7 +180,7 @@ class PlaceResponse(BaseModel):
     user_notes: Optional[str] = None
     user_rating: Optional[int] = None
     visit_date: Optional[date] = None
-    photos: List[Union[UUID, Dict[str, Any]]] = []
+    photos: List[MediaResponse] = []
     videos: List[Dict[str, Any]] = []
     external_data: Optional[Dict[str, Any]] = None
     order_in_trip: Optional[int] = None

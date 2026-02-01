@@ -9,6 +9,7 @@ Handles:
 """
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from fastapi import UploadFile, HTTPException, status
 from typing import Optional
 from uuid import UUID
@@ -148,6 +149,8 @@ class MediaService:
             photos.append(media_id_str)
 
         place.photos = photos
+        # Mark JSONB column as modified so SQLAlchemy tracks the change
+        flag_modified(place, "photos")
 
     def _remove_media_from_place_photos(self, place: TripPlace, media_id: UUID) -> None:
         """
@@ -170,6 +173,8 @@ class MediaService:
                 updated_photos.append(item)
 
         place.photos = updated_photos
+        # Mark JSONB column as modified so SQLAlchemy tracks the change
+        flag_modified(place, "photos")
     
     async def upload_photo(
         self,
@@ -351,9 +356,31 @@ class MediaService:
             expires_in: Signed URL expiration in seconds
 
         Returns:
-            MediaResponse
+            MediaResponse with trip_id populated
         """
-        response = MediaResponse.model_validate(media)
+        # Fetch place to get trip_id
+        from app.models.place import TripPlace
+        place = self.db.query(TripPlace).filter(
+            TripPlace.id == media.trip_place_id
+        ).first()
+
+        # Build response manually with trip_id (can't use model_validate because media doesn't have trip_id)
+        response = MediaResponse(
+            id=media.id,
+            user_id=media.user_id,
+            trip_place_id=media.trip_place_id,
+            trip_id=place.trip_id if place else None,
+            file_url=media.file_url,
+            file_type=media.file_type,
+            file_size_bytes=media.file_size_bytes,
+            mime_type=media.mime_type,
+            width=media.width,
+            height=media.height,
+            thumbnail_url=media.thumbnail_url,
+            caption=media.caption,
+            taken_at=media.taken_at,
+            created_at=media.created_at,
+        )
 
         if not signed:
             return response

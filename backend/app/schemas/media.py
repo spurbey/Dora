@@ -49,6 +49,7 @@ class MediaResponse(BaseModel):
         id: Media file UUID
         user_id: Owner user ID
         trip_place_id: Associated place ID
+        trip_id: Trip ID (for frontend cache invalidation)
         file_url: Full URL to file in Supabase Storage
         file_type: Type (photo or video)
         file_size_bytes: File size in bytes
@@ -66,6 +67,7 @@ class MediaResponse(BaseModel):
     id: UUID
     user_id: UUID
     trip_place_id: UUID
+    trip_id: UUID  # Added for frontend cache invalidation
     file_url: str
     file_type: str
     file_size_bytes: Optional[int] = None

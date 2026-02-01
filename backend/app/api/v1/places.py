@@ -100,7 +100,7 @@ async def create_place(
         place_id=str(place.id)
     )
 
-    return PlaceResponse.model_validate(place)
+    return service.build_place_response(place)
 
 
 @router.get("", response_model=PlaceListResponse)
@@ -239,8 +239,11 @@ async def get_nearby_places(
         user_id=current_user.id
     )
 
+    # Build place responses with expanded photos
+    place_responses = [service.build_place_response(place) for place in places]
+
     return PlaceListResponse(
-        places=[PlaceResponse.model_validate(place) for place in places],
+        places=place_responses,
         total=len(places),
         trip_id=None  # Not filtering by trip
     )
@@ -327,36 +330,6 @@ async def get_place(
             detail="You do not have permission to view this place"
         )
 
-    media_service = MediaService(db)
-
-    photo_ids = []
-    for item in place.photos or []:
-        if isinstance(item, dict):
-            item_id = item.get("id")
-            if item_id:
-                photo_ids.append(str(item_id))
-        else:
-            photo_ids.append(str(item))
-
-    photos = []
-    if photo_ids:
-        media_items = db.query(MediaFile).filter(
-            MediaFile.id.in_(photo_ids)
-        ).all()
-        media_map = {str(media_item.id): media_item for media_item in media_items}
-        use_signed = trip.visibility == "private"
-        photos = [
-            media_service.build_media_response(
-                media_map[photo_id],
-                signed=use_signed
-            ).model_dump()
-            for photo_id in photo_ids
-            if photo_id in media_map
-        ]
-
-    place_data = PlaceResponse.model_validate(place).model_dump()
-    place_data["photos"] = photos
-
     # Log place view in background (user clicked to view details)
     background_tasks.add_task(
         log_place_view,
@@ -366,7 +339,10 @@ async def get_place(
         source="local"  # All places in DB are local source
     )
 
-    return PlaceResponse.model_validate(place_data)
+    # Build response with signed URLs if trip is private
+    service = PlaceService(db)
+    use_signed = trip.visibility == "private"
+    return service.build_place_response(place, signed=use_signed)
 
 
 @router.patch("/{place_id}", response_model=PlaceResponse)
@@ -425,7 +401,7 @@ async def update_place(
     """
     service = PlaceService(db)
     updated_place = service.update_place(place_id, current_user.id, place_update)
-    return PlaceResponse.model_validate(updated_place)
+    return service.build_place_response(updated_place)
 
 
 @router.delete("/{place_id}", status_code=status.HTTP_204_NO_CONTENT)

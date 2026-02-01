@@ -99,8 +99,9 @@ async def upload_media(
         media_data=media_data,
         is_premium=current_user.is_premium
     )
-    
-    return MediaResponse.model_validate(media)
+
+    # Use build_media_response to include trip_id
+    return service.build_media_response(media)
 
 
 @router.get("/{media_id}", response_model=MediaResponse)

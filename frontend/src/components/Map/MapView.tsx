@@ -62,7 +62,8 @@ export function MapView({ places, onPlaceClick, className, isVisible = true }: M
       map.current = null;
       setIsMapLoaded(false);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - viewport is intentionally not a dependency
 
   // Resize map when it becomes visible (fixes tab switching)
   useEffect(() => {

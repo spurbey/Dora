@@ -234,8 +234,64 @@ class PlaceService:
             TripPlace.trip_id == trip_id
         ).order_by(TripPlace.order_in_trip).all()
 
+        # Expand photos for each place (same logic as detail endpoint)
+        from app.services.media_service import MediaService
+        from app.models.media import MediaFile
+
+        media_service = MediaService(self.db)
+        place_responses = []
+
+        for place in places:
+            # Build dict manually (don't validate yet - photos are still UUIDs)
+            place_data = {
+                "id": place.id,
+                "trip_id": place.trip_id,
+                "user_id": place.user_id,
+                "name": place.name,
+                "place_type": place.place_type,
+                "lat": place.lat,
+                "lng": place.lng,
+                "user_notes": place.user_notes,
+                "user_rating": place.user_rating,
+                "visit_date": place.visit_date,
+                "videos": place.videos or [],
+                "external_data": place.external_data,
+                "order_in_trip": place.order_in_trip,
+                "created_at": place.created_at,
+                "updated_at": place.updated_at,
+            }
+
+            # Expand photo IDs to full MediaFile objects
+            photo_ids = []
+            for item in place.photos or []:
+                if isinstance(item, dict):
+                    item_id = item.get("id")
+                    if item_id:
+                        photo_ids.append(str(item_id))
+                else:
+                    photo_ids.append(str(item))
+
+            photos = []
+            if photo_ids:
+                media_items = self.db.query(MediaFile).filter(
+                    MediaFile.id.in_(photo_ids)
+                ).all()
+                media_map = {str(media_item.id): media_item for media_item in media_items}
+                use_signed = trip.visibility == "private"
+                photos = [
+                    media_service.build_media_response(
+                        media_map[photo_id],
+                        signed=use_signed
+                    ).model_dump()
+                    for photo_id in photo_ids
+                    if photo_id in media_map
+                ]
+
+            place_data["photos"] = photos
+            place_responses.append(place_data)
+
         return PlaceListResponse(
-            places=[PlaceResponse.model_validate(place) for place in places],
+            places=place_responses,
             total=len(places),
             trip_id=trip_id
         )
@@ -482,3 +538,75 @@ class PlaceService:
 
         # Convert meters to kilometers
         return distance_meters / 1000.0 if distance_meters else 0.0
+
+    def build_place_response(
+        self,
+        place: TripPlace,
+        signed: bool = False,
+        expires_in: int = 3600
+    ) -> PlaceResponse:
+        """
+        Build PlaceResponse with expanded photos.
+
+        Args:
+            place: TripPlace instance
+            signed: Whether to use signed URLs for photos
+            expires_in: Signed URL expiration in seconds
+
+        Returns:
+            PlaceResponse with photos expanded to MediaResponse objects
+        """
+        from app.services.media_service import MediaService
+        from app.models.media import MediaFile
+
+        media_service = MediaService(self.db)
+
+        # Build base dict manually (don't validate yet - photos are still UUIDs)
+        place_data = {
+            "id": place.id,
+            "trip_id": place.trip_id,
+            "user_id": place.user_id,
+            "name": place.name,
+            "place_type": place.place_type,
+            "lat": place.lat,
+            "lng": place.lng,
+            "user_notes": place.user_notes,
+            "user_rating": place.user_rating,
+            "visit_date": place.visit_date,
+            "videos": place.videos or [],
+            "external_data": place.external_data,
+            "order_in_trip": place.order_in_trip,
+            "created_at": place.created_at,
+            "updated_at": place.updated_at,
+        }
+
+        # Expand photo IDs to full MediaFile objects
+        photo_ids = []
+        for item in place.photos or []:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                if item_id:
+                    photo_ids.append(str(item_id))
+            else:
+                photo_ids.append(str(item))
+
+        photos = []
+        if photo_ids:
+            media_items = self.db.query(MediaFile).filter(
+                MediaFile.id.in_(photo_ids)
+            ).all()
+            media_map = {str(media_item.id): media_item for media_item in media_items}
+            photos = [
+                media_service.build_media_response(
+                    media_map[photo_id],
+                    signed=signed,
+                    expires_in=expires_in
+                ).model_dump()
+                for photo_id in photo_ids
+                if photo_id in media_map
+            ]
+
+        place_data["photos"] = photos
+
+        # Validate and return
+        return PlaceResponse(**place_data)

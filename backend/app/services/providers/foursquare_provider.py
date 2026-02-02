@@ -32,7 +32,8 @@ class FoursquareSearchProvider(BaseSearchProvider):
     - ~3 calls/second
     """
 
-    BASE_URL = "https://api.foursquare.com/v3/places/search"
+    BASE_URL = "https://places-api.foursquare.com/places/search"
+    API_VERSION = "2025-06-17"
     TIMEOUT = 2.0  # seconds
     MAX_RETRIES = 1  # Total 2 attempts (initial + 1 retry)
 
@@ -67,17 +68,19 @@ class FoursquareSearchProvider(BaseSearchProvider):
             radius_meters = int(radius_km * 1000)
 
             # Build request parameters
+            # Note: Do not include fields in the request; the Places API rejects
+            # unsupported fields with 400 (e.g., fsq_id/geocodes).
             params = {
                 "query": query,
                 "ll": f"{lat},{lng}",
                 "radius": radius_meters,
-                "limit": limit,
-                "fields": "fsq_id,name,geocodes,location,distance,rating"
+                "limit": limit
             }
 
             headers = {
-                "Authorization": self.api_key,
-                "Accept": "application/json"
+                "Authorization": f"Bearer {self.api_key}",
+                "Accept": "application/json",
+                "X-Places-Api-Version": self.API_VERSION
             }
 
             # Make request with retry logic
@@ -194,11 +197,19 @@ class FoursquareSearchProvider(BaseSearchProvider):
         """
         try:
             # Extract required fields
-            fsq_id = result.get("fsq_id")
+            fsq_id = result.get("fsq_id") or result.get("fsq_place_id")
             name = result.get("name")
             geocodes = result.get("geocodes", {}).get("main", {})
-            lat = geocodes.get("latitude")
-            lng = geocodes.get("longitude")
+            lat = (
+                geocodes.get("latitude")
+                or result.get("latitude")
+                or result.get("location", {}).get("latitude")
+            )
+            lng = (
+                geocodes.get("longitude")
+                or result.get("longitude")
+                or result.get("location", {}).get("longitude")
+            )
 
             # Validate required fields
             if not all([fsq_id, name, lat, lng]):
@@ -221,10 +232,9 @@ class FoursquareSearchProvider(BaseSearchProvider):
             if distance_m is None:
                 distance_m = haversine_distance(search_lat, search_lng, lat, lng)
 
-            # Rating (convert to 0-10 scale if present)
-            rating = result.get("rating")
-            if rating is not None:
-                rating = float(rating)
+            # Rating - Not available in Places Pro tier
+            # (Would require Places Premium to access)
+            rating = None
 
             # Build unified result
             return {

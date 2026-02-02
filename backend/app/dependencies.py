@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 import httpx
 from typing import Optional
+import re
 
 from app.database import get_db
 from app.models.user import User
@@ -123,13 +124,49 @@ async def get_current_user(
         print(f"Unexpected error during auth: {e}")
         raise credentials_exception
     
-    # Get user from database
+    # Get or create user from database
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+        email = payload.get("email")
+        metadata = payload.get("user_metadata") or {}
+
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User email missing from token"
+            )
+
+        raw_username = (
+            metadata.get("username")
+            or metadata.get("full_name")
+            or email.split("@")[0]
         )
+
+        normalized = re.sub(r"[^A-Za-z0-9_]", "_", raw_username or "user").strip("_")
+        if len(normalized) < 3:
+            normalized = f"user_{user_id[:8]}"
+        normalized = normalized[:50]
+
+        candidate = normalized
+        suffix = 1
+        while db.query(User).filter(User.username == candidate).first():
+            base = normalized[:47]
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+
+        user = User(
+            id=user_id,
+            email=email,
+            username=candidate,
+            hashed_password="supabase_auth",
+            full_name=metadata.get("full_name"),
+            avatar_url=metadata.get("avatar_url"),
+            bio=metadata.get("bio"),
+            is_verified=bool(payload.get("email_verified") or payload.get("email_confirmed_at")),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     
     return user
 

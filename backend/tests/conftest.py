@@ -51,6 +51,53 @@ TestingSessionLocal = sessionmaker(
 
 
 
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_views():
+    """
+    Create database views needed for tests (runs once per session).
+
+    Phase A3: Creates trip_components_view for unified timeline.
+    """
+    from sqlalchemy import text
+
+    connection = engine.connect()
+    try:
+        connection.execute(text("""
+            CREATE OR REPLACE VIEW trip_components_view AS
+            SELECT
+                id,
+                trip_id,
+                user_id,
+                'place'::text as component_type,
+                name,
+                order_in_trip,
+                created_at,
+                updated_at,
+                'trip_places'::text as source_table,
+                id as source_id
+            FROM trip_places
+            UNION ALL
+            SELECT
+                id,
+                trip_id,
+                user_id,
+                'route'::text as component_type,
+                COALESCE(name, 'Route'::text) as name,
+                order_in_trip,
+                created_at,
+                updated_at,
+                'routes'::text as source_table,
+                id as source_id
+            FROM routes;
+        """))
+        connection.commit()
+    except Exception:
+        # View might already exist, ignore
+        pass
+    finally:
+        connection.close()
+
+
 @pytest.fixture(scope="function")
 def db():
     """
@@ -204,3 +251,65 @@ def premium_user(db):
     db.refresh(user)
 
     return user
+
+
+@pytest.fixture
+def other_user(db):
+    """
+    Create another test user (for testing non-owner scenarios).
+
+    Parameters:
+    ----------
+    db : Session
+        Test database session.
+
+    Returns:
+    -------
+    User
+        Another user instance.
+    """
+    unique_id = str(uuid4())[:8]
+
+    user = User(
+        id=uuid4(),
+        email=f"other_{unique_id}@example.com",
+        username=f"other_{unique_id}",
+        hashed_password="hashed",
+        is_premium=False,
+        is_verified=True
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+
+@pytest.fixture
+def auth_as(fastapi_app):
+    """
+    Mock authentication by overriding get_current_user dependency.
+
+    Usage:
+        auth_as(test_user)  # All requests will be authenticated as test_user
+
+    Parameters:
+    ----------
+    fastapi_app : FastAPI
+        Application instance.
+
+    Yields:
+    -------
+    callable
+        Function to set the authenticated user.
+    """
+    from app.dependencies import get_current_user
+
+    def _set(user):
+        def _override():
+            return user
+        fastapi_app.dependency_overrides[get_current_user] = _override
+
+    yield _set
+    fastapi_app.dependency_overrides.clear()

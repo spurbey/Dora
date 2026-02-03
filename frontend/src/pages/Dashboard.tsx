@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Navbar } from '@/components/Layout/Navbar';
 import { Sidebar } from '@/components/Layout/Sidebar';
@@ -11,8 +12,10 @@ import { ConfirmDialog } from '@/components/Shared/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { useTrips, useCreateTrip, useUpdateTrip, useDeleteTrip } from '@/hooks/useTrips';
 import type { Trip, TripCreate, TripUpdate } from '@/types/trip';
+import { FEATURES } from '@/utils/features';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const { data: trips, isLoading, error, refetch } = useTrips();
   const createTrip = useCreateTrip();
   const updateTrip = useUpdateTrip();
@@ -71,6 +74,10 @@ export function Dashboard() {
     }
   };
 
+  const handleEditV2Click = (trip: Trip) => {
+    navigate(`/trips/${trip.id}/edit`);
+  };
+
   return (
     <>
       <Navbar />
@@ -121,6 +128,7 @@ export function Dashboard() {
                 trip={trip}
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
+                onEditV2={FEATURES.EDITOR ? handleEditV2Click : undefined}
               />
             ))}
           </div>

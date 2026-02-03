@@ -15,6 +15,7 @@ interface TripCardProps {
   trip: Trip;
   onEdit: (trip: Trip) => void;
   onDelete: (id: string) => void;
+  onEditV2?: (trip: Trip) => void;
 }
 
 const visibilityConfig = {
@@ -43,7 +44,7 @@ function formatDateRange(start?: string | null, end?: string | null): string | n
   return `Until ${formatDate(end!)}`;
 }
 
-export function TripCard({ trip, onEdit, onDelete }: TripCardProps) {
+export function TripCard({ trip, onEdit, onDelete, onEditV2 }: TripCardProps) {
   const navigate = useNavigate();
   const dateRange = formatDateRange(trip.start_date, trip.end_date);
   const visibility = visibilityConfig[trip.visibility];
@@ -106,6 +107,16 @@ export function TripCard({ trip, onEdit, onDelete }: TripCardProps) {
               >
                 Edit
               </DropdownMenuItem>
+              {onEditV2 && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditV2(trip);
+                  }}
+                >
+                  Edit in V2
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();

@@ -24,4 +24,17 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/media/${id}`,
     DELETE: (id: string) => `/media/${id}`,
   },
+  ROUTES: {
+    LIST: (tripId: string) => `/trips/${tripId}/routes`,
+    CREATE: (tripId: string) => `/trips/${tripId}/routes`,
+    DETAIL: (id: string) => `/routes/${id}`,
+    UPDATE: (id: string) => `/routes/${id}`,
+    DELETE: (id: string) => `/routes/${id}`,
+  },
+  COMPONENTS: {
+    LIST: (tripId: string) => `/trips/${tripId}/components`,
+    DETAIL: (tripId: string, componentId: string) =>
+      `/trips/${tripId}/components/${componentId}`,
+    REORDER: (tripId: string) => `/trips/${tripId}/components/reorder`,
+  },
 };

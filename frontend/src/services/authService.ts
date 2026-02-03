@@ -76,8 +76,11 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
-  await supabase.auth.signOut();
-  localStorage.removeItem('token');
+  try {
+    await supabase.auth.signOut();
+  } finally {
+    localStorage.removeItem('token');
+  }
 }
 
 export function getToken(): string | null {

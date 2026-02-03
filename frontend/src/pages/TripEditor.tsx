@@ -6,6 +6,7 @@ import { LeftTimeline } from '@/components/Editor/LeftTimeline';
 import { CenterMap } from '@/components/Editor/CenterMap';
 import { RightToolbar } from '@/components/Editor/RightToolbar';
 import { BottomPanel } from '@/components/Editor/BottomPanel';
+import { RoutePreviewPanel } from '@/components/Editor/RoutePreviewPanel';
 import { useEditorStore } from '@/store/editorStore';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useEditorTrip, useEditorComponents, useSaveTrip } from '@/hooks/useEditor';
@@ -94,6 +95,7 @@ export function TripEditor() {
         <RightToolbar />
       </EditorContent>
       <BottomPanel />
+      {id && <RoutePreviewPanel tripId={id} />}
     </EditorLayout>
   );
 }

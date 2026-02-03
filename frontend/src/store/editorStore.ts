@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { Trip } from '@/types/trip';
 import type { Place } from '@/types/place';
-import type { Route } from '@/types/route';
+import type { Route, TempRoute } from '@/types/route';
 import type { Waypoint } from '@/types/waypoint';
 import { getTrip } from '@/services/tripService';
 
@@ -33,6 +33,8 @@ interface EditorState {
   editMode: 'view' | 'add-place' | 'draw-route' | 'add-waypoint';
   mapViewport: MapViewport;
   bottomPanelOpen: boolean;
+  tempRoute: TempRoute | null;
+  drawingTransportMode: 'car' | 'bike' | 'foot';
 
   // Unsaved Changes
   hasUnsavedChanges: boolean;
@@ -55,6 +57,8 @@ interface EditorState {
   selectItem: (type: 'place' | 'route' | 'waypoint', id: string) => void;
   setEditMode: (mode: EditorState['editMode']) => void;
   setBottomPanelOpen: (open: boolean) => void;
+  setTempRoute: (route: TempRoute | null) => void;
+  setDrawingTransportMode: (mode: 'car' | 'bike' | 'foot') => void;
   markSaved: () => void;
   setMapViewport: (viewport: MapViewport) => void;
 }
@@ -80,6 +84,8 @@ export const useEditorStore = create<EditorState>()(
       editMode: 'view',
       mapViewport: defaultViewport,
       bottomPanelOpen: true,
+      tempRoute: null,
+      drawingTransportMode: 'car',
 
       // Unsaved changes
       hasUnsavedChanges: false,
@@ -194,6 +200,18 @@ export const useEditorStore = create<EditorState>()(
       setBottomPanelOpen: (open) => {
         set((state) => {
           state.bottomPanelOpen = open;
+        });
+      },
+
+      setTempRoute: (route) => {
+        set((state) => {
+          state.tempRoute = route;
+        });
+      },
+
+      setDrawingTransportMode: (mode) => {
+        set((state) => {
+          state.drawingTransportMode = mode;
         });
       },
 

@@ -21,3 +21,26 @@ export interface RouteListResponse {
   routes: Route[];
   total: number;
 }
+
+export interface RouteCreate {
+  route_geojson: GeoJSON.LineString;
+  transport_mode: 'car' | 'bike' | 'foot' | 'air' | 'bus' | 'train';
+  route_category: 'ground' | 'air';
+  start_place_id?: string;
+  end_place_id?: string;
+  name?: string;
+  description?: string;
+  distance_km?: number;
+  duration_mins?: number;
+  order_in_trip: number;
+}
+
+export interface TempRoute {
+  points: Array<{ lng: number; lat: number }>;
+  preview?: {
+    geojson: GeoJSON.LineString;
+    distance_km: number;
+    duration_mins: number;
+  };
+  transport_mode: 'car' | 'bike' | 'foot';
+}

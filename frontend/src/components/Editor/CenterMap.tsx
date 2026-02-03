@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { mapboxgl } from '@/lib/mapbox';
 import { useEditorStore } from '@/store/editorStore';
+import { useRouteDrawing } from '@/hooks/useRouteDrawing';
+import { RouteDrawer } from '@/components/Editor/RouteDrawer';
 import type { Route } from '@/types/route';
 
 export function CenterMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const tempMarkers = useRef<mapboxgl.Marker[]>([]);
   const routeLayerIds = useRef<string[]>([]);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
-  const { places, routes, mapViewport, setMapViewport } = useEditorStore();
+  const { places, routes, mapViewport, setMapViewport, editMode, tempRoute, drawingTransportMode } =
+    useEditorStore();
+  const { addPoint, isLoading } = useRouteDrawing();
+
+  const tempRouteSourceId = 'temp-route-preview';
+  const tempRouteLayerId = 'temp-route-preview-layer';
 
   // Initialize map
   useEffect(() => {
@@ -42,11 +50,19 @@ export function CenterMap() {
     return () => {
       markers.current.forEach((marker) => marker.remove());
       markers.current = [];
+      tempMarkers.current.forEach((marker) => marker.remove());
+      tempMarkers.current = [];
       routeLayerIds.current.forEach((id) => {
         if (!mapInstance.getLayer(id)) return;
         mapInstance.removeLayer(id);
         mapInstance.removeSource(id);
       });
+      if (mapInstance.getLayer(tempRouteLayerId)) {
+        mapInstance.removeLayer(tempRouteLayerId);
+      }
+      if (mapInstance.getSource(tempRouteSourceId)) {
+        mapInstance.removeSource(tempRouteSourceId);
+      }
       mapInstance.remove();
       map.current = null;
       setIsMapLoaded(false);
@@ -115,14 +131,99 @@ export function CenterMap() {
     });
   }, [routes, isMapLoaded]);
 
+  // Handle map clicks for route drawing
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    const handleClick = (event: mapboxgl.MapMouseEvent) => {
+      if (editMode !== 'draw-route') return;
+      void addPoint(event.lngLat.lng, event.lngLat.lat, drawingTransportMode);
+    };
+
+    if (editMode === 'draw-route') {
+      map.current.getCanvas().style.cursor = 'crosshair';
+      map.current.on('click', handleClick);
+    } else {
+      map.current.getCanvas().style.cursor = '';
+      map.current.off('click', handleClick);
+    }
+
+    return () => {
+      map.current?.off('click', handleClick);
+    };
+  }, [addPoint, drawingTransportMode, editMode, isMapLoaded]);
+
+  // Render temporary route points
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    tempMarkers.current.forEach((marker) => marker.remove());
+    tempMarkers.current = [];
+
+    if (!tempRoute?.points?.length) return;
+
+    tempRoute.points.forEach((point, index) => {
+      const el = document.createElement('div');
+      el.className =
+        'flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-blue-500 text-[10px] font-semibold text-white';
+      el.textContent = `${index + 1}`;
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([point.lng, point.lat])
+        .addTo(map.current!);
+      tempMarkers.current.push(marker);
+    });
+  }, [isMapLoaded, tempRoute?.points]);
+
+  // Render temporary route preview line
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+
+    if (!tempRoute?.preview) {
+      if (map.current.getLayer(tempRouteLayerId)) {
+        map.current.removeLayer(tempRouteLayerId);
+      }
+      if (map.current.getSource(tempRouteSourceId)) {
+        map.current.removeSource(tempRouteSourceId);
+      }
+      return;
+    }
+
+    const data: GeoJSON.Feature<GeoJSON.LineString> = {
+      type: 'Feature',
+      properties: {},
+      geometry: tempRoute.preview.geojson,
+    };
+
+    if (map.current.getSource(tempRouteSourceId)) {
+      (map.current.getSource(tempRouteSourceId) as mapboxgl.GeoJSONSource).setData(data);
+    } else {
+      map.current.addSource(tempRouteSourceId, {
+        type: 'geojson',
+        data,
+      });
+      map.current.addLayer({
+        id: tempRouteLayerId,
+        type: 'line',
+        source: tempRouteSourceId,
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 4,
+          'line-opacity': 0.85,
+        },
+      });
+    }
+  }, [isMapLoaded, tempRoute?.preview]);
+
   return (
     <section className="relative h-[60vh] w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 xl:h-[calc(100vh-230px)] xl:flex-1">
       <div ref={mapContainer} className="h-full w-full" />
       {!mapboxgl.accessToken && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-white/70">
-          Mapbox token missing — set VITE_MAPBOX_TOKEN
+          Mapbox token missing - set VITE_MAPBOX_TOKEN
         </div>
       )}
+      <RouteDrawer isDrawing={editMode === 'draw-route'} isLoading={isLoading} />
     </section>
   );
 }

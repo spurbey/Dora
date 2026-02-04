@@ -31,9 +31,16 @@ interface RouteMetadataFormProps {
   metadata: RouteMetadata | null;
   onSaved: (metadata: RouteMetadata) => void;
   onCancel: () => void;
+  tripIsPublic?: boolean;
 }
 
-export function RouteMetadataForm({ route, metadata, onSaved, onCancel }: RouteMetadataFormProps) {
+export function RouteMetadataForm({
+  route,
+  metadata,
+  onSaved,
+  onCancel,
+  tripIsPublic = false,
+}: RouteMetadataFormProps) {
   const [transportMode, setTransportMode] = useState(route.transport_mode);
   const [routeQuality, setRouteQuality] = useState<RouteMetadata['route_quality']>(
     metadata?.route_quality
@@ -80,7 +87,7 @@ export function RouteMetadataForm({ route, metadata, onSaved, onCancel }: RouteM
       fuel_cost: fuelCost ? Number(fuelCost) : undefined,
       toll_cost: tollCost ? Number(tollCost) : undefined,
       highlights: combinedHighlights.length ? combinedHighlights : undefined,
-      is_public: isPublic,
+      is_public: tripIsPublic ? isPublic : false,
     };
 
     const result = metadata
@@ -207,11 +214,15 @@ export function RouteMetadataForm({ route, metadata, onSaved, onCancel }: RouteM
         <label className="flex items-center gap-2 text-sm text-white/70">
           <input
             type="checkbox"
-            checked={isPublic}
+            checked={tripIsPublic ? isPublic : false}
+            disabled={!tripIsPublic}
             onChange={(event) => setIsPublic(event.target.checked)}
           />
           Allow others to discover this route
         </label>
+        {!tripIsPublic && (
+          <p className="text-xs text-white/50">Trip must be public to enable route visibility.</p>
+        )}
       </section>
 
       <div className="flex items-center gap-2">

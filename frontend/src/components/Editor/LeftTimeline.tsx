@@ -26,6 +26,8 @@ export function LeftTimeline() {
     routes,
     waypoints,
     routeMetadata,
+    placeMetadata,
+    tripMetadata,
     selectedItem,
     highlightedItem,
     setSelectedItem,
@@ -38,6 +40,7 @@ export function LeftTimeline() {
   const tripId = trip?.id ?? '';
   const reorderMutation = useReorderComponents(tripId);
   const previousTimeline = useRef(timeline);
+  const tripIsPublic = trip?.visibility === 'public' && (tripMetadata?.is_discoverable ?? false);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -106,6 +109,12 @@ export function LeftTimeline() {
                   const route = item.type === 'route'
                     ? routes.find((entry) => entry.id === item.id)
                     : null;
+                  const placeIsPublic = place
+                    ? tripIsPublic && Boolean(placeMetadata[place.id]?.is_public)
+                    : false;
+                  const routeIsPublic = route
+                    ? tripIsPublic && Boolean(routeMetadata[route.id]?.is_public)
+                    : false;
                   const waypointCount = route ? waypoints[route.id]?.length ?? 0 : 0;
 
                   return (
@@ -127,12 +136,17 @@ export function LeftTimeline() {
                           </div>
                           <div className="flex-1">
                             {item.type === 'place' && place ? (
-                              <TimelinePlaceItem place={place} time={place.created_at} />
+                              <TimelinePlaceItem
+                                place={place}
+                                time={place.created_at}
+                                isPublic={placeIsPublic}
+                              />
                             ) : item.type === 'route' && route ? (
                               <TimelineRouteItem
                                 route={route}
                                 waypointsCount={waypointCount}
                                 metadata={routeMetadata[route.id]}
+                                isPublic={routeIsPublic}
                               />
                             ) : (
                               <div className="text-xs text-white/60">Loading details...</div>

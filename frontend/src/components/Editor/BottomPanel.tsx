@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEditorStore } from '@/store/editorStore';
 import { useRouteMetadata } from '@/hooks/useRouteMetadata';
+import { usePlaceMetadata } from '@/hooks/usePlaceMetadata';
 import { RouteMetadataForm } from '@/components/Editor/RouteMetadataForm';
+import { PlaceMetadataForm } from '@/components/Editor/PlaceMetadataForm';
 import { cn } from '@/lib/utils';
 
 export function BottomPanel() {
@@ -16,6 +18,9 @@ export function BottomPanel() {
     setSelectedItem,
     waypoints,
     places,
+    trip,
+    tripMetadata,
+    placeMetadata: placeMetadataById,
     routeMetadata,
     setRouteMetadata,
   } = useEditorStore();
@@ -23,6 +28,14 @@ export function BottomPanel() {
 
   const routeId = selectedRoute?.id ?? '';
   const { data: metadataData } = useRouteMetadata(routeId);
+  const selectedPlace =
+    selectedItem?.type === 'place' ? places.find((item) => item.id === selectedItem.id) : null;
+  const placeId = selectedPlace?.id ?? '';
+  const {
+    data: placeMetadataData,
+    saveMetadata: savePlaceMetadata,
+    isSaving: isSavingPlace,
+  } = usePlaceMetadata(placeId);
 
   useEffect(() => {
     if (selectedItem) {
@@ -41,8 +54,10 @@ export function BottomPanel() {
   const activeTab = selectedItem?.type === 'place' ? 'details' : tab;
   const metadata = routeId ? routeMetadata[routeId] ?? metadataData ?? null : null;
   const waypointCount = selectedRoute ? waypoints[selectedRoute.id]?.length ?? 0 : 0;
-  const selectedPlace =
-    selectedItem?.type === 'place' ? places.find((item) => item.id === selectedItem.id) : null;
+  const selectedPlaceMetadata = placeId
+    ? placeMetadataById[placeId] ?? placeMetadataData ?? null
+    : null;
+  const tripIsPublic = trip?.visibility === 'public' && (tripMetadata?.is_discoverable ?? false);
   const formKey = selectedRoute ? `${selectedRoute.id}-${metadata?.updated_at ?? 'new'}` : 'route-form';
 
   return (
@@ -99,6 +114,9 @@ export function BottomPanel() {
                   {selectedItem.type === 'route' && (
                     <TabsTrigger value="metadata">Metadata</TabsTrigger>
                   )}
+                  {selectedItem.type === 'place' && (
+                    <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="details" className="mt-4 space-y-3 text-sm text-white/70">
                   {selectedItem.type === 'route' && selectedRoute ? (
@@ -152,6 +170,20 @@ export function BottomPanel() {
                       route={selectedRoute}
                       metadata={metadata}
                       onSaved={(saved) => setRouteMetadata(selectedRoute.id, saved)}
+                      onCancel={() => setSelectedItem(null)}
+                      tripIsPublic={tripIsPublic}
+                    />
+                  </TabsContent>
+                )}
+                {selectedItem.type === 'place' && selectedPlace && (
+                  <TabsContent value="metadata" className="mt-4">
+                    <PlaceMetadataForm
+                      metadata={selectedPlaceMetadata}
+                      isSaving={isSavingPlace}
+                      tripIsPublic={tripIsPublic}
+                      onSave={async (payload) => {
+                        await savePlaceMetadata(payload);
+                      }}
                       onCancel={() => setSelectedItem(null)}
                     />
                   </TabsContent>

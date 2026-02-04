@@ -1,6 +1,10 @@
-import { ArrowLeft, Search, Save, Share2 } from 'lucide-react';
+import { ArrowLeft, Search, Save, Share2, Settings } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TripProfileModal } from '@/components/Editor/TripProfileModal';
+import { QualityScoreBadge } from '@/components/Editor/QualityScoreBadge';
+import { useQualityScore } from '@/hooks/useQualityScore';
 
 interface TopBarProps {
   title?: string;
@@ -9,6 +13,14 @@ interface TopBarProps {
 }
 
 export function TopBar({ title = 'Trip Editor', onSave, onExit }: TopBarProps) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const { score, breakdown } = useQualityScore();
+  const scoreTooltip = `Trip metadata: ${Math.round(
+    breakdown.tripMetadataScore * 100
+  )}% | Components: ${Math.round(breakdown.componentMetadataScore * 100)}% | Media: ${Math.round(
+    breakdown.mediaScore * 100
+  )}% | Timeline: ${Math.round(breakdown.timelineScore * 100)}%`;
+
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/80 backdrop-blur">
       <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -31,6 +43,11 @@ export function TopBar({ title = 'Trip Editor', onSave, onExit }: TopBarProps) {
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/70">Editor Mode</p>
             <h1 className="text-lg font-semibold text-white">{title}</h1>
           </div>
+          <QualityScoreBadge
+            score={score}
+            title={scoreTooltip}
+            onClick={() => setProfileOpen(true)}
+          />
         </div>
 
         <div className="flex flex-1 items-center gap-3 sm:max-w-xl">
@@ -45,12 +62,21 @@ export function TopBar({ title = 'Trip Editor', onSave, onExit }: TopBarProps) {
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
+          <Button
+            variant="outline"
+            className="border-white/10 text-white/70 hover:bg-white/10"
+            onClick={() => setProfileOpen(true)}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Trip Profile
+          </Button>
           <Button onClick={onSave} className="bg-emerald-600 text-white hover:bg-emerald-500">
             <Save className="mr-2 h-4 w-4" />
             Save
           </Button>
         </div>
       </div>
+      <TripProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
     </header>
   );
 }

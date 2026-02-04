@@ -6,6 +6,8 @@ import type { Place } from '@/types/place';
 import type { Route, TempRoute } from '@/types/route';
 import type { TempWaypoint, Waypoint } from '@/types/waypoint';
 import type { RouteMetadata } from '@/types/routeMetadata';
+import type { PlaceMetadata } from '@/types/placeMetadata';
+import type { TripMetadata } from '@/types/tripMetadata';
 import { getTrip } from '@/services/tripService';
 
 export interface TimelineItem {
@@ -28,6 +30,8 @@ interface EditorState {
   routes: Route[];
   waypoints: Record<string, Waypoint[]>;
   routeMetadata: Record<string, RouteMetadata>;
+  placeMetadata: Record<string, PlaceMetadata>;
+  tripMetadata: TripMetadata | null;
   timeline: TimelineItem[];
 
   // UI State
@@ -67,6 +71,8 @@ interface EditorState {
   setSelectedRoute: (route: Route | null, source?: 'map' | 'timeline') => void;
   setHighlightedItem: (item: { type: 'place' | 'route'; id: string } | null) => void;
   setRouteMetadata: (routeId: string, metadata: RouteMetadata) => void;
+  setPlaceMetadata: (placeId: string, metadata: PlaceMetadata) => void;
+  setTripMetadata: (metadata: TripMetadata | null) => void;
   setEditMode: (mode: EditorState['editMode']) => void;
   setBottomPanelOpen: (open: boolean) => void;
   setTempRoute: (route: TempRoute | null) => void;
@@ -94,6 +100,8 @@ export const useEditorStore = create<EditorState>()(
       routes: [],
       waypoints: {},
       routeMetadata: {},
+      placeMetadata: {},
+      tripMetadata: null,
       timeline: [],
 
       // UI state
@@ -237,6 +245,18 @@ export const useEditorStore = create<EditorState>()(
       setRouteMetadata: (routeId, metadata) => {
         set((state) => {
           state.routeMetadata[routeId] = metadata;
+        });
+      },
+
+      setPlaceMetadata: (placeId, metadata) => {
+        set((state) => {
+          state.placeMetadata[placeId] = metadata;
+        });
+      },
+
+      setTripMetadata: (metadata) => {
+        set((state) => {
+          state.tripMetadata = metadata;
         });
       },
 

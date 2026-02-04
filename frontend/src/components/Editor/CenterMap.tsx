@@ -33,6 +33,9 @@ export function CenterMap() {
   const {
     places,
     routes,
+    trip,
+    tripMetadata,
+    placeMetadata,
     mapViewport,
     setMapViewport,
     editMode,
@@ -53,6 +56,8 @@ export function CenterMap() {
     updateItem,
     routeMetadata,
   } = useEditorStore();
+
+  const tripIsPublic = trip?.visibility === 'public' && (tripMetadata?.is_discoverable ?? false);
 
   const { addPoint, isLoading } = useRouteDrawing();
   const {
@@ -184,14 +189,16 @@ export function CenterMap() {
     markers.current = {};
 
     places.forEach((place) => {
+      const isPublic = tripIsPublic && Boolean(placeMetadata[place.id]?.is_public);
       const el = document.createElement('div');
       el.style.width = '14px';
       el.style.height = '14px';
       el.style.borderRadius = '9999px';
       el.style.background = '#10b981';
       el.style.border = '2px solid rgba(15, 23, 42, 0.8)';
-      el.style.boxShadow = '0 0 0 0 rgba(16, 185, 129, 0)';
+      el.style.boxShadow = isPublic ? '0 0 0 4px rgba(16, 185, 129, 0.25)' : '0 0 0 0 rgba(16, 185, 129, 0)';
       el.style.transition = 'transform 150ms ease, box-shadow 150ms ease';
+      el.dataset.public = isPublic ? 'true' : 'false';
 
       el.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -217,7 +224,14 @@ export function CenterMap() {
       places.forEach((place) => bounds.extend([place.lng, place.lat]));
       map.current.fitBounds(bounds, { padding: 80, duration: 800 });
     }
-  }, [places, isMapLoaded, setHighlightedItem, setSelectedItem]);
+  }, [
+    places,
+    isMapLoaded,
+    placeMetadata,
+    setHighlightedItem,
+    setSelectedItem,
+    tripIsPublic,
+  ]);
 
   useEffect(() => {
     const selectedPlaceId = selectedItem?.type === 'place' ? selectedItem.id : null;
@@ -225,6 +239,7 @@ export function CenterMap() {
 
     Object.entries(markers.current).forEach(([id, marker]) => {
       const el = marker.getElement();
+      const isPublic = el.dataset.public === 'true';
       if (id === selectedPlaceId) {
         el.style.transform = 'scale(1.25)';
         el.style.boxShadow = '0 0 0 6px rgba(16, 185, 129, 0.35)';
@@ -233,7 +248,9 @@ export function CenterMap() {
         el.style.boxShadow = '0 0 0 4px rgba(16, 185, 129, 0.25)';
       } else {
         el.style.transform = 'scale(1)';
-        el.style.boxShadow = '0 0 0 0 rgba(16, 185, 129, 0)';
+        el.style.boxShadow = isPublic
+          ? '0 0 0 4px rgba(16, 185, 129, 0.25)'
+          : '0 0 0 0 rgba(16, 185, 129, 0)';
       }
     });
   }, [highlightedItem, selectedItem]);

@@ -32,6 +32,8 @@ interface EditorState {
 
   // UI State
   selectedItem: { type: 'place' | 'route' | 'waypoint'; id: string } | null;
+  selectedItemSource: 'map' | 'timeline' | null;
+  highlightedItem: { type: 'place' | 'route'; id: string } | null;
   selectedRoute: Route | null;
   editMode: 'view' | 'add-place' | 'draw-route' | 'add-waypoint';
   mapViewport: MapViewport;
@@ -58,8 +60,12 @@ interface EditorState {
   deleteItem: (type: 'place' | 'route', id: string) => void;
   reorderTimeline: (newOrder: TimelineItem[]) => void;
   setTimeline: (items: TimelineItem[]) => void;
-  selectItem: (type: 'place' | 'route' | 'waypoint', id: string) => void;
-  setSelectedRoute: (route: Route | null) => void;
+  setSelectedItem: (
+    item: { type: 'place' | 'route' | 'waypoint'; id: string } | null,
+    source?: 'map' | 'timeline'
+  ) => void;
+  setSelectedRoute: (route: Route | null, source?: 'map' | 'timeline') => void;
+  setHighlightedItem: (item: { type: 'place' | 'route'; id: string } | null) => void;
   setRouteMetadata: (routeId: string, metadata: RouteMetadata) => void;
   setEditMode: (mode: EditorState['editMode']) => void;
   setBottomPanelOpen: (open: boolean) => void;
@@ -92,6 +98,8 @@ export const useEditorStore = create<EditorState>()(
 
       // UI state
       selectedItem: null,
+      selectedItemSource: null,
+      highlightedItem: null,
       selectedRoute: null,
       editMode: 'view',
       mapViewport: defaultViewport,
@@ -198,15 +206,31 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
-      selectItem: (type, id) => {
+      setSelectedItem: (item, source = 'timeline') => {
         set((state) => {
-          state.selectedItem = { type, id };
+          state.selectedItem = item;
+          state.selectedItemSource = item ? source : null;
+
+          if (item?.type === 'route') {
+            const route = state.routes.find((entry: Route) => entry.id === item.id) ?? null;
+            state.selectedRoute = route;
+          } else if (item?.type === 'place') {
+            state.selectedRoute = null;
+          }
         });
       },
 
-      setSelectedRoute: (route) => {
+      setSelectedRoute: (route, source = 'map') => {
         set((state) => {
           state.selectedRoute = route;
+          state.selectedItem = route ? { type: 'route', id: route.id } : null;
+          state.selectedItemSource = route ? source : null;
+        });
+      },
+
+      setHighlightedItem: (item) => {
+        set((state) => {
+          state.highlightedItem = item;
         });
       },
 

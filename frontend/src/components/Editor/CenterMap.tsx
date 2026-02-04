@@ -23,7 +23,7 @@ import type { Waypoint, WaypointCreate } from '@/types/waypoint';
 export function CenterMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markers = useRef<mapboxgl.Marker[]>([]);
+  const markers = useRef<Record<string, mapboxgl.Marker>>({});
   const tempMarkers = useRef<mapboxgl.Marker[]>([]);
   const routeLayerIds = useRef<string[]>([]);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -38,8 +38,13 @@ export function CenterMap() {
     editMode,
     tempRoute,
     drawingTransportMode,
+    selectedItem,
+    selectedItemSource,
+    highlightedItem,
     selectedRoute,
+    setSelectedItem,
     setSelectedRoute,
+    setHighlightedItem,
     waypoints: waypointsByRoute,
     setWaypoints,
     addWaypoint,
@@ -149,8 +154,8 @@ export function CenterMap() {
     map.current = mapInstance;
 
     return () => {
-      markers.current.forEach((marker) => marker.remove());
-      markers.current = [];
+      Object.values(markers.current).forEach((marker) => marker.remove());
+      markers.current = {};
       tempMarkers.current.forEach((marker) => marker.remove());
       tempMarkers.current = [];
       routeLayerIds.current.forEach((id) => {
@@ -175,14 +180,36 @@ export function CenterMap() {
   useEffect(() => {
     if (!map.current) return;
 
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
+    Object.values(markers.current).forEach((marker) => marker.remove());
+    markers.current = {};
 
     places.forEach((place) => {
-      const marker = new mapboxgl.Marker({ color: '#10b981' })
+      const el = document.createElement('div');
+      el.style.width = '14px';
+      el.style.height = '14px';
+      el.style.borderRadius = '9999px';
+      el.style.background = '#10b981';
+      el.style.border = '2px solid rgba(15, 23, 42, 0.8)';
+      el.style.boxShadow = '0 0 0 0 rgba(16, 185, 129, 0)';
+      el.style.transition = 'transform 150ms ease, box-shadow 150ms ease';
+
+      el.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setSelectedItem({ type: 'place', id: place.id }, 'map');
+      });
+
+      el.addEventListener('mouseenter', () => {
+        setHighlightedItem({ type: 'place', id: place.id });
+      });
+
+      el.addEventListener('mouseleave', () => {
+        setHighlightedItem(null);
+      });
+
+      const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([place.lng, place.lat])
         .addTo(map.current!);
-      markers.current.push(marker);
+      markers.current[place.id] = marker;
     });
 
     if (isMapLoaded && places.length > 0) {
@@ -190,13 +217,34 @@ export function CenterMap() {
       places.forEach((place) => bounds.extend([place.lng, place.lat]));
       map.current.fitBounds(bounds, { padding: 80, duration: 800 });
     }
-  }, [places, isMapLoaded]);
+  }, [places, isMapLoaded, setHighlightedItem, setSelectedItem]);
+
+  useEffect(() => {
+    const selectedPlaceId = selectedItem?.type === 'place' ? selectedItem.id : null;
+    const highlightedPlaceId = highlightedItem?.type === 'place' ? highlightedItem.id : null;
+
+    Object.entries(markers.current).forEach(([id, marker]) => {
+      const el = marker.getElement();
+      if (id === selectedPlaceId) {
+        el.style.transform = 'scale(1.25)';
+        el.style.boxShadow = '0 0 0 6px rgba(16, 185, 129, 0.35)';
+      } else if (id === highlightedPlaceId) {
+        el.style.transform = 'scale(1.15)';
+        el.style.boxShadow = '0 0 0 4px rgba(16, 185, 129, 0.25)';
+      } else {
+        el.style.transform = 'scale(1)';
+        el.style.boxShadow = '0 0 0 0 rgba(16, 185, 129, 0)';
+      }
+    });
+  }, [highlightedItem, selectedItem]);
 
   const getRouteStyle = useCallback((route: Route) => {
     const metadata = routeMetadata[route.id];
     let lineColor = '#0891B2';
     let lineWidth = 3;
     let lineDash: number[] | null = null;
+    const isHighlighted =
+      highlightedItem?.type === 'route' && highlightedItem.id === route.id;
 
     if (metadata?.road_condition === 'offroad') {
       lineDash = [2, 2];
@@ -213,9 +261,62 @@ export function CenterMap() {
     if (selectedRoute?.id === route.id) {
       lineWidth = Math.max(lineWidth, 5);
     }
+    if (isHighlighted && selectedRoute?.id !== route.id) {
+      lineWidth = Math.max(lineWidth, 4);
+      lineColor = '#22d3ee';
+    }
 
     return { lineColor, lineWidth, lineDash };
-  }, [routeMetadata, selectedRoute]);
+  }, [highlightedItem, routeMetadata, selectedRoute]);
+
+  const fitRouteBounds = useCallback((route: Route) => {
+    if (!map.current) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    const collectCoords = (geometry: GeoJSON.Geometry | GeoJSON.Feature | GeoJSON.FeatureCollection) => {
+      if (!geometry) return;
+      if (geometry.type === 'FeatureCollection') {
+        geometry.features.forEach((feature) => collectCoords(feature));
+        return;
+      }
+      if (geometry.type === 'Feature') {
+        collectCoords(geometry.geometry);
+        return;
+      }
+      if (geometry.type === 'LineString') {
+        geometry.coordinates.forEach((coord) => bounds.extend(coord as [number, number]));
+        return;
+      }
+      if (geometry.type === 'MultiLineString') {
+        geometry.coordinates.forEach((line) =>
+          line.forEach((coord) => bounds.extend(coord as [number, number]))
+        );
+      }
+    };
+
+    collectCoords(route.route_geojson as GeoJSON.FeatureCollection);
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, { padding: 80, duration: 800 });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!map.current || !isMapLoaded) return;
+    if (!selectedItem || selectedItemSource !== 'timeline') return;
+
+    if (selectedItem.type === 'place') {
+      const place = places.find((item) => item.id === selectedItem.id);
+      if (!place) return;
+      map.current.flyTo({ center: [place.lng, place.lat], zoom: 15, duration: 900 });
+      return;
+    }
+
+    if (selectedItem.type === 'route') {
+      const route = routes.find((item) => item.id === selectedItem.id);
+      if (!route) return;
+      fitRouteBounds(route);
+    }
+  }, [fitRouteBounds, isMapLoaded, places, routes, selectedItem, selectedItemSource]);
 
   // Update route lines
   useEffect(() => {
@@ -309,7 +410,7 @@ export function CenterMap() {
         const routeId = layerId.replace('route-', '');
         const route = routes.find((item) => item.id === routeId);
         if (route) {
-          setSelectedRoute(route);
+          setSelectedItem({ type: 'route', id: route.id }, 'map');
         }
       }
     };
@@ -335,7 +436,7 @@ export function CenterMap() {
     isMapLoaded,
     routes,
     selectedRoute,
-    setSelectedRoute,
+    setSelectedItem,
   ]);
 
   // Render temporary route points

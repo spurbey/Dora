@@ -11,9 +11,11 @@ export function BottomPanel() {
   const {
     bottomPanelOpen,
     setBottomPanelOpen,
+    selectedItem,
     selectedRoute,
-    setSelectedRoute,
+    setSelectedItem,
     waypoints,
+    places,
     routeMetadata,
     setRouteMetadata,
   } = useEditorStore();
@@ -23,12 +25,12 @@ export function BottomPanel() {
   const { data: metadataData } = useRouteMetadata(routeId);
 
   useEffect(() => {
-    if (selectedRoute) {
+    if (selectedItem) {
       setBottomPanelOpen(true);
     } else {
       setBottomPanelOpen(false);
     }
-  }, [selectedRoute, setBottomPanelOpen]);
+  }, [selectedItem, setBottomPanelOpen]);
 
   useEffect(() => {
     if (routeId && metadataData) {
@@ -36,8 +38,11 @@ export function BottomPanel() {
     }
   }, [metadataData, routeId, setRouteMetadata]);
 
+  const activeTab = selectedItem?.type === 'place' ? 'details' : tab;
   const metadata = routeId ? routeMetadata[routeId] ?? metadataData ?? null : null;
   const waypointCount = selectedRoute ? waypoints[selectedRoute.id]?.length ?? 0 : 0;
+  const selectedPlace =
+    selectedItem?.type === 'place' ? places.find((item) => item.id === selectedItem.id) : null;
   const formKey = selectedRoute ? `${selectedRoute.id}-${metadata?.updated_at ?? 'new'}` : 'route-form';
 
   return (
@@ -51,15 +56,19 @@ export function BottomPanel() {
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2 text-xs text-white/60">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            {selectedRoute ? `Route: ${selectedRoute.name ?? 'Untitled'}` : 'Route Metadata'}
+            {selectedItem?.type === 'route'
+              ? `Route: ${selectedRoute?.name ?? 'Untitled'}`
+              : selectedItem?.type === 'place'
+                ? `Place: ${selectedPlace?.name ?? 'Untitled'}`
+                : 'Component Details'}
           </div>
           <div className="flex items-center gap-2">
-            {selectedRoute && (
+            {selectedItem && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-white/60 hover:bg-white/10"
-                onClick={() => setSelectedRoute(null)}
+                onClick={() => setSelectedItem(null)}
               >
                 Close
               </Button>
@@ -79,45 +88,74 @@ export function BottomPanel() {
 
         {bottomPanelOpen && (
           <div className="flex-1 pb-4">
-            {!selectedRoute ? (
+            {!selectedItem ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
-                Select a route to view metadata.
+                Select a place or route to view details.
               </div>
             ) : (
-              <Tabs value={tab} onValueChange={setTab} className="h-full">
+              <Tabs value={activeTab} onValueChange={setTab} className="h-full">
                 <TabsList className="bg-white/10 text-white/70">
                   <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  {selectedItem.type === 'route' && (
+                    <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="details" className="mt-4 space-y-3 text-sm text-white/70">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-xs text-white/50">Distance</p>
-                      <p className="text-lg text-white">
-                        {selectedRoute.distance_km ? `${selectedRoute.distance_km.toFixed(1)} km` : 'N/A'}
-                      </p>
+                  {selectedItem.type === 'route' && selectedRoute ? (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-white/50">Distance</p>
+                        <p className="text-lg text-white">
+                          {selectedRoute.distance_km ? `${selectedRoute.distance_km.toFixed(1)} km` : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-white/50">Duration</p>
+                        <p className="text-lg text-white">
+                          {selectedRoute.duration_mins ? `${selectedRoute.duration_mins} mins` : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-white/50">Waypoints</p>
+                        <p className="text-lg text-white">{waypointCount}</p>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-xs text-white/50">Duration</p>
-                      <p className="text-lg text-white">
-                        {selectedRoute.duration_mins ? `${selectedRoute.duration_mins} mins` : 'N/A'}
-                      </p>
+                  ) : selectedPlace ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-white/50">Place type</p>
+                        <p className="text-lg text-white">{selectedPlace.place_type ?? 'Place'}</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <p className="text-xs text-white/50">Latitude</p>
+                          <p className="text-lg text-white">{selectedPlace.lat.toFixed(4)}</p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <p className="text-xs text-white/50">Longitude</p>
+                          <p className="text-lg text-white">{selectedPlace.lng.toFixed(4)}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-white/50">Notes</p>
+                        <p className="text-sm text-white/80">
+                          {selectedPlace.user_notes || 'No notes yet.'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-xs text-white/50">Waypoints</p>
-                      <p className="text-lg text-white">{waypointCount}</p>
-                    </div>
-                  </div>
+                  ) : null}
                 </TabsContent>
-                <TabsContent value="metadata" className="mt-4">
-                  <RouteMetadataForm
-                    key={formKey}
-                    route={selectedRoute}
-                    metadata={metadata}
-                    onSaved={(saved) => setRouteMetadata(selectedRoute.id, saved)}
-                    onCancel={() => setSelectedRoute(null)}
-                  />
-                </TabsContent>
+                {selectedItem.type === 'route' && selectedRoute && (
+                  <TabsContent value="metadata" className="mt-4">
+                    <RouteMetadataForm
+                      key={formKey}
+                      route={selectedRoute}
+                      metadata={metadata}
+                      onSaved={(saved) => setRouteMetadata(selectedRoute.id, saved)}
+                      onCancel={() => setSelectedItem(null)}
+                    />
+                  </TabsContent>
+                )}
               </Tabs>
             )}
           </div>

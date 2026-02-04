@@ -11,6 +11,7 @@ export interface Waypoint {
   order_in_route: number;
   stopped_at?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface WaypointCreate {

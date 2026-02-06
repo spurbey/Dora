@@ -40,3 +40,11 @@ alembic/versions/*.pyc
 #Claude
 .claude/
 
+#mcpserver
+MCP Server/
+
+#codex
+.codex/
+
+
+

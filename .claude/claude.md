@@ -1,7 +1,7 @@
 # Travel Memory Vault - AI Development Instructions
 
 ## Project Overview
-A personal travel journal app where creators pin places, attach memories, and build visual trip timelines. Private by default, shareable by choice.
+A two-sided travel platform: Creators build rich, interactive travelogues on a map canvas. Planners discover semantically-matched travel content.
 
 **Tech Stack:**
 - Backend: FastAPI + Python 3.11+
@@ -9,182 +9,194 @@ A personal travel journal app where creators pin places, attach memories, and bu
 - Auth: Supabase Auth (JWT)
 - Storage: Supabase Storage (photos/videos)
 - Frontend: React 18 + Vite + TypeScript
-- Maps: Mapbox GL JS
-- External APIs: Foursquare (places), Mapbox (geocoding, search)
+- Maps: Mapbox GL JS (NOT react-map-gl)
+- External APIs: Foursquare (places), Mapbox (directions, geocoding)
 
 ## Core Development Rules
 
 ### Always Do
 1. **Start every session:** Run `/new-session` to load context
-2. **Commit frequently:** After each logical unit (not just at session end)
 3. **Use structured commits:** Follow format in `/commit` skill
 4. **End every session:** Run `/close-session` to update status
 5. **Load files dynamically:** Only read what you need for current task
-6. **Use skills for patterns:** Don't reinvent, use `/api-endpoint`, `/supabase-table`, etc.
-7. **Test before committing:** Run tests, ensure they pass
+6. **Test before committing:** Run tests, ensure they pass
+7. **Read phase PRD first:** Load `docs/phases/v2/phase-{X}.md` before coding
 
 ### Never Do
 1. Don't load entire codebase at once (context bloat)
 2. Don't skip tests before committing
 3. Don't commit without structured message (COMPLETED/NEXT/FILES)
 4. Don't hardcode secrets or API keys
-5. Don't write code without reading relevant phase PRD first
-6. Don't use `/compact` - use git log instead
+5. Don't modify V1 tables - only ADD new tables
+6. Don't break backward compatibility with V1 features
+
+## V2 Architecture Principles
+
+### Data Strategy
+- **Additive, not destructive:** V1 trips/places continue working
+- **Metadata in separate tables:** trip_metadata, place_metadata, route_metadata
+- **1:1 relationships:** Core entities unchanged, metadata optional
+- **Semantic tagging:** All components tagged for intelligent search
+- **PostgreSQL arrays + GIN indexes:** Fast multi-tag queries
+
+### Frontend Strategy
+- **Parallel interfaces:** V1 view (`/trips/:id`) + V2 editor (`/trips/:id/edit`)
+- **Feature flags:** Enable V2 features gradually via env vars
+- **Shared components:** Reuse V1 map/place components in V2 editor
+- **State separation:** V1 uses existing stores, V2 has `editorStore`
 
 ## Session Workflow
 
 ### Start Session
 ```bash
 /new-session
-# This will:
-# - Read .claude/PROJECT_STATUS.md
-# - Read git log --oneline -20
-# - Read .claude/CURRENT_PHASE.md
-# - Show current task and context
+# Reads:
+# - .claude/PROJECT_STATUS.md (current state)
+# - git log --oneline -20 (recent work)
+# - .claude/CURRENT_PHASE.md (active phase)
 ```
 
 ### During Session
-- Work on focused task from CURRENT_PHASE.md
-- Load relevant docs/phases/*.md only when needed
-- Use skills for common patterns
-- **Commit after each logical unit** (not just at end)
-- Run `/commit` with structured message
+- **Load phase PRD:** Read `docs/phases/v2/phase-{X}.md` before starting
+- **Use reference patterns:** Check existing V1 code for patterns
+- **Commit per logical unit:** Don't wait until session end
+- **Test incrementally:** Run tests after each component
 
 ### End Session
 ```bash
 /close-session
-# This will:
-# - Update .claude/PROJECT_STATUS.md
-# - Update .claude/CURRENT_PHASE.md if phase complete
-# - Create final session summary commit
+# Updates PROJECT_STATUS.md and CURRENT_PHASE.md
 ```
 
-## Memory Strategy
-
-**Your memory between sessions:**
-1. `git log --oneline -20` - Recent commit history
-2. `git log -1 --format=full` - Last commit details
-3. `.claude/PROJECT_STATUS.md` - Current state, blockers, progress
-4. `.claude/CURRENT_PHASE.md` - Active phase details
-
-**Don't rely on conversation history - it's gone next session.**
-
 ## Commit Message Format
-
-**CRITICAL:** All commits must follow this structure:
 ```
 <type>(<scope>): <short description>
 
 COMPLETED:
 - Specific task 1
 - Specific task 2
-- Specific task 3
 
 NEXT SESSION:
-- What to do next
 - Clear starting point
 
 FILES CHANGED:
-- path/to/file1.py (new/modified, X lines)
-- path/to/file2.py (modified, Y lines)
+- path/to/file.py (new/modified, X lines)
 
 TESTS: X passed, Y% coverage
 ```
 
-Types: `feat`, `fix`, `test`, `docs`, `chore`, `refactor`
-Scopes: `auth`, `trips`, `places`, `media`, `search`, `frontend`, `db`
+**Types:** `feat`, `fix`, `test`, `docs`, `refactor`, `migration`  
+**Scopes:** `metadata`, `routes`, `editor`, `timeline`, `search`, `db`
 
 ## Project Structure
 ```
-├── .claude/              # AI instructions (you are here)
-│   ├── CLAUDE.md         # Core rules (this file)
+├── .claude/              # AI instructions
+│   ├── CLAUDE.md         # This file
 │   ├── PROJECT_STATUS.md # Current state
 │   ├── CURRENT_PHASE.md  # Active phase
-│   ├── skills/           # Reusable commands
-│   ├── agents/           # Autonomous workflows
-│   └── hooks/            # Automation triggers
+│   └── skills/           # Reusable commands
 │
-├── docs/                 # Reference documentation
-│   ├── phases/           # Mini-PRDs (one per phase)
-│   ├── schemas/          # Database schema
-│   ├── apis/             # External API guides
-│   └── supabase/         # Supabase setup guides
+├── docs/
+│   └── phases/           # V2 phase PRDs
+│       ├── phase-a1-metadata-infrastructure.md
+│       ├── phase-a2-route-system.md
+│       ├── phase-b1-editor-layout.md
+│       └── ...
 │
-├── backend/              # FastAPI backend
-│   ├── CLAUDE.md         # Backend-specific rules
-│   └── app/
+├── backend/
+│   ├── app/
+│   │   ├── models/       # SQLAlchemy models
+│   │   ├── schemas/      # Pydantic schemas
+│   │   ├── api/v1/       # API endpoints
+│   │   └── services/     # Business logic
+│   └── migrations/       # Alembic migrations
 │
-└── frontend/             # React frontend
-    ├── CLAUDE.md         # Frontend-specific rules
-    └── src/
+└── frontend/
+    ├── src/
+    │   ├── pages/        # V1 pages + V2 editor
+    │   ├── components/   # Shared + editor-specific
+    │   ├── store/        # Zustand stores
+    │   └── hooks/        # React Query hooks
+    └── CLAUDE.md         # Frontend-specific rules
 ```
+
+## V2 Phase Structure
+
+**Current Phase System:**
+```
+PHASE A: Database Evolution (Backend)
+  A1: Metadata Infrastructure    ← START HERE
+  A2: Route System
+  A3: Component Abstraction
+
+PHASE B: Immersive Editor (Frontend)
+  B1: Editor Layout
+  B2: State Management
+  B3: Map Canvas
+
+PHASE C: Route Creation
+  C1: Drawing Tools
+  C2: Waypoint Management
+  C3: Metadata UI
+
+PHASE D: Timeline & Sync
+  D1: Dynamic Timeline
+  D2: Map-Timeline Sync
+  D3: Drag & Drop
+
+PHASE E: Semantic Tagging
+  E1: Component Metadata Forms
+  E2: Trip Profile Builder
+  E3: Public/Private Controls
+
+PHASE F: Discovery Engine (Future)
+  F1: Search API
+  F2: Ranking Algorithm
+  F3: Recommendations
+```
+
+## Important V2 Rules
+
+### Database
+- ✅ **DO:** Create new tables with FK to existing tables
+- ✅ **DO:** Use PostgreSQL ARRAY + GIN indexes for tags
+- ✅ **DO:** Set ON DELETE CASCADE for metadata tables
+- ❌ **DON'T:** Modify existing V1 tables (trips, trip_places)
+- ❌ **DON'T:** Use JSONB for structured data (use proper columns)
+
+### Frontend
+- ✅ **DO:** Create `/trips/:id/edit` route for V2 editor
+- ✅ **DO:** Keep V1 `/trips/:id` route unchanged
+- ✅ **DO:** Use feature flags for gradual rollout
+- ❌ **DON'T:** Break V1 components or pages
+- ❌ **DON'T:** Use react-map-gl (use Mapbox GL JS directly)
+
+### API
+- ✅ **DO:** Add new endpoints under `/api/v1/`
+- ✅ **DO:** Maintain backward compatibility
+- ✅ **DO:** Use existing auth patterns (`get_current_user`)
+- ❌ **DON'T:** Change existing V1 endpoint responses
+- ❌ **DON'T:** Remove or rename V1 endpoints
 
 ## Quick Reference
 
-- **Architecture overview:** `docs/architecture.md`
+- **Current phase:** `.claude/CURRENT_PHASE.md`
+- **Phase PRDs:** `docs/phases/v2/phase-{X}.md`
 - **Database schema:** `docs/schemas/database.md`
-- **Current phase details:** `.claude/CURRENT_PHASE.md`
-- **Task list:** `.claude/PROJECT_STATUS.md`
-- **Supabase setup:** `docs/supabase/setup-guide.md`
-
-## Available Skills (Commands)
-
-- `/new-session` - Start session with context loading
-- `/commit` - Create structured commit
-- `/close-session` - End session, update status
-- `/api-endpoint` - Create FastAPI endpoint
-- `/supabase-table` - Create table with RLS policies
-- `/react-page` - Create React page with Mapbox
-- `/search-service` - Multi-source search pattern
-- `/media-upload` - Supabase Storage upload
-
-## Available Agents
-
-- `backend-builder` - Build complete API resource (high autonomy)
-- `frontend-builder` - Build complete page (high autonomy)
-- `test-runner` - Run tests, fix failures (medium autonomy)
-- `code-reviewer` - Review code before commit (low autonomy)
-
-## Key Patterns
-
-### Backend (FastAPI + Supabase)
-- Models: SQLAlchemy with GeoAlchemy2 for PostGIS
-- Schemas: Pydantic for validation
-- Services: Business logic layer
-- Routes: Thin controllers, delegate to services
-- Auth: Validate Supabase JWT, use `Depends(get_current_user)`
-- Database: Connect to Supabase PostgreSQL via SQLAlchemy
-
-### Frontend (React + Mapbox)
-- Components: Functional components with hooks
-- State: Zustand for global, React Query for server state
-- Maps: Mapbox GL JS for all map rendering
-- Auth: Supabase client SDK
-- API: Axios with interceptors for auth tokens
-
-### Supabase Integration
-- Auth: Email/password, JWT validation in FastAPI
-- Database: PostgreSQL + PostGIS, connect via SQLAlchemy
-- Storage: Upload to buckets, use signed URLs
-- RLS: Row-Level Security for additional protection
-
-## Important Notes
-
-- **No Google Maps APIs** (ToS violation with Mapbox)
-- **Use Foursquare + Mapbox** for place search
-- **PostGIS for geospatial queries** (ST_Distance, ST_DWithin)
-- **Free tier limit:** 3 trips per user (enforce in backend)
-- **Premium tier:** Unlimited trips, offered at $8/month
+- **V1 reference code:** `backend/app/models/trip.py`, `frontend/src/pages/Dashboard.tsx`
+- **Recent commits:** `git log --oneline -20`
 
 ## When in Doubt
 
-1. Check `git log -5` to see recent work
-2. Check `.claude/PROJECT_STATUS.md` for current task
-3. Read relevant `docs/phases/*.md` for phase details
-4. Ask human before making architectural decisions
+1. **Check recent work:** `git log -5`
+2. **Check current task:** `.claude/PROJECT_STATUS.md`
+3. **Read phase PRD:** `docs/phases/phase-{current}.md`
+4. **Reference V1 code:** Use existing patterns from V1
+5. **Ask human:** Before architectural changes
 
 ---
 
-**Version:** 1.0.0
-**Last Updated:** 2025-01-15
-**Project Start:** 2025-01-15
+**Version:** 2.0.0  
+**Phase:** A1 (Metadata Infrastructure)  
+**Last Updated:** 2025-02-02  
+**V1 Shipped:** 2025-02-01  

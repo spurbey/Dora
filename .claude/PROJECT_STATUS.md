@@ -1,13 +1,13 @@
 # Project Status - Travel Memory Vault
 
-**Last Updated:** 2025-01-25
-**Current Phase:** Phase 1C: Places + PostGIS
-**Overall Progress:** 32% (8/25 sessions complete)
+**Last Updated:** 2026-02-04
+**Current Phase:** V2 Phase E: Semantic Tagging (planning; PRD updated)
+**Overall Progress:** 84% (Backend: 16/25 sessions complete; Frontend Phase D complete)
 
 ---
 
 
-**Active Session:** Session 10: Geospatial queries (NEXT)
+**Active Session:** V2 Phase E: Semantic Tagging (READY TO START; PRD updated)
 
 ---
 
@@ -21,7 +21,7 @@
   - [x] Connect FastAPI to Supabase PostgreSQL
   - [x] Test database connection
   - **Status:** ✅ Completed 2025-01-22
-  
+ 
 - [x] **Session 2:** Database schema (core tables)
   - [x] Create User, Trip, TripPlace models
   - [x] Set up Alembic
@@ -55,7 +55,7 @@
   - **Status:** ✅ Completed 2025-01-25
 - [x] **Session 7:** Trip tests ✅ SKIPPED (tests completed in Session 6)
 
-### Phase 1C: Places + PostGIS (Week 4-5)
+### Phase 1C: Places + PostGIS (Week 4-5) ✅ COMPLETE
 - [x] **Session 8:** Place models with PostGIS ✅ COMPLETE
   - [x] Created Place schemas with coordinate validation
   - [x] Created PlaceService with PostGIS Geography conversion
@@ -71,75 +71,154 @@
   - [x] Order management with order_in_trip
   - [x] Integration tests (25 tests via Codex)
   - **Status:** ✅ Completed 2025-01-25
-- [ ] **Session 10:** Geospatial queries
+- [x] **Session 10:** Geospatial queries ✅ COMPLETE
+  - [x] Added calculate_distance in PlaceService (PostGIS ST_Distance)
+  - [x] Added calculate_trip_bounds in TripService (min/max lat/lng + center)
+  - [x] Added GET /api/v1/places/nearby (radius search with ST_DWithin)
+  - [x] Added GET /api/v1/trips/{trip_id}/bounds (geographic bounding box)
+  - [x] Spatial tests (10 tests via Codex)
+  - **Status:** ✅ Completed 2026-01-25
 
-### Phase 2A: Media Upload (Week 5-6)
-- [ ] **Session 11:** Supabase Storage setup
-- [ ] **Session 12:** Photo upload endpoint
-- [ ] **Session 13:** Media management
+### Phase 2A: Media Upload (Week 5-6) ✅ COMPLETE
+- [x] **Session 11:** Supabase Storage setup ✅ COMPLETE
+  - [x] Added StorageService with upload/delete/public URL/thumbnail helpers
+  - [x] Added file validation (type, size, empty file)
+  - [x] Added SUPABASE_SERVICE_ROLE_KEY setting
+  - [x] Pytest storage integration tests (5 tests)
+  - **Status:** ✅ Completed 2026-01-26
+- [x] **Session 12:** Photo upload endpoint ✅ COMPLETE
+  - [x] Added MediaFile model + Alembic migration
+  - [x] Added media schemas (create/response/list)
+  - [x] Implemented MediaService upload/get/delete with ownership validation
+  - [x] Added media API endpoints (POST upload, GET, DELETE)
+  - [x] Endpoint tests (11 tests via Codex)
+  - **Status:** ✅ Completed 2026-01-26
+- [x] **Session 13:** Media management ✅ COMPLETE
+  - [x] Integrated media with places (photos array)
+  - [x] Added signed URLs for private trip media
+  - [x] Expanded place detail to include media objects
+  - [x] Added media CRUD integration tests
+  - **Status:** ✅ Completed 2026-01-26 
 
 ### Phase 2B: Multi-Source Search (Week 6-7)
-- [ ] **Session 14:** Search service architecture
-- [ ] **Session 15:** Search endpoint implementation
-- [ ] **Session 16:** Search tests
+- [x] **Session 14:** Search service architecture (COMPLETE)
+  - [x] Added full-text search support to trip_places (search_vector + GIN index)
+  - [x] Added auto-update trigger for search_vector via Alembic migration
+  - [x] Created signal tables: search_events, place_views, place_saves
+  - [x] Implemented search normalization utilities (query, coords, radius)
+  - [x] Implemented deterministic cache key generator (future Redis-ready)
+  - [x] Added SearchService skeleton with normalization + cache key flow
+  - [x] Added Session 14 unit + integration tests
+- [x] **Session 15:** Search retrieval layer (COMPLETE)
+  - [x] Added provider abstraction + local/Foursquare providers
+  - [x] Implemented unified schema + deduplication logic
+  - [x] Extended SearchService retrieval flow (local -> fallback -> merge -> dedupe)
+  - [x] Added geo utilities (haversine, name normalization)
+  - [x] Added search retrieval tests (21 passing)
+- [ ] **Session 16:** Search intelligence layer
 
-### Phase 3A: Frontend Foundation (Week 7-8)
-- [ ] **Session 17:** React + Mapbox setup
-- [ ] **Session 18:** Authentication UI
-- [ ] **Session 19:** Trip pages
-- [ ] **Session 20:** Place management UI
+### Phase 3A: Frontend Foundation (React)
+- [x] **Phase 1:** Foundation & Authentication (completed 2026-01-29)
+- [x] **Phase 2:** Trips Management (completed 2026-01-30)
+- [x] **Phase 3:** Places & Search (completed 2026-02-01)
+- [x] **Phase 4:** Map & Media (completed 2026-02-01)
 
-### Phase 3B: Integration (Week 8-9)
-- [ ] **Session 21-22:** Full integration
-- [ ] **Session 23-24:** Premium features
-- [ ] **Session 25:** Deployment
+#### Phase 3A Bugs Resolved
+- Media upload 500 due to MediaResponse trip_id validation mismatch
+- Places list 500 due to photo expansion/validation order
+- Photos tab empty due to string IDs vs MediaFile objects
+- Query invalidation used place_id instead of trip_id after media upload/delete
+- Map blank in tab view due to container sizing/visibility (resize on tab switch)
+- "places is not iterable" due to list response shape (unwrap places array)
+
+### V2 Phase A1: Metadata Infrastructure (IMPLEMENTED)
+- [x] **A1:** Add trip_metadata + place_metadata tables (Alembic)
+- [x] **A1:** Add models + schemas for metadata
+- [x] **A1:** Add metadata CRUD endpoints (8 total)
+- [x] **A1:** Add tests for metadata CRUD + auth rules
+
+### V2 Phase A2: Route System (IMPLEMENTED)
+- [x] **A2:** Add routes + waypoints + route_metadata tables (Alembic)
+- [x] **A2:** Add models + schemas for routes and waypoints
+- [x] **A2:** Add route CRUD + waypoint CRUD endpoints (10 total)
+- [x] **A2:** Add Mapbox Directions integration (/routes/generate)
+- [x] **A2:** Add tests for routes/waypoints + validation
+
+### V2 Phase A3: Component Abstraction (IMPLEMENTED)
+- [x] **A3:** Add `trip_components_view` (Alembic view migration)
+- [x] **A3:** Add TripComponent read-only model
+- [x] **A3:** Add schemas for list/detail/reorder
+- [x] **A3:** Add component service (reorder + details)
+- [x] **A3:** Add components API endpoints (3 total)
+- [x] **A3:** Add tests for list/reorder/detail/auth
+
+### V2 Phase B: Immersive Editor Shell (COMPLETE)
+- [x] **B1:** Editor route + 5-panel layout + V1/V2 navigation (feature-flagged)
+- [x] **B2:** Editor state store + hooks + auto-save scaffolding
+- [x] **B3:** Map canvas renders markers + routes with viewport sync
+
+### V2 Phase C1: Route Drawing Tools (COMPLETE)
+- [x] **C1:** Add route drawing mode (map clicks -> tempRoute points)
+- [x] **C1:** Call Mapbox Directions API for snapped preview + distance/duration
+- [x] **C1:** Add preview UI (save/undo/cancel) and persist via `/api/v1/trips/{trip_id}/routes`
+- [x] **C1:** Update editor store with drawing state + transport mode
+
+### V2 Phase C2: Waypoint Management (COMPLETE)
+- [x] **C2:** Add waypoint CRUD hooks + service
+- [x] **C2:** Implement waypoint markers + drag/edit/delete UI
+- [x] **C2:** Recalculate routes with waypoints (Mapbox Directions)
+- [x] **C2:** Update editor store with waypoint state + selection
+
+### V2 Phase C3: Route Metadata UI (COMPLETE)
+- [x] **C3:** Add route metadata types + service + hooks
+- [x] **C3:** Build metadata form + inputs (terrain, safety, highlights)
+- [x] **C3:** Add metadata tab in bottom panel
+- [x] **C3:** Style routes + badges using metadata
+
+### V2 Phase D: Timeline & Synchronization (COMPLETE)
+- [x] **D1:** Timeline UI (places + routes) with order numbers + header actions
+- [x] **D2:** Map ↔ timeline sync (click/hover highlights + flyTo/fitBounds)
+- [x] **D3:** Drag & drop reorder with backend persistence
 
 ---
 
 ## Progress Metrics
 
-**Completed Sessions:** 8/25 (32%)
+**Completed Sessions:** 14/25 backend sessions complete; Frontend Phases 1–4 complete; V2 Phases B–D complete
 **Completed Features:**
-- ✅ User authentication with Supabase JWT
-- ✅ User profile CRUD endpoints
-- ✅ Trip schemas and service layer with free tier enforcement
-- ✅ Trip REST API with visibility-based access control
-- ✅ Place schemas and service layer with PostGIS Geography
-
-- ✅ Place CRUD API endpoints with access control
-
+- [x] User authentication with Supabase JWT
+- [x] User profile CRUD endpoints
+- [x] Trip schemas and service layer with free tier enforcement
+- [x] Trip REST API with visibility-based access control
+- [x] Place schemas and service layer with PostGIS Geography
+- [x] Place CRUD API endpoints with access control
+- [x] PostGIS spatial queries (nearby + trip bounds)
+- [x] Supabase Storage integration with file validation
+- [x] Media upload endpoints + metadata storage
+- [x] Media management with place integration + signed URLs
+- [x] Frontend Phase 1 scaffold + auth UI + protected routing
+- [x] Frontend Phase 2 (Trips) complete: layout shell, trip CRUD UI, and trip pages
+- [x] Frontend Phase 3 (Places & Search) complete
+- [x] Frontend Phase 4 (Map & Media) complete
 **Blockers:** None
 
-**Next Milestone:** Complete Phase 1C (Session 10)
+**Next Milestone:** Start V2 Phase E (Semantic Tagging)
 
 ---
 
 ## Recent Commits
 
-### 2025-01-25 (Session 9)
-feat(places): add Place REST API endpoints
-COMPLETED:
-- Created Place API routes in backend/app/api/v1/places.py
-- Implemented POST /api/v1/places (create with Geography conversion)
-- Implemented GET /api/v1/places (list by trip_id with visibility access control)
-- Implemented GET /api/v1/places/{id} (detail with access control)
-- Implemented PATCH /api/v1/places/{id} (update with ownership + Geography recalculation)
-- Implemented DELETE /api/v1/places/{id} (delete with ownership)
-- Registered places router in backend/app/main.py
-- Integration tests (25 tests via Codex)
+### 2026-02-01 (Backend Fix)
+fix(backend): resolve MediaResponse validation and JSONB tracking issues
 
-BUSINESS LOGIC:
-- Geography conversion uses SRID=4326;POINT(lng lat)
-- Trip visibility gates read access for non-owners
-- Ownership checks prevent unauthorized modifications
-- order_in_trip auto-set when not provided
-
-FILES CHANGED:
-- backend/app/api/v1/places.py (new, 277 lines)
-- backend/app/main.py (modified, 43 lines)
-- backend/tests/test_place_endpoints.py (new, 268 lines)
-
-TESTS: 25 passed in 6.91s
+TESTS: not run
 ---
+
+### 2026-01-31 (Frontend Phase 4)
+feat(frontend): implement Phase 4 - Map & Media
+
+TESTS: not run
+---
+
 
 

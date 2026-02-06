@@ -91,3 +91,4 @@ cd backend && mypy app/
 - Always use parameterized queries (SQLAlchemy ORM)
 - PostGIS queries use Geography not Geometry
 - Free tier users: max 3 trips (enforce in service layer)
+

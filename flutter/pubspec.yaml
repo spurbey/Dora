@@ -1,0 +1,68 @@
+name: dora
+description: Dora mobile application
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+  riverpod_annotation: ^2.3.0
+
+  # Auth
+  supabase_flutter: ^2.0.0
+
+  # Navigation
+  go_router: ^12.1.0
+
+  # Network
+  dio: ^5.4.0
+
+  # Database
+  drift: ^2.14.0
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.0
+  path: ^1.8.3
+
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+
+  # Analytics & Config
+  firebase_core: ^2.24.0
+  firebase_analytics: ^10.7.0
+  firebase_remote_config: ^4.3.0
+  sentry_flutter: ^7.13.0
+
+  # Models & Utils
+  freezed_annotation: ^2.4.0
+  json_annotation: ^4.8.1
+  intl: ^0.18.1
+  uuid: ^4.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+  # Code Generation
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.3.0
+  drift_dev: ^2.14.0
+  freezed: ^2.4.6
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: SF Pro Display
+      fonts:
+        - asset: assets/fonts/SFPRODISPLAYREGULAR.OTF
+          weight: 400
+        - asset: assets/fonts/SFPRODISPLAYMEDIUM.OTF
+          weight: 500
+        - asset: assets/fonts/SFPRODISPLAYBOLD.OTF
+          weight: 700

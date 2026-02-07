@@ -1,0 +1,76 @@
+import 'package:test/test.dart';
+import 'package:dora_api/dora_api.dart';
+
+// tests for PlaceMetadataResponse
+void main() {
+  final instance = PlaceMetadataResponseBuilder();
+  // TODO add properties to the builder and call build()
+
+  group(PlaceMetadataResponse, () {
+    // String componentType
+    test('to test the property `componentType`', () async {
+      // TODO
+    });
+
+    // BuiltList<String> experienceTags
+    test('to test the property `experienceTags`', () async {
+      // TODO
+    });
+
+    // BuiltList<String> bestFor
+    test('to test the property `bestFor`', () async {
+      // TODO
+    });
+
+    // String budgetPerPerson
+    test('to test the property `budgetPerPerson`', () async {
+      // TODO
+    });
+
+    // num durationHours
+    test('to test the property `durationHours`', () async {
+      // TODO
+    });
+
+    // int difficultyRating
+    test('to test the property `difficultyRating`', () async {
+      // TODO
+    });
+
+    // String physicalDemand
+    test('to test the property `physicalDemand`', () async {
+      // TODO
+    });
+
+    // String bestTime
+    test('to test the property `bestTime`', () async {
+      // TODO
+    });
+
+    // bool isPublic (default value: false)
+    test('to test the property `isPublic`', () async {
+      // TODO
+    });
+
+    // String placeId
+    test('to test the property `placeId`', () async {
+      // TODO
+    });
+
+    // num contributionScore
+    test('to test the property `contributionScore`', () async {
+      // TODO
+    });
+
+    // DateTime createdAt
+    test('to test the property `createdAt`', () async {
+      // TODO
+    });
+
+    // DateTime updatedAt
+    test('to test the property `updatedAt`', () async {
+      // TODO
+    });
+
+  });
+}

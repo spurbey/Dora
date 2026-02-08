@@ -6,6 +6,7 @@ import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/core/utils/date_time_utils.dart';
 import 'package:dora/features/feed/presentation/providers/feed_provider.dart';
 import 'package:dora/features/feed/presentation/widgets/empty_state.dart';
 import 'package:dora/features/feed/presentation/widgets/ongoing_trip_banner.dart';
@@ -48,17 +49,16 @@ class FeedScreen extends ConsumerWidget {
                   onTap: () => context.go(Routes.search),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                if (_showOngoingTrip())
+                if (state.activeTrip != null)
                   Padding(
                     padding: AppSpacing.horizontalMd,
                     child: OngoingTripBanner(
-                      title: 'Japan Adventure (5 places)',
-                      subtitle: 'Last edited 2 hours ago',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon')),
-                        );
-                      },
+                      title:
+                          '${state.activeTrip!.name} (${state.activeTrip!.placeCount} places)',
+                      subtitle:
+                          'Last edited ${DateTimeUtils.formatRelativeTime(state.activeTrip!.lastEditedAt ?? state.activeTrip!.localUpdatedAt)}',
+                      onTap: () =>
+                          context.push(Routes.editorPath(state.activeTrip!.id)),
                     ),
                   ),
                 Padding(
@@ -140,5 +140,4 @@ class FeedScreen extends ConsumerWidget {
     );
   }
 
-  bool _showOngoingTrip() => false;
 }

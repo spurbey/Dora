@@ -7,6 +7,7 @@ import 'package:dora/features/feed/data/feed_api.dart';
 import 'package:dora/features/feed/data/feed_repository.dart';
 import 'package:dora/features/feed/data/models/trip_filter.dart';
 import 'package:dora/features/feed/domain/feed_state.dart';
+import 'package:dora/features/trips/presentation/providers/trips_provider.dart';
 
 part 'feed_provider.g.dart';
 
@@ -18,11 +19,13 @@ class FeedController extends _$FeedController {
   Future<FeedState> build() async {
     final repository = ref.watch(feedRepositoryProvider);
     final trips = await repository.getPublicTrips(page: 1, limit: _pageSize);
+    final activeTrip = await ref.watch(tripsRepositoryProvider).getActiveTrip();
 
     return FeedState(
       trips: trips,
       currentPage: 1,
       hasMore: trips.length >= _pageSize,
+      activeTrip: activeTrip,
     );
   }
 
@@ -51,6 +54,7 @@ class FeedController extends _$FeedController {
         currentPage: nextPage,
         hasMore: moreTrips.length >= _pageSize,
         isLoadingMore: false,
+        activeTrip: currentState.activeTrip,
         filter: currentState.filter,
       ));
     } catch (e, st) {
@@ -68,11 +72,13 @@ class FeedController extends _$FeedController {
         limit: _pageSize,
         forceRefresh: true,
       );
+      final activeTrip = await ref.read(tripsRepositoryProvider).getActiveTrip();
 
       state = AsyncData(FeedState(
         trips: trips,
         currentPage: 1,
         hasMore: trips.length >= _pageSize,
+        activeTrip: activeTrip,
       ));
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -89,11 +95,13 @@ class FeedController extends _$FeedController {
         limit: _pageSize,
         filter: filter,
       );
+      final activeTrip = await ref.read(tripsRepositoryProvider).getActiveTrip();
 
       state = AsyncData(FeedState(
         trips: trips,
         currentPage: 1,
         hasMore: trips.length >= _pageSize,
+        activeTrip: activeTrip,
         filter: filter,
       ));
     } catch (e, st) {

@@ -59,7 +59,7 @@ class NavigationShell extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book_outlined),
-            label: 'Trips',
+            label: 'My Trips',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

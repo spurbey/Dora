@@ -9,11 +9,13 @@ import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/features/auth/presentation/screens/login_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
+import 'package:dora/features/create/presentation/screens/editor_screen.dart';
 import 'package:dora/features/feed/presentation/screens/feed_screen.dart';
 import 'package:dora/features/feed/presentation/screens/search_screen.dart';
 import 'package:dora/features/feed/presentation/screens/trip_detail_screen.dart';
 import 'package:dora/features/profile/presentation/screens/profile_screen.dart';
-import 'package:dora/features/trips/presentation/screens/trips_screen.dart';
+import 'package:dora/features/profile/presentation/screens/settings_screen.dart';
+import 'package:dora/features/trips/presentation/screens/my_trips_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authChanges = Supabase.instance.client.auth.onAuthStateChange
@@ -48,6 +50,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.signup,
         builder: (context, state) => const SignupScreen(),
       ),
+      GoRoute(
+        path: Routes.editor,
+        builder: (context, state) => EditorScreen(
+          tripId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: Routes.settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => NavigationShell(child: child),
         routes: [
@@ -71,7 +83,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: Routes.trips,
-            builder: (context, state) => const TripsScreen(),
+            builder: (context, state) => const MyTripsScreen(),
           ),
           GoRoute(
             path: Routes.profile,

@@ -3054,6 +3054,744 @@ class PublicTripsCompanion extends UpdateCompanion<PublicTripRow> {
   }
 }
 
+class $UserTripsTable extends UserTrips
+    with TableInfo<$UserTripsTable, UserTripRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserTripsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverPhotoUrlMeta =
+      const VerificationMeta('coverPhotoUrl');
+  @override
+  late final GeneratedColumn<String> coverPhotoUrl = GeneratedColumn<String>(
+      'cover_photo_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startDateMeta =
+      const VerificationMeta('startDate');
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+      'start_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+      'end_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _visibilityMeta =
+      const VerificationMeta('visibility');
+  @override
+  late final GeneratedColumn<String> visibility = GeneratedColumn<String>(
+      'visibility', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('private'));
+  static const VerificationMeta _placeCountMeta =
+      const VerificationMeta('placeCount');
+  @override
+  late final GeneratedColumn<int> placeCount = GeneratedColumn<int>(
+      'place_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('editing'));
+  static const VerificationMeta _lastEditedAtMeta =
+      const VerificationMeta('lastEditedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastEditedAt = GeneratedColumn<DateTime>(
+      'last_edited_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        name,
+        description,
+        coverPhotoUrl,
+        startDate,
+        endDate,
+        visibility,
+        placeCount,
+        status,
+        lastEditedAt,
+        localUpdatedAt,
+        serverUpdatedAt,
+        syncStatus,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_trips';
+  @override
+  VerificationContext validateIntegrity(Insertable<UserTripRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('cover_photo_url')) {
+      context.handle(
+          _coverPhotoUrlMeta,
+          coverPhotoUrl.isAcceptableOrUnknown(
+              data['cover_photo_url']!, _coverPhotoUrlMeta));
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(_startDateMeta,
+          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    }
+    if (data.containsKey('visibility')) {
+      context.handle(
+          _visibilityMeta,
+          visibility.isAcceptableOrUnknown(
+              data['visibility']!, _visibilityMeta));
+    }
+    if (data.containsKey('place_count')) {
+      context.handle(
+          _placeCountMeta,
+          placeCount.isAcceptableOrUnknown(
+              data['place_count']!, _placeCountMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('last_edited_at')) {
+      context.handle(
+          _lastEditedAtMeta,
+          lastEditedAt.isAcceptableOrUnknown(
+              data['last_edited_at']!, _lastEditedAtMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_serverUpdatedAtMeta);
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    } else if (isInserting) {
+      context.missing(_syncStatusMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UserTripRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserTripRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      coverPhotoUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_photo_url']),
+      startDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date']),
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
+      visibility: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}visibility'])!,
+      placeCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}place_count'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      lastEditedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_edited_at']),
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $UserTripsTable createAlias(String alias) {
+    return $UserTripsTable(attachedDatabase, alias);
+  }
+}
+
+class UserTripRow extends DataClass implements Insertable<UserTripRow> {
+  final String id;
+  final String userId;
+  final String name;
+  final String? description;
+  final String? coverPhotoUrl;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String visibility;
+  final int placeCount;
+  final String status;
+  final DateTime? lastEditedAt;
+  final DateTime localUpdatedAt;
+  final DateTime serverUpdatedAt;
+  final String syncStatus;
+  final DateTime createdAt;
+  const UserTripRow(
+      {required this.id,
+      required this.userId,
+      required this.name,
+      this.description,
+      this.coverPhotoUrl,
+      this.startDate,
+      this.endDate,
+      required this.visibility,
+      required this.placeCount,
+      required this.status,
+      this.lastEditedAt,
+      required this.localUpdatedAt,
+      required this.serverUpdatedAt,
+      required this.syncStatus,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || coverPhotoUrl != null) {
+      map['cover_photo_url'] = Variable<String>(coverPhotoUrl);
+    }
+    if (!nullToAbsent || startDate != null) {
+      map['start_date'] = Variable<DateTime>(startDate);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['visibility'] = Variable<String>(visibility);
+    map['place_count'] = Variable<int>(placeCount);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || lastEditedAt != null) {
+      map['last_edited_at'] = Variable<DateTime>(lastEditedAt);
+    }
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  UserTripsCompanion toCompanion(bool nullToAbsent) {
+    return UserTripsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      coverPhotoUrl: coverPhotoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPhotoUrl),
+      startDate: startDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      visibility: Value(visibility),
+      placeCount: Value(placeCount),
+      status: Value(status),
+      lastEditedAt: lastEditedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEditedAt),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory UserTripRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserTripRow(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      coverPhotoUrl: serializer.fromJson<String?>(json['coverPhotoUrl']),
+      startDate: serializer.fromJson<DateTime?>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      visibility: serializer.fromJson<String>(json['visibility']),
+      placeCount: serializer.fromJson<int>(json['placeCount']),
+      status: serializer.fromJson<String>(json['status']),
+      lastEditedAt: serializer.fromJson<DateTime?>(json['lastEditedAt']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'coverPhotoUrl': serializer.toJson<String?>(coverPhotoUrl),
+      'startDate': serializer.toJson<DateTime?>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'visibility': serializer.toJson<String>(visibility),
+      'placeCount': serializer.toJson<int>(placeCount),
+      'status': serializer.toJson<String>(status),
+      'lastEditedAt': serializer.toJson<DateTime?>(lastEditedAt),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  UserTripRow copyWith(
+          {String? id,
+          String? userId,
+          String? name,
+          Value<String?> description = const Value.absent(),
+          Value<String?> coverPhotoUrl = const Value.absent(),
+          Value<DateTime?> startDate = const Value.absent(),
+          Value<DateTime?> endDate = const Value.absent(),
+          String? visibility,
+          int? placeCount,
+          String? status,
+          Value<DateTime?> lastEditedAt = const Value.absent(),
+          DateTime? localUpdatedAt,
+          DateTime? serverUpdatedAt,
+          String? syncStatus,
+          DateTime? createdAt}) =>
+      UserTripRow(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        name: name ?? this.name,
+        description: description.present ? description.value : this.description,
+        coverPhotoUrl:
+            coverPhotoUrl.present ? coverPhotoUrl.value : this.coverPhotoUrl,
+        startDate: startDate.present ? startDate.value : this.startDate,
+        endDate: endDate.present ? endDate.value : this.endDate,
+        visibility: visibility ?? this.visibility,
+        placeCount: placeCount ?? this.placeCount,
+        status: status ?? this.status,
+        lastEditedAt:
+            lastEditedAt.present ? lastEditedAt.value : this.lastEditedAt,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  UserTripRow copyWithCompanion(UserTripsCompanion data) {
+    return UserTripRow(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      coverPhotoUrl: data.coverPhotoUrl.present
+          ? data.coverPhotoUrl.value
+          : this.coverPhotoUrl,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      visibility:
+          data.visibility.present ? data.visibility.value : this.visibility,
+      placeCount:
+          data.placeCount.present ? data.placeCount.value : this.placeCount,
+      status: data.status.present ? data.status.value : this.status,
+      lastEditedAt: data.lastEditedAt.present
+          ? data.lastEditedAt.value
+          : this.lastEditedAt,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserTripRow(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverPhotoUrl: $coverPhotoUrl, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('visibility: $visibility, ')
+          ..write('placeCount: $placeCount, ')
+          ..write('status: $status, ')
+          ..write('lastEditedAt: $lastEditedAt, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      userId,
+      name,
+      description,
+      coverPhotoUrl,
+      startDate,
+      endDate,
+      visibility,
+      placeCount,
+      status,
+      lastEditedAt,
+      localUpdatedAt,
+      serverUpdatedAt,
+      syncStatus,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserTripRow &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.coverPhotoUrl == this.coverPhotoUrl &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.visibility == this.visibility &&
+          other.placeCount == this.placeCount &&
+          other.status == this.status &&
+          other.lastEditedAt == this.lastEditedAt &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.createdAt == this.createdAt);
+}
+
+class UserTripsCompanion extends UpdateCompanion<UserTripRow> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<String?> coverPhotoUrl;
+  final Value<DateTime?> startDate;
+  final Value<DateTime?> endDate;
+  final Value<String> visibility;
+  final Value<int> placeCount;
+  final Value<String> status;
+  final Value<DateTime?> lastEditedAt;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const UserTripsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.coverPhotoUrl = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.visibility = const Value.absent(),
+    this.placeCount = const Value.absent(),
+    this.status = const Value.absent(),
+    this.lastEditedAt = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserTripsCompanion.insert({
+    required String id,
+    required String userId,
+    required String name,
+    this.description = const Value.absent(),
+    this.coverPhotoUrl = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.visibility = const Value.absent(),
+    this.placeCount = const Value.absent(),
+    this.status = const Value.absent(),
+    this.lastEditedAt = const Value.absent(),
+    required DateTime localUpdatedAt,
+    required DateTime serverUpdatedAt,
+    required String syncStatus,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        name = Value(name),
+        localUpdatedAt = Value(localUpdatedAt),
+        serverUpdatedAt = Value(serverUpdatedAt),
+        syncStatus = Value(syncStatus),
+        createdAt = Value(createdAt);
+  static Insertable<UserTripRow> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? coverPhotoUrl,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<String>? visibility,
+    Expression<int>? placeCount,
+    Expression<String>? status,
+    Expression<DateTime>? lastEditedAt,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (coverPhotoUrl != null) 'cover_photo_url': coverPhotoUrl,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (visibility != null) 'visibility': visibility,
+      if (placeCount != null) 'place_count': placeCount,
+      if (status != null) 'status': status,
+      if (lastEditedAt != null) 'last_edited_at': lastEditedAt,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserTripsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? name,
+      Value<String?>? description,
+      Value<String?>? coverPhotoUrl,
+      Value<DateTime?>? startDate,
+      Value<DateTime?>? endDate,
+      Value<String>? visibility,
+      Value<int>? placeCount,
+      Value<String>? status,
+      Value<DateTime?>? lastEditedAt,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime>? serverUpdatedAt,
+      Value<String>? syncStatus,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return UserTripsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      coverPhotoUrl: coverPhotoUrl ?? this.coverPhotoUrl,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      visibility: visibility ?? this.visibility,
+      placeCount: placeCount ?? this.placeCount,
+      status: status ?? this.status,
+      lastEditedAt: lastEditedAt ?? this.lastEditedAt,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (coverPhotoUrl.present) {
+      map['cover_photo_url'] = Variable<String>(coverPhotoUrl.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (visibility.present) {
+      map['visibility'] = Variable<String>(visibility.value);
+    }
+    if (placeCount.present) {
+      map['place_count'] = Variable<int>(placeCount.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (lastEditedAt.present) {
+      map['last_edited_at'] = Variable<DateTime>(lastEditedAt.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserTripsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverPhotoUrl: $coverPhotoUrl, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('visibility: $visibility, ')
+          ..write('placeCount: $placeCount, ')
+          ..write('status: $status, ')
+          ..write('lastEditedAt: $lastEditedAt, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3062,18 +3800,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RoutesTable routes = $RoutesTable(this);
   late final $MediaTable media = $MediaTable(this);
   late final $PublicTripsTable publicTrips = $PublicTripsTable(this);
+  late final $UserTripsTable userTrips = $UserTripsTable(this);
   late final TripDao tripDao = TripDao(this as AppDatabase);
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
   late final MediaDao mediaDao = MediaDao(this as AppDatabase);
   late final PublicTripsDao publicTripsDao =
       PublicTripsDao(this as AppDatabase);
+  late final UserTripsDao userTripsDao = UserTripsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [trips, places, routes, media, publicTrips];
+      [trips, places, routes, media, publicTrips, userTrips];
 }
 
 typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
@@ -4475,6 +5215,327 @@ typedef $$PublicTripsTableProcessedTableManager = ProcessedTableManager<
     ),
     PublicTripRow,
     PrefetchHooks Function()>;
+typedef $$UserTripsTableCreateCompanionBuilder = UserTripsCompanion Function({
+  required String id,
+  required String userId,
+  required String name,
+  Value<String?> description,
+  Value<String?> coverPhotoUrl,
+  Value<DateTime?> startDate,
+  Value<DateTime?> endDate,
+  Value<String> visibility,
+  Value<int> placeCount,
+  Value<String> status,
+  Value<DateTime?> lastEditedAt,
+  required DateTime localUpdatedAt,
+  required DateTime serverUpdatedAt,
+  required String syncStatus,
+  required DateTime createdAt,
+  Value<int> rowid,
+});
+typedef $$UserTripsTableUpdateCompanionBuilder = UserTripsCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> name,
+  Value<String?> description,
+  Value<String?> coverPhotoUrl,
+  Value<DateTime?> startDate,
+  Value<DateTime?> endDate,
+  Value<String> visibility,
+  Value<int> placeCount,
+  Value<String> status,
+  Value<DateTime?> lastEditedAt,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime> serverUpdatedAt,
+  Value<String> syncStatus,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$UserTripsTableFilterComposer
+    extends Composer<_$AppDatabase, $UserTripsTable> {
+  $$UserTripsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverPhotoUrl => $composableBuilder(
+      column: $table.coverPhotoUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get placeCount => $composableBuilder(
+      column: $table.placeCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastEditedAt => $composableBuilder(
+      column: $table.lastEditedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$UserTripsTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserTripsTable> {
+  $$UserTripsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverPhotoUrl => $composableBuilder(
+      column: $table.coverPhotoUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get placeCount => $composableBuilder(
+      column: $table.placeCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastEditedAt => $composableBuilder(
+      column: $table.lastEditedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$UserTripsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserTripsTable> {
+  $$UserTripsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get coverPhotoUrl => $composableBuilder(
+      column: $table.coverPhotoUrl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => column);
+
+  GeneratedColumn<int> get placeCount => $composableBuilder(
+      column: $table.placeCount, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastEditedAt => $composableBuilder(
+      column: $table.lastEditedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$UserTripsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $UserTripsTable,
+    UserTripRow,
+    $$UserTripsTableFilterComposer,
+    $$UserTripsTableOrderingComposer,
+    $$UserTripsTableAnnotationComposer,
+    $$UserTripsTableCreateCompanionBuilder,
+    $$UserTripsTableUpdateCompanionBuilder,
+    (UserTripRow, BaseReferences<_$AppDatabase, $UserTripsTable, UserTripRow>),
+    UserTripRow,
+    PrefetchHooks Function()> {
+  $$UserTripsTableTableManager(_$AppDatabase db, $UserTripsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserTripsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserTripsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserTripsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<String?> coverPhotoUrl = const Value.absent(),
+            Value<DateTime?> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
+            Value<String> visibility = const Value.absent(),
+            Value<int> placeCount = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime?> lastEditedAt = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime> serverUpdatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              UserTripsCompanion(
+            id: id,
+            userId: userId,
+            name: name,
+            description: description,
+            coverPhotoUrl: coverPhotoUrl,
+            startDate: startDate,
+            endDate: endDate,
+            visibility: visibility,
+            placeCount: placeCount,
+            status: status,
+            lastEditedAt: lastEditedAt,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            syncStatus: syncStatus,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String name,
+            Value<String?> description = const Value.absent(),
+            Value<String?> coverPhotoUrl = const Value.absent(),
+            Value<DateTime?> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
+            Value<String> visibility = const Value.absent(),
+            Value<int> placeCount = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime?> lastEditedAt = const Value.absent(),
+            required DateTime localUpdatedAt,
+            required DateTime serverUpdatedAt,
+            required String syncStatus,
+            required DateTime createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              UserTripsCompanion.insert(
+            id: id,
+            userId: userId,
+            name: name,
+            description: description,
+            coverPhotoUrl: coverPhotoUrl,
+            startDate: startDate,
+            endDate: endDate,
+            visibility: visibility,
+            placeCount: placeCount,
+            status: status,
+            lastEditedAt: lastEditedAt,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            syncStatus: syncStatus,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$UserTripsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $UserTripsTable,
+    UserTripRow,
+    $$UserTripsTableFilterComposer,
+    $$UserTripsTableOrderingComposer,
+    $$UserTripsTableAnnotationComposer,
+    $$UserTripsTableCreateCompanionBuilder,
+    $$UserTripsTableUpdateCompanionBuilder,
+    (UserTripRow, BaseReferences<_$AppDatabase, $UserTripsTable, UserTripRow>),
+    UserTripRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4489,4 +5550,6 @@ class $AppDatabaseManager {
       $$MediaTableTableManager(_db, _db.media);
   $$PublicTripsTableTableManager get publicTrips =>
       $$PublicTripsTableTableManager(_db, _db.publicTrips);
+  $$UserTripsTableTableManager get userTrips =>
+      $$UserTripsTableTableManager(_db, _db.userTrips);
 }

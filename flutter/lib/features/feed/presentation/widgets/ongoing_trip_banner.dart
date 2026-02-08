@@ -22,7 +22,7 @@ class OngoingTripBanner extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        margin: AppSpacing.verticalMd,
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
         padding: AppSpacing.allMd,
         decoration: BoxDecoration(
           color: AppColors.accentSoft,

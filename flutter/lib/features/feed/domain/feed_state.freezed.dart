@@ -20,6 +20,7 @@ mixin _$FeedState {
   int get currentPage => throw _privateConstructorUsedError;
   bool get hasMore => throw _privateConstructorUsedError;
   bool get isLoadingMore => throw _privateConstructorUsedError;
+  UserTrip? get activeTrip => throw _privateConstructorUsedError;
   TripFilter? get filter => throw _privateConstructorUsedError;
 
   /// Create a copy of FeedState
@@ -39,8 +40,10 @@ abstract class $FeedStateCopyWith<$Res> {
       int currentPage,
       bool hasMore,
       bool isLoadingMore,
+      UserTrip? activeTrip,
       TripFilter? filter});
 
+  $UserTripCopyWith<$Res>? get activeTrip;
   $TripFilterCopyWith<$Res>? get filter;
 }
 
@@ -63,6 +66,7 @@ class _$FeedStateCopyWithImpl<$Res, $Val extends FeedState>
     Object? currentPage = null,
     Object? hasMore = null,
     Object? isLoadingMore = null,
+    Object? activeTrip = freezed,
     Object? filter = freezed,
   }) {
     return _then(_value.copyWith(
@@ -82,11 +86,29 @@ class _$FeedStateCopyWithImpl<$Res, $Val extends FeedState>
           ? _value.isLoadingMore
           : isLoadingMore // ignore: cast_nullable_to_non_nullable
               as bool,
+      activeTrip: freezed == activeTrip
+          ? _value.activeTrip
+          : activeTrip // ignore: cast_nullable_to_non_nullable
+              as UserTrip?,
       filter: freezed == filter
           ? _value.filter
           : filter // ignore: cast_nullable_to_non_nullable
               as TripFilter?,
     ) as $Val);
+  }
+
+  /// Create a copy of FeedState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $UserTripCopyWith<$Res>? get activeTrip {
+    if (_value.activeTrip == null) {
+      return null;
+    }
+
+    return $UserTripCopyWith<$Res>(_value.activeTrip!, (value) {
+      return _then(_value.copyWith(activeTrip: value) as $Val);
+    });
   }
 
   /// Create a copy of FeedState
@@ -117,8 +139,11 @@ abstract class _$$FeedStateImplCopyWith<$Res>
       int currentPage,
       bool hasMore,
       bool isLoadingMore,
+      UserTrip? activeTrip,
       TripFilter? filter});
 
+  @override
+  $UserTripCopyWith<$Res>? get activeTrip;
   @override
   $TripFilterCopyWith<$Res>? get filter;
 }
@@ -140,6 +165,7 @@ class __$$FeedStateImplCopyWithImpl<$Res>
     Object? currentPage = null,
     Object? hasMore = null,
     Object? isLoadingMore = null,
+    Object? activeTrip = freezed,
     Object? filter = freezed,
   }) {
     return _then(_$FeedStateImpl(
@@ -159,6 +185,10 @@ class __$$FeedStateImplCopyWithImpl<$Res>
           ? _value.isLoadingMore
           : isLoadingMore // ignore: cast_nullable_to_non_nullable
               as bool,
+      activeTrip: freezed == activeTrip
+          ? _value.activeTrip
+          : activeTrip // ignore: cast_nullable_to_non_nullable
+              as UserTrip?,
       filter: freezed == filter
           ? _value.filter
           : filter // ignore: cast_nullable_to_non_nullable
@@ -175,6 +205,7 @@ class _$FeedStateImpl implements _FeedState {
       this.currentPage = 1,
       this.hasMore = false,
       this.isLoadingMore = false,
+      this.activeTrip,
       this.filter})
       : _trips = trips;
 
@@ -197,11 +228,13 @@ class _$FeedStateImpl implements _FeedState {
   @JsonKey()
   final bool isLoadingMore;
   @override
+  final UserTrip? activeTrip;
+  @override
   final TripFilter? filter;
 
   @override
   String toString() {
-    return 'FeedState(trips: $trips, currentPage: $currentPage, hasMore: $hasMore, isLoadingMore: $isLoadingMore, filter: $filter)';
+    return 'FeedState(trips: $trips, currentPage: $currentPage, hasMore: $hasMore, isLoadingMore: $isLoadingMore, activeTrip: $activeTrip, filter: $filter)';
   }
 
   @override
@@ -215,6 +248,8 @@ class _$FeedStateImpl implements _FeedState {
             (identical(other.hasMore, hasMore) || other.hasMore == hasMore) &&
             (identical(other.isLoadingMore, isLoadingMore) ||
                 other.isLoadingMore == isLoadingMore) &&
+            (identical(other.activeTrip, activeTrip) ||
+                other.activeTrip == activeTrip) &&
             (identical(other.filter, filter) || other.filter == filter));
   }
 
@@ -225,6 +260,7 @@ class _$FeedStateImpl implements _FeedState {
       currentPage,
       hasMore,
       isLoadingMore,
+      activeTrip,
       filter);
 
   /// Create a copy of FeedState
@@ -242,6 +278,7 @@ abstract class _FeedState implements FeedState {
       final int currentPage,
       final bool hasMore,
       final bool isLoadingMore,
+      final UserTrip? activeTrip,
       final TripFilter? filter}) = _$FeedStateImpl;
 
   @override
@@ -252,6 +289,8 @@ abstract class _FeedState implements FeedState {
   bool get hasMore;
   @override
   bool get isLoadingMore;
+  @override
+  UserTrip? get activeTrip;
   @override
   TripFilter? get filter;
 

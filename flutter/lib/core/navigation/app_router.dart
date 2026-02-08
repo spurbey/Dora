@@ -10,6 +10,8 @@ import 'package:dora/features/auth/presentation/screens/login_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
 import 'package:dora/features/feed/presentation/screens/feed_screen.dart';
+import 'package:dora/features/feed/presentation/screens/search_screen.dart';
+import 'package:dora/features/feed/presentation/screens/trip_detail_screen.dart';
 import 'package:dora/features/profile/presentation/screens/profile_screen.dart';
 import 'package:dora/features/trips/presentation/screens/trips_screen.dart';
 
@@ -52,6 +54,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: Routes.feed,
             builder: (context, state) => const FeedScreen(),
+          ),
+          GoRoute(
+            path: Routes.search,
+            builder: (context, state) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: Routes.tripDetail,
+            builder: (context, state) => TripDetailScreen(
+              tripId: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: Routes.create,

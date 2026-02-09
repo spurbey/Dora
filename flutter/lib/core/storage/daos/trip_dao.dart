@@ -9,9 +9,9 @@ part 'trip_dao.g.dart';
 class TripDao extends DatabaseAccessor<AppDatabase> with _$TripDaoMixin {
   TripDao(AppDatabase db) : super(db);
 
-  Future<List<Trip>> getAllTrips() => select(trips).get();
+  Future<List<TripRow>> getAllTrips() => select(trips).get();
 
-  Future<Trip?> getTripById(String id) =>
+  Future<TripRow?> getTripById(String id) =>
       (select(trips)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<int> insertTrip(TripsCompanion trip) => into(trips).insert(trip);

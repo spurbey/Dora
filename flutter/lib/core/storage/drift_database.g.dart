@@ -3,7 +3,7 @@
 part of 'drift_database.dart';
 
 // ignore_for_file: type=lint
-class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
+class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -41,6 +41,13 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
   late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
       'end_date', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String> tags =
+      GeneratedColumn<String>('tags', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>($TripsTable.$convertertags);
   static const VerificationMeta _visibilityMeta =
       const VerificationMeta('visibility');
   @override
@@ -49,6 +56,18 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('private'));
+  @override
+  late final GeneratedColumnWithTypeConverter<AppLatLng?, String> centerPoint =
+      GeneratedColumn<String>('center_point', aliasedName, true,
+              type: DriftSqlType.string, requiredDuringInsert: false)
+          .withConverter<AppLatLng?>($TripsTable.$convertercenterPointn);
+  static const VerificationMeta _zoomMeta = const VerificationMeta('zoom');
+  @override
+  late final GeneratedColumn<double> zoom = GeneratedColumn<double>(
+      'zoom', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(12.0));
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -81,7 +100,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
         description,
         startDate,
         endDate,
+        tags,
         visibility,
+        centerPoint,
+        zoom,
         localUpdatedAt,
         serverUpdatedAt,
         syncStatus,
@@ -93,7 +115,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
   String get actualTableName => $name;
   static const String $name = 'trips';
   @override
-  VerificationContext validateIntegrity(Insertable<Trip> instance,
+  VerificationContext validateIntegrity(Insertable<TripRow> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -134,6 +156,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
           visibility.isAcceptableOrUnknown(
               data['visibility']!, _visibilityMeta));
     }
+    if (data.containsKey('zoom')) {
+      context.handle(
+          _zoomMeta, zoom.isAcceptableOrUnknown(data['zoom']!, _zoomMeta));
+    }
     if (data.containsKey('local_updated_at')) {
       context.handle(
           _localUpdatedAtMeta,
@@ -170,9 +196,9 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Trip map(Map<String, dynamic> data, {String? tablePrefix}) {
+  TripRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Trip(
+    return TripRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       userId: attachedDatabase.typeMapping
@@ -185,8 +211,15 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date']),
       endDate: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
+      tags: $TripsTable.$convertertags.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags'])!),
       visibility: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}visibility'])!,
+      centerPoint: $TripsTable.$convertercenterPointn.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}center_point'])),
+      zoom: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}zoom'])!,
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
@@ -202,28 +235,41 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
   $TripsTable createAlias(String alias) {
     return $TripsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<String>, String> $convertertags =
+      const StringListConverter();
+  static TypeConverter<AppLatLng, String> $convertercenterPoint =
+      const LatLngConverter();
+  static TypeConverter<AppLatLng?, String?> $convertercenterPointn =
+      NullAwareTypeConverter.wrap($convertercenterPoint);
 }
 
-class Trip extends DataClass implements Insertable<Trip> {
+class TripRow extends DataClass implements Insertable<TripRow> {
   final String id;
   final String userId;
   final String name;
   final String? description;
   final DateTime? startDate;
   final DateTime? endDate;
+  final List<String> tags;
   final String visibility;
+  final AppLatLng? centerPoint;
+  final double zoom;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
   final DateTime createdAt;
-  const Trip(
+  const TripRow(
       {required this.id,
       required this.userId,
       required this.name,
       this.description,
       this.startDate,
       this.endDate,
+      required this.tags,
       required this.visibility,
+      this.centerPoint,
+      required this.zoom,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       required this.syncStatus,
@@ -243,7 +289,15 @@ class Trip extends DataClass implements Insertable<Trip> {
     if (!nullToAbsent || endDate != null) {
       map['end_date'] = Variable<DateTime>(endDate);
     }
+    {
+      map['tags'] = Variable<String>($TripsTable.$convertertags.toSql(tags));
+    }
     map['visibility'] = Variable<String>(visibility);
+    if (!nullToAbsent || centerPoint != null) {
+      map['center_point'] = Variable<String>(
+          $TripsTable.$convertercenterPointn.toSql(centerPoint));
+    }
+    map['zoom'] = Variable<double>(zoom);
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -265,7 +319,12 @@ class Trip extends DataClass implements Insertable<Trip> {
       endDate: endDate == null && nullToAbsent
           ? const Value.absent()
           : Value(endDate),
+      tags: Value(tags),
       visibility: Value(visibility),
+      centerPoint: centerPoint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(centerPoint),
+      zoom: Value(zoom),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
@@ -273,17 +332,20 @@ class Trip extends DataClass implements Insertable<Trip> {
     );
   }
 
-  factory Trip.fromJson(Map<String, dynamic> json,
+  factory TripRow.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Trip(
+    return TripRow(
       id: serializer.fromJson<String>(json['id']),
       userId: serializer.fromJson<String>(json['userId']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       startDate: serializer.fromJson<DateTime?>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      tags: serializer.fromJson<List<String>>(json['tags']),
       visibility: serializer.fromJson<String>(json['visibility']),
+      centerPoint: serializer.fromJson<AppLatLng?>(json['centerPoint']),
+      zoom: serializer.fromJson<double>(json['zoom']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -300,7 +362,10 @@ class Trip extends DataClass implements Insertable<Trip> {
       'description': serializer.toJson<String?>(description),
       'startDate': serializer.toJson<DateTime?>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
+      'tags': serializer.toJson<List<String>>(tags),
       'visibility': serializer.toJson<String>(visibility),
+      'centerPoint': serializer.toJson<AppLatLng?>(centerPoint),
+      'zoom': serializer.toJson<double>(zoom),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -308,33 +373,39 @@ class Trip extends DataClass implements Insertable<Trip> {
     };
   }
 
-  Trip copyWith(
+  TripRow copyWith(
           {String? id,
           String? userId,
           String? name,
           Value<String?> description = const Value.absent(),
           Value<DateTime?> startDate = const Value.absent(),
           Value<DateTime?> endDate = const Value.absent(),
+          List<String>? tags,
           String? visibility,
+          Value<AppLatLng?> centerPoint = const Value.absent(),
+          double? zoom,
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
           String? syncStatus,
           DateTime? createdAt}) =>
-      Trip(
+      TripRow(
         id: id ?? this.id,
         userId: userId ?? this.userId,
         name: name ?? this.name,
         description: description.present ? description.value : this.description,
         startDate: startDate.present ? startDate.value : this.startDate,
         endDate: endDate.present ? endDate.value : this.endDate,
+        tags: tags ?? this.tags,
         visibility: visibility ?? this.visibility,
+        centerPoint: centerPoint.present ? centerPoint.value : this.centerPoint,
+        zoom: zoom ?? this.zoom,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
         createdAt: createdAt ?? this.createdAt,
       );
-  Trip copyWithCompanion(TripsCompanion data) {
-    return Trip(
+  TripRow copyWithCompanion(TripsCompanion data) {
+    return TripRow(
       id: data.id.present ? data.id.value : this.id,
       userId: data.userId.present ? data.userId.value : this.userId,
       name: data.name.present ? data.name.value : this.name,
@@ -342,8 +413,12 @@ class Trip extends DataClass implements Insertable<Trip> {
           data.description.present ? data.description.value : this.description,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      tags: data.tags.present ? data.tags.value : this.tags,
       visibility:
           data.visibility.present ? data.visibility.value : this.visibility,
+      centerPoint:
+          data.centerPoint.present ? data.centerPoint.value : this.centerPoint,
+      zoom: data.zoom.present ? data.zoom.value : this.zoom,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -358,14 +433,17 @@ class Trip extends DataClass implements Insertable<Trip> {
 
   @override
   String toString() {
-    return (StringBuffer('Trip(')
+    return (StringBuffer('TripRow(')
           ..write('id: $id, ')
           ..write('userId: $userId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('tags: $tags, ')
           ..write('visibility: $visibility, ')
+          ..write('centerPoint: $centerPoint, ')
+          ..write('zoom: $zoom, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -382,7 +460,10 @@ class Trip extends DataClass implements Insertable<Trip> {
       description,
       startDate,
       endDate,
+      tags,
       visibility,
+      centerPoint,
+      zoom,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus,
@@ -390,28 +471,34 @@ class Trip extends DataClass implements Insertable<Trip> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Trip &&
+      (other is TripRow &&
           other.id == this.id &&
           other.userId == this.userId &&
           other.name == this.name &&
           other.description == this.description &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
+          other.tags == this.tags &&
           other.visibility == this.visibility &&
+          other.centerPoint == this.centerPoint &&
+          other.zoom == this.zoom &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
           other.syncStatus == this.syncStatus &&
           other.createdAt == this.createdAt);
 }
 
-class TripsCompanion extends UpdateCompanion<Trip> {
+class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> id;
   final Value<String> userId;
   final Value<String> name;
   final Value<String?> description;
   final Value<DateTime?> startDate;
   final Value<DateTime?> endDate;
+  final Value<List<String>> tags;
   final Value<String> visibility;
+  final Value<AppLatLng?> centerPoint;
+  final Value<double> zoom;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
@@ -424,7 +511,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     this.description = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.tags = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.centerPoint = const Value.absent(),
+    this.zoom = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -438,7 +528,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     this.description = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.tags = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.centerPoint = const Value.absent(),
+    this.zoom = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
@@ -451,14 +544,17 @@ class TripsCompanion extends UpdateCompanion<Trip> {
         serverUpdatedAt = Value(serverUpdatedAt),
         syncStatus = Value(syncStatus),
         createdAt = Value(createdAt);
-  static Insertable<Trip> custom({
+  static Insertable<TripRow> custom({
     Expression<String>? id,
     Expression<String>? userId,
     Expression<String>? name,
     Expression<String>? description,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
+    Expression<String>? tags,
     Expression<String>? visibility,
+    Expression<String>? centerPoint,
+    Expression<double>? zoom,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
@@ -472,7 +568,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       if (description != null) 'description': description,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
+      if (tags != null) 'tags': tags,
       if (visibility != null) 'visibility': visibility,
+      if (centerPoint != null) 'center_point': centerPoint,
+      if (zoom != null) 'zoom': zoom,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -488,7 +587,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       Value<String?>? description,
       Value<DateTime?>? startDate,
       Value<DateTime?>? endDate,
+      Value<List<String>>? tags,
       Value<String>? visibility,
+      Value<AppLatLng?>? centerPoint,
+      Value<double>? zoom,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
@@ -501,7 +603,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       description: description ?? this.description,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      tags: tags ?? this.tags,
       visibility: visibility ?? this.visibility,
+      centerPoint: centerPoint ?? this.centerPoint,
+      zoom: zoom ?? this.zoom,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -531,8 +636,19 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     if (endDate.present) {
       map['end_date'] = Variable<DateTime>(endDate.value);
     }
+    if (tags.present) {
+      map['tags'] =
+          Variable<String>($TripsTable.$convertertags.toSql(tags.value));
+    }
     if (visibility.present) {
       map['visibility'] = Variable<String>(visibility.value);
+    }
+    if (centerPoint.present) {
+      map['center_point'] = Variable<String>(
+          $TripsTable.$convertercenterPointn.toSql(centerPoint.value));
+    }
+    if (zoom.present) {
+      map['zoom'] = Variable<double>(zoom.value);
     }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
@@ -561,7 +677,10 @@ class TripsCompanion extends UpdateCompanion<Trip> {
           ..write('description: $description, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('tags: $tags, ')
           ..write('visibility: $visibility, ')
+          ..write('centerPoint: $centerPoint, ')
+          ..write('zoom: $zoom, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -572,7 +691,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
   }
 }
 
-class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
+class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -592,36 +711,47 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _latMeta = const VerificationMeta('lat');
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
   @override
-  late final GeneratedColumn<double> lat = GeneratedColumn<double>(
-      'lat', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _lngMeta = const VerificationMeta('lng');
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
-  late final GeneratedColumn<double> lng = GeneratedColumn<double>(
-      'lng', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<AppLatLng, String> coordinates =
+      GeneratedColumn<String>('coordinates', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<AppLatLng>($PlacesTable.$convertercoordinates);
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _dayIndexMeta =
-      const VerificationMeta('dayIndex');
+  static const VerificationMeta _visitTimeMeta =
+      const VerificationMeta('visitTime');
   @override
-  late final GeneratedColumn<int> dayIndex = GeneratedColumn<int>(
-      'day_index', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _orderMeta = const VerificationMeta('order');
+  late final GeneratedColumn<String> visitTime = GeneratedColumn<String>(
+      'visit_time', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dayNumberMeta =
+      const VerificationMeta('dayNumber');
   @override
-  late final GeneratedColumn<int> order = GeneratedColumn<int>(
-      'order', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
+  late final GeneratedColumn<int> dayNumber = GeneratedColumn<int>(
+      'day_number', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _orderIndexMeta =
+      const VerificationMeta('orderIndex');
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+      'order_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String> photoUrls =
+      GeneratedColumn<String>('photo_urls', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>($PlacesTable.$converterphotoUrls);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -640,26 +770,21 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
   late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
       'sync_status', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [
         id,
         tripId,
         name,
-        lat,
-        lng,
+        address,
+        coordinates,
         notes,
-        dayIndex,
-        order,
+        visitTime,
+        dayNumber,
+        orderIndex,
+        photoUrls,
         localUpdatedAt,
         serverUpdatedAt,
-        syncStatus,
-        createdAt
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -667,7 +792,7 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
   String get actualTableName => $name;
   static const String $name = 'places';
   @override
-  VerificationContext validateIntegrity(Insertable<Place> instance,
+  VerificationContext validateIntegrity(Insertable<PlaceRow> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -688,29 +813,29 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    if (data.containsKey('lat')) {
-      context.handle(
-          _latMeta, lat.isAcceptableOrUnknown(data['lat']!, _latMeta));
-    } else if (isInserting) {
-      context.missing(_latMeta);
-    }
-    if (data.containsKey('lng')) {
-      context.handle(
-          _lngMeta, lng.isAcceptableOrUnknown(data['lng']!, _lngMeta));
-    } else if (isInserting) {
-      context.missing(_lngMeta);
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
     }
     if (data.containsKey('notes')) {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
-    if (data.containsKey('day_index')) {
-      context.handle(_dayIndexMeta,
-          dayIndex.isAcceptableOrUnknown(data['day_index']!, _dayIndexMeta));
+    if (data.containsKey('visit_time')) {
+      context.handle(_visitTimeMeta,
+          visitTime.isAcceptableOrUnknown(data['visit_time']!, _visitTimeMeta));
     }
-    if (data.containsKey('order')) {
+    if (data.containsKey('day_number')) {
+      context.handle(_dayNumberMeta,
+          dayNumber.isAcceptableOrUnknown(data['day_number']!, _dayNumberMeta));
+    }
+    if (data.containsKey('order_index')) {
       context.handle(
-          _orderMeta, order.isAcceptableOrUnknown(data['order']!, _orderMeta));
+          _orderIndexMeta,
+          orderIndex.isAcceptableOrUnknown(
+              data['order_index']!, _orderIndexMeta));
+    } else if (isInserting) {
+      context.missing(_orderIndexMeta);
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -736,45 +861,43 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
     } else if (isInserting) {
       context.missing(_syncStatusMeta);
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     return context;
   }
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Place map(Map<String, dynamic> data, {String? tablePrefix}) {
+  PlaceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Place(
+    return PlaceRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       tripId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      lat: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}lat'])!,
-      lng: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}lng'])!,
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address']),
+      coordinates: $PlacesTable.$convertercoordinates.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}coordinates'])!),
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
-      dayIndex: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}day_index'])!,
-      order: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}order'])!,
+      visitTime: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}visit_time']),
+      dayNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day_number']),
+      orderIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}order_index'])!,
+      photoUrls: $PlacesTable.$converterphotoUrls.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}photo_urls'])!),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at'])!,
       syncStatus: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
   }
 
@@ -782,51 +905,71 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, Place> {
   $PlacesTable createAlias(String alias) {
     return $PlacesTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<AppLatLng, String> $convertercoordinates =
+      const LatLngConverter();
+  static TypeConverter<List<String>, String> $converterphotoUrls =
+      const StringListConverter();
 }
 
-class Place extends DataClass implements Insertable<Place> {
+class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final String id;
   final String tripId;
   final String name;
-  final double lat;
-  final double lng;
+  final String? address;
+  final AppLatLng coordinates;
   final String? notes;
-  final int dayIndex;
-  final int order;
+  final String? visitTime;
+  final int? dayNumber;
+  final int orderIndex;
+  final List<String> photoUrls;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
-  final DateTime createdAt;
-  const Place(
+  const PlaceRow(
       {required this.id,
       required this.tripId,
       required this.name,
-      required this.lat,
-      required this.lng,
+      this.address,
+      required this.coordinates,
       this.notes,
-      required this.dayIndex,
-      required this.order,
+      this.visitTime,
+      this.dayNumber,
+      required this.orderIndex,
+      required this.photoUrls,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
-      required this.syncStatus,
-      required this.createdAt});
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['trip_id'] = Variable<String>(tripId);
     map['name'] = Variable<String>(name);
-    map['lat'] = Variable<double>(lat);
-    map['lng'] = Variable<double>(lng);
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    {
+      map['coordinates'] = Variable<String>(
+          $PlacesTable.$convertercoordinates.toSql(coordinates));
+    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
-    map['day_index'] = Variable<int>(dayIndex);
-    map['order'] = Variable<int>(order);
+    if (!nullToAbsent || visitTime != null) {
+      map['visit_time'] = Variable<String>(visitTime);
+    }
+    if (!nullToAbsent || dayNumber != null) {
+      map['day_number'] = Variable<int>(dayNumber);
+    }
+    map['order_index'] = Variable<int>(orderIndex);
+    {
+      map['photo_urls'] =
+          Variable<String>($PlacesTable.$converterphotoUrls.toSql(photoUrls));
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
-    map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
 
@@ -835,35 +978,43 @@ class Place extends DataClass implements Insertable<Place> {
       id: Value(id),
       tripId: Value(tripId),
       name: Value(name),
-      lat: Value(lat),
-      lng: Value(lng),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      coordinates: Value(coordinates),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
-      dayIndex: Value(dayIndex),
-      order: Value(order),
+      visitTime: visitTime == null && nullToAbsent
+          ? const Value.absent()
+          : Value(visitTime),
+      dayNumber: dayNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayNumber),
+      orderIndex: Value(orderIndex),
+      photoUrls: Value(photoUrls),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
-      createdAt: Value(createdAt),
     );
   }
 
-  factory Place.fromJson(Map<String, dynamic> json,
+  factory PlaceRow.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Place(
+    return PlaceRow(
       id: serializer.fromJson<String>(json['id']),
       tripId: serializer.fromJson<String>(json['tripId']),
       name: serializer.fromJson<String>(json['name']),
-      lat: serializer.fromJson<double>(json['lat']),
-      lng: serializer.fromJson<double>(json['lng']),
+      address: serializer.fromJson<String?>(json['address']),
+      coordinates: serializer.fromJson<AppLatLng>(json['coordinates']),
       notes: serializer.fromJson<String?>(json['notes']),
-      dayIndex: serializer.fromJson<int>(json['dayIndex']),
-      order: serializer.fromJson<int>(json['order']),
+      visitTime: serializer.fromJson<String?>(json['visitTime']),
+      dayNumber: serializer.fromJson<int?>(json['dayNumber']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      photoUrls: serializer.fromJson<List<String>>(json['photoUrls']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
   @override
@@ -873,55 +1024,62 @@ class Place extends DataClass implements Insertable<Place> {
       'id': serializer.toJson<String>(id),
       'tripId': serializer.toJson<String>(tripId),
       'name': serializer.toJson<String>(name),
-      'lat': serializer.toJson<double>(lat),
-      'lng': serializer.toJson<double>(lng),
+      'address': serializer.toJson<String?>(address),
+      'coordinates': serializer.toJson<AppLatLng>(coordinates),
       'notes': serializer.toJson<String?>(notes),
-      'dayIndex': serializer.toJson<int>(dayIndex),
-      'order': serializer.toJson<int>(order),
+      'visitTime': serializer.toJson<String?>(visitTime),
+      'dayNumber': serializer.toJson<int?>(dayNumber),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'photoUrls': serializer.toJson<List<String>>(photoUrls),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
-  Place copyWith(
+  PlaceRow copyWith(
           {String? id,
           String? tripId,
           String? name,
-          double? lat,
-          double? lng,
+          Value<String?> address = const Value.absent(),
+          AppLatLng? coordinates,
           Value<String?> notes = const Value.absent(),
-          int? dayIndex,
-          int? order,
+          Value<String?> visitTime = const Value.absent(),
+          Value<int?> dayNumber = const Value.absent(),
+          int? orderIndex,
+          List<String>? photoUrls,
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
-          String? syncStatus,
-          DateTime? createdAt}) =>
-      Place(
+          String? syncStatus}) =>
+      PlaceRow(
         id: id ?? this.id,
         tripId: tripId ?? this.tripId,
         name: name ?? this.name,
-        lat: lat ?? this.lat,
-        lng: lng ?? this.lng,
+        address: address.present ? address.value : this.address,
+        coordinates: coordinates ?? this.coordinates,
         notes: notes.present ? notes.value : this.notes,
-        dayIndex: dayIndex ?? this.dayIndex,
-        order: order ?? this.order,
+        visitTime: visitTime.present ? visitTime.value : this.visitTime,
+        dayNumber: dayNumber.present ? dayNumber.value : this.dayNumber,
+        orderIndex: orderIndex ?? this.orderIndex,
+        photoUrls: photoUrls ?? this.photoUrls,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
-        createdAt: createdAt ?? this.createdAt,
       );
-  Place copyWithCompanion(PlacesCompanion data) {
-    return Place(
+  PlaceRow copyWithCompanion(PlacesCompanion data) {
+    return PlaceRow(
       id: data.id.present ? data.id.value : this.id,
       tripId: data.tripId.present ? data.tripId.value : this.tripId,
       name: data.name.present ? data.name.value : this.name,
-      lat: data.lat.present ? data.lat.value : this.lat,
-      lng: data.lng.present ? data.lng.value : this.lng,
+      address: data.address.present ? data.address.value : this.address,
+      coordinates:
+          data.coordinates.present ? data.coordinates.value : this.coordinates,
       notes: data.notes.present ? data.notes.value : this.notes,
-      dayIndex: data.dayIndex.present ? data.dayIndex.value : this.dayIndex,
-      order: data.order.present ? data.order.value : this.order,
+      visitTime: data.visitTime.present ? data.visitTime.value : this.visitTime,
+      dayNumber: data.dayNumber.present ? data.dayNumber.value : this.dayNumber,
+      orderIndex:
+          data.orderIndex.present ? data.orderIndex.value : this.orderIndex,
+      photoUrls: data.photoUrls.present ? data.photoUrls.value : this.photoUrls,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -930,130 +1088,147 @@ class Place extends DataClass implements Insertable<Place> {
           : this.serverUpdatedAt,
       syncStatus:
           data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('Place(')
+    return (StringBuffer('PlaceRow(')
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
           ..write('name: $name, ')
-          ..write('lat: $lat, ')
-          ..write('lng: $lng, ')
+          ..write('address: $address, ')
+          ..write('coordinates: $coordinates, ')
           ..write('notes: $notes, ')
-          ..write('dayIndex: $dayIndex, ')
-          ..write('order: $order, ')
+          ..write('visitTime: $visitTime, ')
+          ..write('dayNumber: $dayNumber, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('photoUrls: $photoUrls, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
-          ..write('syncStatus: $syncStatus, ')
-          ..write('createdAt: $createdAt')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, tripId, name, lat, lng, notes, dayIndex,
-      order, localUpdatedAt, serverUpdatedAt, syncStatus, createdAt);
+  int get hashCode => Object.hash(
+      id,
+      tripId,
+      name,
+      address,
+      coordinates,
+      notes,
+      visitTime,
+      dayNumber,
+      orderIndex,
+      photoUrls,
+      localUpdatedAt,
+      serverUpdatedAt,
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Place &&
+      (other is PlaceRow &&
           other.id == this.id &&
           other.tripId == this.tripId &&
           other.name == this.name &&
-          other.lat == this.lat &&
-          other.lng == this.lng &&
+          other.address == this.address &&
+          other.coordinates == this.coordinates &&
           other.notes == this.notes &&
-          other.dayIndex == this.dayIndex &&
-          other.order == this.order &&
+          other.visitTime == this.visitTime &&
+          other.dayNumber == this.dayNumber &&
+          other.orderIndex == this.orderIndex &&
+          other.photoUrls == this.photoUrls &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
-          other.syncStatus == this.syncStatus &&
-          other.createdAt == this.createdAt);
+          other.syncStatus == this.syncStatus);
 }
 
-class PlacesCompanion extends UpdateCompanion<Place> {
+class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<String> id;
   final Value<String> tripId;
   final Value<String> name;
-  final Value<double> lat;
-  final Value<double> lng;
+  final Value<String?> address;
+  final Value<AppLatLng> coordinates;
   final Value<String?> notes;
-  final Value<int> dayIndex;
-  final Value<int> order;
+  final Value<String?> visitTime;
+  final Value<int?> dayNumber;
+  final Value<int> orderIndex;
+  final Value<List<String>> photoUrls;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
-  final Value<DateTime> createdAt;
   final Value<int> rowid;
   const PlacesCompanion({
     this.id = const Value.absent(),
     this.tripId = const Value.absent(),
     this.name = const Value.absent(),
-    this.lat = const Value.absent(),
-    this.lng = const Value.absent(),
+    this.address = const Value.absent(),
+    this.coordinates = const Value.absent(),
     this.notes = const Value.absent(),
-    this.dayIndex = const Value.absent(),
-    this.order = const Value.absent(),
+    this.visitTime = const Value.absent(),
+    this.dayNumber = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.photoUrls = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
-    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlacesCompanion.insert({
     required String id,
     required String tripId,
     required String name,
-    required double lat,
-    required double lng,
+    this.address = const Value.absent(),
+    required AppLatLng coordinates,
     this.notes = const Value.absent(),
-    this.dayIndex = const Value.absent(),
-    this.order = const Value.absent(),
+    this.visitTime = const Value.absent(),
+    this.dayNumber = const Value.absent(),
+    required int orderIndex,
+    this.photoUrls = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
-    required DateTime createdAt,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tripId = Value(tripId),
         name = Value(name),
-        lat = Value(lat),
-        lng = Value(lng),
+        coordinates = Value(coordinates),
+        orderIndex = Value(orderIndex),
         localUpdatedAt = Value(localUpdatedAt),
         serverUpdatedAt = Value(serverUpdatedAt),
-        syncStatus = Value(syncStatus),
-        createdAt = Value(createdAt);
-  static Insertable<Place> custom({
+        syncStatus = Value(syncStatus);
+  static Insertable<PlaceRow> custom({
     Expression<String>? id,
     Expression<String>? tripId,
     Expression<String>? name,
-    Expression<double>? lat,
-    Expression<double>? lng,
+    Expression<String>? address,
+    Expression<String>? coordinates,
     Expression<String>? notes,
-    Expression<int>? dayIndex,
-    Expression<int>? order,
+    Expression<String>? visitTime,
+    Expression<int>? dayNumber,
+    Expression<int>? orderIndex,
+    Expression<String>? photoUrls,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
-    Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (tripId != null) 'trip_id': tripId,
       if (name != null) 'name': name,
-      if (lat != null) 'lat': lat,
-      if (lng != null) 'lng': lng,
+      if (address != null) 'address': address,
+      if (coordinates != null) 'coordinates': coordinates,
       if (notes != null) 'notes': notes,
-      if (dayIndex != null) 'day_index': dayIndex,
-      if (order != null) 'order': order,
+      if (visitTime != null) 'visit_time': visitTime,
+      if (dayNumber != null) 'day_number': dayNumber,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (photoUrls != null) 'photo_urls': photoUrls,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
-      if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1062,29 +1237,31 @@ class PlacesCompanion extends UpdateCompanion<Place> {
       {Value<String>? id,
       Value<String>? tripId,
       Value<String>? name,
-      Value<double>? lat,
-      Value<double>? lng,
+      Value<String?>? address,
+      Value<AppLatLng>? coordinates,
       Value<String?>? notes,
-      Value<int>? dayIndex,
-      Value<int>? order,
+      Value<String?>? visitTime,
+      Value<int?>? dayNumber,
+      Value<int>? orderIndex,
+      Value<List<String>>? photoUrls,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
-      Value<DateTime>? createdAt,
       Value<int>? rowid}) {
     return PlacesCompanion(
       id: id ?? this.id,
       tripId: tripId ?? this.tripId,
       name: name ?? this.name,
-      lat: lat ?? this.lat,
-      lng: lng ?? this.lng,
+      address: address ?? this.address,
+      coordinates: coordinates ?? this.coordinates,
       notes: notes ?? this.notes,
-      dayIndex: dayIndex ?? this.dayIndex,
-      order: order ?? this.order,
+      visitTime: visitTime ?? this.visitTime,
+      dayNumber: dayNumber ?? this.dayNumber,
+      orderIndex: orderIndex ?? this.orderIndex,
+      photoUrls: photoUrls ?? this.photoUrls,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
-      createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1101,20 +1278,28 @@ class PlacesCompanion extends UpdateCompanion<Place> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
-    if (lat.present) {
-      map['lat'] = Variable<double>(lat.value);
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
     }
-    if (lng.present) {
-      map['lng'] = Variable<double>(lng.value);
+    if (coordinates.present) {
+      map['coordinates'] = Variable<String>(
+          $PlacesTable.$convertercoordinates.toSql(coordinates.value));
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
-    if (dayIndex.present) {
-      map['day_index'] = Variable<int>(dayIndex.value);
+    if (visitTime.present) {
+      map['visit_time'] = Variable<String>(visitTime.value);
     }
-    if (order.present) {
-      map['order'] = Variable<int>(order.value);
+    if (dayNumber.present) {
+      map['day_number'] = Variable<int>(dayNumber.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (photoUrls.present) {
+      map['photo_urls'] = Variable<String>(
+          $PlacesTable.$converterphotoUrls.toSql(photoUrls.value));
     }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
@@ -1124,9 +1309,6 @@ class PlacesCompanion extends UpdateCompanion<Place> {
     }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1140,22 +1322,23 @@ class PlacesCompanion extends UpdateCompanion<Place> {
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
           ..write('name: $name, ')
-          ..write('lat: $lat, ')
-          ..write('lng: $lng, ')
+          ..write('address: $address, ')
+          ..write('coordinates: $coordinates, ')
           ..write('notes: $notes, ')
-          ..write('dayIndex: $dayIndex, ')
-          ..write('order: $order, ')
+          ..write('visitTime: $visitTime, ')
+          ..write('dayNumber: $dayNumber, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('photoUrls: $photoUrls, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
-          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
 }
 
-class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
+class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1170,18 +1353,13 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
   late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
       'trip_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _fromPlaceIdMeta =
-      const VerificationMeta('fromPlaceId');
   @override
-  late final GeneratedColumn<String> fromPlaceId = GeneratedColumn<String>(
-      'from_place_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _toPlaceIdMeta =
-      const VerificationMeta('toPlaceId');
-  @override
-  late final GeneratedColumn<String> toPlaceId = GeneratedColumn<String>(
-      'to_place_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<List<AppLatLng>, String>
+      coordinates = GeneratedColumn<String>('coordinates', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<AppLatLng>>($RoutesTable.$convertercoordinates);
   static const VerificationMeta _transportModeMeta =
       const VerificationMeta('transportMode');
   @override
@@ -1190,35 +1368,24 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('car'));
-  static const VerificationMeta _distanceMetersMeta =
-      const VerificationMeta('distanceMeters');
+  static const VerificationMeta _distanceMeta =
+      const VerificationMeta('distance');
   @override
-  late final GeneratedColumn<int> distanceMeters = GeneratedColumn<int>(
-      'distance_meters', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _durationSecondsMeta =
-      const VerificationMeta('durationSeconds');
+  late final GeneratedColumn<double> distance = GeneratedColumn<double>(
+      'distance', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _durationMeta =
+      const VerificationMeta('duration');
   @override
-  late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
-      'duration_seconds', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
-  static const VerificationMeta _polylineMeta =
-      const VerificationMeta('polyline');
+  late final GeneratedColumn<int> duration = GeneratedColumn<int>(
+      'duration', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _dayNumberMeta =
+      const VerificationMeta('dayNumber');
   @override
-  late final GeneratedColumn<String> polyline = GeneratedColumn<String>(
-      'polyline', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _orderMeta = const VerificationMeta('order');
-  @override
-  late final GeneratedColumn<int> order = GeneratedColumn<int>(
-      'order', aliasedName, false,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultValue: const Constant(0));
+  late final GeneratedColumn<int> dayNumber = GeneratedColumn<int>(
+      'day_number', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -1237,27 +1404,18 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
   late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
       'sync_status', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [
         id,
         tripId,
-        fromPlaceId,
-        toPlaceId,
+        coordinates,
         transportMode,
-        distanceMeters,
-        durationSeconds,
-        polyline,
-        order,
+        distance,
+        duration,
+        dayNumber,
         localUpdatedAt,
         serverUpdatedAt,
-        syncStatus,
-        createdAt
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1265,7 +1423,7 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
   String get actualTableName => $name;
   static const String $name = 'routes';
   @override
-  VerificationContext validateIntegrity(Insertable<TripRoute> instance,
+  VerificationContext validateIntegrity(Insertable<RouteRow> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -1280,47 +1438,23 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
     } else if (isInserting) {
       context.missing(_tripIdMeta);
     }
-    if (data.containsKey('from_place_id')) {
-      context.handle(
-          _fromPlaceIdMeta,
-          fromPlaceId.isAcceptableOrUnknown(
-              data['from_place_id']!, _fromPlaceIdMeta));
-    } else if (isInserting) {
-      context.missing(_fromPlaceIdMeta);
-    }
-    if (data.containsKey('to_place_id')) {
-      context.handle(
-          _toPlaceIdMeta,
-          toPlaceId.isAcceptableOrUnknown(
-              data['to_place_id']!, _toPlaceIdMeta));
-    } else if (isInserting) {
-      context.missing(_toPlaceIdMeta);
-    }
     if (data.containsKey('transport_mode')) {
       context.handle(
           _transportModeMeta,
           transportMode.isAcceptableOrUnknown(
               data['transport_mode']!, _transportModeMeta));
     }
-    if (data.containsKey('distance_meters')) {
-      context.handle(
-          _distanceMetersMeta,
-          distanceMeters.isAcceptableOrUnknown(
-              data['distance_meters']!, _distanceMetersMeta));
+    if (data.containsKey('distance')) {
+      context.handle(_distanceMeta,
+          distance.isAcceptableOrUnknown(data['distance']!, _distanceMeta));
     }
-    if (data.containsKey('duration_seconds')) {
-      context.handle(
-          _durationSecondsMeta,
-          durationSeconds.isAcceptableOrUnknown(
-              data['duration_seconds']!, _durationSecondsMeta));
+    if (data.containsKey('duration')) {
+      context.handle(_durationMeta,
+          duration.isAcceptableOrUnknown(data['duration']!, _durationMeta));
     }
-    if (data.containsKey('polyline')) {
-      context.handle(_polylineMeta,
-          polyline.isAcceptableOrUnknown(data['polyline']!, _polylineMeta));
-    }
-    if (data.containsKey('order')) {
-      context.handle(
-          _orderMeta, order.isAcceptableOrUnknown(data['order']!, _orderMeta));
+    if (data.containsKey('day_number')) {
+      context.handle(_dayNumberMeta,
+          dayNumber.isAcceptableOrUnknown(data['day_number']!, _dayNumberMeta));
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -1346,47 +1480,36 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
     } else if (isInserting) {
       context.missing(_syncStatusMeta);
     }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     return context;
   }
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TripRoute map(Map<String, dynamic> data, {String? tablePrefix}) {
+  RouteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TripRoute(
+    return RouteRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       tripId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
-      fromPlaceId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}from_place_id'])!,
-      toPlaceId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}to_place_id'])!,
+      coordinates: $RoutesTable.$convertercoordinates.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}coordinates'])!),
       transportMode: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}transport_mode'])!,
-      distanceMeters: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}distance_meters'])!,
-      durationSeconds: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}duration_seconds'])!,
-      polyline: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}polyline']),
-      order: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}order'])!,
+      distance: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}distance']),
+      duration: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}duration']),
+      dayNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day_number']),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at'])!,
       syncStatus: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
   }
 
@@ -1394,54 +1517,55 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, TripRoute> {
   $RoutesTable createAlias(String alias) {
     return $RoutesTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<AppLatLng>, String> $convertercoordinates =
+      const LatLngListConverter();
 }
 
-class TripRoute extends DataClass implements Insertable<TripRoute> {
+class RouteRow extends DataClass implements Insertable<RouteRow> {
   final String id;
   final String tripId;
-  final String fromPlaceId;
-  final String toPlaceId;
+  final List<AppLatLng> coordinates;
   final String transportMode;
-  final int distanceMeters;
-  final int durationSeconds;
-  final String? polyline;
-  final int order;
+  final double? distance;
+  final int? duration;
+  final int? dayNumber;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
-  final DateTime createdAt;
-  const TripRoute(
+  const RouteRow(
       {required this.id,
       required this.tripId,
-      required this.fromPlaceId,
-      required this.toPlaceId,
+      required this.coordinates,
       required this.transportMode,
-      required this.distanceMeters,
-      required this.durationSeconds,
-      this.polyline,
-      required this.order,
+      this.distance,
+      this.duration,
+      this.dayNumber,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
-      required this.syncStatus,
-      required this.createdAt});
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['trip_id'] = Variable<String>(tripId);
-    map['from_place_id'] = Variable<String>(fromPlaceId);
-    map['to_place_id'] = Variable<String>(toPlaceId);
-    map['transport_mode'] = Variable<String>(transportMode);
-    map['distance_meters'] = Variable<int>(distanceMeters);
-    map['duration_seconds'] = Variable<int>(durationSeconds);
-    if (!nullToAbsent || polyline != null) {
-      map['polyline'] = Variable<String>(polyline);
+    {
+      map['coordinates'] = Variable<String>(
+          $RoutesTable.$convertercoordinates.toSql(coordinates));
     }
-    map['order'] = Variable<int>(order);
+    map['transport_mode'] = Variable<String>(transportMode);
+    if (!nullToAbsent || distance != null) {
+      map['distance'] = Variable<double>(distance);
+    }
+    if (!nullToAbsent || duration != null) {
+      map['duration'] = Variable<int>(duration);
+    }
+    if (!nullToAbsent || dayNumber != null) {
+      map['day_number'] = Variable<int>(dayNumber);
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
-    map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
 
@@ -1449,39 +1573,37 @@ class TripRoute extends DataClass implements Insertable<TripRoute> {
     return RoutesCompanion(
       id: Value(id),
       tripId: Value(tripId),
-      fromPlaceId: Value(fromPlaceId),
-      toPlaceId: Value(toPlaceId),
+      coordinates: Value(coordinates),
       transportMode: Value(transportMode),
-      distanceMeters: Value(distanceMeters),
-      durationSeconds: Value(durationSeconds),
-      polyline: polyline == null && nullToAbsent
+      distance: distance == null && nullToAbsent
           ? const Value.absent()
-          : Value(polyline),
-      order: Value(order),
+          : Value(distance),
+      duration: duration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(duration),
+      dayNumber: dayNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayNumber),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
-      createdAt: Value(createdAt),
     );
   }
 
-  factory TripRoute.fromJson(Map<String, dynamic> json,
+  factory RouteRow.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TripRoute(
+    return RouteRow(
       id: serializer.fromJson<String>(json['id']),
       tripId: serializer.fromJson<String>(json['tripId']),
-      fromPlaceId: serializer.fromJson<String>(json['fromPlaceId']),
-      toPlaceId: serializer.fromJson<String>(json['toPlaceId']),
+      coordinates: serializer.fromJson<List<AppLatLng>>(json['coordinates']),
       transportMode: serializer.fromJson<String>(json['transportMode']),
-      distanceMeters: serializer.fromJson<int>(json['distanceMeters']),
-      durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
-      polyline: serializer.fromJson<String?>(json['polyline']),
-      order: serializer.fromJson<int>(json['order']),
+      distance: serializer.fromJson<double?>(json['distance']),
+      duration: serializer.fromJson<int?>(json['duration']),
+      dayNumber: serializer.fromJson<int?>(json['dayNumber']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
   @override
@@ -1490,67 +1612,52 @@ class TripRoute extends DataClass implements Insertable<TripRoute> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'tripId': serializer.toJson<String>(tripId),
-      'fromPlaceId': serializer.toJson<String>(fromPlaceId),
-      'toPlaceId': serializer.toJson<String>(toPlaceId),
+      'coordinates': serializer.toJson<List<AppLatLng>>(coordinates),
       'transportMode': serializer.toJson<String>(transportMode),
-      'distanceMeters': serializer.toJson<int>(distanceMeters),
-      'durationSeconds': serializer.toJson<int>(durationSeconds),
-      'polyline': serializer.toJson<String?>(polyline),
-      'order': serializer.toJson<int>(order),
+      'distance': serializer.toJson<double?>(distance),
+      'duration': serializer.toJson<int?>(duration),
+      'dayNumber': serializer.toJson<int?>(dayNumber),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
-  TripRoute copyWith(
+  RouteRow copyWith(
           {String? id,
           String? tripId,
-          String? fromPlaceId,
-          String? toPlaceId,
+          List<AppLatLng>? coordinates,
           String? transportMode,
-          int? distanceMeters,
-          int? durationSeconds,
-          Value<String?> polyline = const Value.absent(),
-          int? order,
+          Value<double?> distance = const Value.absent(),
+          Value<int?> duration = const Value.absent(),
+          Value<int?> dayNumber = const Value.absent(),
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
-          String? syncStatus,
-          DateTime? createdAt}) =>
-      TripRoute(
+          String? syncStatus}) =>
+      RouteRow(
         id: id ?? this.id,
         tripId: tripId ?? this.tripId,
-        fromPlaceId: fromPlaceId ?? this.fromPlaceId,
-        toPlaceId: toPlaceId ?? this.toPlaceId,
+        coordinates: coordinates ?? this.coordinates,
         transportMode: transportMode ?? this.transportMode,
-        distanceMeters: distanceMeters ?? this.distanceMeters,
-        durationSeconds: durationSeconds ?? this.durationSeconds,
-        polyline: polyline.present ? polyline.value : this.polyline,
-        order: order ?? this.order,
+        distance: distance.present ? distance.value : this.distance,
+        duration: duration.present ? duration.value : this.duration,
+        dayNumber: dayNumber.present ? dayNumber.value : this.dayNumber,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
-        createdAt: createdAt ?? this.createdAt,
       );
-  TripRoute copyWithCompanion(RoutesCompanion data) {
-    return TripRoute(
+  RouteRow copyWithCompanion(RoutesCompanion data) {
+    return RouteRow(
       id: data.id.present ? data.id.value : this.id,
       tripId: data.tripId.present ? data.tripId.value : this.tripId,
-      fromPlaceId:
-          data.fromPlaceId.present ? data.fromPlaceId.value : this.fromPlaceId,
-      toPlaceId: data.toPlaceId.present ? data.toPlaceId.value : this.toPlaceId,
+      coordinates:
+          data.coordinates.present ? data.coordinates.value : this.coordinates,
       transportMode: data.transportMode.present
           ? data.transportMode.value
           : this.transportMode,
-      distanceMeters: data.distanceMeters.present
-          ? data.distanceMeters.value
-          : this.distanceMeters,
-      durationSeconds: data.durationSeconds.present
-          ? data.durationSeconds.value
-          : this.durationSeconds,
-      polyline: data.polyline.present ? data.polyline.value : this.polyline,
-      order: data.order.present ? data.order.value : this.order,
+      distance: data.distance.present ? data.distance.value : this.distance,
+      duration: data.duration.present ? data.duration.value : this.duration,
+      dayNumber: data.dayNumber.present ? data.dayNumber.value : this.dayNumber,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -1559,26 +1666,22 @@ class TripRoute extends DataClass implements Insertable<TripRoute> {
           : this.serverUpdatedAt,
       syncStatus:
           data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
   @override
   String toString() {
-    return (StringBuffer('TripRoute(')
+    return (StringBuffer('RouteRow(')
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
-          ..write('fromPlaceId: $fromPlaceId, ')
-          ..write('toPlaceId: $toPlaceId, ')
+          ..write('coordinates: $coordinates, ')
           ..write('transportMode: $transportMode, ')
-          ..write('distanceMeters: $distanceMeters, ')
-          ..write('durationSeconds: $durationSeconds, ')
-          ..write('polyline: $polyline, ')
-          ..write('order: $order, ')
+          ..write('distance: $distance, ')
+          ..write('duration: $duration, ')
+          ..write('dayNumber: $dayNumber, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
-          ..write('syncStatus: $syncStatus, ')
-          ..write('createdAt: $createdAt')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
@@ -1587,120 +1690,96 @@ class TripRoute extends DataClass implements Insertable<TripRoute> {
   int get hashCode => Object.hash(
       id,
       tripId,
-      fromPlaceId,
-      toPlaceId,
+      coordinates,
       transportMode,
-      distanceMeters,
-      durationSeconds,
-      polyline,
-      order,
+      distance,
+      duration,
+      dayNumber,
       localUpdatedAt,
       serverUpdatedAt,
-      syncStatus,
-      createdAt);
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TripRoute &&
+      (other is RouteRow &&
           other.id == this.id &&
           other.tripId == this.tripId &&
-          other.fromPlaceId == this.fromPlaceId &&
-          other.toPlaceId == this.toPlaceId &&
+          other.coordinates == this.coordinates &&
           other.transportMode == this.transportMode &&
-          other.distanceMeters == this.distanceMeters &&
-          other.durationSeconds == this.durationSeconds &&
-          other.polyline == this.polyline &&
-          other.order == this.order &&
+          other.distance == this.distance &&
+          other.duration == this.duration &&
+          other.dayNumber == this.dayNumber &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
-          other.syncStatus == this.syncStatus &&
-          other.createdAt == this.createdAt);
+          other.syncStatus == this.syncStatus);
 }
 
-class RoutesCompanion extends UpdateCompanion<TripRoute> {
+class RoutesCompanion extends UpdateCompanion<RouteRow> {
   final Value<String> id;
   final Value<String> tripId;
-  final Value<String> fromPlaceId;
-  final Value<String> toPlaceId;
+  final Value<List<AppLatLng>> coordinates;
   final Value<String> transportMode;
-  final Value<int> distanceMeters;
-  final Value<int> durationSeconds;
-  final Value<String?> polyline;
-  final Value<int> order;
+  final Value<double?> distance;
+  final Value<int?> duration;
+  final Value<int?> dayNumber;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
-  final Value<DateTime> createdAt;
   final Value<int> rowid;
   const RoutesCompanion({
     this.id = const Value.absent(),
     this.tripId = const Value.absent(),
-    this.fromPlaceId = const Value.absent(),
-    this.toPlaceId = const Value.absent(),
+    this.coordinates = const Value.absent(),
     this.transportMode = const Value.absent(),
-    this.distanceMeters = const Value.absent(),
-    this.durationSeconds = const Value.absent(),
-    this.polyline = const Value.absent(),
-    this.order = const Value.absent(),
+    this.distance = const Value.absent(),
+    this.duration = const Value.absent(),
+    this.dayNumber = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
-    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RoutesCompanion.insert({
     required String id,
     required String tripId,
-    required String fromPlaceId,
-    required String toPlaceId,
+    this.coordinates = const Value.absent(),
     this.transportMode = const Value.absent(),
-    this.distanceMeters = const Value.absent(),
-    this.durationSeconds = const Value.absent(),
-    this.polyline = const Value.absent(),
-    this.order = const Value.absent(),
+    this.distance = const Value.absent(),
+    this.duration = const Value.absent(),
+    this.dayNumber = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
-    required DateTime createdAt,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tripId = Value(tripId),
-        fromPlaceId = Value(fromPlaceId),
-        toPlaceId = Value(toPlaceId),
         localUpdatedAt = Value(localUpdatedAt),
         serverUpdatedAt = Value(serverUpdatedAt),
-        syncStatus = Value(syncStatus),
-        createdAt = Value(createdAt);
-  static Insertable<TripRoute> custom({
+        syncStatus = Value(syncStatus);
+  static Insertable<RouteRow> custom({
     Expression<String>? id,
     Expression<String>? tripId,
-    Expression<String>? fromPlaceId,
-    Expression<String>? toPlaceId,
+    Expression<String>? coordinates,
     Expression<String>? transportMode,
-    Expression<int>? distanceMeters,
-    Expression<int>? durationSeconds,
-    Expression<String>? polyline,
-    Expression<int>? order,
+    Expression<double>? distance,
+    Expression<int>? duration,
+    Expression<int>? dayNumber,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
-    Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (tripId != null) 'trip_id': tripId,
-      if (fromPlaceId != null) 'from_place_id': fromPlaceId,
-      if (toPlaceId != null) 'to_place_id': toPlaceId,
+      if (coordinates != null) 'coordinates': coordinates,
       if (transportMode != null) 'transport_mode': transportMode,
-      if (distanceMeters != null) 'distance_meters': distanceMeters,
-      if (durationSeconds != null) 'duration_seconds': durationSeconds,
-      if (polyline != null) 'polyline': polyline,
-      if (order != null) 'order': order,
+      if (distance != null) 'distance': distance,
+      if (duration != null) 'duration': duration,
+      if (dayNumber != null) 'day_number': dayNumber,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
-      if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1708,32 +1787,26 @@ class RoutesCompanion extends UpdateCompanion<TripRoute> {
   RoutesCompanion copyWith(
       {Value<String>? id,
       Value<String>? tripId,
-      Value<String>? fromPlaceId,
-      Value<String>? toPlaceId,
+      Value<List<AppLatLng>>? coordinates,
       Value<String>? transportMode,
-      Value<int>? distanceMeters,
-      Value<int>? durationSeconds,
-      Value<String?>? polyline,
-      Value<int>? order,
+      Value<double?>? distance,
+      Value<int?>? duration,
+      Value<int?>? dayNumber,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
-      Value<DateTime>? createdAt,
       Value<int>? rowid}) {
     return RoutesCompanion(
       id: id ?? this.id,
       tripId: tripId ?? this.tripId,
-      fromPlaceId: fromPlaceId ?? this.fromPlaceId,
-      toPlaceId: toPlaceId ?? this.toPlaceId,
+      coordinates: coordinates ?? this.coordinates,
       transportMode: transportMode ?? this.transportMode,
-      distanceMeters: distanceMeters ?? this.distanceMeters,
-      durationSeconds: durationSeconds ?? this.durationSeconds,
-      polyline: polyline ?? this.polyline,
-      order: order ?? this.order,
+      distance: distance ?? this.distance,
+      duration: duration ?? this.duration,
+      dayNumber: dayNumber ?? this.dayNumber,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
-      createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1747,26 +1820,21 @@ class RoutesCompanion extends UpdateCompanion<TripRoute> {
     if (tripId.present) {
       map['trip_id'] = Variable<String>(tripId.value);
     }
-    if (fromPlaceId.present) {
-      map['from_place_id'] = Variable<String>(fromPlaceId.value);
-    }
-    if (toPlaceId.present) {
-      map['to_place_id'] = Variable<String>(toPlaceId.value);
+    if (coordinates.present) {
+      map['coordinates'] = Variable<String>(
+          $RoutesTable.$convertercoordinates.toSql(coordinates.value));
     }
     if (transportMode.present) {
       map['transport_mode'] = Variable<String>(transportMode.value);
     }
-    if (distanceMeters.present) {
-      map['distance_meters'] = Variable<int>(distanceMeters.value);
+    if (distance.present) {
+      map['distance'] = Variable<double>(distance.value);
     }
-    if (durationSeconds.present) {
-      map['duration_seconds'] = Variable<int>(durationSeconds.value);
+    if (duration.present) {
+      map['duration'] = Variable<int>(duration.value);
     }
-    if (polyline.present) {
-      map['polyline'] = Variable<String>(polyline.value);
-    }
-    if (order.present) {
-      map['order'] = Variable<int>(order.value);
+    if (dayNumber.present) {
+      map['day_number'] = Variable<int>(dayNumber.value);
     }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
@@ -1776,9 +1844,6 @@ class RoutesCompanion extends UpdateCompanion<TripRoute> {
     }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1791,17 +1856,14 @@ class RoutesCompanion extends UpdateCompanion<TripRoute> {
     return (StringBuffer('RoutesCompanion(')
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
-          ..write('fromPlaceId: $fromPlaceId, ')
-          ..write('toPlaceId: $toPlaceId, ')
+          ..write('coordinates: $coordinates, ')
           ..write('transportMode: $transportMode, ')
-          ..write('distanceMeters: $distanceMeters, ')
-          ..write('durationSeconds: $durationSeconds, ')
-          ..write('polyline: $polyline, ')
-          ..write('order: $order, ')
+          ..write('distance: $distance, ')
+          ..write('duration: $duration, ')
+          ..write('dayNumber: $dayNumber, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
-          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3823,7 +3885,10 @@ typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
   Value<String?> description,
   Value<DateTime?> startDate,
   Value<DateTime?> endDate,
+  Value<List<String>> tags,
   Value<String> visibility,
+  Value<AppLatLng?> centerPoint,
+  Value<double> zoom,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
@@ -3837,7 +3902,10 @@ typedef $$TripsTableUpdateCompanionBuilder = TripsCompanion Function({
   Value<String?> description,
   Value<DateTime?> startDate,
   Value<DateTime?> endDate,
+  Value<List<String>> tags,
   Value<String> visibility,
+  Value<AppLatLng?> centerPoint,
+  Value<double> zoom,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
@@ -3871,8 +3939,21 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
   ColumnFilters<DateTime> get endDate => $composableBuilder(
       column: $table.endDate, builder: (column) => ColumnFilters(column));
 
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String> get tags =>
+      $composableBuilder(
+          column: $table.tags,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
   ColumnFilters<String> get visibility => $composableBuilder(
       column: $table.visibility, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<AppLatLng?, AppLatLng, String>
+      get centerPoint => $composableBuilder(
+          column: $table.centerPoint,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<double> get zoom => $composableBuilder(
+      column: $table.zoom, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -3916,8 +3997,17 @@ class $$TripsTableOrderingComposer
   ColumnOrderings<DateTime> get endDate => $composableBuilder(
       column: $table.endDate, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get visibility => $composableBuilder(
       column: $table.visibility, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get centerPoint => $composableBuilder(
+      column: $table.centerPoint, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get zoom => $composableBuilder(
+      column: $table.zoom, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -3961,8 +4051,18 @@ class $$TripsTableAnnotationComposer
   GeneratedColumn<DateTime> get endDate =>
       $composableBuilder(column: $table.endDate, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<List<String>, String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
   GeneratedColumn<String> get visibility => $composableBuilder(
       column: $table.visibility, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<AppLatLng?, String> get centerPoint =>
+      $composableBuilder(
+          column: $table.centerPoint, builder: (column) => column);
+
+  GeneratedColumn<double> get zoom =>
+      $composableBuilder(column: $table.zoom, builder: (column) => column);
 
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
@@ -3980,14 +4080,14 @@ class $$TripsTableAnnotationComposer
 class $$TripsTableTableManager extends RootTableManager<
     _$AppDatabase,
     $TripsTable,
-    Trip,
+    TripRow,
     $$TripsTableFilterComposer,
     $$TripsTableOrderingComposer,
     $$TripsTableAnnotationComposer,
     $$TripsTableCreateCompanionBuilder,
     $$TripsTableUpdateCompanionBuilder,
-    (Trip, BaseReferences<_$AppDatabase, $TripsTable, Trip>),
-    Trip,
+    (TripRow, BaseReferences<_$AppDatabase, $TripsTable, TripRow>),
+    TripRow,
     PrefetchHooks Function()> {
   $$TripsTableTableManager(_$AppDatabase db, $TripsTable table)
       : super(TableManagerState(
@@ -4006,7 +4106,10 @@ class $$TripsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<DateTime?> startDate = const Value.absent(),
             Value<DateTime?> endDate = const Value.absent(),
+            Value<List<String>> tags = const Value.absent(),
             Value<String> visibility = const Value.absent(),
+            Value<AppLatLng?> centerPoint = const Value.absent(),
+            Value<double> zoom = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -4020,7 +4123,10 @@ class $$TripsTableTableManager extends RootTableManager<
             description: description,
             startDate: startDate,
             endDate: endDate,
+            tags: tags,
             visibility: visibility,
+            centerPoint: centerPoint,
+            zoom: zoom,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -4034,7 +4140,10 @@ class $$TripsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<DateTime?> startDate = const Value.absent(),
             Value<DateTime?> endDate = const Value.absent(),
+            Value<List<String>> tags = const Value.absent(),
             Value<String> visibility = const Value.absent(),
+            Value<AppLatLng?> centerPoint = const Value.absent(),
+            Value<double> zoom = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
@@ -4048,7 +4157,10 @@ class $$TripsTableTableManager extends RootTableManager<
             description: description,
             startDate: startDate,
             endDate: endDate,
+            tags: tags,
             visibility: visibility,
+            centerPoint: centerPoint,
+            zoom: zoom,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -4065,43 +4177,45 @@ class $$TripsTableTableManager extends RootTableManager<
 typedef $$TripsTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
     $TripsTable,
-    Trip,
+    TripRow,
     $$TripsTableFilterComposer,
     $$TripsTableOrderingComposer,
     $$TripsTableAnnotationComposer,
     $$TripsTableCreateCompanionBuilder,
     $$TripsTableUpdateCompanionBuilder,
-    (Trip, BaseReferences<_$AppDatabase, $TripsTable, Trip>),
-    Trip,
+    (TripRow, BaseReferences<_$AppDatabase, $TripsTable, TripRow>),
+    TripRow,
     PrefetchHooks Function()>;
 typedef $$PlacesTableCreateCompanionBuilder = PlacesCompanion Function({
   required String id,
   required String tripId,
   required String name,
-  required double lat,
-  required double lng,
+  Value<String?> address,
+  required AppLatLng coordinates,
   Value<String?> notes,
-  Value<int> dayIndex,
-  Value<int> order,
+  Value<String?> visitTime,
+  Value<int?> dayNumber,
+  required int orderIndex,
+  Value<List<String>> photoUrls,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
-  required DateTime createdAt,
   Value<int> rowid,
 });
 typedef $$PlacesTableUpdateCompanionBuilder = PlacesCompanion Function({
   Value<String> id,
   Value<String> tripId,
   Value<String> name,
-  Value<double> lat,
-  Value<double> lng,
+  Value<String?> address,
+  Value<AppLatLng> coordinates,
   Value<String?> notes,
-  Value<int> dayIndex,
-  Value<int> order,
+  Value<String?> visitTime,
+  Value<int?> dayNumber,
+  Value<int> orderIndex,
+  Value<List<String>> photoUrls,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
-  Value<DateTime> createdAt,
   Value<int> rowid,
 });
 
@@ -4123,20 +4237,30 @@ class $$PlacesTableFilterComposer
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get lat => $composableBuilder(
-      column: $table.lat, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get lng => $composableBuilder(
-      column: $table.lng, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<AppLatLng, AppLatLng, String>
+      get coordinates => $composableBuilder(
+          column: $table.coordinates,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get dayIndex => $composableBuilder(
-      column: $table.dayIndex, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get visitTime => $composableBuilder(
+      column: $table.visitTime, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get order => $composableBuilder(
-      column: $table.order, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get dayNumber => $composableBuilder(
+      column: $table.dayNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get photoUrls => $composableBuilder(
+          column: $table.photoUrls,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4148,9 +4272,6 @@ class $$PlacesTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$PlacesTableOrderingComposer
@@ -4171,20 +4292,26 @@ class $$PlacesTableOrderingComposer
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get lat => $composableBuilder(
-      column: $table.lat, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get lng => $composableBuilder(
-      column: $table.lng, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get coordinates => $composableBuilder(
+      column: $table.coordinates, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get dayIndex => $composableBuilder(
-      column: $table.dayIndex, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get visitTime => $composableBuilder(
+      column: $table.visitTime, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get order => $composableBuilder(
-      column: $table.order, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get dayNumber => $composableBuilder(
+      column: $table.dayNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get photoUrls => $composableBuilder(
+      column: $table.photoUrls, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4196,9 +4323,6 @@ class $$PlacesTableOrderingComposer
 
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$PlacesTableAnnotationComposer
@@ -4219,20 +4343,27 @@ class $$PlacesTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<double> get lat =>
-      $composableBuilder(column: $table.lat, builder: (column) => column);
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
 
-  GeneratedColumn<double> get lng =>
-      $composableBuilder(column: $table.lng, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<AppLatLng, String> get coordinates =>
+      $composableBuilder(
+          column: $table.coordinates, builder: (column) => column);
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
-  GeneratedColumn<int> get dayIndex =>
-      $composableBuilder(column: $table.dayIndex, builder: (column) => column);
+  GeneratedColumn<String> get visitTime =>
+      $composableBuilder(column: $table.visitTime, builder: (column) => column);
 
-  GeneratedColumn<int> get order =>
-      $composableBuilder(column: $table.order, builder: (column) => column);
+  GeneratedColumn<int> get dayNumber =>
+      $composableBuilder(column: $table.dayNumber, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String> get photoUrls =>
+      $composableBuilder(column: $table.photoUrls, builder: (column) => column);
 
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
@@ -4242,22 +4373,19 @@ class $$PlacesTableAnnotationComposer
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$PlacesTableTableManager extends RootTableManager<
     _$AppDatabase,
     $PlacesTable,
-    Place,
+    PlaceRow,
     $$PlacesTableFilterComposer,
     $$PlacesTableOrderingComposer,
     $$PlacesTableAnnotationComposer,
     $$PlacesTableCreateCompanionBuilder,
     $$PlacesTableUpdateCompanionBuilder,
-    (Place, BaseReferences<_$AppDatabase, $PlacesTable, Place>),
-    Place,
+    (PlaceRow, BaseReferences<_$AppDatabase, $PlacesTable, PlaceRow>),
+    PlaceRow,
     PrefetchHooks Function()> {
   $$PlacesTableTableManager(_$AppDatabase db, $PlacesTable table)
       : super(TableManagerState(
@@ -4273,60 +4401,64 @@ class $$PlacesTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> tripId = const Value.absent(),
             Value<String> name = const Value.absent(),
-            Value<double> lat = const Value.absent(),
-            Value<double> lng = const Value.absent(),
+            Value<String?> address = const Value.absent(),
+            Value<AppLatLng> coordinates = const Value.absent(),
             Value<String?> notes = const Value.absent(),
-            Value<int> dayIndex = const Value.absent(),
-            Value<int> order = const Value.absent(),
+            Value<String?> visitTime = const Value.absent(),
+            Value<int?> dayNumber = const Value.absent(),
+            Value<int> orderIndex = const Value.absent(),
+            Value<List<String>> photoUrls = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PlacesCompanion(
             id: id,
             tripId: tripId,
             name: name,
-            lat: lat,
-            lng: lng,
+            address: address,
+            coordinates: coordinates,
             notes: notes,
-            dayIndex: dayIndex,
-            order: order,
+            visitTime: visitTime,
+            dayNumber: dayNumber,
+            orderIndex: orderIndex,
+            photoUrls: photoUrls,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
-            createdAt: createdAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String tripId,
             required String name,
-            required double lat,
-            required double lng,
+            Value<String?> address = const Value.absent(),
+            required AppLatLng coordinates,
             Value<String?> notes = const Value.absent(),
-            Value<int> dayIndex = const Value.absent(),
-            Value<int> order = const Value.absent(),
+            Value<String?> visitTime = const Value.absent(),
+            Value<int?> dayNumber = const Value.absent(),
+            required int orderIndex,
+            Value<List<String>> photoUrls = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
-            required DateTime createdAt,
             Value<int> rowid = const Value.absent(),
           }) =>
               PlacesCompanion.insert(
             id: id,
             tripId: tripId,
             name: name,
-            lat: lat,
-            lng: lng,
+            address: address,
+            coordinates: coordinates,
             notes: notes,
-            dayIndex: dayIndex,
-            order: order,
+            visitTime: visitTime,
+            dayNumber: dayNumber,
+            orderIndex: orderIndex,
+            photoUrls: photoUrls,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
-            createdAt: createdAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -4339,45 +4471,39 @@ class $$PlacesTableTableManager extends RootTableManager<
 typedef $$PlacesTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
     $PlacesTable,
-    Place,
+    PlaceRow,
     $$PlacesTableFilterComposer,
     $$PlacesTableOrderingComposer,
     $$PlacesTableAnnotationComposer,
     $$PlacesTableCreateCompanionBuilder,
     $$PlacesTableUpdateCompanionBuilder,
-    (Place, BaseReferences<_$AppDatabase, $PlacesTable, Place>),
-    Place,
+    (PlaceRow, BaseReferences<_$AppDatabase, $PlacesTable, PlaceRow>),
+    PlaceRow,
     PrefetchHooks Function()>;
 typedef $$RoutesTableCreateCompanionBuilder = RoutesCompanion Function({
   required String id,
   required String tripId,
-  required String fromPlaceId,
-  required String toPlaceId,
+  Value<List<AppLatLng>> coordinates,
   Value<String> transportMode,
-  Value<int> distanceMeters,
-  Value<int> durationSeconds,
-  Value<String?> polyline,
-  Value<int> order,
+  Value<double?> distance,
+  Value<int?> duration,
+  Value<int?> dayNumber,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
-  required DateTime createdAt,
   Value<int> rowid,
 });
 typedef $$RoutesTableUpdateCompanionBuilder = RoutesCompanion Function({
   Value<String> id,
   Value<String> tripId,
-  Value<String> fromPlaceId,
-  Value<String> toPlaceId,
+  Value<List<AppLatLng>> coordinates,
   Value<String> transportMode,
-  Value<int> distanceMeters,
-  Value<int> durationSeconds,
-  Value<String?> polyline,
-  Value<int> order,
+  Value<double?> distance,
+  Value<int?> duration,
+  Value<int?> dayNumber,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
-  Value<DateTime> createdAt,
   Value<int> rowid,
 });
 
@@ -4396,28 +4522,22 @@ class $$RoutesTableFilterComposer
   ColumnFilters<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get fromPlaceId => $composableBuilder(
-      column: $table.fromPlaceId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get toPlaceId => $composableBuilder(
-      column: $table.toPlaceId, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<List<AppLatLng>, List<AppLatLng>, String>
+      get coordinates => $composableBuilder(
+          column: $table.coordinates,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<String> get transportMode => $composableBuilder(
       column: $table.transportMode, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get distanceMeters => $composableBuilder(
-      column: $table.distanceMeters,
-      builder: (column) => ColumnFilters(column));
+  ColumnFilters<double> get distance => $composableBuilder(
+      column: $table.distance, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds,
-      builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get duration => $composableBuilder(
+      column: $table.duration, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get polyline => $composableBuilder(
-      column: $table.polyline, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get order => $composableBuilder(
-      column: $table.order, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get dayNumber => $composableBuilder(
+      column: $table.dayNumber, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4429,9 +4549,6 @@ class $$RoutesTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$RoutesTableOrderingComposer
@@ -4449,29 +4566,21 @@ class $$RoutesTableOrderingComposer
   ColumnOrderings<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get fromPlaceId => $composableBuilder(
-      column: $table.fromPlaceId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get toPlaceId => $composableBuilder(
-      column: $table.toPlaceId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get coordinates => $composableBuilder(
+      column: $table.coordinates, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get transportMode => $composableBuilder(
       column: $table.transportMode,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get distanceMeters => $composableBuilder(
-      column: $table.distanceMeters,
-      builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get distance => $composableBuilder(
+      column: $table.distance, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds,
-      builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get duration => $composableBuilder(
+      column: $table.duration, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get polyline => $composableBuilder(
-      column: $table.polyline, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get order => $composableBuilder(
-      column: $table.order, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get dayNumber => $composableBuilder(
+      column: $table.dayNumber, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4483,9 +4592,6 @@ class $$RoutesTableOrderingComposer
 
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$RoutesTableAnnotationComposer
@@ -4503,26 +4609,21 @@ class $$RoutesTableAnnotationComposer
   GeneratedColumn<String> get tripId =>
       $composableBuilder(column: $table.tripId, builder: (column) => column);
 
-  GeneratedColumn<String> get fromPlaceId => $composableBuilder(
-      column: $table.fromPlaceId, builder: (column) => column);
-
-  GeneratedColumn<String> get toPlaceId =>
-      $composableBuilder(column: $table.toPlaceId, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<List<AppLatLng>, String> get coordinates =>
+      $composableBuilder(
+          column: $table.coordinates, builder: (column) => column);
 
   GeneratedColumn<String> get transportMode => $composableBuilder(
       column: $table.transportMode, builder: (column) => column);
 
-  GeneratedColumn<int> get distanceMeters => $composableBuilder(
-      column: $table.distanceMeters, builder: (column) => column);
+  GeneratedColumn<double> get distance =>
+      $composableBuilder(column: $table.distance, builder: (column) => column);
 
-  GeneratedColumn<int> get durationSeconds => $composableBuilder(
-      column: $table.durationSeconds, builder: (column) => column);
+  GeneratedColumn<int> get duration =>
+      $composableBuilder(column: $table.duration, builder: (column) => column);
 
-  GeneratedColumn<String> get polyline =>
-      $composableBuilder(column: $table.polyline, builder: (column) => column);
-
-  GeneratedColumn<int> get order =>
-      $composableBuilder(column: $table.order, builder: (column) => column);
+  GeneratedColumn<int> get dayNumber =>
+      $composableBuilder(column: $table.dayNumber, builder: (column) => column);
 
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
@@ -4532,22 +4633,19 @@ class $$RoutesTableAnnotationComposer
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$RoutesTableTableManager extends RootTableManager<
     _$AppDatabase,
     $RoutesTable,
-    TripRoute,
+    RouteRow,
     $$RoutesTableFilterComposer,
     $$RoutesTableOrderingComposer,
     $$RoutesTableAnnotationComposer,
     $$RoutesTableCreateCompanionBuilder,
     $$RoutesTableUpdateCompanionBuilder,
-    (TripRoute, BaseReferences<_$AppDatabase, $RoutesTable, TripRoute>),
-    TripRoute,
+    (RouteRow, BaseReferences<_$AppDatabase, $RoutesTable, RouteRow>),
+    RouteRow,
     PrefetchHooks Function()> {
   $$RoutesTableTableManager(_$AppDatabase db, $RoutesTable table)
       : super(TableManagerState(
@@ -4562,65 +4660,53 @@ class $$RoutesTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String> tripId = const Value.absent(),
-            Value<String> fromPlaceId = const Value.absent(),
-            Value<String> toPlaceId = const Value.absent(),
+            Value<List<AppLatLng>> coordinates = const Value.absent(),
             Value<String> transportMode = const Value.absent(),
-            Value<int> distanceMeters = const Value.absent(),
-            Value<int> durationSeconds = const Value.absent(),
-            Value<String?> polyline = const Value.absent(),
-            Value<int> order = const Value.absent(),
+            Value<double?> distance = const Value.absent(),
+            Value<int?> duration = const Value.absent(),
+            Value<int?> dayNumber = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               RoutesCompanion(
             id: id,
             tripId: tripId,
-            fromPlaceId: fromPlaceId,
-            toPlaceId: toPlaceId,
+            coordinates: coordinates,
             transportMode: transportMode,
-            distanceMeters: distanceMeters,
-            durationSeconds: durationSeconds,
-            polyline: polyline,
-            order: order,
+            distance: distance,
+            duration: duration,
+            dayNumber: dayNumber,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
-            createdAt: createdAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String tripId,
-            required String fromPlaceId,
-            required String toPlaceId,
+            Value<List<AppLatLng>> coordinates = const Value.absent(),
             Value<String> transportMode = const Value.absent(),
-            Value<int> distanceMeters = const Value.absent(),
-            Value<int> durationSeconds = const Value.absent(),
-            Value<String?> polyline = const Value.absent(),
-            Value<int> order = const Value.absent(),
+            Value<double?> distance = const Value.absent(),
+            Value<int?> duration = const Value.absent(),
+            Value<int?> dayNumber = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
-            required DateTime createdAt,
             Value<int> rowid = const Value.absent(),
           }) =>
               RoutesCompanion.insert(
             id: id,
             tripId: tripId,
-            fromPlaceId: fromPlaceId,
-            toPlaceId: toPlaceId,
+            coordinates: coordinates,
             transportMode: transportMode,
-            distanceMeters: distanceMeters,
-            durationSeconds: durationSeconds,
-            polyline: polyline,
-            order: order,
+            distance: distance,
+            duration: duration,
+            dayNumber: dayNumber,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
-            createdAt: createdAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -4633,14 +4719,14 @@ class $$RoutesTableTableManager extends RootTableManager<
 typedef $$RoutesTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
     $RoutesTable,
-    TripRoute,
+    RouteRow,
     $$RoutesTableFilterComposer,
     $$RoutesTableOrderingComposer,
     $$RoutesTableAnnotationComposer,
     $$RoutesTableCreateCompanionBuilder,
     $$RoutesTableUpdateCompanionBuilder,
-    (TripRoute, BaseReferences<_$AppDatabase, $RoutesTable, TripRoute>),
-    TripRoute,
+    (RouteRow, BaseReferences<_$AppDatabase, $RoutesTable, RouteRow>),
+    RouteRow,
     PrefetchHooks Function()>;
 typedef $$MediaTableCreateCompanionBuilder = MediaCompanion Function({
   required String id,

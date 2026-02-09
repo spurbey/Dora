@@ -345,16 +345,9 @@ lib/
 │           └── providers/
 │               └── export_provider.dart
 │
-├── generated/                         # Code generation output
-│   ├── api/                          # OpenAPI generated
-│   │   ├── api.dart
-│   │   ├── api_client.dart
-│   │   └── models/
-│   │       ├── trip_dto.dart
-│   │       ├── place_dto.dart
-│   │       └── ...
-│   └── intl/                         # Localization (future)
-│
+# NOTE: OpenAPI client is generated outside lib/
+# packages/dora_api/ (local path dependency in flutter/pubspec.yaml)
+
 └── shared/                            # Shared UI components
     ├── widgets/
     │   ├── dora_button.dart
@@ -1173,11 +1166,20 @@ dev_dependencies:
 ```yaml
 generatorName: dart-dio
 inputSpec: http://localhost:8000/openapi.json  # Your backend
-outputDir: lib/generated/api/
+outputDir: packages/dora_api/
 additionalProperties:
   pubName: dora_api
   useEnumExtension: true
   enumUnknownDefaultCase: true
+```
+
+**Note:** OpenAPI client is a local package at `flutter/packages/dora_api`.  
+Do not generate into `lib/generated/api` (build_runner will delete outputs).  
+Add path dependency in app `pubspec.yaml`:
+
+```yaml
+dora_api:
+  path: packages/dora_api
 ```
 
 ---
@@ -1198,7 +1200,7 @@ openapi-generator-cli generate -c openapi-generator-config.yaml
 **Usage in Repository:**
 
 ```dart
-import 'package:dora/generated/api/api.dart';
+import 'package:dora_api/dora_api.dart';
 
 class TripRepository {
   final DefaultApi _api;

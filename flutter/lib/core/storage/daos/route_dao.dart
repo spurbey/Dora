@@ -9,14 +9,26 @@ part 'route_dao.g.dart';
 class RouteDao extends DatabaseAccessor<AppDatabase> with _$RouteDaoMixin {
   RouteDao(AppDatabase db) : super(db);
 
-  Future<List<TripRoute>> getRoutesForTrip(String tripId) =>
+  Future<List<RouteRow>> getRoutesForTrip(String tripId) =>
       (select(routes)..where((r) => r.tripId.equals(tripId))).get();
 
+  Future<RouteRow?> getRouteById(String id) =>
+      (select(routes)..where((r) => r.id.equals(id))).getSingleOrNull();
+
   Future<int> insertRoute(RoutesCompanion route) => into(routes).insert(route);
+
+  Future<void> insertRoutes(List<RoutesCompanion> entries) async {
+    await batch((batch) {
+      batch.insertAllOnConflictUpdate(routes, entries);
+    });
+  }
 
   Future<bool> updateRoute(RoutesCompanion route) =>
       update(routes).replace(route);
 
   Future<int> deleteRoute(String id) =>
       (delete(routes)..where((r) => r.id.equals(id))).go();
+
+  Future<void> deleteRoutesForTrip(String tripId) =>
+      (delete(routes)..where((r) => r.tripId.equals(tripId))).go();
 }

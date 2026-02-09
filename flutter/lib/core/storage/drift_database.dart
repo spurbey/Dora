@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart'; // ignore: unused_import
+import 'package:dora/core/storage/converters.dart'; // ignore: unused_import
 import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/daos/place_dao.dart';
 import 'package:dora/core/storage/daos/public_trips_dao.dart';
@@ -35,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +50,15 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.createTable(userTrips);
+          }
+          if (from < 4) {
+            await m.addColumn(trips, trips.tags);
+            await m.addColumn(trips, trips.centerPoint);
+            await m.addColumn(trips, trips.zoom);
+            await m.deleteTable('places');
+            await m.deleteTable('routes');
+            await m.createTable(places);
+            await m.createTable(routes);
           }
         },
       );

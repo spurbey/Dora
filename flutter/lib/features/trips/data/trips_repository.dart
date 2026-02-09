@@ -11,10 +11,23 @@ class TripsRepository {
   final TripsApi _api;
 
   Future<List<UserTrip>> getUserTrips({bool forceRefresh = false}) async {
+    if (forceRefresh) {
+      final cached = await _db.userTripsDao.getTrips();
+      final hasPending =
+          cached.any((trip) => trip.syncStatus != 'synced');
+      if (hasPending) {
+        return cached;
+      }
+    }
+
     if (!forceRefresh) {
       final cached = await _db.userTripsDao.getTrips();
       if (cached.isNotEmpty) {
-        _refreshInBackground();
+        final hasPending =
+            cached.any((trip) => trip.syncStatus != 'synced');
+        if (!hasPending) {
+          _refreshInBackground();
+        }
         return cached;
       }
     }
@@ -128,6 +141,12 @@ class TripsRepository {
   void _refreshInBackground() {
     Future(() async {
       final trips = await _api.getUserTrips();
+      final existing = await _db.userTripsDao.getTrips();
+      final pending =
+          existing.where((trip) => trip.syncStatus != 'synced').toList();
+      if (pending.isNotEmpty) {
+        return;
+      }
       await _db.userTripsDao.clearAll();
       await _db.userTripsDao.insertTrips(trips);
     }).catchError((_) {});

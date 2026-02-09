@@ -1,5 +1,6 @@
 import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.authentication.http.BasicAuthentication
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -8,6 +9,17 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
+            credentials {
+                username = "mapbox"
+                password = (project.findProperty("MAPBOX_DOWNLOADS_TOKEN") as String?)
+                    ?: System.getenv("MAPBOX_DOWNLOADS_TOKEN")
+            }
+            authentication {
+                create<BasicAuthentication>("basic")
+            }
+        }
     }
 }
 
@@ -52,8 +64,8 @@ subprojects {
         }
     }
 
-    // Special-case sentry_flutter: keep Java/Kotlin at 1.8 to match its build.gradle.
-    if (name == "sentry_flutter") {
+    // Special-case sentry_flutter + mapbox_maps_flutter: keep Java/Kotlin at 1.8 to match their build.gradle.
+    if (name == "sentry_flutter" || name == "mapbox_maps_flutter") {
         plugins.withId("com.android.library") {
             extensions.configure<LibraryExtension> {
                 compileOptions {

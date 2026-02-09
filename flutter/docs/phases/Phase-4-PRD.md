@@ -1808,4 +1808,6 @@ Output MUST be empty. If not, refactor immediately.
 This is NON-NEGOTIABLE for Phase 4 completion.
 ```
 
+**If any confusion regarding packages,openapi, .g.dart, drift then refer to Dora/docs/skills/dora-build-triage/SKILL.md**
+
 **Ready to build Phase 4?** Start with `lib/features/create/data/models/trip.dart` 🚀

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "383491534347",
+    "project_id": "projectkalki-49c4c",
+    "storage_bucket": "projectkalki-49c4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383491534347:android:080a5617785b6d6c8c210e",
+        "android_client_info": {
+          "package_name": "com.example.dora"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDB6ZDfAHGXntCsbuJgzZDDrhEJmSlT3V4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

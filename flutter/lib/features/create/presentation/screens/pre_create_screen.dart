@@ -34,13 +34,19 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
     super.initState();
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
+    _nameController.addListener(_onFormChanged);
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_onFormChanged);
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _onFormChanged() {
+    setState(() {});
   }
 
   bool get _isDirty =>

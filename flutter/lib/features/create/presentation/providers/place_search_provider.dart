@@ -4,7 +4,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:dora/core/location/location_provider.dart';
-import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 
@@ -34,7 +33,7 @@ class PlaceSearchController extends _$PlaceSearchController {
         return;
       }
 
-      state = const AsyncLoading();
+      state = AsyncData(PlaceSearchState(query: trimmed, searching: true));
       try {
         final repository = ref.read(placeRepositoryProvider);
         final position =
@@ -52,8 +51,13 @@ class PlaceSearchController extends _$PlaceSearchController {
           query: trimmed,
           results: results,
         ));
-      } catch (e, st) {
-        state = AsyncError(e, st);
+      } catch (_) {
+        // API unreachable — show empty results with offline hint
+        state = AsyncData(PlaceSearchState(
+          query: trimmed,
+          results: const [],
+          offline: true,
+        ));
       }
     });
   }
@@ -64,5 +68,7 @@ class PlaceSearchState with _$PlaceSearchState {
   const factory PlaceSearchState({
     @Default('') String query,
     @Default([]) List<PlaceSearchResult> results,
+    @Default(false) bool offline,
+    @Default(false) bool searching,
   }) = _PlaceSearchState;
 }

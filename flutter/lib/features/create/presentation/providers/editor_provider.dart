@@ -44,7 +44,6 @@ RouteRepository routeRepository(RouteRepositoryRef ref) {
 @riverpod
 class EditorController extends _$EditorController {
   Timer? _autoSaveTimer;
-  String? _routeStartPlaceId;
 
   @override
   Future<EditorState> build(String tripId) async {
@@ -123,10 +122,12 @@ class EditorController extends _$EditorController {
     if (current == null) {
       return;
     }
-    if (mode != EditorMode.drawRoute) {
-      _routeStartPlaceId = null;
-    }
-    state = AsyncData(current.copyWith(mode: mode));
+    state = AsyncData(current.copyWith(
+      mode: mode,
+      routeStartPlaceId: mode == EditorMode.drawRoute
+          ? current.routeStartPlaceId
+          : null,
+    ));
   }
 
   void toggleBottomPanel() {
@@ -172,15 +173,17 @@ class EditorController extends _$EditorController {
     }
 
     if (current.mode == EditorMode.drawRoute) {
-      if (_routeStartPlaceId == null) {
-        _routeStartPlaceId = id;
+      if (current.routeStartPlaceId == null) {
+        state = AsyncData(current.copyWith(routeStartPlaceId: id));
         return;
       }
 
-      final startId = _routeStartPlaceId!;
-      _routeStartPlaceId = null;
+      final startId = current.routeStartPlaceId!;
       drawRoute(startId, id);
-      setMode(EditorMode.view);
+      state = AsyncData(current.copyWith(
+        routeStartPlaceId: null,
+        mode: EditorMode.view,
+      ));
       return;
     }
 

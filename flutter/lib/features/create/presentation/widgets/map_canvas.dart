@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'package:dora/core/map/app_map_controller.dart';
@@ -24,6 +26,7 @@ class MapCanvas extends StatelessWidget {
     required this.onMapCreated,
     required this.onMapTap,
     this.onRouteTap,
+    this.routeStartPlaceId,
   });
 
   final AppLatLng initialCenter;
@@ -35,11 +38,13 @@ class MapCanvas extends StatelessWidget {
   final ValueChanged<AppMapController> onMapCreated;
   final ValueChanged<AppLatLng> onMapTap;
   final ValueChanged<String>? onRouteTap;
+  final String? routeStartPlaceId;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // Map base
         AppMapView(
           initialCenter: initialCenter,
           initialZoom: initialZoom,
@@ -50,9 +55,7 @@ class MapCanvas extends StatelessWidget {
           onRouteTap: onRouteTap,
           showUserLocation: true,
         ),
-        Container(
-          color: Colors.black.withOpacity(0.1),
-        ),
+        // Floating tool panel — top right
         Positioned(
           top: AppSpacing.md,
           right: AppSpacing.md,
@@ -61,26 +64,69 @@ class MapCanvas extends StatelessWidget {
             onToolSelected: onModeChanged,
           ),
         ),
+        // Route drawing instruction — bottom center (doesn't overlap tools)
         if (mode == EditorMode.drawRoute)
           Positioned(
-            top: AppSpacing.md,
-            left: AppSpacing.md,
-            right: AppSpacing.md,
-            child: Container(
-              padding: AppSpacing.allMd,
-              decoration: BoxDecoration(
-                color: AppColors.card.withOpacity(0.9),
+            bottom: AppSpacing.lg,
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            child: Center(
+              child: ClipRRect(
                 borderRadius: AppRadius.borderMd,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Tap places to connect', style: AppTypography.body),
-                  TextButton(
-                    onPressed: () => onModeChanged(EditorMode.view),
-                    child: const Text('Cancel'),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.card.withValues(alpha: 0.9),
+                      borderRadius: AppRadius.borderMd,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                          color: Colors.black12,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          routeStartPlaceId != null
+                              ? Icons.flag
+                              : Icons.touch_app,
+                          size: 18,
+                          color: AppColors.accent,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            routeStartPlaceId != null
+                                ? 'Great! Now tap the destination'
+                                : 'Tap a place to start the route',
+                            style: AppTypography.body.copyWith(fontSize: 14),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        TextButton(
+                          onPressed: () => onModeChanged(EditorMode.view),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             ),
           ),

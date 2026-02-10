@@ -16,12 +16,15 @@ MapState mapState(MapStateRef ref, String tripId) {
     return const MapState();
   }
 
+  final routeStartId = editor.routeStartPlaceId;
   final markers = editor.places
       .map((place) => AppMarker(
             id: place.id,
             position: place.coordinates,
             title: place.name,
-            color: AppColors.accent,
+            color: routeStartId == place.id
+                ? const Color(0xFFE53935)
+                : AppColors.accent,
             onTap: () => ref
                 .read(editorControllerProvider(tripId).notifier)
                 .handlePlaceTap(place.id),

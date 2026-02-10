@@ -18,6 +18,8 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$PlaceSearchState {
   String get query => throw _privateConstructorUsedError;
   List<PlaceSearchResult> get results => throw _privateConstructorUsedError;
+  bool get offline => throw _privateConstructorUsedError;
+  bool get searching => throw _privateConstructorUsedError;
 
   /// Create a copy of PlaceSearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -32,7 +34,11 @@ abstract class $PlaceSearchStateCopyWith<$Res> {
           PlaceSearchState value, $Res Function(PlaceSearchState) then) =
       _$PlaceSearchStateCopyWithImpl<$Res, PlaceSearchState>;
   @useResult
-  $Res call({String query, List<PlaceSearchResult> results});
+  $Res call(
+      {String query,
+      List<PlaceSearchResult> results,
+      bool offline,
+      bool searching});
 }
 
 /// @nodoc
@@ -52,6 +58,8 @@ class _$PlaceSearchStateCopyWithImpl<$Res, $Val extends PlaceSearchState>
   $Res call({
     Object? query = null,
     Object? results = null,
+    Object? offline = null,
+    Object? searching = null,
   }) {
     return _then(_value.copyWith(
       query: null == query
@@ -62,6 +70,14 @@ class _$PlaceSearchStateCopyWithImpl<$Res, $Val extends PlaceSearchState>
           ? _value.results
           : results // ignore: cast_nullable_to_non_nullable
               as List<PlaceSearchResult>,
+      offline: null == offline
+          ? _value.offline
+          : offline // ignore: cast_nullable_to_non_nullable
+              as bool,
+      searching: null == searching
+          ? _value.searching
+          : searching // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -74,7 +90,11 @@ abstract class _$$PlaceSearchStateImplCopyWith<$Res>
       __$$PlaceSearchStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String query, List<PlaceSearchResult> results});
+  $Res call(
+      {String query,
+      List<PlaceSearchResult> results,
+      bool offline,
+      bool searching});
 }
 
 /// @nodoc
@@ -92,6 +112,8 @@ class __$$PlaceSearchStateImplCopyWithImpl<$Res>
   $Res call({
     Object? query = null,
     Object? results = null,
+    Object? offline = null,
+    Object? searching = null,
   }) {
     return _then(_$PlaceSearchStateImpl(
       query: null == query
@@ -102,6 +124,14 @@ class __$$PlaceSearchStateImplCopyWithImpl<$Res>
           ? _value._results
           : results // ignore: cast_nullable_to_non_nullable
               as List<PlaceSearchResult>,
+      offline: null == offline
+          ? _value.offline
+          : offline // ignore: cast_nullable_to_non_nullable
+              as bool,
+      searching: null == searching
+          ? _value.searching
+          : searching // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -110,7 +140,10 @@ class __$$PlaceSearchStateImplCopyWithImpl<$Res>
 
 class _$PlaceSearchStateImpl implements _PlaceSearchState {
   const _$PlaceSearchStateImpl(
-      {this.query = '', final List<PlaceSearchResult> results = const []})
+      {this.query = '',
+      final List<PlaceSearchResult> results = const [],
+      this.offline = false,
+      this.searching = false})
       : _results = results;
 
   @override
@@ -126,8 +159,15 @@ class _$PlaceSearchStateImpl implements _PlaceSearchState {
   }
 
   @override
+  @JsonKey()
+  final bool offline;
+  @override
+  @JsonKey()
+  final bool searching;
+
+  @override
   String toString() {
-    return 'PlaceSearchState(query: $query, results: $results)';
+    return 'PlaceSearchState(query: $query, results: $results, offline: $offline, searching: $searching)';
   }
 
   @override
@@ -136,12 +176,15 @@ class _$PlaceSearchStateImpl implements _PlaceSearchState {
         (other.runtimeType == runtimeType &&
             other is _$PlaceSearchStateImpl &&
             (identical(other.query, query) || other.query == query) &&
-            const DeepCollectionEquality().equals(other._results, _results));
+            const DeepCollectionEquality().equals(other._results, _results) &&
+            (identical(other.offline, offline) || other.offline == offline) &&
+            (identical(other.searching, searching) ||
+                other.searching == searching));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, query, const DeepCollectionEquality().hash(_results));
+  int get hashCode => Object.hash(runtimeType, query,
+      const DeepCollectionEquality().hash(_results), offline, searching);
 
   /// Create a copy of PlaceSearchState
   /// with the given fields replaced by the non-null parameter values.
@@ -156,12 +199,18 @@ class _$PlaceSearchStateImpl implements _PlaceSearchState {
 abstract class _PlaceSearchState implements PlaceSearchState {
   const factory _PlaceSearchState(
       {final String query,
-      final List<PlaceSearchResult> results}) = _$PlaceSearchStateImpl;
+      final List<PlaceSearchResult> results,
+      final bool offline,
+      final bool searching}) = _$PlaceSearchStateImpl;
 
   @override
   String get query;
   @override
   List<PlaceSearchResult> get results;
+  @override
+  bool get offline;
+  @override
+  bool get searching;
 
   /// Create a copy of PlaceSearchState
   /// with the given fields replaced by the non-null parameter values.

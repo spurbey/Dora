@@ -4,7 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/core/theme/app_colors.dart';
+import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
+import 'package:dora/features/create/domain/editor_state.dart';
+import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
@@ -57,10 +61,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
 
-        final isWide = MediaQuery.of(context).size.width >= 900;
+        final mediaQuery = MediaQuery.of(context);
+        final isWide = mediaQuery.size.width >= 900;
         final initialCenter =
             mapState.center ?? const AppLatLng(latitude: 0, longitude: 0);
         final initialZoom = mapState.zoom ?? 12.0;
+
+        // Determine selected item name for bottom panel preview
+        final selectedName = _getSelectedItemName(editor);
+        final selectedIcon = _getSelectedItemIcon(editor);
+
+        // Hide FAB when bottom panel is expanded on mobile
+        final showFab = !isWide && !editor.bottomPanelExpanded;
 
         return WillPopScope(
           onWillPop: () => _handleBack(editor.saving),
@@ -81,90 +93,239 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     onMore: () {},
                   ),
                   Expanded(
-                    child: Stack(
-                      children: [
-                        Row(
-                          children: [
-                            if (isWide)
-                              TimelineSidebar(
-                                places: editor.places,
-                                routes: editor.routes,
-                                selectedItemId: editor.selectedItemId,
-                                selectedItemType: editor.selectedItemType,
-                                onItemTap: (id, type) {
-                                  if (type == 'place') {
-                                    controller.handlePlaceTap(id);
-                                  } else {
-                                    controller.selectRoute(id);
-                                  }
-                                },
-                                onReorder: controller.reorderPlaces,
-                                onAddPlace: () =>
-                                    controller.setMode(EditorMode.addPlace),
-                              ),
-                            Expanded(
-                              child: MapCanvas(
-                                initialCenter: initialCenter,
-                                initialZoom: initialZoom,
-                                markers: mapState.markers,
-                                routes: mapState.routes,
-                                mode: editor.mode,
-                                onModeChanged: controller.setMode,
-                                onMapCreated: controller.setMapController,
-                                onMapTap: (_) => controller.deselectAll(),
-                                onRouteTap: controller.selectRoute,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!isWide)
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 72,
-                            child: TimelineSidebar(
-                              width: MediaQuery.of(context).size.width,
-                              places: editor.places,
-                              routes: editor.routes,
-                              selectedItemId: editor.selectedItemId,
-                              selectedItemType: editor.selectedItemType,
-                              onItemTap: (id, type) {
-                                if (type == 'place') {
-                                  controller.handlePlaceTap(id);
-                                } else {
-                                  controller.selectRoute(id);
-                                }
-                              },
-                              onReorder: controller.reorderPlaces,
-                              onAddPlace: () =>
-                                  controller.setMode(EditorMode.addPlace),
-                            ),
-                          ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: BottomDetailPanel(
-                            expanded: editor.bottomPanelExpanded,
-                            onToggle: controller.toggleBottomPanel,
-                            child: _buildDetailContent(
-                              editor.selectedItemType,
-                              editor.selectedItemId,
-                              editor.places,
-                              editor.routes,
-                              controller,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: isWide
+                        ? _buildWideLayout(
+                            editor, mapState, controller,
+                            initialCenter, initialZoom,
+                            selectedName, selectedIcon)
+                        : _buildMobileLayout(
+                            editor, mapState, controller,
+                            initialCenter, initialZoom,
+                            selectedName, selectedIcon),
                   ),
                 ],
               ),
             ),
+            floatingActionButton: showFab
+                ? _buildMobileFab(editor, controller)
+                : null,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.startFloat,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMobileFab(EditorState editor, EditorController controller) {
+    if (editor.places.isEmpty) {
+      return FloatingActionButton.extended(
+        onPressed: () => controller.setMode(EditorMode.addPlace),
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_location_alt, size: 20),
+        label: const Text('Add Place'),
+      );
+    }
+    return FloatingActionButton(
+      onPressed: () => _showTimelineSheet(editor, controller),
+      backgroundColor: AppColors.accent,
+      foregroundColor: Colors.white,
+      child: const Icon(Icons.timeline),
+    );
+  }
+
+  String? _getSelectedItemName(EditorState editor) {
+    if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
+      try {
+        return editor.places
+            .firstWhere((p) => p.id == editor.selectedItemId)
+            .name;
+      } catch (_) {
+        return null;
+      }
+    }
+    if (editor.selectedItemType == 'route' && editor.selectedItemId != null) {
+      return 'Route';
+    }
+    return null;
+  }
+
+  IconData? _getSelectedItemIcon(EditorState editor) {
+    if (editor.selectedItemType == 'place') return Icons.place;
+    if (editor.selectedItemType == 'route') return Icons.route;
+    return null;
+  }
+
+  Widget _buildWideLayout(
+    EditorState editor,
+    MapState mapState,
+    EditorController controller,
+    AppLatLng initialCenter,
+    double initialZoom,
+    String? selectedName,
+    IconData? selectedIcon,
+  ) {
+    return Row(
+      children: [
+        TimelineSidebar(
+          places: editor.places,
+          routes: editor.routes,
+          selectedItemId: editor.selectedItemId,
+          selectedItemType: editor.selectedItemType,
+          onItemTap: (id, type) {
+            if (type == 'place') {
+              controller.handlePlaceTap(id);
+            } else {
+              controller.selectRoute(id);
+            }
+          },
+          onReorder: controller.reorderPlaces,
+          onAddPlace: () => controller.setMode(EditorMode.addPlace),
+        ),
+        Expanded(
+          child: Stack(
+            children: [
+              MapCanvas(
+                initialCenter: initialCenter,
+                initialZoom: initialZoom,
+                markers: mapState.markers,
+                routes: mapState.routes,
+                mode: editor.mode,
+                routeStartPlaceId: editor.routeStartPlaceId,
+                onModeChanged: controller.setMode,
+                onMapCreated: controller.setMapController,
+                onMapTap: (_) => controller.deselectAll(),
+                onRouteTap: controller.selectRoute,
+              ),
+              if (editor.selectedItemId != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: BottomDetailPanel(
+                    expanded: editor.bottomPanelExpanded,
+                    onToggle: controller.toggleBottomPanel,
+                    selectedItemName: selectedName,
+                    selectedItemIcon: selectedIcon,
+                    child: _buildDetailContent(
+                      editor.selectedItemType,
+                      editor.selectedItemId,
+                      editor.places,
+                      editor.routes,
+                      controller,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(
+    EditorState editor,
+    MapState mapState,
+    EditorController controller,
+    AppLatLng initialCenter,
+    double initialZoom,
+    String? selectedName,
+    IconData? selectedIcon,
+  ) {
+    return Stack(
+      children: [
+        MapCanvas(
+          initialCenter: initialCenter,
+          initialZoom: initialZoom,
+          markers: mapState.markers,
+          routes: mapState.routes,
+          mode: editor.mode,
+          routeStartPlaceId: editor.routeStartPlaceId,
+          onModeChanged: controller.setMode,
+          onMapCreated: controller.setMapController,
+          onMapTap: (_) => controller.deselectAll(),
+          onRouteTap: controller.selectRoute,
+        ),
+        if (editor.selectedItemId != null)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: BottomDetailPanel(
+              expanded: editor.bottomPanelExpanded,
+              onToggle: controller.toggleBottomPanel,
+              selectedItemName: selectedName,
+              selectedItemIcon: selectedIcon,
+              child: _buildDetailContent(
+                editor.selectedItemType,
+                editor.selectedItemId,
+                editor.places,
+                editor.routes,
+                controller,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showTimelineSheet(
+    EditorState editor,
+    EditorController controller,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            // Handle
+            Container(
+              height: 24,
+              alignment: Alignment.center,
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Expanded(
+              child: TimelineSidebar(
+                width: double.infinity,
+                places: editor.places,
+                routes: editor.routes,
+                selectedItemId: editor.selectedItemId,
+                selectedItemType: editor.selectedItemType,
+                onItemTap: (id, type) {
+                  Navigator.pop(context);
+                  if (type == 'place') {
+                    controller.handlePlaceTap(id);
+                  } else {
+                    controller.selectRoute(id);
+                  }
+                },
+                onReorder: controller.reorderPlaces,
+                onAddPlace: () {
+                  Navigator.pop(context);
+                  controller.setMode(EditorMode.addPlace);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -205,21 +366,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     EditorController controller,
   ) {
     if (type == 'place' && id != null) {
-      final place = places.firstWhere((item) => item.id == id);
-      return PlaceDetailForm(
-        place: place,
-        onSave: controller.updatePlace,
-        onDelete: () => controller.removePlace(place.id),
-      );
+      try {
+        final place = places.firstWhere((item) => item.id == id);
+        return PlaceDetailForm(
+          place: place,
+          onSave: controller.updatePlace,
+          onDelete: () => controller.removePlace(place.id),
+        );
+      } catch (_) {
+        return null;
+      }
     }
 
     if (type == 'route' && id != null) {
-      final route = routes.firstWhere((item) => item.id == id);
-      return RouteDetailForm(
-        route: route,
-        onSave: controller.updateRoute,
-        onDelete: () => controller.removeRoute(route.id),
-      );
+      try {
+        final route = routes.firstWhere((item) => item.id == id);
+        return RouteDetailForm(
+          route: route,
+          onSave: controller.updateRoute,
+          onDelete: () => controller.removeRoute(route.id),
+        );
+      } catch (_) {
+        return null;
+      }
     }
 
     return null;

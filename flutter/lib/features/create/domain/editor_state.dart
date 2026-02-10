@@ -20,5 +20,6 @@ class EditorState with _$EditorState {
     @Default(false) bool saving,
     @Default(false) bool bottomPanelExpanded,
     AppMapController? mapController,
+    String? routeStartPlaceId,
   }) = _EditorState;
 }

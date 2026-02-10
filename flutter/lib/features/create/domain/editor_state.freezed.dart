@@ -25,6 +25,7 @@ mixin _$EditorState {
   bool get saving => throw _privateConstructorUsedError;
   bool get bottomPanelExpanded => throw _privateConstructorUsedError;
   AppMapController? get mapController => throw _privateConstructorUsedError;
+  String? get routeStartPlaceId => throw _privateConstructorUsedError;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +49,8 @@ abstract class $EditorStateCopyWith<$Res> {
       EditorMode mode,
       bool saving,
       bool bottomPanelExpanded,
-      AppMapController? mapController});
+      AppMapController? mapController,
+      String? routeStartPlaceId});
 
   $TripCopyWith<$Res> get trip;
 }
@@ -77,6 +79,7 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
     Object? saving = null,
     Object? bottomPanelExpanded = null,
     Object? mapController = freezed,
+    Object? routeStartPlaceId = freezed,
   }) {
     return _then(_value.copyWith(
       trip: null == trip
@@ -115,6 +118,10 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
           ? _value.mapController
           : mapController // ignore: cast_nullable_to_non_nullable
               as AppMapController?,
+      routeStartPlaceId: freezed == routeStartPlaceId
+          ? _value.routeStartPlaceId
+          : routeStartPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 
@@ -146,7 +153,8 @@ abstract class _$$EditorStateImplCopyWith<$Res>
       EditorMode mode,
       bool saving,
       bool bottomPanelExpanded,
-      AppMapController? mapController});
+      AppMapController? mapController,
+      String? routeStartPlaceId});
 
   @override
   $TripCopyWith<$Res> get trip;
@@ -174,6 +182,7 @@ class __$$EditorStateImplCopyWithImpl<$Res>
     Object? saving = null,
     Object? bottomPanelExpanded = null,
     Object? mapController = freezed,
+    Object? routeStartPlaceId = freezed,
   }) {
     return _then(_$EditorStateImpl(
       trip: null == trip
@@ -212,6 +221,10 @@ class __$$EditorStateImplCopyWithImpl<$Res>
           ? _value.mapController
           : mapController // ignore: cast_nullable_to_non_nullable
               as AppMapController?,
+      routeStartPlaceId: freezed == routeStartPlaceId
+          ? _value.routeStartPlaceId
+          : routeStartPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -228,7 +241,8 @@ class _$EditorStateImpl implements _EditorState {
       this.mode = EditorMode.view,
       this.saving = false,
       this.bottomPanelExpanded = false,
-      this.mapController})
+      this.mapController,
+      this.routeStartPlaceId})
       : _places = places,
         _routes = routes;
 
@@ -267,10 +281,12 @@ class _$EditorStateImpl implements _EditorState {
   final bool bottomPanelExpanded;
   @override
   final AppMapController? mapController;
+  @override
+  final String? routeStartPlaceId;
 
   @override
   String toString() {
-    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController)';
+    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartPlaceId: $routeStartPlaceId)';
   }
 
   @override
@@ -290,7 +306,9 @@ class _$EditorStateImpl implements _EditorState {
             (identical(other.bottomPanelExpanded, bottomPanelExpanded) ||
                 other.bottomPanelExpanded == bottomPanelExpanded) &&
             (identical(other.mapController, mapController) ||
-                other.mapController == mapController));
+                other.mapController == mapController) &&
+            (identical(other.routeStartPlaceId, routeStartPlaceId) ||
+                other.routeStartPlaceId == routeStartPlaceId));
   }
 
   @override
@@ -304,7 +322,8 @@ class _$EditorStateImpl implements _EditorState {
       mode,
       saving,
       bottomPanelExpanded,
-      mapController);
+      mapController,
+      routeStartPlaceId);
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -325,7 +344,8 @@ abstract class _EditorState implements EditorState {
       final EditorMode mode,
       final bool saving,
       final bool bottomPanelExpanded,
-      final AppMapController? mapController}) = _$EditorStateImpl;
+      final AppMapController? mapController,
+      final String? routeStartPlaceId}) = _$EditorStateImpl;
 
   @override
   Trip get trip;
@@ -345,6 +365,8 @@ abstract class _EditorState implements EditorState {
   bool get bottomPanelExpanded;
   @override
   AppMapController? get mapController;
+  @override
+  String? get routeStartPlaceId;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'package:dora/core/theme/app_colors.dart';
@@ -18,92 +20,108 @@ class FloatingToolPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: AppSpacing.allSm,
-      decoration: BoxDecoration(
-        color: AppColors.card.withOpacity(0.95),
-        borderRadius: AppRadius.borderLg,
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 12,
-            offset: Offset(0, 4),
-            color: Colors.black12,
+    return ClipRRect(
+      borderRadius: AppRadius.borderLg,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 10,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _ToolButton(
-            label: 'Add',
-            icon: Icons.add,
-            selected: currentMode == EditorMode.addPlace,
-            onTap: () => onToolSelected(EditorMode.addPlace),
+          decoration: BoxDecoration(
+            color: AppColors.card.withValues(alpha: 0.85),
+            borderRadius: AppRadius.borderLg,
+            border: Border.all(color: AppColors.divider),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 16,
+                offset: Offset(0, 6),
+                color: Colors.black26,
+              ),
+            ],
           ),
-          _ToolButton(
-            label: 'Edit',
-            icon: Icons.edit,
-            selected: currentMode == EditorMode.editItem,
-            onTap: () => onToolSelected(EditorMode.editItem),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ToolIcon(
+                icon: Icons.add_location_alt,
+                label: 'Add',
+                active: currentMode == EditorMode.addPlace,
+                onTap: () => onToolSelected(EditorMode.addPlace),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _ToolIcon(
+                icon: Icons.route,
+                label: 'Route',
+                active: currentMode == EditorMode.drawRoute,
+                onTap: () => onToolSelected(EditorMode.drawRoute),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _ToolIcon(
+                icon: Icons.explore_outlined,
+                label: 'View',
+                active: currentMode == EditorMode.view,
+                onTap: () => onToolSelected(EditorMode.view),
+              ),
+            ],
           ),
-          _ToolButton(
-            label: 'Places',
-            icon: Icons.place,
-            selected: currentMode == EditorMode.addPlace,
-            onTap: () => onToolSelected(EditorMode.addPlace),
-          ),
-          _ToolButton(
-            label: 'Routes',
-            icon: Icons.route,
-            selected: currentMode == EditorMode.drawRoute,
-            onTap: () => onToolSelected(EditorMode.drawRoute),
-          ),
-          _ToolButton(
-            label: 'Media',
-            icon: Icons.photo_camera,
-            selected: false,
-            onTap: () {},
-            disabled: true,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ToolButton extends StatelessWidget {
-  const _ToolButton({
-    required this.label,
+class _ToolIcon extends StatelessWidget {
+  const _ToolIcon({
     required this.icon,
-    required this.selected,
+    required this.label,
+    required this.active,
     required this.onTap,
-    this.disabled = false,
   });
 
-  final String label;
   final IconData icon;
-  final bool selected;
+  final String label;
+  final bool active;
   final VoidCallback onTap;
-  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.accent : AppColors.textSecondary;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: InkWell(
-        onTap: disabled ? null : onTap,
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: disabled ? AppColors.divider : color),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              label,
-              style: AppTypography.caption.copyWith(
-                color: disabled ? AppColors.divider : color,
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: active ? AppColors.accent : Colors.transparent,
+              shape: BoxShape.circle,
+              border: active
+                  ? null
+                  : Border.all(
+                      color: AppColors.divider,
+                      width: 1.5,
+                    ),
             ),
-          ],
-        ),
+            child: Icon(
+              icon,
+              size: 22,
+              color: active ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              fontSize: 10,
+              color: active ? AppColors.accent : AppColors.textSecondary,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }

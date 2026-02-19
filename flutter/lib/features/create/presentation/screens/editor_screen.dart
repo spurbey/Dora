@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_colors.dart';
-import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/map_state.dart';
@@ -14,6 +13,7 @@ import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
+import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
@@ -39,9 +39,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     ref.listen(editorControllerProvider(widget.tripId), (prev, next) {
       final prevMode = prev?.valueOrNull?.mode;
       final nextMode = next.valueOrNull?.mode;
+
       if (nextMode == EditorMode.addPlace &&
           prevMode != EditorMode.addPlace) {
         _openPlaceSearch();
+      }
+
+      if (nextMode == EditorMode.addCity &&
+          prevMode != EditorMode.addCity) {
+        _openCitySearch();
       }
     });
 
@@ -67,11 +73,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             mapState.center ?? const AppLatLng(latitude: 0, longitude: 0);
         final initialZoom = mapState.zoom ?? 12.0;
 
-        // Determine selected item name for bottom panel preview
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
 
-        // Hide FAB when bottom panel is expanded on mobile
         final showFab = !isWide && !editor.bottomPanelExpanded;
 
         return WillPopScope(
@@ -120,11 +124,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Widget _buildMobileFab(EditorState editor, EditorController controller) {
     if (editor.places.isEmpty) {
       return FloatingActionButton.extended(
-        onPressed: () => controller.setMode(EditorMode.addPlace),
+        onPressed: () => controller.setMode(EditorMode.addCity),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_location_alt, size: 20),
-        label: const Text('Add Place'),
+        label: const Text('Add Destination'),
       );
     }
     return FloatingActionButton(
@@ -138,21 +142,40 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _getSelectedItemName(EditorState editor) {
     if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
       try {
-        return editor.places
-            .firstWhere((p) => p.id == editor.selectedItemId)
-            .name;
+        final place = editor.places
+            .firstWhere((p) => p.id == editor.selectedItemId);
+        if (place.placeType == 'city') {
+          return '${place.name} (City)';
+        }
+        return place.name;
       } catch (_) {
         return null;
       }
     }
     if (editor.selectedItemType == 'route' && editor.selectedItemId != null) {
-      return 'Route';
+      try {
+        final route = editor.routes
+            .firstWhere((r) => r.id == editor.selectedItemId);
+        return route.name ?? 'Route';
+      } catch (_) {
+        return 'Route';
+      }
     }
     return null;
   }
 
   IconData? _getSelectedItemIcon(EditorState editor) {
-    if (editor.selectedItemType == 'place') return Icons.place;
+    if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
+      try {
+        final place = editor.places
+            .firstWhere((p) => p.id == editor.selectedItemId);
+        return place.placeType == 'city'
+            ? Icons.location_city
+            : Icons.place;
+      } catch (_) {
+        return Icons.place;
+      }
+    }
     if (editor.selectedItemType == 'route') return Icons.route;
     return null;
   }
@@ -182,6 +205,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           },
           onReorder: controller.reorderPlaces,
           onAddPlace: () => controller.setMode(EditorMode.addPlace),
+          onAddCity: () => controller.setMode(EditorMode.addCity),
+          onAddRoute: () => controller.startDrawingRoute(),
         ),
         Expanded(
           child: Stack(
@@ -321,6 +346,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   Navigator.pop(context);
                   controller.setMode(EditorMode.addPlace);
                 },
+                onAddCity: () {
+                  Navigator.pop(context);
+                  controller.setMode(EditorMode.addCity);
+                },
+                onAddRoute: () {
+                  Navigator.pop(context);
+                  controller.startDrawingRoute();
+                },
               ),
             ),
           ],
@@ -334,6 +367,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       return;
     }
     await context.push(Routes.placeSearchPath(widget.tripId));
+    if (mounted) {
+      ref
+          .read(editorControllerProvider(widget.tripId).notifier)
+          .setMode(EditorMode.view);
+    }
+  }
+
+  Future<void> _openCitySearch() async {
+    if (!mounted) {
+      return;
+    }
+    await context.push(Routes.citySearchPath(widget.tripId));
     if (mounted) {
       ref
           .read(editorControllerProvider(widget.tripId).notifier)
@@ -368,6 +413,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (type == 'place' && id != null) {
       try {
         final place = places.firstWhere((item) => item.id == id);
+        if (place.placeType == 'city') {
+          return CityDetailForm(
+            city: place,
+            onSave: controller.updatePlace,
+            onDelete: () => controller.removePlace(place.id),
+          );
+        }
         return PlaceDetailForm(
           place: place,
           onSave: controller.updatePlace,

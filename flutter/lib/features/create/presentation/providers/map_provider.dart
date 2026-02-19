@@ -17,19 +17,38 @@ MapState mapState(MapStateRef ref, String tripId) {
   }
 
   final routeStartId = editor.routeStartItemId;
-  final markers = editor.places
-      .map((place) => AppMarker(
-            id: place.id,
-            position: place.coordinates,
-            title: place.name,
-            color: routeStartId == place.id
-                ? const Color(0xFFE53935)
-                : AppColors.accent,
-            onTap: () => ref
-                .read(editorControllerProvider(tripId).notifier)
-                .handlePlaceTap(place.id),
-          ))
-      .toList();
+
+  // Number non-city places sequentially
+  int placeNumber = 0;
+  final sortedPlaces = List.of(editor.places)
+    ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+  final markers = sortedPlaces.map((place) {
+    final isCity = place.placeType == 'city';
+    if (!isCity) placeNumber++;
+
+    final isRouteStart = routeStartId == place.id;
+    final Color markerColor;
+    if (isRouteStart) {
+      markerColor = const Color(0xFFE53935);
+    } else if (isCity) {
+      markerColor = AppColors.primary;
+    } else {
+      markerColor = AppColors.accent;
+    }
+
+    return AppMarker(
+      id: place.id,
+      position: place.coordinates,
+      title: place.name,
+      color: markerColor,
+      markerType: isCity ? 'city' : 'place',
+      label: isCity ? 'C' : '$placeNumber',
+      onTap: () => ref
+          .read(editorControllerProvider(tripId).notifier)
+          .handlePlaceTap(place.id),
+    );
+  }).toList();
 
   final routes = editor.routes
       .map((route) => AppRoute(

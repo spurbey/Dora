@@ -82,7 +82,11 @@ class EditorController extends _$EditorController {
       return;
     }
     final place = current.places.firstWhere((p) => p.id == id);
-    current.mapController?.flyTo(place.coordinates, zoom: 15);
+    final isCity = place.placeType == 'city';
+    current.mapController?.flyTo(
+      place.coordinates,
+      zoom: isCity ? 12 : 15,
+    );
     state = AsyncData(current.copyWith(
       selectedItemId: id,
       selectedItemType: 'place',
@@ -155,8 +159,15 @@ class EditorController extends _$EditorController {
       return;
     }
     final updatedPlaces = [...current.places, place];
-    state = AsyncData(current.copyWith(places: updatedPlaces));
-    current.mapController?.flyTo(place.coordinates, zoom: 15);
+    final isCity = place.placeType == 'city';
+    state = AsyncData(current.copyWith(
+      places: updatedPlaces,
+      selectedItemId: place.id,
+      selectedItemType: 'place',
+      bottomPanelExpanded: true,
+      mode: EditorMode.editItem,
+    ));
+    current.mapController?.flyTo(place.coordinates, zoom: isCity ? 12 : 15);
     Future(() => ref.read(placeRepositoryProvider).addPlace(place));
     _scheduleAutoSave();
   }

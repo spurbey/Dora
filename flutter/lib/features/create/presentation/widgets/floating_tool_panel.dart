@@ -20,6 +20,10 @@ class FloatingToolPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRouteActive = currentMode == EditorMode.addRouteCar ||
+        currentMode == EditorMode.addRouteAir ||
+        currentMode == EditorMode.addRouteWalking;
+
     return ClipRRect(
       borderRadius: AppRadius.borderLg,
       child: BackdropFilter(
@@ -45,8 +49,15 @@ class FloatingToolPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _ToolIcon(
+                icon: Icons.location_city,
+                label: 'City',
+                active: currentMode == EditorMode.addCity,
+                onTap: () => onToolSelected(EditorMode.addCity),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _ToolIcon(
                 icon: Icons.add_location_alt,
-                label: 'Add',
+                label: 'Place',
                 active: currentMode == EditorMode.addPlace,
                 onTap: () => onToolSelected(EditorMode.addPlace),
               ),
@@ -54,9 +65,7 @@ class FloatingToolPanel extends StatelessWidget {
               _ToolIcon(
                 icon: Icons.route,
                 label: 'Route',
-                active: currentMode == EditorMode.addRouteCar ||
-                    currentMode == EditorMode.addRouteAir ||
-                    currentMode == EditorMode.addRouteWalking,
+                active: isRouteActive,
                 onTap: () => onToolSelected(EditorMode.addRouteCar),
               ),
               const SizedBox(height: AppSpacing.sm),

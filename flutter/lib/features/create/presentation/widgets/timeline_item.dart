@@ -17,6 +17,7 @@ class TimelinePlaceItem extends StatelessWidget {
     required this.onTap,
     this.isFirst = false,
     this.isLast = false,
+    this.isCity = false,
   });
 
   final int orderNumber;
@@ -26,6 +27,7 @@ class TimelinePlaceItem extends StatelessWidget {
   final VoidCallback onTap;
   final bool isFirst;
   final bool isLast;
+  final bool isCity;
 
   @override
   Widget build(BuildContext context) {
@@ -65,15 +67,18 @@ class TimelinePlaceItem extends StatelessWidget {
                     height: 26,
                     decoration: BoxDecoration(
                       color: selected
-                          ? AppColors.accent
-                          : AppColors.accent.withValues(alpha: 0.15),
+                          ? (isCity ? AppColors.primary : AppColors.accent)
+                          : (isCity ? AppColors.primary : AppColors.accent)
+                              .withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      '$orderNumber',
+                      isCity ? 'C' : '$orderNumber',
                       style: AppTypography.caption.copyWith(
-                        color: selected ? Colors.white : AppColors.accent,
+                        color: selected
+                            ? Colors.white
+                            : (isCity ? AppColors.primary : AppColors.accent),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -90,11 +95,13 @@ class TimelinePlaceItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            // Place icon
+            // Place/City icon
             Icon(
-              Icons.place,
+              isCity ? Icons.location_city : Icons.place,
               size: 18,
-              color: selected ? AppColors.accent : AppColors.textSecondary,
+              color: selected
+                  ? (isCity ? AppColors.primary : AppColors.accent)
+                  : AppColors.textSecondary,
             ),
             const SizedBox(width: AppSpacing.sm),
             // Title + subtitle

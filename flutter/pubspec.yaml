@@ -21,6 +21,7 @@ dependencies:
   go_router: ^12.1.0
 
   # Network
+  http: ^1.2.0
   dio: ^5.4.0
   dora_api:
     path: packages/dora_api

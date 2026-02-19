@@ -60,8 +60,9 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(places);
             await m.createTable(routes);
           }
-          if (from < 5) {
+          if (from >= 4 && from < 5) {
             // Places: add placeType, rating
+            // (Skipped if from < 4: tables were just recreated with full v5 schema)
             await m.addColumn(places, places.placeType);
             await m.addColumn(places, places.rating);
             // Routes: add name, description, routeCategory, startPlaceId,

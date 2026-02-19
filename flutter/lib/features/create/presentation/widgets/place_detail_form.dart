@@ -23,35 +23,48 @@ class PlaceDetailForm extends StatefulWidget {
 }
 
 class _PlaceDetailFormState extends State<PlaceDetailForm> {
+  late final TextEditingController _nameController;
   late final TextEditingController _notesController;
   String? _visitTime;
+  String? _placeType;
+  int _rating = 0;
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.place.name);
     _notesController = TextEditingController(text: widget.place.notes ?? '');
     _visitTime = widget.place.visitTime;
+    _placeType = widget.place.placeType;
+    _rating = widget.place.rating ?? 0;
   }
 
   @override
   void didUpdateWidget(covariant PlaceDetailForm oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.place.id != widget.place.id) {
+      _nameController.text = widget.place.name;
       _notesController.text = widget.place.notes ?? '';
       _visitTime = widget.place.visitTime;
+      _placeType = widget.place.placeType;
+      _rating = widget.place.rating ?? 0;
     }
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   void _save() {
     widget.onSave(widget.place.copyWith(
+      name: _nameController.text.trim(),
       notes: _notesController.text.trim(),
       visitTime: _visitTime,
+      placeType: _placeType,
+      rating: _rating,
     ));
   }
 
@@ -62,7 +75,19 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.place.name, style: AppTypography.h3),
+          // Name
+          TextField(
+            controller: _nameController,
+            style: AppTypography.h3,
+            decoration: InputDecoration(
+              hintText: 'Place name',
+              border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 12,
+              ),
+            ),
+          ),
           if (widget.place.address != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -73,6 +98,66 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
             ),
           ],
           const SizedBox(height: AppSpacing.md),
+
+          // Place Type
+          Text('Type', style: AppTypography.caption),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _typeChip('restaurant', 'Restaurant'),
+              _typeChip('hotel', 'Hotel'),
+              _typeChip('attraction', 'Attraction'),
+              _typeChip('museum', 'Museum'),
+              _typeChip('park', 'Park'),
+              _typeChip('cafe', 'Cafe'),
+              _typeChip('shopping', 'Shopping'),
+              _typeChip('nightlife', 'Nightlife'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Rating
+          Text('Rating', style: AppTypography.caption),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: List.generate(5, (index) {
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _rating = _rating == index + 1 ? 0 : index + 1;
+                }),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    index < _rating
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: index < _rating
+                        ? Colors.amber
+                        : AppColors.textSecondary,
+                    size: 28,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Visit Time
+          Text('Visit Time', style: AppTypography.caption),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              _visitChip('Morning'),
+              _visitChip('Afternoon'),
+              _visitChip('Evening'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Photos
           SizedBox(
             height: 70,
             child: ListView(
@@ -104,6 +189,8 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+
+          // Notes
           Text('Notes', style: AppTypography.caption),
           const SizedBox(height: AppSpacing.xs),
           TextField(
@@ -114,19 +201,11 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
               border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text('Visit Time', style: AppTypography.caption),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: [
-              _visitChip('Morning'),
-              _visitChip('Afternoon'),
-              _visitChip('Evening'),
-            ],
-          ),
           const SizedBox(height: AppSpacing.lg),
+
+          // Actions
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               TextButton(
                 onPressed: widget.onDelete,
@@ -135,7 +214,6 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
                 ),
                 child: const Text('Delete Place'),
               ),
-              const Spacer(),
               ElevatedButton(
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
@@ -146,6 +224,19 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _typeChip(String value, String label) {
+    final selected = _placeType == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => setState(() => _placeType = value),
+      selectedColor: AppColors.accentSoft,
+      labelStyle: AppTypography.caption.copyWith(
+        color: selected ? AppColors.accent : AppColors.textSecondary,
       ),
     );
   }

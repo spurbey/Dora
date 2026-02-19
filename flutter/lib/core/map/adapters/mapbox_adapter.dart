@@ -108,11 +108,16 @@ class MapboxAdapter implements AppMapController {
   @override
   Future<void> addMarker(AppMarker marker) async {
     final manager = await _ensurePointManager();
+    final isCity = marker.markerType == 'city';
+    final iconSize = isCity ? 1.25 : 1.0;
     final annotation = await manager.create(
       PointAnnotationOptions(
         geometry: _toPoint(marker.position),
         iconImage: marker.iconAsset ?? 'marker-15',
-        textField: marker.title,
+        iconSize: iconSize,
+        textField: marker.label ?? marker.title,
+        textOffset: [0, 1.5],
+        textSize: 12,
         iconColor: marker.color?.value,
       ),
     );

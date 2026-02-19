@@ -57,7 +57,7 @@ final routeRepositoryProvider = AutoDisposeProvider<RouteRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef RouteRepositoryRef = AutoDisposeProviderRef<RouteRepository>;
-String _$editorControllerHash() => r'178f8216496b48cf9d9090fe692cd9078e51b8f2';
+String _$editorControllerHash() => r'a3ad45ed5b5882919f8205828ef69d072e78bcac';
 
 /// Copied from Dart SDK
 class _SystemHash {

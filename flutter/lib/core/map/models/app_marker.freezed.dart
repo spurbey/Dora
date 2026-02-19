@@ -23,6 +23,9 @@ mixin _$AppMarker {
   String? get iconAsset => throw _privateConstructorUsedError;
   Color? get color => throw _privateConstructorUsedError;
   VoidCallback? get onTap => throw _privateConstructorUsedError;
+  String? get markerType =>
+      throw _privateConstructorUsedError; // 'city' or 'place'
+  String? get label => throw _privateConstructorUsedError;
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.
@@ -43,7 +46,9 @@ abstract class $AppMarkerCopyWith<$Res> {
       String? snippet,
       String? iconAsset,
       Color? color,
-      VoidCallback? onTap});
+      VoidCallback? onTap,
+      String? markerType,
+      String? label});
 
   $AppLatLngCopyWith<$Res> get position;
 }
@@ -70,6 +75,8 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
     Object? iconAsset = freezed,
     Object? color = freezed,
     Object? onTap = freezed,
+    Object? markerType = freezed,
+    Object? label = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -100,6 +107,14 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
           ? _value.onTap
           : onTap // ignore: cast_nullable_to_non_nullable
               as VoidCallback?,
+      markerType: freezed == markerType
+          ? _value.markerType
+          : markerType // ignore: cast_nullable_to_non_nullable
+              as String?,
+      label: freezed == label
+          ? _value.label
+          : label // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 
@@ -129,7 +144,9 @@ abstract class _$$AppMarkerImplCopyWith<$Res>
       String? snippet,
       String? iconAsset,
       Color? color,
-      VoidCallback? onTap});
+      VoidCallback? onTap,
+      String? markerType,
+      String? label});
 
   @override
   $AppLatLngCopyWith<$Res> get position;
@@ -155,6 +172,8 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
     Object? iconAsset = freezed,
     Object? color = freezed,
     Object? onTap = freezed,
+    Object? markerType = freezed,
+    Object? label = freezed,
   }) {
     return _then(_$AppMarkerImpl(
       id: null == id
@@ -185,6 +204,14 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
           ? _value.onTap
           : onTap // ignore: cast_nullable_to_non_nullable
               as VoidCallback?,
+      markerType: freezed == markerType
+          ? _value.markerType
+          : markerType // ignore: cast_nullable_to_non_nullable
+              as String?,
+      label: freezed == label
+          ? _value.label
+          : label // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -199,7 +226,9 @@ class _$AppMarkerImpl implements _AppMarker {
       this.snippet,
       this.iconAsset,
       this.color,
-      this.onTap});
+      this.onTap,
+      this.markerType,
+      this.label});
 
   @override
   final String id;
@@ -215,10 +244,15 @@ class _$AppMarkerImpl implements _AppMarker {
   final Color? color;
   @override
   final VoidCallback? onTap;
+  @override
+  final String? markerType;
+// 'city' or 'place'
+  @override
+  final String? label;
 
   @override
   String toString() {
-    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, color: $color, onTap: $onTap)';
+    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, color: $color, onTap: $onTap, markerType: $markerType, label: $label)';
   }
 
   @override
@@ -234,12 +268,15 @@ class _$AppMarkerImpl implements _AppMarker {
             (identical(other.iconAsset, iconAsset) ||
                 other.iconAsset == iconAsset) &&
             (identical(other.color, color) || other.color == color) &&
-            (identical(other.onTap, onTap) || other.onTap == onTap));
+            (identical(other.onTap, onTap) || other.onTap == onTap) &&
+            (identical(other.markerType, markerType) ||
+                other.markerType == markerType) &&
+            (identical(other.label, label) || other.label == label));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, position, title, snippet, iconAsset, color, onTap);
+  int get hashCode => Object.hash(runtimeType, id, position, title, snippet,
+      iconAsset, color, onTap, markerType, label);
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.
@@ -258,7 +295,9 @@ abstract class _AppMarker implements AppMarker {
       final String? snippet,
       final String? iconAsset,
       final Color? color,
-      final VoidCallback? onTap}) = _$AppMarkerImpl;
+      final VoidCallback? onTap,
+      final String? markerType,
+      final String? label}) = _$AppMarkerImpl;
 
   @override
   String get id;
@@ -274,6 +313,10 @@ abstract class _AppMarker implements AppMarker {
   Color? get color;
   @override
   VoidCallback? get onTap;
+  @override
+  String? get markerType; // 'city' or 'place'
+  @override
+  String? get label;
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.

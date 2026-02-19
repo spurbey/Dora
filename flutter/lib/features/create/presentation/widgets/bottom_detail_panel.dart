@@ -5,6 +5,9 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 
+const double _handleHeight = 56.0;
+const double _contentHeight = 284.0;
+
 class BottomDetailPanel extends StatelessWidget {
   const BottomDetailPanel({
     super.key,
@@ -25,10 +28,11 @@ class BottomDetailPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Top shadow gradient — separates panel from map
         IgnorePointer(
           child: Container(
+            width: double.infinity,
             height: 24,
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -42,13 +46,12 @@ class BottomDetailPanel extends StatelessWidget {
             ),
           ),
         ),
-        // Panel
         AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
-          constraints: BoxConstraints(
-            maxHeight: expanded ? 340 : 56,
-          ),
+          width: double.infinity,
+          height: expanded ? _handleHeight + _contentHeight : _handleHeight,
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: AppRadius.sheetTop,
@@ -62,79 +65,90 @@ class BottomDetailPanel extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Drag handle + collapsed preview
-              GestureDetector(
-                onTap: onToggle,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Column(
-                    children: [
-                      // Handle
-                      Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.divider,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      if (!expanded && selectedItemName != null) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              selectedItemIcon ?? Icons.place,
-                              size: 16,
-                              color: AppColors.accent,
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              selectedItemName!,
-                              style: AppTypography.body.copyWith(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            Icon(
-                              Icons.keyboard_arrow_up,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (!expanded && selectedItemName == null) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Tap to view details',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
+              SizedBox(
+                height: _handleHeight,
+                child: GestureDetector(
+                  onTap: onToggle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.divider,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
+                        if (selectedItemName != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                selectedItemIcon ?? Icons.place,
+                                size: 16,
+                                color: AppColors.accent,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Flexible(
+                                child: Text(
+                                  selectedItemName!,
+                                  style: AppTypography.body.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Icon(
+                                expanded
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_up,
+                                size: 16,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Tap to view details',
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-              // Content
-              if (expanded)
-                Expanded(
-                  child: child ??
-                      Center(
-                        child: Text(
-                          'Select a place or route',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
+              ClipRect(
+                child: SizedBox(
+                  height: expanded ? _contentHeight : 0,
+                  child: IgnorePointer(
+                    ignoring: !expanded,
+                    child: child ??
+                        Center(
+                          child: Text(
+                            'Select a place or route',
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
-                      ),
+                  ),
                 ),
+              ),
             ],
           ),
         ),

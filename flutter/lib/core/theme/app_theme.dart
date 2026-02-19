@@ -7,6 +7,9 @@ import 'package:dora/core/theme/app_typography.dart';
 class AppTheme {
   AppTheme._();
 
+  // Avoid infinite-width buttons in unconstrained rows (e.g. detail form action bars).
+  static const Size _buttonMinSize = Size(64, 48);
+
   static ThemeData get light => ThemeData(
         useMaterial3: true,
         fontFamily: AppTypography.fontFamily,
@@ -40,7 +43,7 @@ class AppTheme {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.accent,
             foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: _buttonMinSize,
             shape: const RoundedRectangleBorder(
               borderRadius: AppRadius.borderMd,
             ),
@@ -96,7 +99,7 @@ class AppTheme {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.accent,
             foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: _buttonMinSize,
             shape: const RoundedRectangleBorder(
               borderRadius: AppRadius.borderMd,
             ),

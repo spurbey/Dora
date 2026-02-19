@@ -1,6 +1,9 @@
 enum EditorMode {
   view,
+  addCity,
   addPlace,
-  drawRoute,
+  addRouteAir,
+  addRouteCar,
+  addRouteWalking,
   editItem,
 }

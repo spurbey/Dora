@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +59,20 @@ class AppDatabase extends _$AppDatabase {
             await m.deleteTable('routes');
             await m.createTable(places);
             await m.createTable(routes);
+          }
+          if (from < 5) {
+            // Places: add placeType, rating
+            await m.addColumn(places, places.placeType);
+            await m.addColumn(places, places.rating);
+            // Routes: add name, description, routeCategory, startPlaceId,
+            // endPlaceId, orderIndex, routeGeojson
+            await m.addColumn(routes, routes.name);
+            await m.addColumn(routes, routes.description);
+            await m.addColumn(routes, routes.routeCategory);
+            await m.addColumn(routes, routes.startPlaceId);
+            await m.addColumn(routes, routes.endPlaceId);
+            await m.addColumn(routes, routes.orderIndex);
+            await m.addColumn(routes, routes.routeGeojson);
           }
         },
       );

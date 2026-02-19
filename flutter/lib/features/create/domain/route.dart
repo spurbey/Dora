@@ -11,10 +11,21 @@ class Route with _$Route {
     required String id,
     required String tripId,
     required List<AppLatLng> coordinates,
-    @Default('car') String transportMode,
-    double? distance,
-    int? duration,
+    @Default('car') String transportMode, // 'car', 'foot', 'air'
+    double? distance, // km
+    int? duration, // minutes
     int? dayNumber,
+
+    // Route metadata
+    String? name,
+    String? description,
+    @Default('ground') String routeCategory, // 'ground' or 'air'
+    String? startPlaceId,
+    String? endPlaceId,
+    @Default(0) int orderIndex,
+    String? routeGeojson, // GeoJSON LineString for detailed path
+
+    // Sync metadata
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     @Default('pending') String syncStatus,

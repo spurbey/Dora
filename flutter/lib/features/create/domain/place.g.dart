@@ -21,6 +21,8 @@ _$PlaceImpl _$$PlaceImplFromJson(Map<String, dynamic> json) => _$PlaceImpl(
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      placeType: json['placeType'] as String?,
+      rating: (json['rating'] as num?)?.toInt(),
       localUpdatedAt: DateTime.parse(json['localUpdatedAt'] as String),
       serverUpdatedAt: DateTime.parse(json['serverUpdatedAt'] as String),
       syncStatus: json['syncStatus'] as String? ?? 'pending',
@@ -38,6 +40,8 @@ Map<String, dynamic> _$$PlaceImplToJson(_$PlaceImpl instance) =>
       'dayNumber': instance.dayNumber,
       'orderIndex': instance.orderIndex,
       'photoUrls': instance.photoUrls,
+      'placeType': instance.placeType,
+      'rating': instance.rating,
       'localUpdatedAt': instance.localUpdatedAt.toIso8601String(),
       'serverUpdatedAt': instance.serverUpdatedAt.toIso8601String(),
       'syncStatus': instance.syncStatus,

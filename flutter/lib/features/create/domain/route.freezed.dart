@@ -23,10 +23,21 @@ mixin _$Route {
   String get id => throw _privateConstructorUsedError;
   String get tripId => throw _privateConstructorUsedError;
   List<AppLatLng> get coordinates => throw _privateConstructorUsedError;
-  String get transportMode => throw _privateConstructorUsedError;
-  double? get distance => throw _privateConstructorUsedError;
-  int? get duration => throw _privateConstructorUsedError;
-  int? get dayNumber => throw _privateConstructorUsedError;
+  String get transportMode =>
+      throw _privateConstructorUsedError; // 'car', 'foot', 'air'
+  double? get distance => throw _privateConstructorUsedError; // km
+  int? get duration => throw _privateConstructorUsedError; // minutes
+  int? get dayNumber => throw _privateConstructorUsedError; // Route metadata
+  String? get name => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
+  String get routeCategory =>
+      throw _privateConstructorUsedError; // 'ground' or 'air'
+  String? get startPlaceId => throw _privateConstructorUsedError;
+  String? get endPlaceId => throw _privateConstructorUsedError;
+  int get orderIndex => throw _privateConstructorUsedError;
+  String? get routeGeojson =>
+      throw _privateConstructorUsedError; // GeoJSON LineString for detailed path
+// Sync metadata
   DateTime get localUpdatedAt => throw _privateConstructorUsedError;
   DateTime get serverUpdatedAt => throw _privateConstructorUsedError;
   String get syncStatus => throw _privateConstructorUsedError;
@@ -53,6 +64,13 @@ abstract class $RouteCopyWith<$Res> {
       double? distance,
       int? duration,
       int? dayNumber,
+      String? name,
+      String? description,
+      String routeCategory,
+      String? startPlaceId,
+      String? endPlaceId,
+      int orderIndex,
+      String? routeGeojson,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -80,6 +98,13 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
     Object? distance = freezed,
     Object? duration = freezed,
     Object? dayNumber = freezed,
+    Object? name = freezed,
+    Object? description = freezed,
+    Object? routeCategory = null,
+    Object? startPlaceId = freezed,
+    Object? endPlaceId = freezed,
+    Object? orderIndex = null,
+    Object? routeGeojson = freezed,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -113,6 +138,34 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
           ? _value.dayNumber
           : dayNumber // ignore: cast_nullable_to_non_nullable
               as int?,
+      name: freezed == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
+      routeCategory: null == routeCategory
+          ? _value.routeCategory
+          : routeCategory // ignore: cast_nullable_to_non_nullable
+              as String,
+      startPlaceId: freezed == startPlaceId
+          ? _value.startPlaceId
+          : startPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      endPlaceId: freezed == endPlaceId
+          ? _value.endPlaceId
+          : endPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      orderIndex: null == orderIndex
+          ? _value.orderIndex
+          : orderIndex // ignore: cast_nullable_to_non_nullable
+              as int,
+      routeGeojson: freezed == routeGeojson
+          ? _value.routeGeojson
+          : routeGeojson // ignore: cast_nullable_to_non_nullable
+              as String?,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -144,6 +197,13 @@ abstract class _$$RouteImplCopyWith<$Res> implements $RouteCopyWith<$Res> {
       double? distance,
       int? duration,
       int? dayNumber,
+      String? name,
+      String? description,
+      String routeCategory,
+      String? startPlaceId,
+      String? endPlaceId,
+      int orderIndex,
+      String? routeGeojson,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -169,6 +229,13 @@ class __$$RouteImplCopyWithImpl<$Res>
     Object? distance = freezed,
     Object? duration = freezed,
     Object? dayNumber = freezed,
+    Object? name = freezed,
+    Object? description = freezed,
+    Object? routeCategory = null,
+    Object? startPlaceId = freezed,
+    Object? endPlaceId = freezed,
+    Object? orderIndex = null,
+    Object? routeGeojson = freezed,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -202,6 +269,34 @@ class __$$RouteImplCopyWithImpl<$Res>
           ? _value.dayNumber
           : dayNumber // ignore: cast_nullable_to_non_nullable
               as int?,
+      name: freezed == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
+      routeCategory: null == routeCategory
+          ? _value.routeCategory
+          : routeCategory // ignore: cast_nullable_to_non_nullable
+              as String,
+      startPlaceId: freezed == startPlaceId
+          ? _value.startPlaceId
+          : startPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      endPlaceId: freezed == endPlaceId
+          ? _value.endPlaceId
+          : endPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      orderIndex: null == orderIndex
+          ? _value.orderIndex
+          : orderIndex // ignore: cast_nullable_to_non_nullable
+              as int,
+      routeGeojson: freezed == routeGeojson
+          ? _value.routeGeojson
+          : routeGeojson // ignore: cast_nullable_to_non_nullable
+              as String?,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -229,6 +324,13 @@ class _$RouteImpl implements _Route {
       this.distance,
       this.duration,
       this.dayNumber,
+      this.name,
+      this.description,
+      this.routeCategory = 'ground',
+      this.startPlaceId,
+      this.endPlaceId,
+      this.orderIndex = 0,
+      this.routeGeojson,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       this.syncStatus = 'pending'})
@@ -252,12 +354,35 @@ class _$RouteImpl implements _Route {
   @override
   @JsonKey()
   final String transportMode;
+// 'car', 'foot', 'air'
   @override
   final double? distance;
+// km
   @override
   final int? duration;
+// minutes
   @override
   final int? dayNumber;
+// Route metadata
+  @override
+  final String? name;
+  @override
+  final String? description;
+  @override
+  @JsonKey()
+  final String routeCategory;
+// 'ground' or 'air'
+  @override
+  final String? startPlaceId;
+  @override
+  final String? endPlaceId;
+  @override
+  @JsonKey()
+  final int orderIndex;
+  @override
+  final String? routeGeojson;
+// GeoJSON LineString for detailed path
+// Sync metadata
   @override
   final DateTime localUpdatedAt;
   @override
@@ -268,7 +393,7 @@ class _$RouteImpl implements _Route {
 
   @override
   String toString() {
-    return 'Route(id: $id, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Route(id: $id, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, name: $name, description: $description, routeCategory: $routeCategory, startPlaceId: $startPlaceId, endPlaceId: $endPlaceId, orderIndex: $orderIndex, routeGeojson: $routeGeojson, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -288,6 +413,19 @@ class _$RouteImpl implements _Route {
                 other.duration == duration) &&
             (identical(other.dayNumber, dayNumber) ||
                 other.dayNumber == dayNumber) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.routeCategory, routeCategory) ||
+                other.routeCategory == routeCategory) &&
+            (identical(other.startPlaceId, startPlaceId) ||
+                other.startPlaceId == startPlaceId) &&
+            (identical(other.endPlaceId, endPlaceId) ||
+                other.endPlaceId == endPlaceId) &&
+            (identical(other.orderIndex, orderIndex) ||
+                other.orderIndex == orderIndex) &&
+            (identical(other.routeGeojson, routeGeojson) ||
+                other.routeGeojson == routeGeojson) &&
             (identical(other.localUpdatedAt, localUpdatedAt) ||
                 other.localUpdatedAt == localUpdatedAt) &&
             (identical(other.serverUpdatedAt, serverUpdatedAt) ||
@@ -307,6 +445,13 @@ class _$RouteImpl implements _Route {
       distance,
       duration,
       dayNumber,
+      name,
+      description,
+      routeCategory,
+      startPlaceId,
+      endPlaceId,
+      orderIndex,
+      routeGeojson,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -336,6 +481,13 @@ abstract class _Route implements Route {
       final double? distance,
       final int? duration,
       final int? dayNumber,
+      final String? name,
+      final String? description,
+      final String routeCategory,
+      final String? startPlaceId,
+      final String? endPlaceId,
+      final int orderIndex,
+      final String? routeGeojson,
       required final DateTime localUpdatedAt,
       required final DateTime serverUpdatedAt,
       final String syncStatus}) = _$RouteImpl;
@@ -349,13 +501,28 @@ abstract class _Route implements Route {
   @override
   List<AppLatLng> get coordinates;
   @override
-  String get transportMode;
+  String get transportMode; // 'car', 'foot', 'air'
   @override
-  double? get distance;
+  double? get distance; // km
   @override
-  int? get duration;
+  int? get duration; // minutes
   @override
-  int? get dayNumber;
+  int? get dayNumber; // Route metadata
+  @override
+  String? get name;
+  @override
+  String? get description;
+  @override
+  String get routeCategory; // 'ground' or 'air'
+  @override
+  String? get startPlaceId;
+  @override
+  String? get endPlaceId;
+  @override
+  int get orderIndex;
+  @override
+  String? get routeGeojson; // GeoJSON LineString for detailed path
+// Sync metadata
   @override
   DateTime get localUpdatedAt;
   @override

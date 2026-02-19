@@ -13,6 +13,16 @@ class Routes extends Table {
   IntColumn get duration => integer().nullable()(); // minutes
   IntColumn get dayNumber => integer().nullable()();
 
+  // Route metadata
+  TextColumn get name => text().nullable()();
+  TextColumn get description => text().nullable()();
+  TextColumn get routeCategory =>
+      text().withDefault(const Constant('ground'))();
+  TextColumn get startPlaceId => text().nullable()();
+  TextColumn get endPlaceId => text().nullable()();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+  TextColumn get routeGeojson => text().nullable()();
+
   // Sync metadata
   DateTimeColumn get localUpdatedAt => dateTime()();
   DateTimeColumn get serverUpdatedAt => dateTime()();

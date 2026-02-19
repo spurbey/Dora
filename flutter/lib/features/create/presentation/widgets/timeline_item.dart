@@ -158,6 +158,7 @@ class TimelineRouteConnector extends StatelessWidget {
     switch (transportMode) {
       case 'bike':
         return Icons.directions_bike;
+      case 'foot':
       case 'walk':
         return Icons.directions_walk;
       case 'air':
@@ -174,7 +175,7 @@ class TimelineRouteConnector extends StatelessWidget {
     final durationStr = duration != null ? '${duration} min' : '';
     final label = [distanceStr, durationStr]
         .where((s) => s.isNotEmpty)
-        .join(' · ');
+        .join(' - ');
 
     return GestureDetector(
       onTap: onTap,
@@ -182,7 +183,7 @@ class TimelineRouteConnector extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         child: Row(
           children: [
-            // Connector area — dashed vertical line
+            // Connector area - dashed vertical line
             SizedBox(
               width: 32,
               height: 28,

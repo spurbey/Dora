@@ -14,12 +14,23 @@ class EditorState with _$EditorState {
     required Trip trip,
     @Default([]) List<Place> places,
     @Default([]) List<Route> routes,
+
+    // Selection
     String? selectedItemId,
-    String? selectedItemType,
+    String? selectedItemType, // 'place', 'city', 'route'
+
+    // Editor mode
     @Default(EditorMode.view) EditorMode mode,
+
+    // UI state
     @Default(false) bool saving,
     @Default(false) bool bottomPanelExpanded,
+
+    // Map controller reference
     AppMapController? mapController,
-    String? routeStartPlaceId,
+
+    // Route drawing state
+    String? routeStartItemId,
+    String? routeStartItemType, // 'place' or 'city'
   }) = _EditorState;
 }

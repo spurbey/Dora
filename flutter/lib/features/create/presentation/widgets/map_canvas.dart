@@ -26,7 +26,7 @@ class MapCanvas extends StatelessWidget {
     required this.onMapCreated,
     required this.onMapTap,
     this.onRouteTap,
-    this.routeStartPlaceId,
+    this.routeStartItemId,
   });
 
   final AppLatLng initialCenter;
@@ -38,7 +38,7 @@ class MapCanvas extends StatelessWidget {
   final ValueChanged<AppMapController> onMapCreated;
   final ValueChanged<AppLatLng> onMapTap;
   final ValueChanged<String>? onRouteTap;
-  final String? routeStartPlaceId;
+  final String? routeStartItemId;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,7 @@ class MapCanvas extends StatelessWidget {
           ),
         ),
         // Route drawing instruction — bottom center (doesn't overlap tools)
-        if (mode == EditorMode.drawRoute)
+        if (_isRouteMode(mode))
           Positioned(
             bottom: AppSpacing.lg,
             left: AppSpacing.lg,
@@ -95,7 +95,7 @@ class MapCanvas extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          routeStartPlaceId != null
+                          routeStartItemId != null
                               ? Icons.flag
                               : Icons.touch_app,
                           size: 18,
@@ -104,9 +104,9 @@ class MapCanvas extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Flexible(
                           child: Text(
-                            routeStartPlaceId != null
+                            routeStartItemId != null
                                 ? 'Great! Now tap the destination'
-                                : 'Tap a place to start the route',
+                                : _routeInstruction(mode),
                             style: AppTypography.body.copyWith(fontSize: 14),
                           ),
                         ),
@@ -133,4 +133,18 @@ class MapCanvas extends StatelessWidget {
       ],
     );
   }
+}
+
+bool _isRouteMode(EditorMode mode) {
+  return mode == EditorMode.addRouteAir ||
+      mode == EditorMode.addRouteCar ||
+      mode == EditorMode.addRouteWalking;
+}
+
+String _routeInstruction(EditorMode mode) {
+  return switch (mode) {
+    EditorMode.addRouteAir => 'Tap two cities to create a flight path',
+    EditorMode.addRouteWalking => 'Tap two places to create a walking route',
+    _ => 'Tap a place to start the route',
+  };
 }

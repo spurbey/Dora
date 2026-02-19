@@ -27,14 +27,14 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
   @override
   void initState() {
     super.initState();
-    _mode = widget.route.transportMode;
+    _mode = _normalizeTransportMode(widget.route.transportMode);
   }
 
   @override
   void didUpdateWidget(covariant RouteDetailForm oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.route.id != widget.route.id) {
-      _mode = widget.route.transportMode;
+      _mode = _normalizeTransportMode(widget.route.transportMode);
     }
   }
 
@@ -67,7 +67,7 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
             children: [
               _modeChip('car', 'Car'),
               _modeChip('bike', 'Bike'),
-              _modeChip('walk', 'Walk'),
+              _modeChip('foot', 'Walk'),
               _modeChip('air', 'Air'),
             ],
           ),
@@ -107,5 +107,12 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
         color: selected ? AppColors.accent : AppColors.textSecondary,
       ),
     );
+  }
+
+  String _normalizeTransportMode(String mode) {
+    if (mode == 'walk') {
+      return 'foot';
+    }
+    return mode;
   }
 }

@@ -752,6 +752,17 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
               requiredDuringInsert: false,
               defaultValue: const Constant('[]'))
           .withConverter<List<String>>($PlacesTable.$converterphotoUrls);
+  static const VerificationMeta _placeTypeMeta =
+      const VerificationMeta('placeType');
+  @override
+  late final GeneratedColumn<String> placeType = GeneratedColumn<String>(
+      'place_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ratingMeta = const VerificationMeta('rating');
+  @override
+  late final GeneratedColumn<int> rating = GeneratedColumn<int>(
+      'rating', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -782,6 +793,8 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
         dayNumber,
         orderIndex,
         photoUrls,
+        placeType,
+        rating,
         localUpdatedAt,
         serverUpdatedAt,
         syncStatus
@@ -836,6 +849,14 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
               data['order_index']!, _orderIndexMeta));
     } else if (isInserting) {
       context.missing(_orderIndexMeta);
+    }
+    if (data.containsKey('place_type')) {
+      context.handle(_placeTypeMeta,
+          placeType.isAcceptableOrUnknown(data['place_type']!, _placeTypeMeta));
+    }
+    if (data.containsKey('rating')) {
+      context.handle(_ratingMeta,
+          rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta));
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -892,6 +913,10 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
       photoUrls: $PlacesTable.$converterphotoUrls.fromSql(attachedDatabase
           .typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}photo_urls'])!),
+      placeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}place_type']),
+      rating: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}rating']),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
@@ -923,6 +948,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final int? dayNumber;
   final int orderIndex;
   final List<String> photoUrls;
+  final String? placeType;
+  final int? rating;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
@@ -937,6 +964,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       this.dayNumber,
       required this.orderIndex,
       required this.photoUrls,
+      this.placeType,
+      this.rating,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       required this.syncStatus});
@@ -967,6 +996,12 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       map['photo_urls'] =
           Variable<String>($PlacesTable.$converterphotoUrls.toSql(photoUrls));
     }
+    if (!nullToAbsent || placeType != null) {
+      map['place_type'] = Variable<String>(placeType);
+    }
+    if (!nullToAbsent || rating != null) {
+      map['rating'] = Variable<int>(rating);
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -992,6 +1027,11 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           : Value(dayNumber),
       orderIndex: Value(orderIndex),
       photoUrls: Value(photoUrls),
+      placeType: placeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeType),
+      rating:
+          rating == null && nullToAbsent ? const Value.absent() : Value(rating),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
@@ -1012,6 +1052,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       dayNumber: serializer.fromJson<int?>(json['dayNumber']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       photoUrls: serializer.fromJson<List<String>>(json['photoUrls']),
+      placeType: serializer.fromJson<String?>(json['placeType']),
+      rating: serializer.fromJson<int?>(json['rating']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -1031,6 +1073,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       'dayNumber': serializer.toJson<int?>(dayNumber),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'photoUrls': serializer.toJson<List<String>>(photoUrls),
+      'placeType': serializer.toJson<String?>(placeType),
+      'rating': serializer.toJson<int?>(rating),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -1048,6 +1092,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           Value<int?> dayNumber = const Value.absent(),
           int? orderIndex,
           List<String>? photoUrls,
+          Value<String?> placeType = const Value.absent(),
+          Value<int?> rating = const Value.absent(),
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
           String? syncStatus}) =>
@@ -1062,6 +1108,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
         dayNumber: dayNumber.present ? dayNumber.value : this.dayNumber,
         orderIndex: orderIndex ?? this.orderIndex,
         photoUrls: photoUrls ?? this.photoUrls,
+        placeType: placeType.present ? placeType.value : this.placeType,
+        rating: rating.present ? rating.value : this.rating,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -1080,6 +1128,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       orderIndex:
           data.orderIndex.present ? data.orderIndex.value : this.orderIndex,
       photoUrls: data.photoUrls.present ? data.photoUrls.value : this.photoUrls,
+      placeType: data.placeType.present ? data.placeType.value : this.placeType,
+      rating: data.rating.present ? data.rating.value : this.rating,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -1104,6 +1154,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           ..write('dayNumber: $dayNumber, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('photoUrls: $photoUrls, ')
+          ..write('placeType: $placeType, ')
+          ..write('rating: $rating, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -1123,6 +1175,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       dayNumber,
       orderIndex,
       photoUrls,
+      placeType,
+      rating,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -1140,6 +1194,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           other.dayNumber == this.dayNumber &&
           other.orderIndex == this.orderIndex &&
           other.photoUrls == this.photoUrls &&
+          other.placeType == this.placeType &&
+          other.rating == this.rating &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
           other.syncStatus == this.syncStatus);
@@ -1156,6 +1212,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<int?> dayNumber;
   final Value<int> orderIndex;
   final Value<List<String>> photoUrls;
+  final Value<String?> placeType;
+  final Value<int?> rating;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
@@ -1171,6 +1229,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     this.dayNumber = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.photoUrls = const Value.absent(),
+    this.placeType = const Value.absent(),
+    this.rating = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -1187,6 +1247,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     this.dayNumber = const Value.absent(),
     required int orderIndex,
     this.photoUrls = const Value.absent(),
+    this.placeType = const Value.absent(),
+    this.rating = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
@@ -1210,6 +1272,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     Expression<int>? dayNumber,
     Expression<int>? orderIndex,
     Expression<String>? photoUrls,
+    Expression<String>? placeType,
+    Expression<int>? rating,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
@@ -1226,6 +1290,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       if (dayNumber != null) 'day_number': dayNumber,
       if (orderIndex != null) 'order_index': orderIndex,
       if (photoUrls != null) 'photo_urls': photoUrls,
+      if (placeType != null) 'place_type': placeType,
+      if (rating != null) 'rating': rating,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -1244,6 +1310,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       Value<int?>? dayNumber,
       Value<int>? orderIndex,
       Value<List<String>>? photoUrls,
+      Value<String?>? placeType,
+      Value<int?>? rating,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
@@ -1259,6 +1327,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       dayNumber: dayNumber ?? this.dayNumber,
       orderIndex: orderIndex ?? this.orderIndex,
       photoUrls: photoUrls ?? this.photoUrls,
+      placeType: placeType ?? this.placeType,
+      rating: rating ?? this.rating,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -1301,6 +1371,12 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       map['photo_urls'] = Variable<String>(
           $PlacesTable.$converterphotoUrls.toSql(photoUrls.value));
     }
+    if (placeType.present) {
+      map['place_type'] = Variable<String>(placeType.value);
+    }
+    if (rating.present) {
+      map['rating'] = Variable<int>(rating.value);
+    }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
     }
@@ -1329,6 +1405,8 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
           ..write('dayNumber: $dayNumber, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('photoUrls: $photoUrls, ')
+          ..write('placeType: $placeType, ')
+          ..write('rating: $rating, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -1386,6 +1464,51 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   late final GeneratedColumn<int> dayNumber = GeneratedColumn<int>(
       'day_number', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _routeCategoryMeta =
+      const VerificationMeta('routeCategory');
+  @override
+  late final GeneratedColumn<String> routeCategory = GeneratedColumn<String>(
+      'route_category', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('ground'));
+  static const VerificationMeta _startPlaceIdMeta =
+      const VerificationMeta('startPlaceId');
+  @override
+  late final GeneratedColumn<String> startPlaceId = GeneratedColumn<String>(
+      'start_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _endPlaceIdMeta =
+      const VerificationMeta('endPlaceId');
+  @override
+  late final GeneratedColumn<String> endPlaceId = GeneratedColumn<String>(
+      'end_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _orderIndexMeta =
+      const VerificationMeta('orderIndex');
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+      'order_index', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _routeGeojsonMeta =
+      const VerificationMeta('routeGeojson');
+  @override
+  late final GeneratedColumn<String> routeGeojson = GeneratedColumn<String>(
+      'route_geojson', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -1413,6 +1536,13 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
         distance,
         duration,
         dayNumber,
+        name,
+        description,
+        routeCategory,
+        startPlaceId,
+        endPlaceId,
+        orderIndex,
+        routeGeojson,
         localUpdatedAt,
         serverUpdatedAt,
         syncStatus
@@ -1455,6 +1585,46 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
     if (data.containsKey('day_number')) {
       context.handle(_dayNumberMeta,
           dayNumber.isAcceptableOrUnknown(data['day_number']!, _dayNumberMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('route_category')) {
+      context.handle(
+          _routeCategoryMeta,
+          routeCategory.isAcceptableOrUnknown(
+              data['route_category']!, _routeCategoryMeta));
+    }
+    if (data.containsKey('start_place_id')) {
+      context.handle(
+          _startPlaceIdMeta,
+          startPlaceId.isAcceptableOrUnknown(
+              data['start_place_id']!, _startPlaceIdMeta));
+    }
+    if (data.containsKey('end_place_id')) {
+      context.handle(
+          _endPlaceIdMeta,
+          endPlaceId.isAcceptableOrUnknown(
+              data['end_place_id']!, _endPlaceIdMeta));
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+          _orderIndexMeta,
+          orderIndex.isAcceptableOrUnknown(
+              data['order_index']!, _orderIndexMeta));
+    }
+    if (data.containsKey('route_geojson')) {
+      context.handle(
+          _routeGeojsonMeta,
+          routeGeojson.isAcceptableOrUnknown(
+              data['route_geojson']!, _routeGeojsonMeta));
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -1504,6 +1674,20 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
           .read(DriftSqlType.int, data['${effectivePrefix}duration']),
       dayNumber: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}day_number']),
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name']),
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      routeCategory: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}route_category'])!,
+      startPlaceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}start_place_id']),
+      endPlaceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}end_place_id']),
+      orderIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}order_index'])!,
+      routeGeojson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}route_geojson']),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
@@ -1530,6 +1714,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   final double? distance;
   final int? duration;
   final int? dayNumber;
+  final String? name;
+  final String? description;
+  final String routeCategory;
+  final String? startPlaceId;
+  final String? endPlaceId;
+  final int orderIndex;
+  final String? routeGeojson;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
@@ -1541,6 +1732,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       this.distance,
       this.duration,
       this.dayNumber,
+      this.name,
+      this.description,
+      required this.routeCategory,
+      this.startPlaceId,
+      this.endPlaceId,
+      required this.orderIndex,
+      this.routeGeojson,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       required this.syncStatus});
@@ -1563,6 +1761,23 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
     if (!nullToAbsent || dayNumber != null) {
       map['day_number'] = Variable<int>(dayNumber);
     }
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['route_category'] = Variable<String>(routeCategory);
+    if (!nullToAbsent || startPlaceId != null) {
+      map['start_place_id'] = Variable<String>(startPlaceId);
+    }
+    if (!nullToAbsent || endPlaceId != null) {
+      map['end_place_id'] = Variable<String>(endPlaceId);
+    }
+    map['order_index'] = Variable<int>(orderIndex);
+    if (!nullToAbsent || routeGeojson != null) {
+      map['route_geojson'] = Variable<String>(routeGeojson);
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -1584,6 +1799,21 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       dayNumber: dayNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(dayNumber),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      routeCategory: Value(routeCategory),
+      startPlaceId: startPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startPlaceId),
+      endPlaceId: endPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endPlaceId),
+      orderIndex: Value(orderIndex),
+      routeGeojson: routeGeojson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routeGeojson),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
@@ -1601,6 +1831,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       distance: serializer.fromJson<double?>(json['distance']),
       duration: serializer.fromJson<int?>(json['duration']),
       dayNumber: serializer.fromJson<int?>(json['dayNumber']),
+      name: serializer.fromJson<String?>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      routeCategory: serializer.fromJson<String>(json['routeCategory']),
+      startPlaceId: serializer.fromJson<String?>(json['startPlaceId']),
+      endPlaceId: serializer.fromJson<String?>(json['endPlaceId']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      routeGeojson: serializer.fromJson<String?>(json['routeGeojson']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -1617,6 +1854,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       'distance': serializer.toJson<double?>(distance),
       'duration': serializer.toJson<int?>(duration),
       'dayNumber': serializer.toJson<int?>(dayNumber),
+      'name': serializer.toJson<String?>(name),
+      'description': serializer.toJson<String?>(description),
+      'routeCategory': serializer.toJson<String>(routeCategory),
+      'startPlaceId': serializer.toJson<String?>(startPlaceId),
+      'endPlaceId': serializer.toJson<String?>(endPlaceId),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'routeGeojson': serializer.toJson<String?>(routeGeojson),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -1631,6 +1875,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           Value<double?> distance = const Value.absent(),
           Value<int?> duration = const Value.absent(),
           Value<int?> dayNumber = const Value.absent(),
+          Value<String?> name = const Value.absent(),
+          Value<String?> description = const Value.absent(),
+          String? routeCategory,
+          Value<String?> startPlaceId = const Value.absent(),
+          Value<String?> endPlaceId = const Value.absent(),
+          int? orderIndex,
+          Value<String?> routeGeojson = const Value.absent(),
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
           String? syncStatus}) =>
@@ -1642,6 +1893,15 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
         distance: distance.present ? distance.value : this.distance,
         duration: duration.present ? duration.value : this.duration,
         dayNumber: dayNumber.present ? dayNumber.value : this.dayNumber,
+        name: name.present ? name.value : this.name,
+        description: description.present ? description.value : this.description,
+        routeCategory: routeCategory ?? this.routeCategory,
+        startPlaceId:
+            startPlaceId.present ? startPlaceId.value : this.startPlaceId,
+        endPlaceId: endPlaceId.present ? endPlaceId.value : this.endPlaceId,
+        orderIndex: orderIndex ?? this.orderIndex,
+        routeGeojson:
+            routeGeojson.present ? routeGeojson.value : this.routeGeojson,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -1658,6 +1918,22 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       distance: data.distance.present ? data.distance.value : this.distance,
       duration: data.duration.present ? data.duration.value : this.duration,
       dayNumber: data.dayNumber.present ? data.dayNumber.value : this.dayNumber,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      routeCategory: data.routeCategory.present
+          ? data.routeCategory.value
+          : this.routeCategory,
+      startPlaceId: data.startPlaceId.present
+          ? data.startPlaceId.value
+          : this.startPlaceId,
+      endPlaceId:
+          data.endPlaceId.present ? data.endPlaceId.value : this.endPlaceId,
+      orderIndex:
+          data.orderIndex.present ? data.orderIndex.value : this.orderIndex,
+      routeGeojson: data.routeGeojson.present
+          ? data.routeGeojson.value
+          : this.routeGeojson,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -1679,6 +1955,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           ..write('distance: $distance, ')
           ..write('duration: $duration, ')
           ..write('dayNumber: $dayNumber, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('routeCategory: $routeCategory, ')
+          ..write('startPlaceId: $startPlaceId, ')
+          ..write('endPlaceId: $endPlaceId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('routeGeojson: $routeGeojson, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -1695,6 +1978,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       distance,
       duration,
       dayNumber,
+      name,
+      description,
+      routeCategory,
+      startPlaceId,
+      endPlaceId,
+      orderIndex,
+      routeGeojson,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -1709,6 +1999,13 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           other.distance == this.distance &&
           other.duration == this.duration &&
           other.dayNumber == this.dayNumber &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.routeCategory == this.routeCategory &&
+          other.startPlaceId == this.startPlaceId &&
+          other.endPlaceId == this.endPlaceId &&
+          other.orderIndex == this.orderIndex &&
+          other.routeGeojson == this.routeGeojson &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
           other.syncStatus == this.syncStatus);
@@ -1722,6 +2019,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   final Value<double?> distance;
   final Value<int?> duration;
   final Value<int?> dayNumber;
+  final Value<String?> name;
+  final Value<String?> description;
+  final Value<String> routeCategory;
+  final Value<String?> startPlaceId;
+  final Value<String?> endPlaceId;
+  final Value<int> orderIndex;
+  final Value<String?> routeGeojson;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
@@ -1734,6 +2038,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     this.distance = const Value.absent(),
     this.duration = const Value.absent(),
     this.dayNumber = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.routeCategory = const Value.absent(),
+    this.startPlaceId = const Value.absent(),
+    this.endPlaceId = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.routeGeojson = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -1747,6 +2058,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     this.distance = const Value.absent(),
     this.duration = const Value.absent(),
     this.dayNumber = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.routeCategory = const Value.absent(),
+    this.startPlaceId = const Value.absent(),
+    this.endPlaceId = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.routeGeojson = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
@@ -1764,6 +2082,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     Expression<double>? distance,
     Expression<int>? duration,
     Expression<int>? dayNumber,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? routeCategory,
+    Expression<String>? startPlaceId,
+    Expression<String>? endPlaceId,
+    Expression<int>? orderIndex,
+    Expression<String>? routeGeojson,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
@@ -1777,6 +2102,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       if (distance != null) 'distance': distance,
       if (duration != null) 'duration': duration,
       if (dayNumber != null) 'day_number': dayNumber,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (routeCategory != null) 'route_category': routeCategory,
+      if (startPlaceId != null) 'start_place_id': startPlaceId,
+      if (endPlaceId != null) 'end_place_id': endPlaceId,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (routeGeojson != null) 'route_geojson': routeGeojson,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -1792,6 +2124,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       Value<double?>? distance,
       Value<int?>? duration,
       Value<int?>? dayNumber,
+      Value<String?>? name,
+      Value<String?>? description,
+      Value<String>? routeCategory,
+      Value<String?>? startPlaceId,
+      Value<String?>? endPlaceId,
+      Value<int>? orderIndex,
+      Value<String?>? routeGeojson,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
@@ -1804,6 +2143,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       distance: distance ?? this.distance,
       duration: duration ?? this.duration,
       dayNumber: dayNumber ?? this.dayNumber,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      routeCategory: routeCategory ?? this.routeCategory,
+      startPlaceId: startPlaceId ?? this.startPlaceId,
+      endPlaceId: endPlaceId ?? this.endPlaceId,
+      orderIndex: orderIndex ?? this.orderIndex,
+      routeGeojson: routeGeojson ?? this.routeGeojson,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -1836,6 +2182,27 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     if (dayNumber.present) {
       map['day_number'] = Variable<int>(dayNumber.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (routeCategory.present) {
+      map['route_category'] = Variable<String>(routeCategory.value);
+    }
+    if (startPlaceId.present) {
+      map['start_place_id'] = Variable<String>(startPlaceId.value);
+    }
+    if (endPlaceId.present) {
+      map['end_place_id'] = Variable<String>(endPlaceId.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (routeGeojson.present) {
+      map['route_geojson'] = Variable<String>(routeGeojson.value);
+    }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
     }
@@ -1861,6 +2228,13 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
           ..write('distance: $distance, ')
           ..write('duration: $duration, ')
           ..write('dayNumber: $dayNumber, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('routeCategory: $routeCategory, ')
+          ..write('startPlaceId: $startPlaceId, ')
+          ..write('endPlaceId: $endPlaceId, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('routeGeojson: $routeGeojson, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -4197,6 +4571,8 @@ typedef $$PlacesTableCreateCompanionBuilder = PlacesCompanion Function({
   Value<int?> dayNumber,
   required int orderIndex,
   Value<List<String>> photoUrls,
+  Value<String?> placeType,
+  Value<int?> rating,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
@@ -4213,6 +4589,8 @@ typedef $$PlacesTableUpdateCompanionBuilder = PlacesCompanion Function({
   Value<int?> dayNumber,
   Value<int> orderIndex,
   Value<List<String>> photoUrls,
+  Value<String?> placeType,
+  Value<int?> rating,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
@@ -4261,6 +4639,12 @@ class $$PlacesTableFilterComposer
       get photoUrls => $composableBuilder(
           column: $table.photoUrls,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<String> get placeType => $composableBuilder(
+      column: $table.placeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get rating => $composableBuilder(
+      column: $table.rating, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4312,6 +4696,12 @@ class $$PlacesTableOrderingComposer
 
   ColumnOrderings<String> get photoUrls => $composableBuilder(
       column: $table.photoUrls, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get placeType => $composableBuilder(
+      column: $table.placeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get rating => $composableBuilder(
+      column: $table.rating, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4365,6 +4755,12 @@ class $$PlacesTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<String>, String> get photoUrls =>
       $composableBuilder(column: $table.photoUrls, builder: (column) => column);
 
+  GeneratedColumn<String> get placeType =>
+      $composableBuilder(column: $table.placeType, builder: (column) => column);
+
+  GeneratedColumn<int> get rating =>
+      $composableBuilder(column: $table.rating, builder: (column) => column);
+
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
 
@@ -4408,6 +4804,8 @@ class $$PlacesTableTableManager extends RootTableManager<
             Value<int?> dayNumber = const Value.absent(),
             Value<int> orderIndex = const Value.absent(),
             Value<List<String>> photoUrls = const Value.absent(),
+            Value<String?> placeType = const Value.absent(),
+            Value<int?> rating = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -4424,6 +4822,8 @@ class $$PlacesTableTableManager extends RootTableManager<
             dayNumber: dayNumber,
             orderIndex: orderIndex,
             photoUrls: photoUrls,
+            placeType: placeType,
+            rating: rating,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -4440,6 +4840,8 @@ class $$PlacesTableTableManager extends RootTableManager<
             Value<int?> dayNumber = const Value.absent(),
             required int orderIndex,
             Value<List<String>> photoUrls = const Value.absent(),
+            Value<String?> placeType = const Value.absent(),
+            Value<int?> rating = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
@@ -4456,6 +4858,8 @@ class $$PlacesTableTableManager extends RootTableManager<
             dayNumber: dayNumber,
             orderIndex: orderIndex,
             photoUrls: photoUrls,
+            placeType: placeType,
+            rating: rating,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -4488,6 +4892,13 @@ typedef $$RoutesTableCreateCompanionBuilder = RoutesCompanion Function({
   Value<double?> distance,
   Value<int?> duration,
   Value<int?> dayNumber,
+  Value<String?> name,
+  Value<String?> description,
+  Value<String> routeCategory,
+  Value<String?> startPlaceId,
+  Value<String?> endPlaceId,
+  Value<int> orderIndex,
+  Value<String?> routeGeojson,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
@@ -4501,6 +4912,13 @@ typedef $$RoutesTableUpdateCompanionBuilder = RoutesCompanion Function({
   Value<double?> distance,
   Value<int?> duration,
   Value<int?> dayNumber,
+  Value<String?> name,
+  Value<String?> description,
+  Value<String> routeCategory,
+  Value<String?> startPlaceId,
+  Value<String?> endPlaceId,
+  Value<int> orderIndex,
+  Value<String?> routeGeojson,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
@@ -4538,6 +4956,27 @@ class $$RoutesTableFilterComposer
 
   ColumnFilters<int> get dayNumber => $composableBuilder(
       column: $table.dayNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get routeCategory => $composableBuilder(
+      column: $table.routeCategory, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get startPlaceId => $composableBuilder(
+      column: $table.startPlaceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get endPlaceId => $composableBuilder(
+      column: $table.endPlaceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get routeGeojson => $composableBuilder(
+      column: $table.routeGeojson, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -4582,6 +5021,30 @@ class $$RoutesTableOrderingComposer
   ColumnOrderings<int> get dayNumber => $composableBuilder(
       column: $table.dayNumber, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get routeCategory => $composableBuilder(
+      column: $table.routeCategory,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get startPlaceId => $composableBuilder(
+      column: $table.startPlaceId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get endPlaceId => $composableBuilder(
+      column: $table.endPlaceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get routeGeojson => $composableBuilder(
+      column: $table.routeGeojson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
       builder: (column) => ColumnOrderings(column));
@@ -4625,6 +5088,27 @@ class $$RoutesTableAnnotationComposer
   GeneratedColumn<int> get dayNumber =>
       $composableBuilder(column: $table.dayNumber, builder: (column) => column);
 
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get routeCategory => $composableBuilder(
+      column: $table.routeCategory, builder: (column) => column);
+
+  GeneratedColumn<String> get startPlaceId => $composableBuilder(
+      column: $table.startPlaceId, builder: (column) => column);
+
+  GeneratedColumn<String> get endPlaceId => $composableBuilder(
+      column: $table.endPlaceId, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get routeGeojson => $composableBuilder(
+      column: $table.routeGeojson, builder: (column) => column);
+
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
 
@@ -4665,6 +5149,13 @@ class $$RoutesTableTableManager extends RootTableManager<
             Value<double?> distance = const Value.absent(),
             Value<int?> duration = const Value.absent(),
             Value<int?> dayNumber = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<String> routeCategory = const Value.absent(),
+            Value<String?> startPlaceId = const Value.absent(),
+            Value<String?> endPlaceId = const Value.absent(),
+            Value<int> orderIndex = const Value.absent(),
+            Value<String?> routeGeojson = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -4678,6 +5169,13 @@ class $$RoutesTableTableManager extends RootTableManager<
             distance: distance,
             duration: duration,
             dayNumber: dayNumber,
+            name: name,
+            description: description,
+            routeCategory: routeCategory,
+            startPlaceId: startPlaceId,
+            endPlaceId: endPlaceId,
+            orderIndex: orderIndex,
+            routeGeojson: routeGeojson,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -4691,6 +5189,13 @@ class $$RoutesTableTableManager extends RootTableManager<
             Value<double?> distance = const Value.absent(),
             Value<int?> duration = const Value.absent(),
             Value<int?> dayNumber = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<String> routeCategory = const Value.absent(),
+            Value<String?> startPlaceId = const Value.absent(),
+            Value<String?> endPlaceId = const Value.absent(),
+            Value<int> orderIndex = const Value.absent(),
+            Value<String?> routeGeojson = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
@@ -4704,6 +5209,13 @@ class $$RoutesTableTableManager extends RootTableManager<
             distance: distance,
             duration: duration,
             dayNumber: dayNumber,
+            name: name,
+            description: description,
+            routeCategory: routeCategory,
+            startPlaceId: startPlaceId,
+            endPlaceId: endPlaceId,
+            orderIndex: orderIndex,
+            routeGeojson: routeGeojson,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,

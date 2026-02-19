@@ -7,7 +7,7 @@ part of 'place_search_provider.dart';
 // **************************************************************************
 
 String _$placeSearchControllerHash() =>
-    r'f140cc7efe7bc1f9c6720777fa11f44bf77de92d';
+    r'e0ce73c3bf2c66a7c3ac25db266d379795a11d01';
 
 /// See also [PlaceSearchController].
 @ProviderFor(PlaceSearchController)

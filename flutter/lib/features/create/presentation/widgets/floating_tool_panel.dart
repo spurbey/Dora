@@ -54,8 +54,10 @@ class FloatingToolPanel extends StatelessWidget {
               _ToolIcon(
                 icon: Icons.route,
                 label: 'Route',
-                active: currentMode == EditorMode.drawRoute,
-                onTap: () => onToolSelected(EditorMode.drawRoute),
+                active: currentMode == EditorMode.addRouteCar ||
+                    currentMode == EditorMode.addRouteAir ||
+                    currentMode == EditorMode.addRouteWalking,
+                onTap: () => onToolSelected(EditorMode.addRouteCar),
               ),
               const SizedBox(height: AppSpacing.sm),
               _ToolIcon(

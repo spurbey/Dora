@@ -29,7 +29,12 @@ mixin _$Place {
   String? get visitTime => throw _privateConstructorUsedError;
   int? get dayNumber => throw _privateConstructorUsedError;
   int get orderIndex => throw _privateConstructorUsedError;
-  List<String> get photoUrls => throw _privateConstructorUsedError;
+  List<String> get photoUrls =>
+      throw _privateConstructorUsedError; // Place classification
+  String? get placeType =>
+      throw _privateConstructorUsedError; // 'city', 'restaurant', 'hotel', 'attraction', 'museum', 'park', 'shopping', 'nightlife', 'cafe'
+  int? get rating => throw _privateConstructorUsedError; // 0-5
+// Sync metadata
   DateTime get localUpdatedAt => throw _privateConstructorUsedError;
   DateTime get serverUpdatedAt => throw _privateConstructorUsedError;
   String get syncStatus => throw _privateConstructorUsedError;
@@ -59,6 +64,8 @@ abstract class $PlaceCopyWith<$Res> {
       int? dayNumber,
       int orderIndex,
       List<String> photoUrls,
+      String? placeType,
+      int? rating,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -91,6 +98,8 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
     Object? dayNumber = freezed,
     Object? orderIndex = null,
     Object? photoUrls = null,
+    Object? placeType = freezed,
+    Object? rating = freezed,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -136,6 +145,14 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
           ? _value.photoUrls
           : photoUrls // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      placeType: freezed == placeType
+          ? _value.placeType
+          : placeType // ignore: cast_nullable_to_non_nullable
+              as String?,
+      rating: freezed == rating
+          ? _value.rating
+          : rating // ignore: cast_nullable_to_non_nullable
+              as int?,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -180,6 +197,8 @@ abstract class _$$PlaceImplCopyWith<$Res> implements $PlaceCopyWith<$Res> {
       int? dayNumber,
       int orderIndex,
       List<String> photoUrls,
+      String? placeType,
+      int? rating,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -211,6 +230,8 @@ class __$$PlaceImplCopyWithImpl<$Res>
     Object? dayNumber = freezed,
     Object? orderIndex = null,
     Object? photoUrls = null,
+    Object? placeType = freezed,
+    Object? rating = freezed,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -256,6 +277,14 @@ class __$$PlaceImplCopyWithImpl<$Res>
           ? _value._photoUrls
           : photoUrls // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      placeType: freezed == placeType
+          ? _value.placeType
+          : placeType // ignore: cast_nullable_to_non_nullable
+              as String?,
+      rating: freezed == rating
+          ? _value.rating
+          : rating // ignore: cast_nullable_to_non_nullable
+              as int?,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -286,6 +315,8 @@ class _$PlaceImpl implements _Place {
       this.dayNumber,
       required this.orderIndex,
       final List<String> photoUrls = const [],
+      this.placeType,
+      this.rating,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       this.syncStatus = 'pending'})
@@ -321,6 +352,14 @@ class _$PlaceImpl implements _Place {
     return EqualUnmodifiableListView(_photoUrls);
   }
 
+// Place classification
+  @override
+  final String? placeType;
+// 'city', 'restaurant', 'hotel', 'attraction', 'museum', 'park', 'shopping', 'nightlife', 'cafe'
+  @override
+  final int? rating;
+// 0-5
+// Sync metadata
   @override
   final DateTime localUpdatedAt;
   @override
@@ -331,7 +370,7 @@ class _$PlaceImpl implements _Place {
 
   @override
   String toString() {
-    return 'Place(id: $id, tripId: $tripId, name: $name, address: $address, coordinates: $coordinates, notes: $notes, visitTime: $visitTime, dayNumber: $dayNumber, orderIndex: $orderIndex, photoUrls: $photoUrls, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Place(id: $id, tripId: $tripId, name: $name, address: $address, coordinates: $coordinates, notes: $notes, visitTime: $visitTime, dayNumber: $dayNumber, orderIndex: $orderIndex, photoUrls: $photoUrls, placeType: $placeType, rating: $rating, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -354,6 +393,9 @@ class _$PlaceImpl implements _Place {
                 other.orderIndex == orderIndex) &&
             const DeepCollectionEquality()
                 .equals(other._photoUrls, _photoUrls) &&
+            (identical(other.placeType, placeType) ||
+                other.placeType == placeType) &&
+            (identical(other.rating, rating) || other.rating == rating) &&
             (identical(other.localUpdatedAt, localUpdatedAt) ||
                 other.localUpdatedAt == localUpdatedAt) &&
             (identical(other.serverUpdatedAt, serverUpdatedAt) ||
@@ -376,6 +418,8 @@ class _$PlaceImpl implements _Place {
       dayNumber,
       orderIndex,
       const DeepCollectionEquality().hash(_photoUrls),
+      placeType,
+      rating,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -408,6 +452,8 @@ abstract class _Place implements Place {
       final int? dayNumber,
       required final int orderIndex,
       final List<String> photoUrls,
+      final String? placeType,
+      final int? rating,
       required final DateTime localUpdatedAt,
       required final DateTime serverUpdatedAt,
       final String syncStatus}) = _$PlaceImpl;
@@ -433,7 +479,13 @@ abstract class _Place implements Place {
   @override
   int get orderIndex;
   @override
-  List<String> get photoUrls;
+  List<String> get photoUrls; // Place classification
+  @override
+  String?
+      get placeType; // 'city', 'restaurant', 'hotel', 'attraction', 'museum', 'park', 'shopping', 'nightlife', 'cafe'
+  @override
+  int? get rating; // 0-5
+// Sync metadata
   @override
   DateTime get localUpdatedAt;
   @override

@@ -18,14 +18,19 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$EditorState {
   Trip get trip => throw _privateConstructorUsedError;
   List<Place> get places => throw _privateConstructorUsedError;
-  List<Route> get routes => throw _privateConstructorUsedError;
+  List<Route> get routes => throw _privateConstructorUsedError; // Selection
   String? get selectedItemId => throw _privateConstructorUsedError;
-  String? get selectedItemType => throw _privateConstructorUsedError;
-  EditorMode get mode => throw _privateConstructorUsedError;
+  String? get selectedItemType =>
+      throw _privateConstructorUsedError; // 'place', 'city', 'route'
+// Editor mode
+  EditorMode get mode => throw _privateConstructorUsedError; // UI state
   bool get saving => throw _privateConstructorUsedError;
-  bool get bottomPanelExpanded => throw _privateConstructorUsedError;
-  AppMapController? get mapController => throw _privateConstructorUsedError;
-  String? get routeStartPlaceId => throw _privateConstructorUsedError;
+  bool get bottomPanelExpanded =>
+      throw _privateConstructorUsedError; // Map controller reference
+  AppMapController? get mapController =>
+      throw _privateConstructorUsedError; // Route drawing state
+  String? get routeStartItemId => throw _privateConstructorUsedError;
+  String? get routeStartItemType => throw _privateConstructorUsedError;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -50,7 +55,8 @@ abstract class $EditorStateCopyWith<$Res> {
       bool saving,
       bool bottomPanelExpanded,
       AppMapController? mapController,
-      String? routeStartPlaceId});
+      String? routeStartItemId,
+      String? routeStartItemType});
 
   $TripCopyWith<$Res> get trip;
 }
@@ -79,7 +85,8 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
     Object? saving = null,
     Object? bottomPanelExpanded = null,
     Object? mapController = freezed,
-    Object? routeStartPlaceId = freezed,
+    Object? routeStartItemId = freezed,
+    Object? routeStartItemType = freezed,
   }) {
     return _then(_value.copyWith(
       trip: null == trip
@@ -118,9 +125,13 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
           ? _value.mapController
           : mapController // ignore: cast_nullable_to_non_nullable
               as AppMapController?,
-      routeStartPlaceId: freezed == routeStartPlaceId
-          ? _value.routeStartPlaceId
-          : routeStartPlaceId // ignore: cast_nullable_to_non_nullable
+      routeStartItemId: freezed == routeStartItemId
+          ? _value.routeStartItemId
+          : routeStartItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      routeStartItemType: freezed == routeStartItemType
+          ? _value.routeStartItemType
+          : routeStartItemType // ignore: cast_nullable_to_non_nullable
               as String?,
     ) as $Val);
   }
@@ -154,7 +165,8 @@ abstract class _$$EditorStateImplCopyWith<$Res>
       bool saving,
       bool bottomPanelExpanded,
       AppMapController? mapController,
-      String? routeStartPlaceId});
+      String? routeStartItemId,
+      String? routeStartItemType});
 
   @override
   $TripCopyWith<$Res> get trip;
@@ -182,7 +194,8 @@ class __$$EditorStateImplCopyWithImpl<$Res>
     Object? saving = null,
     Object? bottomPanelExpanded = null,
     Object? mapController = freezed,
-    Object? routeStartPlaceId = freezed,
+    Object? routeStartItemId = freezed,
+    Object? routeStartItemType = freezed,
   }) {
     return _then(_$EditorStateImpl(
       trip: null == trip
@@ -221,9 +234,13 @@ class __$$EditorStateImplCopyWithImpl<$Res>
           ? _value.mapController
           : mapController // ignore: cast_nullable_to_non_nullable
               as AppMapController?,
-      routeStartPlaceId: freezed == routeStartPlaceId
-          ? _value.routeStartPlaceId
-          : routeStartPlaceId // ignore: cast_nullable_to_non_nullable
+      routeStartItemId: freezed == routeStartItemId
+          ? _value.routeStartItemId
+          : routeStartItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      routeStartItemType: freezed == routeStartItemType
+          ? _value.routeStartItemType
+          : routeStartItemType // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }
@@ -242,7 +259,8 @@ class _$EditorStateImpl implements _EditorState {
       this.saving = false,
       this.bottomPanelExpanded = false,
       this.mapController,
-      this.routeStartPlaceId})
+      this.routeStartItemId,
+      this.routeStartItemType})
       : _places = places,
         _routes = routes;
 
@@ -266,27 +284,35 @@ class _$EditorStateImpl implements _EditorState {
     return EqualUnmodifiableListView(_routes);
   }
 
+// Selection
   @override
   final String? selectedItemId;
   @override
   final String? selectedItemType;
+// 'place', 'city', 'route'
+// Editor mode
   @override
   @JsonKey()
   final EditorMode mode;
+// UI state
   @override
   @JsonKey()
   final bool saving;
   @override
   @JsonKey()
   final bool bottomPanelExpanded;
+// Map controller reference
   @override
   final AppMapController? mapController;
+// Route drawing state
   @override
-  final String? routeStartPlaceId;
+  final String? routeStartItemId;
+  @override
+  final String? routeStartItemType;
 
   @override
   String toString() {
-    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartPlaceId: $routeStartPlaceId)';
+    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartItemId: $routeStartItemId, routeStartItemType: $routeStartItemType)';
   }
 
   @override
@@ -307,8 +333,10 @@ class _$EditorStateImpl implements _EditorState {
                 other.bottomPanelExpanded == bottomPanelExpanded) &&
             (identical(other.mapController, mapController) ||
                 other.mapController == mapController) &&
-            (identical(other.routeStartPlaceId, routeStartPlaceId) ||
-                other.routeStartPlaceId == routeStartPlaceId));
+            (identical(other.routeStartItemId, routeStartItemId) ||
+                other.routeStartItemId == routeStartItemId) &&
+            (identical(other.routeStartItemType, routeStartItemType) ||
+                other.routeStartItemType == routeStartItemType));
   }
 
   @override
@@ -323,7 +351,8 @@ class _$EditorStateImpl implements _EditorState {
       saving,
       bottomPanelExpanded,
       mapController,
-      routeStartPlaceId);
+      routeStartItemId,
+      routeStartItemType);
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -345,28 +374,32 @@ abstract class _EditorState implements EditorState {
       final bool saving,
       final bool bottomPanelExpanded,
       final AppMapController? mapController,
-      final String? routeStartPlaceId}) = _$EditorStateImpl;
+      final String? routeStartItemId,
+      final String? routeStartItemType}) = _$EditorStateImpl;
 
   @override
   Trip get trip;
   @override
   List<Place> get places;
   @override
-  List<Route> get routes;
+  List<Route> get routes; // Selection
   @override
   String? get selectedItemId;
   @override
-  String? get selectedItemType;
+  String? get selectedItemType; // 'place', 'city', 'route'
+// Editor mode
   @override
-  EditorMode get mode;
+  EditorMode get mode; // UI state
   @override
   bool get saving;
   @override
-  bool get bottomPanelExpanded;
+  bool get bottomPanelExpanded; // Map controller reference
   @override
-  AppMapController? get mapController;
+  AppMapController? get mapController; // Route drawing state
   @override
-  String? get routeStartPlaceId;
+  String? get routeStartItemId;
+  @override
+  String? get routeStartItemType;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.

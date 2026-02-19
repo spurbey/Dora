@@ -16,6 +16,10 @@ class Places extends Table {
   TextColumn get photoUrls =>
       text().map(const StringListConverter()).withDefault(const Constant('[]'))();
 
+  // Place classification
+  TextColumn get placeType => text().nullable()();
+  IntColumn get rating => integer().nullable()();
+
   // Sync metadata
   DateTimeColumn get localUpdatedAt => dateTime()();
   DateTimeColumn get serverUpdatedAt => dateTime()();

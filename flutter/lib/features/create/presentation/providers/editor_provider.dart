@@ -117,16 +117,25 @@ class EditorController extends _$EditorController {
     ));
   }
 
+  bool get _isRouteMode {
+    final mode = state.valueOrNull?.mode;
+    return mode == EditorMode.addRouteAir ||
+        mode == EditorMode.addRouteCar ||
+        mode == EditorMode.addRouteWalking;
+  }
+
   void setMode(EditorMode mode) {
     final current = state.valueOrNull;
     if (current == null) {
       return;
     }
+    final isRoute = mode == EditorMode.addRouteAir ||
+        mode == EditorMode.addRouteCar ||
+        mode == EditorMode.addRouteWalking;
     state = AsyncData(current.copyWith(
       mode: mode,
-      routeStartPlaceId: mode == EditorMode.drawRoute
-          ? current.routeStartPlaceId
-          : null,
+      routeStartItemId: isRoute ? current.routeStartItemId : null,
+      routeStartItemType: isRoute ? current.routeStartItemType : null,
     ));
   }
 
@@ -172,16 +181,23 @@ class EditorController extends _$EditorController {
       return;
     }
 
-    if (current.mode == EditorMode.drawRoute) {
-      if (current.routeStartPlaceId == null) {
-        state = AsyncData(current.copyWith(routeStartPlaceId: id));
+    if (_isRouteMode) {
+      if (current.routeStartItemId == null) {
+        // Determine item type
+        final place = current.places.firstWhere((p) => p.id == id);
+        final itemType = place.placeType == 'city' ? 'city' : 'place';
+        state = AsyncData(current.copyWith(
+          routeStartItemId: id,
+          routeStartItemType: itemType,
+        ));
         return;
       }
 
-      final startId = current.routeStartPlaceId!;
+      final startId = current.routeStartItemId!;
       drawRoute(startId, id);
       state = AsyncData(current.copyWith(
-        routeStartPlaceId: null,
+        routeStartItemId: null,
+        routeStartItemType: null,
         mode: EditorMode.view,
       ));
       return;
@@ -274,8 +290,8 @@ class EditorController extends _$EditorController {
     _scheduleAutoSave();
   }
 
-  void startDrawingRoute() {
-    setMode(EditorMode.drawRoute);
+  void startDrawingRoute([EditorMode mode = EditorMode.addRouteCar]) {
+    setMode(mode);
   }
 
   Future<void> drawRoute(String startPlaceId, String endPlaceId) async {
@@ -289,11 +305,31 @@ class EditorController extends _$EditorController {
     final endPlace =
         current.places.firstWhere((place) => place.id == endPlaceId);
 
-    final route = ref.read(routeRepositoryProvider).generateRoute(
-          tripId: current.trip.id,
-          start: startPlace.coordinates,
-          end: endPlace.coordinates,
-        );
+    final transportMode = switch (current.mode) {
+      EditorMode.addRouteAir => 'air',
+      EditorMode.addRouteWalking => 'foot',
+      _ => 'car',
+    };
+
+    final routeRepo = ref.read(routeRepositoryProvider);
+    final route = transportMode == 'air'
+        ? routeRepo.generateAirRoute(
+            tripId: current.trip.id,
+            start: startPlace.coordinates,
+            end: endPlace.coordinates,
+            startPlaceId: startPlaceId,
+            endPlaceId: endPlaceId,
+            orderIndex: current.places.length + current.routes.length,
+          )
+        : routeRepo.generateRoute(
+            tripId: current.trip.id,
+            start: startPlace.coordinates,
+            end: endPlace.coordinates,
+            transportMode: transportMode,
+            startPlaceId: startPlaceId,
+            endPlaceId: endPlaceId,
+            orderIndex: current.places.length + current.routes.length,
+          );
 
     addRoute(route);
   }

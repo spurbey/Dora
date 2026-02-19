@@ -16,7 +16,7 @@ MapState mapState(MapStateRef ref, String tripId) {
     return const MapState();
   }
 
-  final routeStartId = editor.routeStartPlaceId;
+  final routeStartId = editor.routeStartItemId;
   final markers = editor.places
       .map((place) => AppMarker(
             id: place.id,
@@ -53,6 +53,7 @@ Color _routeColor(String mode) {
   switch (mode) {
     case 'bike':
       return const Color(0xFF1D9A6C);
+    case 'foot':
     case 'walk':
       return const Color(0xFFB96B2B);
     case 'air':

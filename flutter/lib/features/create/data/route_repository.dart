@@ -66,9 +66,13 @@ class RouteRepository {
     required AppLatLng start,
     required AppLatLng end,
     String transportMode = 'car',
+    String? startPlaceId,
+    String? endPlaceId,
+    int orderIndex = 0,
   }) {
     final distance = _haversineKm(start, end);
     final duration = _estimateDuration(distance, transportMode);
+    final routeCategory = transportMode == 'air' ? 'air' : 'ground';
     final now = DateTime.now();
 
     return Route(
@@ -78,9 +82,34 @@ class RouteRepository {
       transportMode: transportMode,
       distance: distance,
       duration: duration,
+      routeCategory: routeCategory,
+      startPlaceId: startPlaceId,
+      endPlaceId: endPlaceId,
+      orderIndex: orderIndex,
       localUpdatedAt: now,
       serverUpdatedAt: now,
       syncStatus: 'pending',
+    );
+  }
+
+  /// Generate air route with arc interpolation.
+  /// Sub-Phase 4A keeps this as a straight-line stub; arc generation is added in 4C.
+  Route generateAirRoute({
+    required String tripId,
+    required AppLatLng start,
+    required AppLatLng end,
+    String? startPlaceId,
+    String? endPlaceId,
+    int orderIndex = 0,
+  }) {
+    return generateRoute(
+      tripId: tripId,
+      start: start,
+      end: end,
+      transportMode: 'air',
+      startPlaceId: startPlaceId,
+      endPlaceId: endPlaceId,
+      orderIndex: orderIndex,
     );
   }
 
@@ -93,6 +122,13 @@ class RouteRepository {
       distance: row.distance,
       duration: row.duration,
       dayNumber: row.dayNumber,
+      name: row.name,
+      description: row.description,
+      routeCategory: row.routeCategory,
+      startPlaceId: row.startPlaceId,
+      endPlaceId: row.endPlaceId,
+      orderIndex: row.orderIndex,
+      routeGeojson: row.routeGeojson,
       localUpdatedAt: row.localUpdatedAt,
       serverUpdatedAt: row.serverUpdatedAt,
       syncStatus: row.syncStatus,
@@ -108,6 +144,13 @@ class RouteRepository {
       distance: Value(route.distance),
       duration: Value(route.duration),
       dayNumber: Value(route.dayNumber),
+      name: Value(route.name),
+      description: Value(route.description),
+      routeCategory: Value(route.routeCategory),
+      startPlaceId: Value(route.startPlaceId),
+      endPlaceId: Value(route.endPlaceId),
+      orderIndex: Value(route.orderIndex),
+      routeGeojson: Value(route.routeGeojson),
       localUpdatedAt: Value(route.localUpdatedAt),
       serverUpdatedAt: Value(route.serverUpdatedAt),
       syncStatus: Value(route.syncStatus),
@@ -129,8 +172,9 @@ class RouteRepository {
 
   static int _estimateDuration(double distanceKm, String mode) {
     final speedKmh = switch (mode) {
-      'walk' => 5,
-      'bike' => 15,
+      // Keep backward compatibility for legacy 'walk' while using 'foot' as canonical.
+      'foot' || 'walk' || 'walking' => 5,
+      'bike' || 'cycling' => 15,
       'air' => 700,
       _ => 60,
     };

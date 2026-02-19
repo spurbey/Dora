@@ -18,6 +18,12 @@ class Place with _$Place {
     int? dayNumber,
     required int orderIndex,
     @Default([]) List<String> photoUrls,
+
+    // Place classification
+    String? placeType, // 'city', 'restaurant', 'hotel', 'attraction', 'museum', 'park', 'shopping', 'nightlife', 'cafe'
+    int? rating, // 0-5
+
+    // Sync metadata
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     @Default('pending') String syncStatus,

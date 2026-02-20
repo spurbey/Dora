@@ -6,7 +6,6 @@ Follows Phase A2 PRD specification.
 """
 
 import httpx
-from typing import Optional
 from app.config import settings
 
 
@@ -22,7 +21,10 @@ class RouteService:
 
     def __init__(self):
         """Initialize the route service."""
-        self.mapbox_token = getattr(settings, 'MAPBOX_ACCESS_TOKEN', None)
+        self.mapbox_token = (
+            getattr(settings, 'MAPBOX_ACCESS_TOKEN', None)
+            or getattr(settings, 'MAPBOX_API_KEY', None)
+        )
 
     async def generate_route(
         self,
@@ -59,7 +61,8 @@ class RouteService:
         """
         if not self.mapbox_token:
             raise ValueError(
-                "MAPBOX_ACCESS_TOKEN not configured in settings. "
+                "Mapbox token not configured in settings "
+                "(expected MAPBOX_API_KEY or MAPBOX_ACCESS_TOKEN). "
                 "Please add it to your .env file."
             )
 

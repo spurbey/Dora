@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' show min, max;
+import 'dart:math' show min, max, sqrt;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart' show EdgeInsets;
@@ -411,6 +411,153 @@ class EditorController extends _$EditorController {
         } catch (_) {}
       }
     } catch (_) {}
+  }
+
+  Future<void> handleRouteLineTap(String routeId, AppLatLng position) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    if (current.mode == EditorMode.editRoute &&
+        current.selectedItemId == routeId &&
+        current.selectedItemType == 'route') {
+      // In edit mode on THIS route → insert waypoint at tap point
+      try {
+        final route = current.routes.firstWhere((r) => r.id == routeId);
+        if (route.transportMode == 'air') return; // air routes not editable
+        await _insertOrderedWaypoint(route, position);
+      } catch (_) {}
+    } else {
+      // Not in edit mode → select the route
+      selectRoute(routeId);
+    }
+  }
+
+  Future<void> _insertOrderedWaypoint(Route route, AppLatLng tap) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    try {
+      final startPlace =
+          current.places.firstWhere((p) => p.id == route.startPlaceId);
+      final endPlace =
+          current.places.firstWhere((p) => p.id == route.endPlaceId);
+
+      // Logical node sequence: [start, w0, w1, ..., end]
+      final nodes = [
+        startPlace.coordinates,
+        ...route.waypoints,
+        endPlace.coordinates,
+      ];
+
+      // Find the nearest segment to the tap point
+      double minDist = double.infinity;
+      int insertAt = route.waypoints.length; // default: append
+      AppLatLng snapPoint = tap;
+
+      for (int i = 0; i < nodes.length - 1; i++) {
+        final (dist, proj) = _projectPointToSegment(tap, nodes[i], nodes[i + 1]);
+        if (dist < minDist) {
+          minDist = dist;
+          insertAt = i;
+          snapPoint = proj;
+        }
+      }
+
+      final newWaypoints = [...route.waypoints]..insert(insertAt, snapPoint);
+      await _recalculateWithWaypoints(route, newWaypoints);
+    } catch (_) {}
+  }
+
+  /// Projects [p] onto segment [a]→[b]. Returns (distance, snapped point).
+  (double, AppLatLng) _projectPointToSegment(
+      AppLatLng p, AppLatLng a, AppLatLng b) {
+    final dx = b.longitude - a.longitude;
+    final dy = b.latitude - a.latitude;
+    final lenSq = dx * dx + dy * dy;
+    if (lenSq == 0) {
+      // Segment is a point
+      final d = _dist(p, a);
+      return (d, a);
+    }
+    final t = ((p.longitude - a.longitude) * dx +
+            (p.latitude - a.latitude) * dy) /
+        lenSq;
+    final tc = t.clamp(0.0, 1.0);
+    final snap = AppLatLng(
+      latitude: a.latitude + tc * dy,
+      longitude: a.longitude + tc * dx,
+    );
+    return (_dist(p, snap), snap);
+  }
+
+  double _dist(AppLatLng a, AppLatLng b) {
+    final dx = a.longitude - b.longitude;
+    final dy = a.latitude - b.latitude;
+    return sqrt(dx * dx + dy * dy);
+  }
+
+  Future<void> moveWaypoint(
+      String routeId, int index, AppLatLng newPosition) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      final newWaypoints = [...route.waypoints]..[index] = newPosition;
+      await _recalculateWithWaypoints(route, newWaypoints);
+    } catch (_) {}
+  }
+
+  Future<void> _recalculateWithWaypoints(
+      Route route, List<AppLatLng> newWaypoints) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    // Optimistic update — instant visual feedback
+    final optimistic = route.copyWith(
+      waypoints: newWaypoints,
+      localUpdatedAt: DateTime.now(),
+    );
+    _updateRouteInState(optimistic);
+
+    // Recalculate full path via directions API
+    if (route.startPlaceId != null && route.endPlaceId != null) {
+      try {
+        final fresh = state.valueOrNull;
+        if (fresh == null) return;
+        final startPlace =
+            fresh.places.firstWhere((p) => p.id == route.startPlaceId);
+        final endPlace =
+            fresh.places.firstWhere((p) => p.id == route.endPlaceId);
+        final allPoints = [
+          startPlace.coordinates,
+          ...newWaypoints,
+          endPlace.coordinates,
+        ];
+        final result = await ref
+            .read(directionsServiceProvider)
+            .getRoute(allPoints, route.transportMode);
+        _updateRouteInState(optimistic.copyWith(
+          coordinates: result.coordinates,
+          distance: result.distanceKm,
+          duration: result.durationMins,
+          routeGeojson: result.routeGeojson,
+          localUpdatedAt: DateTime.now(),
+          syncStatus: 'pending',
+        ));
+      } catch (_) {
+        // Keep optimistic update if recalculation fails
+      }
+    }
+  }
+
+  void _updateRouteInState(Route route) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final updated = current.routes
+        .map((r) => r.id == route.id ? route : r)
+        .toList();
+    state = AsyncData(current.copyWith(routes: updated));
+    Future(() => ref.read(routeRepositoryProvider).updateRoute(route));
+    _scheduleAutoSave();
   }
 
   Future<void> flipRoute(String routeId) async {

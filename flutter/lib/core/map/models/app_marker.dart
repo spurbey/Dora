@@ -15,7 +15,9 @@ class AppMarker with _$AppMarker {
     String? iconAsset,
     Color? color,
     VoidCallback? onTap,
-    String? markerType, // 'city' or 'place'
+    String? markerType, // 'city', 'place', 'waypoint', 'endpoint'
     String? label, // 'C' for cities, '1','2','3' for places
+    @Default(false) bool draggable,
+    ValueChanged<AppLatLng>? onDragEnd,
   }) = _AppMarker;
 }

@@ -231,6 +231,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 onMapCreated: controller.setMapController,
                 onMapTap: controller.handleMapTap,
                 onRouteTap: controller.selectRoute,
+                onRouteLineTap: controller.handleRouteLineTap,
               ),
               if (showPanel)
                 Positioned(
@@ -302,6 +303,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           onMapCreated: controller.setMapController,
           onMapTap: controller.handleMapTap,
           onRouteTap: controller.selectRoute,
+          onRouteLineTap: controller.handleRouteLineTap,
         ),
         if (showPanel)
           Positioned(

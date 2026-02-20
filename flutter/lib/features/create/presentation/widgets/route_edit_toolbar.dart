@@ -80,6 +80,21 @@ class RouteEditToolbar extends StatelessWidget {
                 active: false,
                 onTap: onClose,
               ),
+              if (_editActive) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: 56,
+                  child: Text(
+                    'Tap line · Drag to move',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.caption.copyWith(
+                      fontSize: 9,
+                      color: AppColors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

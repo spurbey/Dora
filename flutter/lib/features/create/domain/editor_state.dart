@@ -32,5 +32,7 @@ class EditorState with _$EditorState {
     // Route drawing state
     String? routeStartItemId,
     String? routeStartItemType, // 'place' or 'city'
+    String? routeEndItemId,
+    @Default(false) bool isGeneratingRoute,
   }) = _EditorState;
 }

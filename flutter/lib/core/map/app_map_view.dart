@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:dora/core/map/adapters/mapbox_adapter.dart';
@@ -47,6 +45,8 @@ class AppMapView extends StatefulWidget {
 class _AppMapViewState extends State<AppMapView> {
   MapboxAdapter? _controller;
   bool _styleLoaded = false;
+  bool _syncInFlight = false;
+  bool _needsResync = false;
 
   @override
   void didUpdateWidget(covariant AppMapView oldWidget) {
@@ -62,7 +62,21 @@ class _AppMapViewState extends State<AppMapView> {
     if (_controller == null || !_styleLoaded) {
       return;
     }
-    _syncOverlays();
+    if (_syncInFlight) {
+      _needsResync = true;
+      return;
+    }
+    _doSync();
+  }
+
+  Future<void> _doSync() async {
+    _syncInFlight = true;
+    _needsResync = false;
+    await _syncOverlays();
+    _syncInFlight = false;
+    if (_needsResync && mounted) {
+      _doSync();
+    }
   }
 
   Future<void> _syncOverlays() async {

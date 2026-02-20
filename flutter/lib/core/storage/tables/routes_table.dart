@@ -22,6 +22,8 @@ class Routes extends Table {
   TextColumn get endPlaceId => text().nullable()();
   IntColumn get orderIndex => integer().withDefault(const Constant(0))();
   TextColumn get routeGeojson => text().nullable()();
+  TextColumn get waypointsJson =>
+      text().map(const LatLngListConverter()).withDefault(const Constant('[]'))();
 
   // Sync metadata
   DateTimeColumn get localUpdatedAt => dateTime()();

@@ -6,7 +6,7 @@ part of 'map_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$mapStateHash() => r'f30c180bc165ca100a34d27a76f94bb4043ce826';
+String _$mapStateHash() => r'de8ddca0bdedc007f0513da07931f1925a065015';
 
 /// Copied from Dart SDK
 class _SystemHash {

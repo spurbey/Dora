@@ -35,12 +35,22 @@ class TimelineSidebar extends StatelessWidget {
   final double width;
 
   /// Find the route that connects place at [fromIndex] to the next place.
+  /// Prefers an exact direction match (from→to), falls back to reverse (to→from).
   create_route.Route? _findRouteBetween(int fromIndex, List<Place> sorted) {
     if (fromIndex >= sorted.length - 1) return null;
-    if (fromIndex < routes.length) {
-      return routes[fromIndex];
-    }
-    return null;
+    final fromId = sorted[fromIndex].id;
+    final toId = sorted[fromIndex + 1].id;
+    // Exact direction first
+    final exact = routes.cast<create_route.Route?>().firstWhere(
+      (r) => r!.startPlaceId == fromId && r.endPlaceId == toId,
+      orElse: () => null,
+    );
+    if (exact != null) return exact;
+    // Reverse fallback (bidirectional route)
+    return routes.cast<create_route.Route?>().firstWhere(
+      (r) => r!.startPlaceId == toId && r.endPlaceId == fromId,
+      orElse: () => null,
+    );
   }
 
   @override

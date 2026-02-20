@@ -23,6 +23,10 @@ _$RouteImpl _$$RouteImplFromJson(Map<String, dynamic> json) => _$RouteImpl(
       endPlaceId: json['endPlaceId'] as String?,
       orderIndex: (json['orderIndex'] as num?)?.toInt() ?? 0,
       routeGeojson: json['routeGeojson'] as String?,
+      waypoints: (json['waypoints'] as List<dynamic>?)
+              ?.map((e) => AppLatLng.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
       localUpdatedAt: DateTime.parse(json['localUpdatedAt'] as String),
       serverUpdatedAt: DateTime.parse(json['serverUpdatedAt'] as String),
       syncStatus: json['syncStatus'] as String? ?? 'pending',
@@ -44,6 +48,7 @@ Map<String, dynamic> _$$RouteImplToJson(_$RouteImpl instance) =>
       'endPlaceId': instance.endPlaceId,
       'orderIndex': instance.orderIndex,
       'routeGeojson': instance.routeGeojson,
+      'waypoints': instance.waypoints,
       'localUpdatedAt': instance.localUpdatedAt.toIso8601String(),
       'serverUpdatedAt': instance.serverUpdatedAt.toIso8601String(),
       'syncStatus': instance.syncStatus,

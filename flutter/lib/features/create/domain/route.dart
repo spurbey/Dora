@@ -24,6 +24,7 @@ class Route with _$Route {
     String? endPlaceId,
     @Default(0) int orderIndex,
     String? routeGeojson, // GeoJSON LineString for detailed path
+    @Default([]) List<AppLatLng> waypoints, // user-added intermediate waypoints
 
     // Sync metadata
     required DateTime localUpdatedAt,

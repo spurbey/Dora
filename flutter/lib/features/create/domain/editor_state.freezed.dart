@@ -30,7 +30,10 @@ mixin _$EditorState {
   AppMapController? get mapController =>
       throw _privateConstructorUsedError; // Route drawing state
   String? get routeStartItemId => throw _privateConstructorUsedError;
-  String? get routeStartItemType => throw _privateConstructorUsedError;
+  String? get routeStartItemType =>
+      throw _privateConstructorUsedError; // 'place' or 'city'
+  String? get routeEndItemId => throw _privateConstructorUsedError;
+  bool get isGeneratingRoute => throw _privateConstructorUsedError;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -56,7 +59,9 @@ abstract class $EditorStateCopyWith<$Res> {
       bool bottomPanelExpanded,
       AppMapController? mapController,
       String? routeStartItemId,
-      String? routeStartItemType});
+      String? routeStartItemType,
+      String? routeEndItemId,
+      bool isGeneratingRoute});
 
   $TripCopyWith<$Res> get trip;
 }
@@ -87,6 +92,8 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
     Object? mapController = freezed,
     Object? routeStartItemId = freezed,
     Object? routeStartItemType = freezed,
+    Object? routeEndItemId = freezed,
+    Object? isGeneratingRoute = null,
   }) {
     return _then(_value.copyWith(
       trip: null == trip
@@ -133,6 +140,14 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
           ? _value.routeStartItemType
           : routeStartItemType // ignore: cast_nullable_to_non_nullable
               as String?,
+      routeEndItemId: freezed == routeEndItemId
+          ? _value.routeEndItemId
+          : routeEndItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isGeneratingRoute: null == isGeneratingRoute
+          ? _value.isGeneratingRoute
+          : isGeneratingRoute // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -166,7 +181,9 @@ abstract class _$$EditorStateImplCopyWith<$Res>
       bool bottomPanelExpanded,
       AppMapController? mapController,
       String? routeStartItemId,
-      String? routeStartItemType});
+      String? routeStartItemType,
+      String? routeEndItemId,
+      bool isGeneratingRoute});
 
   @override
   $TripCopyWith<$Res> get trip;
@@ -196,6 +213,8 @@ class __$$EditorStateImplCopyWithImpl<$Res>
     Object? mapController = freezed,
     Object? routeStartItemId = freezed,
     Object? routeStartItemType = freezed,
+    Object? routeEndItemId = freezed,
+    Object? isGeneratingRoute = null,
   }) {
     return _then(_$EditorStateImpl(
       trip: null == trip
@@ -242,6 +261,14 @@ class __$$EditorStateImplCopyWithImpl<$Res>
           ? _value.routeStartItemType
           : routeStartItemType // ignore: cast_nullable_to_non_nullable
               as String?,
+      routeEndItemId: freezed == routeEndItemId
+          ? _value.routeEndItemId
+          : routeEndItemId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isGeneratingRoute: null == isGeneratingRoute
+          ? _value.isGeneratingRoute
+          : isGeneratingRoute // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -260,7 +287,9 @@ class _$EditorStateImpl implements _EditorState {
       this.bottomPanelExpanded = false,
       this.mapController,
       this.routeStartItemId,
-      this.routeStartItemType})
+      this.routeStartItemType,
+      this.routeEndItemId,
+      this.isGeneratingRoute = false})
       : _places = places,
         _routes = routes;
 
@@ -309,10 +338,16 @@ class _$EditorStateImpl implements _EditorState {
   final String? routeStartItemId;
   @override
   final String? routeStartItemType;
+// 'place' or 'city'
+  @override
+  final String? routeEndItemId;
+  @override
+  @JsonKey()
+  final bool isGeneratingRoute;
 
   @override
   String toString() {
-    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartItemId: $routeStartItemId, routeStartItemType: $routeStartItemType)';
+    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartItemId: $routeStartItemId, routeStartItemType: $routeStartItemType, routeEndItemId: $routeEndItemId, isGeneratingRoute: $isGeneratingRoute)';
   }
 
   @override
@@ -336,7 +371,11 @@ class _$EditorStateImpl implements _EditorState {
             (identical(other.routeStartItemId, routeStartItemId) ||
                 other.routeStartItemId == routeStartItemId) &&
             (identical(other.routeStartItemType, routeStartItemType) ||
-                other.routeStartItemType == routeStartItemType));
+                other.routeStartItemType == routeStartItemType) &&
+            (identical(other.routeEndItemId, routeEndItemId) ||
+                other.routeEndItemId == routeEndItemId) &&
+            (identical(other.isGeneratingRoute, isGeneratingRoute) ||
+                other.isGeneratingRoute == isGeneratingRoute));
   }
 
   @override
@@ -352,7 +391,9 @@ class _$EditorStateImpl implements _EditorState {
       bottomPanelExpanded,
       mapController,
       routeStartItemId,
-      routeStartItemType);
+      routeStartItemType,
+      routeEndItemId,
+      isGeneratingRoute);
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.
@@ -375,7 +416,9 @@ abstract class _EditorState implements EditorState {
       final bool bottomPanelExpanded,
       final AppMapController? mapController,
       final String? routeStartItemId,
-      final String? routeStartItemType}) = _$EditorStateImpl;
+      final String? routeStartItemType,
+      final String? routeEndItemId,
+      final bool isGeneratingRoute}) = _$EditorStateImpl;
 
   @override
   Trip get trip;
@@ -399,7 +442,11 @@ abstract class _EditorState implements EditorState {
   @override
   String? get routeStartItemId;
   @override
-  String? get routeStartItemType;
+  String? get routeStartItemType; // 'place' or 'city'
+  @override
+  String? get routeEndItemId;
+  @override
+  bool get isGeneratingRoute;
 
   /// Create a copy of EditorState
   /// with the given fields replaced by the non-null parameter values.

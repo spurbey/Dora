@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:math' show min, max;
 
+import 'package:flutter/material.dart' show EdgeInsets;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:dora/core/map/app_map_controller.dart';
+import 'package:dora/core/map/directions/directions_provider.dart';
+import 'package:dora/core/map/models/app_bounds.dart';
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
@@ -38,7 +43,8 @@ PlaceRepository placeRepository(PlaceRepositoryRef ref) {
 @riverpod
 RouteRepository routeRepository(RouteRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
-  return RouteRepository(db);
+  final directionsService = ref.watch(directionsServiceProvider);
+  return RouteRepository(db, directionsService: directionsService);
 }
 
 @riverpod
@@ -118,6 +124,9 @@ class EditorController extends _$EditorController {
       selectedItemType: null,
       bottomPanelExpanded: false,
       mode: EditorMode.view,
+      routeStartItemId: null,
+      routeStartItemType: null,
+      routeEndItemId: null,
     ));
   }
 
@@ -133,13 +142,11 @@ class EditorController extends _$EditorController {
     if (current == null) {
       return;
     }
-    final isRoute = mode == EditorMode.addRouteAir ||
-        mode == EditorMode.addRouteCar ||
-        mode == EditorMode.addRouteWalking;
     state = AsyncData(current.copyWith(
       mode: mode,
-      routeStartItemId: isRoute ? current.routeStartItemId : null,
-      routeStartItemType: isRoute ? current.routeStartItemType : null,
+      routeStartItemId: null,
+      routeStartItemType: null,
+      routeEndItemId: null,
     ));
   }
 
@@ -193,24 +200,20 @@ class EditorController extends _$EditorController {
     }
 
     if (_isRouteMode) {
+      final place = current.places.firstWhere((p) => p.id == id);
+      final isAir = current.mode == EditorMode.addRouteAir;
+
       if (current.routeStartItemId == null) {
-        // Determine item type
-        final place = current.places.firstWhere((p) => p.id == id);
-        final itemType = place.placeType == 'city' ? 'city' : 'place';
-        state = AsyncData(current.copyWith(
-          routeStartItemId: id,
-          routeStartItemType: itemType,
-        ));
+        // Air routes can only start from cities
+        if (isAir && place.placeType != 'city') return;
+        selectRouteSource(id);
         return;
       }
 
-      final startId = current.routeStartItemId!;
-      drawRoute(startId, id);
-      state = AsyncData(current.copyWith(
-        routeStartItemId: null,
-        routeStartItemType: null,
-        mode: EditorMode.view,
-      ));
+      // Has source — tapping selects/updates destination. Never auto-draws.
+      if (isAir && place.placeType != 'city') return;
+      if (id == current.routeStartItemId) return; // can't pick same place
+      selectRouteDestination(id);
       return;
     }
 
@@ -271,8 +274,26 @@ class EditorController extends _$EditorController {
     }
     state = AsyncData(current.copyWith(
       routes: [...current.routes, route],
-      mode: EditorMode.view,
+      selectedItemId: route.id,
+      selectedItemType: 'route',
+      bottomPanelExpanded: true,
+      mode: EditorMode.editItem,
     ));
+    // Fly to fit the full route extent
+    if (route.coordinates.length >= 2) {
+      final coords = route.coordinates;
+      final minLat = coords.map((c) => c.latitude).reduce(min);
+      final maxLat = coords.map((c) => c.latitude).reduce(max);
+      final minLon = coords.map((c) => c.longitude).reduce(min);
+      final maxLon = coords.map((c) => c.longitude).reduce(max);
+      current.mapController?.fitBounds(
+        AppLatLngBounds(
+          southwest: AppLatLng(latitude: minLat, longitude: minLon),
+          northeast: AppLatLng(latitude: maxLat, longitude: maxLon),
+        ),
+        padding: const EdgeInsets.all(80),
+      );
+    }
     Future(() => ref.read(routeRepositoryProvider).addRoute(route));
     _scheduleAutoSave();
   }
@@ -296,53 +317,247 @@ class EditorController extends _$EditorController {
       return;
     }
     final updated = current.routes.where((item) => item.id != id).toList();
-    state = AsyncData(current.copyWith(routes: updated));
+    final wasSelected = current.selectedItemId == id;
+    state = AsyncData(current.copyWith(
+      routes: updated,
+      selectedItemId: wasSelected ? null : current.selectedItemId,
+      selectedItemType: wasSelected ? null : current.selectedItemType,
+      bottomPanelExpanded: wasSelected ? false : current.bottomPanelExpanded,
+      mode: wasSelected ? EditorMode.view : current.mode,
+    ));
     Future(() => ref.read(routeRepositoryProvider).deleteRoute(id));
     _scheduleAutoSave();
   }
 
-  void startDrawingRoute([EditorMode mode = EditorMode.addRouteCar]) {
-    setMode(mode);
+  void toggleRouteEditMode(String routeId) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final newMode = current.mode == EditorMode.editRoute
+        ? EditorMode.editItem
+        : EditorMode.editRoute;
+    state = AsyncData(current.copyWith(mode: newMode));
   }
 
-  Future<void> drawRoute(String startPlaceId, String endPlaceId) async {
+  Future<void> addWaypoint(String routeId, AppLatLng position) async {
     final current = state.valueOrNull;
-    if (current == null) {
-      return;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      final newWaypoints = [...route.waypoints, position];
+      final updatedRoute = route.copyWith(waypoints: newWaypoints);
+      updateRoute(updatedRoute);
+      // Recalculate via API if we have start/end places
+      if (route.startPlaceId != null && route.endPlaceId != null) {
+        final startPlace = current.places
+            .firstWhere((p) => p.id == route.startPlaceId);
+        final endPlace = current.places
+            .firstWhere((p) => p.id == route.endPlaceId);
+        final allWaypoints = [
+          startPlace.coordinates,
+          ...newWaypoints,
+          endPlace.coordinates,
+        ];
+        try {
+          final result = await ref
+              .read(directionsServiceProvider)
+              .getRoute(allWaypoints, route.transportMode);
+          updateRoute(updatedRoute.copyWith(
+            coordinates: result.coordinates,
+            distance: result.distanceKm,
+            duration: result.durationMins,
+          ));
+        } catch (_) {
+          // Keep the updated waypoints even if recalculation fails
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> removeWaypoint(String routeId, int index) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      final newWaypoints = [...route.waypoints]..removeAt(index);
+      final updatedRoute = route.copyWith(waypoints: newWaypoints);
+      updateRoute(updatedRoute);
+      // Recalculate
+      if (route.startPlaceId != null && route.endPlaceId != null) {
+        final startPlace = current.places
+            .firstWhere((p) => p.id == route.startPlaceId);
+        final endPlace = current.places
+            .firstWhere((p) => p.id == route.endPlaceId);
+        final allWaypoints = [
+          startPlace.coordinates,
+          ...newWaypoints,
+          endPlace.coordinates,
+        ];
+        try {
+          final result = await ref
+              .read(directionsServiceProvider)
+              .getRoute(allWaypoints, route.transportMode);
+          updateRoute(updatedRoute.copyWith(
+            coordinates: result.coordinates,
+            distance: result.distanceKm,
+            duration: result.durationMins,
+          ));
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  Future<void> flipRoute(String routeId) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      final flipped = route.copyWith(
+        startPlaceId: route.endPlaceId,
+        endPlaceId: route.startPlaceId,
+        coordinates: route.coordinates.reversed.toList(),
+        waypoints: route.waypoints.reversed.toList(),
+      );
+      updateRoute(flipped);
+      // Recalculate with flipped endpoints + waypoints
+      if (flipped.startPlaceId != null && flipped.endPlaceId != null) {
+        final startPlace = current.places
+            .firstWhere((p) => p.id == flipped.startPlaceId);
+        final endPlace = current.places
+            .firstWhere((p) => p.id == flipped.endPlaceId);
+        final allWaypoints = [
+          startPlace.coordinates,
+          ...flipped.waypoints,
+          endPlace.coordinates,
+        ];
+        try {
+          final result = await ref
+              .read(directionsServiceProvider)
+              .getRoute(allWaypoints, flipped.transportMode);
+          updateRoute(flipped.copyWith(
+            coordinates: result.coordinates,
+            distance: result.distanceKm,
+            duration: result.durationMins,
+          ));
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  void startDrawingRoute([EditorMode mode = EditorMode.addRouteCar]) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(
+      mode: mode,
+      routeStartItemId: null,
+      routeStartItemType: null,
+      routeEndItemId: null,
+      bottomPanelExpanded: true,
+    ));
+  }
+
+  void selectRouteSource(String id) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(routeStartItemId: id));
+  }
+
+  void selectRouteDestination(String id) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(routeEndItemId: id));
+  }
+
+  void clearRouteDraft() {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(
+      routeStartItemId: null,
+      routeStartItemType: null,
+      routeEndItemId: null,
+    ));
+  }
+
+  void cancelRouteMode() {
+    setMode(EditorMode.view);
+  }
+
+  Future<void> handleMapTap(AppLatLng position) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    if (current.mode == EditorMode.editRoute &&
+        current.selectedItemId != null &&
+        current.selectedItemType == 'route') {
+      await addWaypoint(current.selectedItemId!, position);
+    } else {
+      deselectAll();
     }
+  }
 
-    final startPlace =
-        current.places.firstWhere((place) => place.id == startPlaceId);
-    final endPlace =
-        current.places.firstWhere((place) => place.id == endPlaceId);
+  Future<void> drawRoute(
+    String startPlaceId,
+    String endPlaceId, {
+    EditorMode? capturedMode,
+  }) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
 
-    final transportMode = switch (current.mode) {
+    // Use captured mode so we don't read stale state (mode may have been reset)
+    final effectiveMode = capturedMode ?? current.mode;
+    final transportMode = switch (effectiveMode) {
       EditorMode.addRouteAir => 'air',
       EditorMode.addRouteWalking => 'foot',
       _ => 'car',
     };
 
-    final routeRepo = ref.read(routeRepositoryProvider);
-    final route = transportMode == 'air'
-        ? routeRepo.generateAirRoute(
-            tripId: current.trip.id,
-            start: startPlace.coordinates,
-            end: endPlace.coordinates,
-            startPlaceId: startPlaceId,
-            endPlaceId: endPlaceId,
-            orderIndex: current.places.length + current.routes.length,
-          )
-        : routeRepo.generateRoute(
-            tripId: current.trip.id,
-            start: startPlace.coordinates,
-            end: endPlace.coordinates,
-            transportMode: transportMode,
-            startPlaceId: startPlaceId,
-            endPlaceId: endPlaceId,
-            orderIndex: current.places.length + current.routes.length,
-          );
+    state = AsyncData(current.copyWith(isGeneratingRoute: true));
 
-    addRoute(route);
+    try {
+      final fresh = state.valueOrNull!;
+      final startPlace =
+          fresh.places.firstWhere((place) => place.id == startPlaceId);
+      final endPlace =
+          fresh.places.firstWhere((place) => place.id == endPlaceId);
+
+      final routeRepo = ref.read(routeRepositoryProvider);
+      final route = transportMode == 'air'
+          ? routeRepo.generateAirRoute(
+              tripId: fresh.trip.id,
+              start: startPlace.coordinates,
+              end: endPlace.coordinates,
+              startPlaceId: startPlaceId,
+              endPlaceId: endPlaceId,
+              orderIndex: fresh.places.length + fresh.routes.length,
+            )
+          : await routeRepo.generateRouteViaApi(
+              tripId: fresh.trip.id,
+              start: startPlace.coordinates,
+              end: endPlace.coordinates,
+              mode: transportMode,
+              startPlaceId: startPlaceId,
+              endPlaceId: endPlaceId,
+              orderIndex: fresh.places.length + fresh.routes.length,
+            );
+
+      // Clear draft + mark done before adding route (which changes selection)
+      final afterDraft = state.valueOrNull!;
+      state = AsyncData(afterDraft.copyWith(
+        isGeneratingRoute: false,
+        routeStartItemId: null,
+        routeStartItemType: null,
+        routeEndItemId: null,
+      ));
+      addRoute(route);
+    } catch (_) {
+      final afterError = state.valueOrNull;
+      if (afterError != null) {
+        state = AsyncData(afterError.copyWith(
+          isGeneratingRoute: false,
+          routeStartItemId: null,
+          routeStartItemType: null,
+          routeEndItemId: null,
+        ));
+      }
+    }
   }
 
   Future<void> save() async {

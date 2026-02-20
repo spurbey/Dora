@@ -304,6 +304,10 @@ class MapboxAdapter implements AppMapController {
     if (routeId == null) {
       return;
     }
+    // Synthetic connector lines are not user-tappable
+    if (routeId.startsWith('_conn_')) {
+      return;
+    }
     onRouteTap?.call(routeId);
   }
 

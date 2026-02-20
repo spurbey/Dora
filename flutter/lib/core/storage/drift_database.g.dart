@@ -1509,6 +1509,14 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   late final GeneratedColumn<String> routeGeojson = GeneratedColumn<String>(
       'route_geojson', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<AppLatLng>, String>
+      waypointsJson = GeneratedColumn<String>(
+              'waypoints_json', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<AppLatLng>>($RoutesTable.$converterwaypointsJson);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -1543,6 +1551,7 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
         endPlaceId,
         orderIndex,
         routeGeojson,
+        waypointsJson,
         localUpdatedAt,
         serverUpdatedAt,
         syncStatus
@@ -1688,6 +1697,9 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
           .read(DriftSqlType.int, data['${effectivePrefix}order_index'])!,
       routeGeojson: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}route_geojson']),
+      waypointsJson: $RoutesTable.$converterwaypointsJson.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}waypoints_json'])!),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
@@ -1703,6 +1715,8 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   }
 
   static TypeConverter<List<AppLatLng>, String> $convertercoordinates =
+      const LatLngListConverter();
+  static TypeConverter<List<AppLatLng>, String> $converterwaypointsJson =
       const LatLngListConverter();
 }
 
@@ -1721,6 +1735,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   final String? endPlaceId;
   final int orderIndex;
   final String? routeGeojson;
+  final List<AppLatLng> waypointsJson;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
@@ -1739,6 +1754,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       this.endPlaceId,
       required this.orderIndex,
       this.routeGeojson,
+      required this.waypointsJson,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       required this.syncStatus});
@@ -1778,6 +1794,10 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
     if (!nullToAbsent || routeGeojson != null) {
       map['route_geojson'] = Variable<String>(routeGeojson);
     }
+    {
+      map['waypoints_json'] = Variable<String>(
+          $RoutesTable.$converterwaypointsJson.toSql(waypointsJson));
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -1814,6 +1834,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       routeGeojson: routeGeojson == null && nullToAbsent
           ? const Value.absent()
           : Value(routeGeojson),
+      waypointsJson: Value(waypointsJson),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
@@ -1838,6 +1859,8 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       endPlaceId: serializer.fromJson<String?>(json['endPlaceId']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       routeGeojson: serializer.fromJson<String?>(json['routeGeojson']),
+      waypointsJson:
+          serializer.fromJson<List<AppLatLng>>(json['waypointsJson']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -1861,6 +1884,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       'endPlaceId': serializer.toJson<String?>(endPlaceId),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'routeGeojson': serializer.toJson<String?>(routeGeojson),
+      'waypointsJson': serializer.toJson<List<AppLatLng>>(waypointsJson),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -1882,6 +1906,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           Value<String?> endPlaceId = const Value.absent(),
           int? orderIndex,
           Value<String?> routeGeojson = const Value.absent(),
+          List<AppLatLng>? waypointsJson,
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
           String? syncStatus}) =>
@@ -1902,6 +1927,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
         orderIndex: orderIndex ?? this.orderIndex,
         routeGeojson:
             routeGeojson.present ? routeGeojson.value : this.routeGeojson,
+        waypointsJson: waypointsJson ?? this.waypointsJson,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -1934,6 +1960,9 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       routeGeojson: data.routeGeojson.present
           ? data.routeGeojson.value
           : this.routeGeojson,
+      waypointsJson: data.waypointsJson.present
+          ? data.waypointsJson.value
+          : this.waypointsJson,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -1962,6 +1991,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           ..write('endPlaceId: $endPlaceId, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('routeGeojson: $routeGeojson, ')
+          ..write('waypointsJson: $waypointsJson, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -1985,6 +2015,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       endPlaceId,
       orderIndex,
       routeGeojson,
+      waypointsJson,
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -2006,6 +2037,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           other.endPlaceId == this.endPlaceId &&
           other.orderIndex == this.orderIndex &&
           other.routeGeojson == this.routeGeojson &&
+          other.waypointsJson == this.waypointsJson &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
           other.syncStatus == this.syncStatus);
@@ -2026,6 +2058,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   final Value<String?> endPlaceId;
   final Value<int> orderIndex;
   final Value<String?> routeGeojson;
+  final Value<List<AppLatLng>> waypointsJson;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
@@ -2045,6 +2078,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     this.endPlaceId = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.routeGeojson = const Value.absent(),
+    this.waypointsJson = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2065,6 +2099,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     this.endPlaceId = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.routeGeojson = const Value.absent(),
+    this.waypointsJson = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
@@ -2089,6 +2124,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     Expression<String>? endPlaceId,
     Expression<int>? orderIndex,
     Expression<String>? routeGeojson,
+    Expression<String>? waypointsJson,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
@@ -2109,6 +2145,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       if (endPlaceId != null) 'end_place_id': endPlaceId,
       if (orderIndex != null) 'order_index': orderIndex,
       if (routeGeojson != null) 'route_geojson': routeGeojson,
+      if (waypointsJson != null) 'waypoints_json': waypointsJson,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -2131,6 +2168,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       Value<String?>? endPlaceId,
       Value<int>? orderIndex,
       Value<String?>? routeGeojson,
+      Value<List<AppLatLng>>? waypointsJson,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
@@ -2150,6 +2188,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       endPlaceId: endPlaceId ?? this.endPlaceId,
       orderIndex: orderIndex ?? this.orderIndex,
       routeGeojson: routeGeojson ?? this.routeGeojson,
+      waypointsJson: waypointsJson ?? this.waypointsJson,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -2203,6 +2242,10 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     if (routeGeojson.present) {
       map['route_geojson'] = Variable<String>(routeGeojson.value);
     }
+    if (waypointsJson.present) {
+      map['waypoints_json'] = Variable<String>(
+          $RoutesTable.$converterwaypointsJson.toSql(waypointsJson.value));
+    }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
     }
@@ -2235,6 +2278,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
           ..write('endPlaceId: $endPlaceId, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('routeGeojson: $routeGeojson, ')
+          ..write('waypointsJson: $waypointsJson, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -4899,6 +4943,7 @@ typedef $$RoutesTableCreateCompanionBuilder = RoutesCompanion Function({
   Value<String?> endPlaceId,
   Value<int> orderIndex,
   Value<String?> routeGeojson,
+  Value<List<AppLatLng>> waypointsJson,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
@@ -4919,6 +4964,7 @@ typedef $$RoutesTableUpdateCompanionBuilder = RoutesCompanion Function({
   Value<String?> endPlaceId,
   Value<int> orderIndex,
   Value<String?> routeGeojson,
+  Value<List<AppLatLng>> waypointsJson,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
@@ -4977,6 +5023,11 @@ class $$RoutesTableFilterComposer
 
   ColumnFilters<String> get routeGeojson => $composableBuilder(
       column: $table.routeGeojson, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<AppLatLng>, List<AppLatLng>, String>
+      get waypointsJson => $composableBuilder(
+          column: $table.waypointsJson,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -5045,6 +5096,10 @@ class $$RoutesTableOrderingComposer
       column: $table.routeGeojson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get waypointsJson => $composableBuilder(
+      column: $table.waypointsJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
       builder: (column) => ColumnOrderings(column));
@@ -5109,6 +5164,10 @@ class $$RoutesTableAnnotationComposer
   GeneratedColumn<String> get routeGeojson => $composableBuilder(
       column: $table.routeGeojson, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<List<AppLatLng>, String> get waypointsJson =>
+      $composableBuilder(
+          column: $table.waypointsJson, builder: (column) => column);
+
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
 
@@ -5156,6 +5215,7 @@ class $$RoutesTableTableManager extends RootTableManager<
             Value<String?> endPlaceId = const Value.absent(),
             Value<int> orderIndex = const Value.absent(),
             Value<String?> routeGeojson = const Value.absent(),
+            Value<List<AppLatLng>> waypointsJson = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -5176,6 +5236,7 @@ class $$RoutesTableTableManager extends RootTableManager<
             endPlaceId: endPlaceId,
             orderIndex: orderIndex,
             routeGeojson: routeGeojson,
+            waypointsJson: waypointsJson,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -5196,6 +5257,7 @@ class $$RoutesTableTableManager extends RootTableManager<
             Value<String?> endPlaceId = const Value.absent(),
             Value<int> orderIndex = const Value.absent(),
             Value<String?> routeGeojson = const Value.absent(),
+            Value<List<AppLatLng>> waypointsJson = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
@@ -5216,6 +5278,7 @@ class $$RoutesTableTableManager extends RootTableManager<
             endPlaceId: endPlaceId,
             orderIndex: orderIndex,
             routeGeojson: routeGeojson,
+            waypointsJson: waypointsJson,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,

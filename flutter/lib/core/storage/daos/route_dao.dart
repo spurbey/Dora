@@ -10,7 +10,13 @@ class RouteDao extends DatabaseAccessor<AppDatabase> with _$RouteDaoMixin {
   RouteDao(AppDatabase db) : super(db);
 
   Future<List<RouteRow>> getRoutesForTrip(String tripId) =>
-      (select(routes)..where((r) => r.tripId.equals(tripId))).get();
+      (select(routes)
+            ..where((r) => r.tripId.equals(tripId))
+            ..orderBy([
+              (r) => OrderingTerm.asc(r.orderIndex),
+              (r) => OrderingTerm.asc(r.localUpdatedAt),
+            ]))
+          .get();
 
   Future<RouteRow?> getRouteById(String id) =>
       (select(routes)..where((r) => r.id.equals(id))).getSingleOrNull();

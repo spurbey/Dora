@@ -37,6 +37,8 @@ mixin _$Route {
   int get orderIndex => throw _privateConstructorUsedError;
   String? get routeGeojson =>
       throw _privateConstructorUsedError; // GeoJSON LineString for detailed path
+  List<AppLatLng> get waypoints =>
+      throw _privateConstructorUsedError; // user-added intermediate waypoints
 // Sync metadata
   DateTime get localUpdatedAt => throw _privateConstructorUsedError;
   DateTime get serverUpdatedAt => throw _privateConstructorUsedError;
@@ -71,6 +73,7 @@ abstract class $RouteCopyWith<$Res> {
       String? endPlaceId,
       int orderIndex,
       String? routeGeojson,
+      List<AppLatLng> waypoints,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -105,6 +108,7 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
     Object? endPlaceId = freezed,
     Object? orderIndex = null,
     Object? routeGeojson = freezed,
+    Object? waypoints = null,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -166,6 +170,10 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
           ? _value.routeGeojson
           : routeGeojson // ignore: cast_nullable_to_non_nullable
               as String?,
+      waypoints: null == waypoints
+          ? _value.waypoints
+          : waypoints // ignore: cast_nullable_to_non_nullable
+              as List<AppLatLng>,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -204,6 +212,7 @@ abstract class _$$RouteImplCopyWith<$Res> implements $RouteCopyWith<$Res> {
       String? endPlaceId,
       int orderIndex,
       String? routeGeojson,
+      List<AppLatLng> waypoints,
       DateTime localUpdatedAt,
       DateTime serverUpdatedAt,
       String syncStatus});
@@ -236,6 +245,7 @@ class __$$RouteImplCopyWithImpl<$Res>
     Object? endPlaceId = freezed,
     Object? orderIndex = null,
     Object? routeGeojson = freezed,
+    Object? waypoints = null,
     Object? localUpdatedAt = null,
     Object? serverUpdatedAt = null,
     Object? syncStatus = null,
@@ -297,6 +307,10 @@ class __$$RouteImplCopyWithImpl<$Res>
           ? _value.routeGeojson
           : routeGeojson // ignore: cast_nullable_to_non_nullable
               as String?,
+      waypoints: null == waypoints
+          ? _value._waypoints
+          : waypoints // ignore: cast_nullable_to_non_nullable
+              as List<AppLatLng>,
       localUpdatedAt: null == localUpdatedAt
           ? _value.localUpdatedAt
           : localUpdatedAt // ignore: cast_nullable_to_non_nullable
@@ -331,10 +345,12 @@ class _$RouteImpl implements _Route {
       this.endPlaceId,
       this.orderIndex = 0,
       this.routeGeojson,
+      final List<AppLatLng> waypoints = const [],
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       this.syncStatus = 'pending'})
-      : _coordinates = coordinates;
+      : _coordinates = coordinates,
+        _waypoints = waypoints;
 
   factory _$RouteImpl.fromJson(Map<String, dynamic> json) =>
       _$$RouteImplFromJson(json);
@@ -382,6 +398,17 @@ class _$RouteImpl implements _Route {
   @override
   final String? routeGeojson;
 // GeoJSON LineString for detailed path
+  final List<AppLatLng> _waypoints;
+// GeoJSON LineString for detailed path
+  @override
+  @JsonKey()
+  List<AppLatLng> get waypoints {
+    if (_waypoints is EqualUnmodifiableListView) return _waypoints;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_waypoints);
+  }
+
+// user-added intermediate waypoints
 // Sync metadata
   @override
   final DateTime localUpdatedAt;
@@ -393,7 +420,7 @@ class _$RouteImpl implements _Route {
 
   @override
   String toString() {
-    return 'Route(id: $id, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, name: $name, description: $description, routeCategory: $routeCategory, startPlaceId: $startPlaceId, endPlaceId: $endPlaceId, orderIndex: $orderIndex, routeGeojson: $routeGeojson, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Route(id: $id, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, name: $name, description: $description, routeCategory: $routeCategory, startPlaceId: $startPlaceId, endPlaceId: $endPlaceId, orderIndex: $orderIndex, routeGeojson: $routeGeojson, waypoints: $waypoints, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -426,6 +453,8 @@ class _$RouteImpl implements _Route {
                 other.orderIndex == orderIndex) &&
             (identical(other.routeGeojson, routeGeojson) ||
                 other.routeGeojson == routeGeojson) &&
+            const DeepCollectionEquality()
+                .equals(other._waypoints, _waypoints) &&
             (identical(other.localUpdatedAt, localUpdatedAt) ||
                 other.localUpdatedAt == localUpdatedAt) &&
             (identical(other.serverUpdatedAt, serverUpdatedAt) ||
@@ -452,6 +481,7 @@ class _$RouteImpl implements _Route {
       endPlaceId,
       orderIndex,
       routeGeojson,
+      const DeepCollectionEquality().hash(_waypoints),
       localUpdatedAt,
       serverUpdatedAt,
       syncStatus);
@@ -488,6 +518,7 @@ abstract class _Route implements Route {
       final String? endPlaceId,
       final int orderIndex,
       final String? routeGeojson,
+      final List<AppLatLng> waypoints,
       required final DateTime localUpdatedAt,
       required final DateTime serverUpdatedAt,
       final String syncStatus}) = _$RouteImpl;
@@ -522,6 +553,8 @@ abstract class _Route implements Route {
   int get orderIndex;
   @override
   String? get routeGeojson; // GeoJSON LineString for detailed path
+  @override
+  List<AppLatLng> get waypoints; // user-added intermediate waypoints
 // Sync metadata
   @override
   DateTime get localUpdatedAt;

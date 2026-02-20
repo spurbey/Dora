@@ -12,25 +12,27 @@ class RouteDetailForm extends StatefulWidget {
     required this.route,
     required this.onSave,
     required this.onDelete,
+    this.startPlaceName,
+    this.endPlaceName,
   });
 
   final create_route.Route route;
   final ValueChanged<create_route.Route> onSave;
   final VoidCallback onDelete;
+  final String? startPlaceName;
+  final String? endPlaceName;
 
   @override
   State<RouteDetailForm> createState() => _RouteDetailFormState();
 }
 
 class _RouteDetailFormState extends State<RouteDetailForm> {
-  late String _mode;
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
 
   @override
   void initState() {
     super.initState();
-    _mode = _normalizeTransportMode(widget.route.transportMode);
     _nameController = TextEditingController(text: widget.route.name ?? '');
     _descriptionController =
         TextEditingController(text: widget.route.description ?? '');
@@ -40,7 +42,6 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
   void didUpdateWidget(covariant RouteDetailForm oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.route.id != widget.route.id) {
-      _mode = _normalizeTransportMode(widget.route.transportMode);
       _nameController.text = widget.route.name ?? '';
       _descriptionController.text = widget.route.description ?? '';
     }
@@ -55,7 +56,6 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
 
   void _save() {
     widget.onSave(widget.route.copyWith(
-      transportMode: _mode,
       name: _nameController.text.trim(),
       description: _descriptionController.text.trim(),
     ));
@@ -68,24 +68,18 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Route Details', style: AppTypography.h3),
+          // Transport mode badge (read-only)
+          _TransportBadge(mode: widget.route.transportMode),
           const SizedBox(height: AppSpacing.md),
 
-          // Route name
-          Text('Name', style: AppTypography.caption),
-          const SizedBox(height: AppSpacing.xs),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              hintText: 'Give this route a name...',
-              border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: 12,
-              ),
+          // Start → End
+          if (widget.startPlaceName != null || widget.endPlaceName != null) ...[
+            _RouteEndpoints(
+              start: widget.startPlaceName,
+              end: widget.endPlaceName,
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           // Distance & Duration
           Row(
@@ -101,24 +95,26 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
               Expanded(
                 child: _InfoTile(
                   label: 'Duration',
-                  value: '${widget.route.duration ?? '--'} min',
+                  value: _formatDuration(widget.route.duration),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // Transport mode
-          Text('Transport', style: AppTypography.caption),
+          // Route name
+          Text('Name', style: AppTypography.caption),
           const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: [
-              _modeChip('car', 'Car'),
-              _modeChip('bike', 'Bike'),
-              _modeChip('foot', 'Walk'),
-              _modeChip('air', 'Air'),
-            ],
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: 'Give this route a name...',
+              border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 12,
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
 
@@ -160,24 +156,117 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
     );
   }
 
-  Widget _modeChip(String value, String label) {
-    final selected = _mode == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => setState(() => _mode = value),
-      selectedColor: AppColors.accentSoft,
-      labelStyle: AppTypography.caption.copyWith(
-        color: selected ? AppColors.accent : AppColors.textSecondary,
+  String _formatDuration(int? minutes) {
+    if (minutes == null) return '--';
+    if (minutes < 60) return '${minutes}m';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+}
+
+class _TransportBadge extends StatelessWidget {
+  const _TransportBadge({required this.mode});
+
+  final String mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, color) = switch (mode) {
+      'air' => (Icons.flight, 'Flight', const Color(0xFF4F46E5)),
+      'foot' || 'walk' || 'walking' => (
+          Icons.directions_walk,
+          'Walking',
+          const Color(0xFFB96B2B)
+        ),
+      'bike' || 'cycling' => (
+          Icons.directions_bike,
+          'Cycling',
+          const Color(0xFF1D9A6C)
+        ),
+      _ => (Icons.directions_car, 'Driving', AppColors.accent),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: AppRadius.borderSm,
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  String _normalizeTransportMode(String mode) {
-    if (mode == 'walk') {
-      return 'foot';
-    }
-    return mode;
+class _RouteEndpoints extends StatelessWidget {
+  const _RouteEndpoints({this.start, this.end});
+
+  final String? start;
+  final String? end;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: AppSpacing.allSm,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (start != null)
+            Row(
+              children: [
+                const Icon(Icons.trip_origin, size: 14, color: AppColors.accent),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: Text(
+                    start!,
+                    style: AppTypography.caption,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          if (start != null && end != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Container(width: 2, height: 10, color: AppColors.divider),
+            ),
+          if (end != null)
+            Row(
+              children: [
+                const Icon(Icons.place, size: 14, color: AppColors.error),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: Text(
+                    end!,
+                    style: AppTypography.caption,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
   }
 }
 

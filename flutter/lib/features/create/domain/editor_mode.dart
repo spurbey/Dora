@@ -6,4 +6,5 @@ enum EditorMode {
   addRouteCar,
   addRouteWalking,
   editItem,
+  editRoute,
 }

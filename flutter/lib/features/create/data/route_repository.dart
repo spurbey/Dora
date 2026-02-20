@@ -3,14 +3,18 @@ import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:dora/core/map/directions/app_directions_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/features/create/data/arc_generator.dart';
 import 'package:dora/features/create/domain/route.dart';
 
 class RouteRepository {
-  RouteRepository(this._db);
+  RouteRepository(this._db, {AppDirectionsService? directionsService})
+      : _directionsService = directionsService;
 
   final AppDatabase _db;
+  final AppDirectionsService? _directionsService;
 
   Future<List<Route>> getRoutes(String tripId) async {
     final rows = await _db.routeDao.getRoutesForTrip(tripId);
@@ -92,8 +96,7 @@ class RouteRepository {
     );
   }
 
-  /// Generate air route with arc interpolation.
-  /// Sub-Phase 4A keeps this as a straight-line stub; arc generation is added in 4C.
+  /// Generate air route with great-circle arc interpolation (slerp).
   Route generateAirRoute({
     required String tripId,
     required AppLatLng start,
@@ -102,11 +105,67 @@ class RouteRepository {
     String? endPlaceId,
     int orderIndex = 0,
   }) {
+    final arcCoordinates = ArcGenerator.generateArc(start, end, points: 50);
+    final distance = _haversineKm(start, end);
+    final duration = _estimateDuration(distance, 'air');
+    final now = DateTime.now();
+
+    return Route(
+      id: const Uuid().v4(),
+      tripId: tripId,
+      coordinates: arcCoordinates,
+      transportMode: 'air',
+      distance: distance,
+      duration: duration,
+      routeCategory: 'air',
+      startPlaceId: startPlaceId,
+      endPlaceId: endPlaceId,
+      orderIndex: orderIndex,
+      localUpdatedAt: now,
+      serverUpdatedAt: now,
+      syncStatus: 'pending',
+    );
+  }
+
+  /// Generate a route via the backend Directions API (real road geometry).
+  /// Falls back to haversine straight-line if the API call fails.
+  Future<Route> generateRouteViaApi({
+    required String tripId,
+    required AppLatLng start,
+    required AppLatLng end,
+    required String mode,
+    String? startPlaceId,
+    String? endPlaceId,
+    int orderIndex = 0,
+  }) async {
+    if (_directionsService != null) {
+      try {
+        final result = await _directionsService!.getRoute([start, end], mode);
+        final now = DateTime.now();
+        return Route(
+          id: const Uuid().v4(),
+          tripId: tripId,
+          coordinates: result.coordinates,
+          transportMode: mode,
+          distance: result.distanceKm,
+          duration: result.durationMins,
+          routeCategory: 'ground',
+          startPlaceId: startPlaceId,
+          endPlaceId: endPlaceId,
+          orderIndex: orderIndex,
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'pending',
+        );
+      } catch (_) {
+        // API failed — fall through to haversine fallback
+      }
+    }
     return generateRoute(
       tripId: tripId,
       start: start,
       end: end,
-      transportMode: 'air',
+      transportMode: mode,
       startPlaceId: startPlaceId,
       endPlaceId: endPlaceId,
       orderIndex: orderIndex,
@@ -129,6 +188,7 @@ class RouteRepository {
       endPlaceId: row.endPlaceId,
       orderIndex: row.orderIndex,
       routeGeojson: row.routeGeojson,
+      waypoints: row.waypointsJson,
       localUpdatedAt: row.localUpdatedAt,
       serverUpdatedAt: row.serverUpdatedAt,
       syncStatus: row.syncStatus,
@@ -151,6 +211,7 @@ class RouteRepository {
       endPlaceId: Value(route.endPlaceId),
       orderIndex: Value(route.orderIndex),
       routeGeojson: Value(route.routeGeojson),
+      waypointsJson: Value(route.waypoints),
       localUpdatedAt: Value(route.localUpdatedAt),
       serverUpdatedAt: Value(route.serverUpdatedAt),
       syncStatus: Value(route.syncStatus),

@@ -15,6 +15,7 @@ class AppMapView extends StatefulWidget {
     this.onMapCreated,
     this.onMapTap,
     this.onRouteTap,
+    this.onRouteLineTap,
     this.markers,
     this.routes,
     this.showUserLocation = false,
@@ -30,6 +31,7 @@ class AppMapView extends StatefulWidget {
   final void Function(AppMapController controller)? onMapCreated;
   final void Function(AppLatLng position)? onMapTap;
   final void Function(String routeId)? onRouteTap;
+  final void Function(String routeId, AppLatLng position)? onRouteLineTap;
   final List<AppMarker>? markers;
   final List<AppRoute>? routes;
   final bool showUserLocation;
@@ -111,6 +113,7 @@ class _AppMapViewState extends State<AppMapView> {
       mapboxMap,
       onMapTap: widget.onMapTap,
       onRouteTap: widget.onRouteTap,
+      onRouteLineTap: widget.onRouteLineTap,
     );
     widget.onMapCreated?.call(_controller!);
     _applySettings();

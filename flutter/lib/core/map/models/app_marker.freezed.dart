@@ -24,8 +24,11 @@ mixin _$AppMarker {
   Color? get color => throw _privateConstructorUsedError;
   VoidCallback? get onTap => throw _privateConstructorUsedError;
   String? get markerType =>
-      throw _privateConstructorUsedError; // 'city' or 'place'
-  String? get label => throw _privateConstructorUsedError;
+      throw _privateConstructorUsedError; // 'city', 'place', 'waypoint', 'endpoint'
+  String? get label =>
+      throw _privateConstructorUsedError; // 'C' for cities, '1','2','3' for places
+  bool get draggable => throw _privateConstructorUsedError;
+  ValueChanged<AppLatLng>? get onDragEnd => throw _privateConstructorUsedError;
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +51,9 @@ abstract class $AppMarkerCopyWith<$Res> {
       Color? color,
       VoidCallback? onTap,
       String? markerType,
-      String? label});
+      String? label,
+      bool draggable,
+      ValueChanged<AppLatLng>? onDragEnd});
 
   $AppLatLngCopyWith<$Res> get position;
 }
@@ -77,6 +82,8 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
     Object? onTap = freezed,
     Object? markerType = freezed,
     Object? label = freezed,
+    Object? draggable = null,
+    Object? onDragEnd = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -115,6 +122,14 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
           ? _value.label
           : label // ignore: cast_nullable_to_non_nullable
               as String?,
+      draggable: null == draggable
+          ? _value.draggable
+          : draggable // ignore: cast_nullable_to_non_nullable
+              as bool,
+      onDragEnd: freezed == onDragEnd
+          ? _value.onDragEnd
+          : onDragEnd // ignore: cast_nullable_to_non_nullable
+              as ValueChanged<AppLatLng>?,
     ) as $Val);
   }
 
@@ -146,7 +161,9 @@ abstract class _$$AppMarkerImplCopyWith<$Res>
       Color? color,
       VoidCallback? onTap,
       String? markerType,
-      String? label});
+      String? label,
+      bool draggable,
+      ValueChanged<AppLatLng>? onDragEnd});
 
   @override
   $AppLatLngCopyWith<$Res> get position;
@@ -174,6 +191,8 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
     Object? onTap = freezed,
     Object? markerType = freezed,
     Object? label = freezed,
+    Object? draggable = null,
+    Object? onDragEnd = freezed,
   }) {
     return _then(_$AppMarkerImpl(
       id: null == id
@@ -212,6 +231,14 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
           ? _value.label
           : label // ignore: cast_nullable_to_non_nullable
               as String?,
+      draggable: null == draggable
+          ? _value.draggable
+          : draggable // ignore: cast_nullable_to_non_nullable
+              as bool,
+      onDragEnd: freezed == onDragEnd
+          ? _value.onDragEnd
+          : onDragEnd // ignore: cast_nullable_to_non_nullable
+              as ValueChanged<AppLatLng>?,
     ));
   }
 }
@@ -228,7 +255,9 @@ class _$AppMarkerImpl implements _AppMarker {
       this.color,
       this.onTap,
       this.markerType,
-      this.label});
+      this.label,
+      this.draggable = false,
+      this.onDragEnd});
 
   @override
   final String id;
@@ -246,13 +275,19 @@ class _$AppMarkerImpl implements _AppMarker {
   final VoidCallback? onTap;
   @override
   final String? markerType;
-// 'city' or 'place'
+// 'city', 'place', 'waypoint', 'endpoint'
   @override
   final String? label;
+// 'C' for cities, '1','2','3' for places
+  @override
+  @JsonKey()
+  final bool draggable;
+  @override
+  final ValueChanged<AppLatLng>? onDragEnd;
 
   @override
   String toString() {
-    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, color: $color, onTap: $onTap, markerType: $markerType, label: $label)';
+    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, color: $color, onTap: $onTap, markerType: $markerType, label: $label, draggable: $draggable, onDragEnd: $onDragEnd)';
   }
 
   @override
@@ -271,12 +306,16 @@ class _$AppMarkerImpl implements _AppMarker {
             (identical(other.onTap, onTap) || other.onTap == onTap) &&
             (identical(other.markerType, markerType) ||
                 other.markerType == markerType) &&
-            (identical(other.label, label) || other.label == label));
+            (identical(other.label, label) || other.label == label) &&
+            (identical(other.draggable, draggable) ||
+                other.draggable == draggable) &&
+            (identical(other.onDragEnd, onDragEnd) ||
+                other.onDragEnd == onDragEnd));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, id, position, title, snippet,
-      iconAsset, color, onTap, markerType, label);
+      iconAsset, color, onTap, markerType, label, draggable, onDragEnd);
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.
@@ -297,7 +336,9 @@ abstract class _AppMarker implements AppMarker {
       final Color? color,
       final VoidCallback? onTap,
       final String? markerType,
-      final String? label}) = _$AppMarkerImpl;
+      final String? label,
+      final bool draggable,
+      final ValueChanged<AppLatLng>? onDragEnd}) = _$AppMarkerImpl;
 
   @override
   String get id;
@@ -314,9 +355,13 @@ abstract class _AppMarker implements AppMarker {
   @override
   VoidCallback? get onTap;
   @override
-  String? get markerType; // 'city' or 'place'
+  String? get markerType; // 'city', 'place', 'waypoint', 'endpoint'
   @override
-  String? get label;
+  String? get label; // 'C' for cities, '1','2','3' for places
+  @override
+  bool get draggable;
+  @override
+  ValueChanged<AppLatLng>? get onDragEnd;
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.

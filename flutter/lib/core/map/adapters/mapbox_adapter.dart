@@ -12,16 +12,23 @@ class MapboxAdapter implements AppMapController {
     this._mapboxMap, {
     this.onMapTap,
     this.onRouteTap,
+    this.onRouteLineTap,
   });
 
   final MapboxMap _mapboxMap;
   final void Function(AppLatLng position)? onMapTap;
   final void Function(String routeId)? onRouteTap;
+  final void Function(String routeId, AppLatLng position)? onRouteLineTap;
 
   PointAnnotationManager? _pointManager;
   PolylineAnnotationManager? _lineManager;
   Cancelable? _pointTapCancelable;
   Cancelable? _lineTapCancelable;
+  Cancelable? _pointDragCancelable;
+
+  // Deferred tap: line tap fires before map tap resolves in same gesture
+  AppLatLng? _lastTapPosition;
+  bool _pendingMapTap = false;
 
   final Map<String, PointAnnotation> _markers = {};
   final Map<String, AppMarker> _markerData = {};
@@ -119,6 +126,7 @@ class MapboxAdapter implements AppMapController {
         textOffset: [0, 1.5],
         textSize: 12,
         iconColor: marker.color?.value,
+        isDraggable: marker.draggable,
       ),
     );
     _markers[marker.id] = annotation;
@@ -247,8 +255,10 @@ class MapboxAdapter implements AppMapController {
   void dispose() {
     _pointTapCancelable?.cancel();
     _lineTapCancelable?.cancel();
+    _pointDragCancelable?.cancel();
     _pointTapCancelable = null;
     _lineTapCancelable = null;
+    _pointDragCancelable = null;
     _markers.clear();
     _routes.clear();
     _markerData.clear();
@@ -257,17 +267,19 @@ class MapboxAdapter implements AppMapController {
   }
 
   void handleMapTap(MapContentGestureContext context) {
-    final handler = onMapTap;
-    if (handler == null) {
-      return;
-    }
     final coordinates = context.point.coordinates;
-    handler(
-      AppLatLng(
-        latitude: coordinates.lat.toDouble(),
-        longitude: coordinates.lng.toDouble(),
-      ),
+    final pos = AppLatLng(
+      latitude: coordinates.lat.toDouble(),
+      longitude: coordinates.lng.toDouble(),
     );
+    _lastTapPosition = pos;
+    _pendingMapTap = true;
+    Future.microtask(() {
+      if (_pendingMapTap) {
+        _pendingMapTap = false;
+        onMapTap?.call(pos);
+      }
+    });
   }
 
   Future<PointAnnotationManager> _ensurePointManager() async {
@@ -276,6 +288,7 @@ class MapboxAdapter implements AppMapController {
     }
     final manager = await _mapboxMap.annotations.createPointAnnotationManager();
     _pointTapCancelable ??= manager.tapEvents(onTap: _handlePointTap);
+    _pointDragCancelable ??= manager.dragEvents(onEnd: _handlePointDragEnd);
     _pointManager = manager;
     return manager;
   }
@@ -300,6 +313,9 @@ class MapboxAdapter implements AppMapController {
   }
 
   void _handleLineTap(PolylineAnnotation annotation) {
+    // Cancel the generic map tap — line tap wins for the same gesture
+    _pendingMapTap = false;
+
     final routeId = _annotationToRouteId[annotation.id];
     if (routeId == null) {
       return;
@@ -308,7 +324,28 @@ class MapboxAdapter implements AppMapController {
     if (routeId.startsWith('_conn_')) {
       return;
     }
-    onRouteTap?.call(routeId);
+    final pos = _lastTapPosition;
+    if (pos != null && onRouteLineTap != null) {
+      onRouteLineTap!.call(routeId, pos);
+    } else {
+      onRouteTap?.call(routeId);
+    }
+  }
+
+  void _handlePointDragEnd(PointAnnotation annotation) {
+    final markerId = _annotationToMarkerId[annotation.id];
+    if (markerId == null) return;
+    final coords = annotation.geometry.coordinates;
+    final newPos = AppLatLng(
+      latitude: coords.lat.toDouble(),
+      longitude: coords.lng.toDouble(),
+    );
+    _markerData[markerId]?.onDragEnd?.call(newPos);
+    // Update cached position so subsequent reads are accurate
+    final existing = _markerData[markerId];
+    if (existing != null) {
+      _markerData[markerId] = existing.copyWith(position: newPos);
+    }
   }
 
   static Point _toPoint(AppLatLng point) {

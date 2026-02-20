@@ -21,6 +21,7 @@ class MapCanvas extends StatelessWidget {
     required this.onMapCreated,
     required this.onMapTap,
     this.onRouteTap,
+    this.onRouteLineTap,
     this.routeStartItemId,
   });
 
@@ -33,6 +34,7 @@ class MapCanvas extends StatelessWidget {
   final ValueChanged<AppMapController> onMapCreated;
   final ValueChanged<AppLatLng> onMapTap;
   final ValueChanged<String>? onRouteTap;
+  final void Function(String routeId, AppLatLng position)? onRouteLineTap;
   final String? routeStartItemId;
 
   @override
@@ -48,6 +50,7 @@ class MapCanvas extends StatelessWidget {
           onMapCreated: onMapCreated,
           onMapTap: onMapTap,
           onRouteTap: onRouteTap,
+          onRouteLineTap: onRouteLineTap,
           showUserLocation: true,
         ),
         // Floating tool panel — top right

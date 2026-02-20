@@ -98,9 +98,13 @@ MapState mapState(MapStateRef ref, String tripId) {
           color: const Color(0xFF7B1FA2), // purple
           markerType: 'waypoint',
           label: '${i + 1}',
+          draggable: true,
           onTap: () => ref
               .read(editorControllerProvider(tripId).notifier)
               .removeWaypoint(editingRouteId, capturedIndex),
+          onDragEnd: (newPos) => ref
+              .read(editorControllerProvider(tripId).notifier)
+              .moveWaypoint(editingRouteId, capturedIndex, newPos),
         ));
       }
     } catch (_) {}

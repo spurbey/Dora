@@ -66,6 +66,28 @@ MapState mapState(MapStateRef ref, String tripId) {
     try {
       final editingRoute =
           editor.routes.firstWhere((r) => r.id == editingRouteId);
+      if (editingRoute.coordinates.isNotEmpty) {
+        final start = editingRoute.coordinates.first;
+        markers.add(AppMarker(
+          id: '_ep_start_$editingRouteId',
+          position: start,
+          title: 'Start',
+          color: const Color(0xFF2E7D32), // green
+          markerType: 'endpoint',
+          label: 'S',
+        ));
+      }
+      if (editingRoute.coordinates.length > 1) {
+        final end = editingRoute.coordinates.last;
+        markers.add(AppMarker(
+          id: '_ep_end_$editingRouteId',
+          position: end,
+          title: 'End',
+          color: const Color(0xFFC62828), // red
+          markerType: 'endpoint',
+          label: 'E',
+        ));
+      }
       for (int i = 0; i < editingRoute.waypoints.length; i++) {
         final wp = editingRoute.waypoints[i];
         final capturedIndex = i;

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:dora/core/map/adapters/mapbox_adapter.dart';
@@ -70,10 +71,20 @@ class _AppMapViewState extends State<AppMapView> {
   }
 
   Future<void> _doSync() async {
+    if (!mounted || _controller == null || !_styleLoaded) {
+      return;
+    }
     _syncInFlight = true;
     _needsResync = false;
-    await _syncOverlays();
-    _syncInFlight = false;
+    try {
+      await _syncOverlays();
+    } catch (e) {
+      // Keep the map alive; next state update will resync.
+      debugPrint('AppMapView sync failed: $e');
+      _needsResync = true;
+    } finally {
+      _syncInFlight = false;
+    }
     if (_needsResync && mounted) {
       _doSync();
     }

@@ -138,37 +138,27 @@ class RouteRepository {
     String? endPlaceId,
     int orderIndex = 0,
   }) async {
-    if (_directionsService != null) {
-      try {
-        final result = await _directionsService!.getRoute([start, end], mode);
-        final now = DateTime.now();
-        return Route(
-          id: const Uuid().v4(),
-          tripId: tripId,
-          coordinates: result.coordinates,
-          transportMode: mode,
-          distance: result.distanceKm,
-          duration: result.durationMins,
-          routeCategory: 'ground',
-          startPlaceId: startPlaceId,
-          endPlaceId: endPlaceId,
-          orderIndex: orderIndex,
-          localUpdatedAt: now,
-          serverUpdatedAt: now,
-          syncStatus: 'pending',
-        );
-      } catch (_) {
-        // API failed — fall through to haversine fallback
-      }
+    if (_directionsService == null) {
+      throw StateError('Directions service is not configured');
     }
-    return generateRoute(
+
+    final result = await _directionsService!.getRoute([start, end], mode);
+    final now = DateTime.now();
+    return Route(
+      id: const Uuid().v4(),
       tripId: tripId,
-      start: start,
-      end: end,
       transportMode: mode,
+      coordinates: result.coordinates,
+      distance: result.distanceKm,
+      duration: result.durationMins,
+      routeCategory: 'ground',
       startPlaceId: startPlaceId,
       endPlaceId: endPlaceId,
       orderIndex: orderIndex,
+      routeGeojson: result.routeGeojson,
+      localUpdatedAt: now,
+      serverUpdatedAt: now,
+      syncStatus: 'pending',
     );
   }
 

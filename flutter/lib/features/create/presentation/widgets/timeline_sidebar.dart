@@ -40,17 +40,16 @@ class TimelineSidebar extends StatelessWidget {
     if (fromIndex >= sorted.length - 1) return null;
     final fromId = sorted[fromIndex].id;
     final toId = sorted[fromIndex + 1].id;
-    // Exact direction first
-    final exact = routes.cast<create_route.Route?>().firstWhere(
-      (r) => r!.startPlaceId == fromId && r.endPlaceId == toId,
-      orElse: () => null,
-    );
-    if (exact != null) return exact;
-    // Reverse fallback (bidirectional route)
-    return routes.cast<create_route.Route?>().firstWhere(
-      (r) => r!.startPlaceId == toId && r.endPlaceId == fromId,
-      orElse: () => null,
-    );
+    create_route.Route? reverse;
+    for (final route in routes) {
+      if (route.startPlaceId == fromId && route.endPlaceId == toId) {
+        return route;
+      }
+      if (route.startPlaceId == toId && route.endPlaceId == fromId) {
+        reverse = route;
+      }
+    }
+    return reverse;
   }
 
   @override

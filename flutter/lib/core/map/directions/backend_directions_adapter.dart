@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
@@ -65,6 +66,7 @@ class BackendDirectionsAdapter implements AppDirectionsService {
         coordinates: parsedCoords,
         distanceKm: distanceKm,
         durationMins: durationMins,
+        routeGeojson: geojson == null ? null : jsonEncode(geojson),
       );
     } on DioException catch (e) {
       throw DirectionsException('HTTP ${e.response?.statusCode}: ${e.message}');

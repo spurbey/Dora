@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show min, max;
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart' show EdgeInsets;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -278,6 +279,10 @@ class EditorController extends _$EditorController {
       selectedItemType: 'route',
       bottomPanelExpanded: true,
       mode: EditorMode.editItem,
+      routeStartItemId: null,
+      routeStartItemType: null,
+      routeEndItemId: null,
+      isGeneratingRoute: false,
     ));
     // Fly to fit the full route extent
     if (route.coordinates.length >= 2) {
@@ -365,6 +370,7 @@ class EditorController extends _$EditorController {
             coordinates: result.coordinates,
             distance: result.distanceKm,
             duration: result.durationMins,
+            routeGeojson: result.routeGeojson,
           ));
         } catch (_) {
           // Keep the updated waypoints even if recalculation fails
@@ -400,6 +406,7 @@ class EditorController extends _$EditorController {
             coordinates: result.coordinates,
             distance: result.distanceKm,
             duration: result.durationMins,
+            routeGeojson: result.routeGeojson,
           ));
         } catch (_) {}
       }
@@ -437,6 +444,7 @@ class EditorController extends _$EditorController {
             coordinates: result.coordinates,
             distance: result.distanceKm,
             duration: result.durationMins,
+            routeGeojson: result.routeGeojson,
           ));
         } catch (_) {}
       }
@@ -455,16 +463,37 @@ class EditorController extends _$EditorController {
     ));
   }
 
-  void selectRouteSource(String id) {
+  void selectRouteSource(String? id) {
     final current = state.valueOrNull;
     if (current == null) return;
-    state = AsyncData(current.copyWith(routeStartItemId: id));
+    if (id == null) {
+      state = AsyncData(current.copyWith(
+        routeStartItemId: null,
+        routeStartItemType: null,
+        routeEndItemId: null,
+      ));
+      return;
+    }
+
+    String? routeStartItemType;
+    try {
+      final selectedPlace = current.places.firstWhere((p) => p.id == id);
+      routeStartItemType = selectedPlace.placeType == 'city' ? 'city' : 'place';
+    } catch (_) {}
+
+    state = AsyncData(current.copyWith(
+      routeStartItemId: id,
+      routeStartItemType: routeStartItemType,
+      routeEndItemId: current.routeEndItemId == id ? null : current.routeEndItemId,
+    ));
   }
 
-  void selectRouteDestination(String id) {
+  void selectRouteDestination(String? id) {
     final current = state.valueOrNull;
     if (current == null) return;
-    state = AsyncData(current.copyWith(routeEndItemId: id));
+    state = AsyncData(current.copyWith(
+      routeEndItemId: id == current.routeStartItemId ? null : id,
+    ));
   }
 
   void clearRouteDraft() {
@@ -478,6 +507,7 @@ class EditorController extends _$EditorController {
   }
 
   void cancelRouteMode() {
+    clearRouteDraft();
     setMode(EditorMode.view);
   }
 
@@ -500,6 +530,7 @@ class EditorController extends _$EditorController {
   }) async {
     final current = state.valueOrNull;
     if (current == null) return;
+    if (startPlaceId == endPlaceId) return;
 
     // Use captured mode so we don't read stale state (mode may have been reset)
     final effectiveMode = capturedMode ?? current.mode;
@@ -538,23 +569,13 @@ class EditorController extends _$EditorController {
               orderIndex: fresh.places.length + fresh.routes.length,
             );
 
-      // Clear draft + mark done before adding route (which changes selection)
-      final afterDraft = state.valueOrNull!;
-      state = AsyncData(afterDraft.copyWith(
-        isGeneratingRoute: false,
-        routeStartItemId: null,
-        routeStartItemType: null,
-        routeEndItemId: null,
-      ));
       addRoute(route);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Route generation failed: $error');
       final afterError = state.valueOrNull;
       if (afterError != null) {
         state = AsyncData(afterError.copyWith(
           isGeneratingRoute: false,
-          routeStartItemId: null,
-          routeStartItemType: null,
-          routeEndItemId: null,
         ));
       }
     }

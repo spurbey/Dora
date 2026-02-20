@@ -45,8 +45,11 @@ class RouteCreatorForm extends StatelessWidget {
     final destEligible =
         eligible.where((p) => p.id != sourceId).toList();
 
+    final hasValidSource = sourceId != null && eligible.any((p) => p.id == sourceId);
+    final hasValidDestination =
+        destinationId != null && destEligible.any((p) => p.id == destinationId);
     final canCreate =
-        sourceId != null && destinationId != null && !isLoading;
+        hasValidSource && hasValidDestination && !isLoading;
 
     return SingleChildScrollView(
       padding: AppSpacing.allMd,

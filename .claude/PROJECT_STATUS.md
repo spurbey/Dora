@@ -1,60 +1,64 @@
-﻿# Project Status - Dora
+# Project Status - Dora
 
-Last Updated: 2026-02-19
-Current Focus: Flutter Phase 4 Rebuild (incremental)
-Overall Progress: Flutter P1-P3 complete, Phase 4 baseline complete, Phase 4A rebuild complete
+Last Updated: 2026-02-20
+Current Focus: Flutter Phase 4C complete — ready for Phase 5
+Overall Progress: Flutter P1-P4C complete
 
 ---
 
 ## Current Workstream
 
 ### Flutter Phase 4 Rebuild
-Status: In progress
+Status: Phase 4C complete ✅
 
 Completed:
-- Baseline Phase 4 implementation previously landed:
+- Baseline Phase 4 implementation:
   - `2e6f655` - complete Phase 4 editor + mapbox migration
   - `8f52781` - Phase 4 editor UX/map polish
-- Phase 4A rebuild landed:
+- Phase 4A rebuild:
   - `cf8a2b1` - domain/storage/repository expansion for city + multi-modal route model
-- Phase 4A test suite landed:
-  - `a654b94` - business-logic tests for editor mode contracts and route generation rules
+  - `a654b94` - Phase 4A business-logic test suite
+- Phase 4B:
+  - `ad9ba89` - city search, geocoding, bottom-sheet forms, layout fixes
+  - `53494f3` - ElevatedButton layout fix in detail forms
+- Phase 4C (pending commit):
+  - Bug fixes: timeline connector, route DAO ordering, draft leakage, sync guard, synthetic connectors
+  - Route creator UX: From/To form panel, no auto-draw, loading states
+  - Directions API: BackendDirectionsAdapter (Dio), haversine fallback
+  - Route edit toolbar + waypoints: editRoute mode, Drift v5→v6, flip/add/remove waypoints
 
 In progress / next:
-- 4B: city search + geocoding + bottom-sheet detail forms
-- 4C: route creation UX (air/car/walking), route detail and map behavior
-- 4D: unified timeline reorder and final polish/QA
+- Phase 5: see `flutter/docs/phases/Phase-5-PRD.md`
 
 ---
 
 ## Backend Status (context)
 - V2 backend phases A1, A2, A3 implemented.
 - V2 frontend web phases B, C, D implemented.
-- Current immediate delivery focus is Flutter editor quality and PRD alignment.
+- Current immediate delivery focus is Flutter editor quality.
 
 ---
 
 ## Quality and Verification
-- Added dedicated Flutter test file:
+- `flutter analyze --no-pub` — zero new issues across all Phase 4C files
+- `dart run build_runner build --delete-conflicting-outputs` — run 3× successfully
+- Test files:
   - `flutter/test/features/create/phase4a_business_logic_test.dart`
-- Required validation for each sub-phase:
-  1. `flutter analyze --no-pub`
-  2. `dart run build_runner build --delete-conflicting-outputs` (when models/storage change)
-  3. Targeted test run for changed area
-  4. Manual editor flow check against PRD
+  - `flutter/test/features/create/phase4c_business_logic_test.dart`
 
 ---
 
 ## Known Risks
 - Schema/model updates require codegen sync before reliable runtime testing.
-- Route transport mode naming must stay consistent (`foot` canonical, legacy `walk` compatibility where needed).
-- Timeline reorder correctness remains a high-risk area for regression and must be validated after 4D wiring.
+- Route transport mode naming: `foot` canonical, legacy `walk` compat maintained.
+- `BackendDirectionsAdapter` requires backend `POST /api/v1/routes/generate` endpoint to be live for real road geometry; haversine fallback active otherwise.
+- Drift v5→v6 migration runs automatically on first app launch after update.
 
 ---
 
 ## Recent Commits (latest first)
+- `53494f3` fix(theme): avoid infinite-width ElevatedButton layout in create detail forms
+- `ad9ba89` feat(create): phase 4B — city search, geocoding, bottom sheet forms, layout fixes
 - `a654b94` test(create): add Phase 4A business-logic coverage for editor and route generation
-- `cf8a2b1` feat(flutter): phase 4A - expand editor models, Drift migration v5, multi-modal routing support
+- `cf8a2b1` feat(flutter): phase 4A — expand editor models, Drift migration v5, multi-modal routing support
 - `cfed2ec` feat(flutter): add Android Firebase setup
-- `8f52781` feat(flutter): polish Phase 4 editor UX + map interactions
-- `2e6f655` feat(flutter): complete Phase 4 editor + mapbox migration

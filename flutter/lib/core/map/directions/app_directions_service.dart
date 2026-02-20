@@ -9,11 +9,13 @@ class DirectionsResult {
     required this.coordinates,
     required this.distanceKm,
     required this.durationMins,
+    this.routeGeojson,
   });
 
   final List<AppLatLng> coordinates;
   final double distanceKm;
   final int durationMins;
+  final String? routeGeojson;
 }
 
 class DirectionsException implements Exception {

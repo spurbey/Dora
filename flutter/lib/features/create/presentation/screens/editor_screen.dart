@@ -257,15 +257,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   !_isAnyRouteMode(editor.mode))
                 Positioned(
                   right: AppSpacing.md,
-                  bottom: 120,
-                  child: RouteEditToolbar(
-                    currentMode: editor.mode,
-                    onToggleEdit: () =>
-                        controller.toggleRouteEditMode(editor.selectedItemId!),
-                    onFlip: () => controller.flipRoute(editor.selectedItemId!),
-                    onDelete: () =>
-                        controller.removeRoute(editor.selectedItemId!),
-                    onClose: controller.deselectAll,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: RouteEditToolbar(
+                      currentMode: editor.mode,
+                      onToggleEdit: () =>
+                          controller.toggleRouteEditMode(editor.selectedItemId!),
+                      onFlip: () => controller.flipRoute(editor.selectedItemId!),
+                      onDelete: () =>
+                          controller.removeRoute(editor.selectedItemId!),
+                      onClose: controller.deselectAll,
+                    ),
                   ),
                 ),
             ],
@@ -473,12 +476,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         places: editor.places,
         sourceId: editor.routeStartItemId,
         destinationId: editor.routeEndItemId,
-        onSourceChanged: (id) {
-          if (id != null) controller.selectRouteSource(id);
-        },
-        onDestinationChanged: (id) {
-          if (id != null) controller.selectRouteDestination(id);
-        },
+        onSourceChanged: controller.selectRouteSource,
+        onDestinationChanged: controller.selectRouteDestination,
         onCreateRoute: () => controller.drawRoute(
           editor.routeStartItemId!,
           editor.routeEndItemId!,

@@ -8,6 +8,7 @@ part of 'place.dart';
 
 _$PlaceImpl _$$PlaceImplFromJson(Map<String, dynamic> json) => _$PlaceImpl(
       id: json['id'] as String,
+      serverPlaceId: json['serverPlaceId'] as String?,
       tripId: json['tripId'] as String,
       name: json['name'] as String,
       address: json['address'] as String?,
@@ -31,6 +32,7 @@ _$PlaceImpl _$$PlaceImplFromJson(Map<String, dynamic> json) => _$PlaceImpl(
 Map<String, dynamic> _$$PlaceImplToJson(_$PlaceImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'serverPlaceId': instance.serverPlaceId,
       'tripId': instance.tripId,
       'name': instance.name,
       'address': instance.address,

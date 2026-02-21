@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +78,42 @@ class AppDatabase extends _$AppDatabase {
           if (from >= 5 && from < 6) {
             // Routes: add waypointsJson for user-defined intermediate waypoints
             await m.addColumn(routes, routes.waypointsJson);
+          }
+          if (from >= 6 && from < 7) {
+            // Places: persistent mapping to backend place UUID for media uploads.
+            await m.addColumn(places, places.serverPlaceId);
+
+            // Media: queue and upload lifecycle metadata.
+            await m.addColumn(media, media.thumbnailPath);
+            await m.addColumn(media, media.mimeType);
+            await m.addColumn(media, media.fileSizeBytes);
+            await m.addColumn(media, media.width);
+            await m.addColumn(media, media.height);
+            await m.addColumn(media, media.uploadStatus);
+            await m.addColumn(media, media.uploadProgress);
+            await m.addColumn(media, media.retryCount);
+            await m.addColumn(media, media.errorMessage);
+            await m.addColumn(media, media.uploadedAt);
+            await m.addColumn(media, media.nextAttemptAt);
+            await m.addColumn(media, media.workerSessionId);
+
+            // Backfill upload state from legacy rows.
+            await customStatement('''
+              UPDATE media
+              SET
+                upload_status = 'uploaded',
+                upload_progress = 1.0,
+                uploaded_at = COALESCE(uploaded_at, created_at)
+              WHERE url IS NOT NULL AND TRIM(url) != ''
+            ''');
+
+            await customStatement('''
+              UPDATE media
+              SET
+                upload_status = 'queued',
+                upload_progress = 0.0
+              WHERE url IS NULL OR TRIM(url) = ''
+            ''');
           }
         },
       );

@@ -33,10 +33,12 @@ TripRepository tripRepository(TripRepositoryRef ref) {
 PlaceRepository placeRepository(PlaceRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
   final searchApi = ref.watch(searchApiProvider);
+  final placesApi = ref.watch(placesApiProvider);
   final authService = ref.watch(authServiceProvider);
   return PlaceRepository(
     db,
     searchApi: searchApi,
+    placesApi: placesApi,
     authService: authService,
   );
 }

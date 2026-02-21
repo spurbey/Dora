@@ -21,6 +21,7 @@ Place _$PlaceFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$Place {
   String get id => throw _privateConstructorUsedError;
+  String? get serverPlaceId => throw _privateConstructorUsedError;
   String get tripId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String? get address => throw _privateConstructorUsedError;
@@ -55,6 +56,7 @@ abstract class $PlaceCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverPlaceId,
       String tripId,
       String name,
       String? address,
@@ -89,6 +91,7 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
   @override
   $Res call({
     Object? id = null,
+    Object? serverPlaceId = freezed,
     Object? tripId = null,
     Object? name = null,
     Object? address = freezed,
@@ -109,6 +112,10 @@ class _$PlaceCopyWithImpl<$Res, $Val extends Place>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverPlaceId: freezed == serverPlaceId
+          ? _value.serverPlaceId
+          : serverPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
       tripId: null == tripId
           ? _value.tripId
           : tripId // ignore: cast_nullable_to_non_nullable
@@ -188,6 +195,7 @@ abstract class _$$PlaceImplCopyWith<$Res> implements $PlaceCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverPlaceId,
       String tripId,
       String name,
       String? address,
@@ -221,6 +229,7 @@ class __$$PlaceImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
+    Object? serverPlaceId = freezed,
     Object? tripId = null,
     Object? name = null,
     Object? address = freezed,
@@ -241,6 +250,10 @@ class __$$PlaceImplCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverPlaceId: freezed == serverPlaceId
+          ? _value.serverPlaceId
+          : serverPlaceId // ignore: cast_nullable_to_non_nullable
+              as String?,
       tripId: null == tripId
           ? _value.tripId
           : tripId // ignore: cast_nullable_to_non_nullable
@@ -306,6 +319,7 @@ class __$$PlaceImplCopyWithImpl<$Res>
 class _$PlaceImpl implements _Place {
   const _$PlaceImpl(
       {required this.id,
+      this.serverPlaceId,
       required this.tripId,
       required this.name,
       this.address,
@@ -327,6 +341,8 @@ class _$PlaceImpl implements _Place {
 
   @override
   final String id;
+  @override
+  final String? serverPlaceId;
   @override
   final String tripId;
   @override
@@ -370,7 +386,7 @@ class _$PlaceImpl implements _Place {
 
   @override
   String toString() {
-    return 'Place(id: $id, tripId: $tripId, name: $name, address: $address, coordinates: $coordinates, notes: $notes, visitTime: $visitTime, dayNumber: $dayNumber, orderIndex: $orderIndex, photoUrls: $photoUrls, placeType: $placeType, rating: $rating, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Place(id: $id, serverPlaceId: $serverPlaceId, tripId: $tripId, name: $name, address: $address, coordinates: $coordinates, notes: $notes, visitTime: $visitTime, dayNumber: $dayNumber, orderIndex: $orderIndex, photoUrls: $photoUrls, placeType: $placeType, rating: $rating, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -379,6 +395,8 @@ class _$PlaceImpl implements _Place {
         (other.runtimeType == runtimeType &&
             other is _$PlaceImpl &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.serverPlaceId, serverPlaceId) ||
+                other.serverPlaceId == serverPlaceId) &&
             (identical(other.tripId, tripId) || other.tripId == tripId) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.address, address) || other.address == address) &&
@@ -409,6 +427,7 @@ class _$PlaceImpl implements _Place {
   int get hashCode => Object.hash(
       runtimeType,
       id,
+      serverPlaceId,
       tripId,
       name,
       address,
@@ -443,6 +462,7 @@ class _$PlaceImpl implements _Place {
 abstract class _Place implements Place {
   const factory _Place(
       {required final String id,
+      final String? serverPlaceId,
       required final String tripId,
       required final String name,
       final String? address,
@@ -462,6 +482,8 @@ abstract class _Place implements Place {
 
   @override
   String get id;
+  @override
+  String? get serverPlaceId;
   @override
   String get tripId;
   @override

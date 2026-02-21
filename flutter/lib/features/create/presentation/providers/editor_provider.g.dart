@@ -23,7 +23,7 @@ final tripRepositoryProvider = AutoDisposeProvider<TripRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef TripRepositoryRef = AutoDisposeProviderRef<TripRepository>;
-String _$placeRepositoryHash() => r'8d35e0e7073e1fe18c6daab5f31f2fbefb322d67';
+String _$placeRepositoryHash() => r'86d2fb3fb08bfdbb4461c56f139624313fd273ae';
 
 /// See also [placeRepository].
 @ProviderFor(placeRepository)

@@ -9,6 +9,7 @@ part 'place.g.dart';
 class Place with _$Place {
   const factory Place({
     required String id,
+    String? serverPlaceId,
     required String tripId,
     required String name,
     String? address,

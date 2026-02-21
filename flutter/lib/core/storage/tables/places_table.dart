@@ -5,6 +5,7 @@ import 'package:dora/core/storage/converters.dart';
 @DataClassName('PlaceRow')
 class Places extends Table {
   TextColumn get id => text()();
+  TextColumn get serverPlaceId => text().nullable()();
   TextColumn get tripId => text()();
   TextColumn get name => text()();
   TextColumn get address => text().nullable()();
@@ -13,8 +14,9 @@ class Places extends Table {
   TextColumn get visitTime => text().nullable()();
   IntColumn get dayNumber => integer().nullable()();
   IntColumn get orderIndex => integer()();
-  TextColumn get photoUrls =>
-      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  TextColumn get photoUrls => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
   // Place classification
   TextColumn get placeType => text().nullable()();

@@ -13,13 +13,17 @@ class PlaceRepository {
   PlaceRepository(
     this._db, {
     openapi.SearchApi? searchApi,
+    openapi.PlacesApi? placesApi,
     AuthService? authService,
   })  : _searchApi = searchApi,
+        _placesApi = placesApi,
         _authService = authService;
 
   final AppDatabase _db;
   final openapi.SearchApi? _searchApi;
+  final openapi.PlacesApi? _placesApi;
   final AuthService? _authService;
+  final Map<String, Future<String>> _ensureRemotePlaceIdInFlight = {};
 
   Future<List<Place>> getPlaces(String tripId) async {
     final rows = await _db.placeDao.getPlacesForTrip(tripId);
@@ -94,10 +98,73 @@ class PlaceRepository {
         longitude: result.longitude ?? 0,
       ),
       orderIndex: orderIndex,
+      serverPlaceId: null,
       localUpdatedAt: now,
       serverUpdatedAt: now,
       syncStatus: 'pending',
     );
+  }
+
+  /// Ensures a local place row has a remote backend place UUID.
+  ///
+  /// Media upload API requires `trip_place_id` from backend.
+  /// Local editor places can exist before they are synced remotely.
+  Future<String> ensureRemotePlaceId(String localPlaceId) async {
+    final inFlight = _ensureRemotePlaceIdInFlight[localPlaceId];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _ensureRemotePlaceIdInternal(localPlaceId);
+    _ensureRemotePlaceIdInFlight[localPlaceId] = future;
+
+    try {
+      return await future;
+    } finally {
+      _ensureRemotePlaceIdInFlight.remove(localPlaceId);
+    }
+  }
+
+  Future<void> addPhotoUrlBridge({
+    required String localPlaceId,
+    required String photoUrl,
+  }) async {
+    final place = await getPlace(localPlaceId);
+    if (place == null || photoUrl.isEmpty) {
+      return;
+    }
+    if (place.photoUrls.contains(photoUrl)) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final updated = place.copyWith(
+      photoUrls: [...place.photoUrls, photoUrl],
+      localUpdatedAt: now,
+      syncStatus: 'pending',
+    );
+    await _db.placeDao.updatePlace(_toCompanion(updated));
+  }
+
+  Future<void> removePhotoUrlBridge({
+    required String localPlaceId,
+    required String photoUrl,
+  }) async {
+    final place = await getPlace(localPlaceId);
+    if (place == null || photoUrl.isEmpty) {
+      return;
+    }
+    if (!place.photoUrls.contains(photoUrl)) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final updated = place.copyWith(
+      photoUrls: place.photoUrls.where((url) => url != photoUrl).toList(),
+      localUpdatedAt: now,
+      syncStatus: 'pending',
+    );
+    await _db.placeDao.updatePlace(_toCompanion(updated));
   }
 
   Future<List<PlaceSearchResult>> searchPlaces({
@@ -146,6 +213,7 @@ class PlaceRepository {
   Place _mapRow(PlaceRow row) {
     return Place(
       id: row.id,
+      serverPlaceId: row.serverPlaceId,
       tripId: row.tripId,
       name: row.name,
       address: row.address,
@@ -166,6 +234,7 @@ class PlaceRepository {
   PlacesCompanion _toCompanion(Place place) {
     return PlacesCompanion(
       id: Value(place.id),
+      serverPlaceId: Value(place.serverPlaceId),
       tripId: Value(place.tripId),
       name: Value(place.name),
       address: Value(place.address),
@@ -183,6 +252,81 @@ class PlaceRepository {
     );
   }
 
+  Future<String> _ensureRemotePlaceIdInternal(String localPlaceId) async {
+    final local = await getPlace(localPlaceId);
+    if (local == null) {
+      throw PlaceIdentityException(
+        'Cannot resolve remote place id: local place not found ($localPlaceId)',
+      );
+    }
+
+    final existingRemoteId = local.serverPlaceId;
+    if (existingRemoteId != null && existingRemoteId.isNotEmpty) {
+      return existingRemoteId;
+    }
+
+    final placesApi = _placesApi;
+    final authService = _authService;
+    if (placesApi == null || authService == null) {
+      throw PlaceIdentityException(
+        'Cannot resolve remote place id: Places API/auth service unavailable',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw PlaceIdentityException(
+        'Cannot resolve remote place id: auth token unavailable',
+      );
+    }
+
+    final payload = openapi.PlaceCreate((builder) {
+      builder
+        ..tripId = local.tripId
+        ..name = local.name
+        ..lat = local.coordinates.latitude
+        ..lng = local.coordinates.longitude
+        ..orderInTrip = local.orderIndex;
+
+      final placeType = local.placeType;
+      if (placeType != null && placeType.isNotEmpty) {
+        builder.placeType = placeType;
+      }
+
+      final notes = local.notes;
+      if (notes != null && notes.isNotEmpty) {
+        builder.userNotes = notes;
+      }
+
+      final rating = local.rating;
+      if (rating != null) {
+        builder.userRating = rating;
+      }
+    });
+
+    final response = await placesApi.createPlaceApiV1PlacesPost(
+      authorization: 'Bearer $token',
+      placeCreate: payload,
+    );
+
+    final remoteId = response.data?.id;
+    if (remoteId == null || remoteId.isEmpty) {
+      throw PlaceIdentityException(
+        'Cannot resolve remote place id: backend returned empty id',
+      );
+    }
+
+    final now = DateTime.now();
+    final updated = local.copyWith(
+      serverPlaceId: remoteId,
+      localUpdatedAt: now,
+      syncStatus: 'pending',
+    );
+    await _db.placeDao.updatePlace(_toCompanion(updated));
+
+    return remoteId;
+  }
+
   Future<void> _updatePlaceCount(String tripId) async {
     final places = await _db.placeDao.getPlacesForTrip(tripId);
     final userTrip = await _db.userTripsDao.getTripById(tripId);
@@ -197,4 +341,13 @@ class PlaceRepository {
       syncStatus: 'pending',
     ));
   }
+}
+
+class PlaceIdentityException implements Exception {
+  PlaceIdentityException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

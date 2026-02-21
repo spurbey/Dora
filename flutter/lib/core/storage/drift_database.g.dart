@@ -701,6 +701,12 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serverPlaceIdMeta =
+      const VerificationMeta('serverPlaceId');
+  @override
+  late final GeneratedColumn<String> serverPlaceId = GeneratedColumn<String>(
+      'server_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
   @override
   late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
@@ -784,6 +790,7 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        serverPlaceId,
         tripId,
         name,
         address,
@@ -813,6 +820,12 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('server_place_id')) {
+      context.handle(
+          _serverPlaceIdMeta,
+          serverPlaceId.isAcceptableOrUnknown(
+              data['server_place_id']!, _serverPlaceIdMeta));
     }
     if (data.containsKey('trip_id')) {
       context.handle(_tripIdMeta,
@@ -893,6 +906,8 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
     return PlaceRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      serverPlaceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_place_id']),
       tripId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
       name: attachedDatabase.typeMapping
@@ -939,6 +954,7 @@ class $PlacesTable extends Places with TableInfo<$PlacesTable, PlaceRow> {
 
 class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final String id;
+  final String? serverPlaceId;
   final String tripId;
   final String name;
   final String? address;
@@ -955,6 +971,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   final String syncStatus;
   const PlaceRow(
       {required this.id,
+      this.serverPlaceId,
       required this.tripId,
       required this.name,
       this.address,
@@ -973,6 +990,9 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || serverPlaceId != null) {
+      map['server_place_id'] = Variable<String>(serverPlaceId);
+    }
     map['trip_id'] = Variable<String>(tripId);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || address != null) {
@@ -1011,6 +1031,9 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   PlacesCompanion toCompanion(bool nullToAbsent) {
     return PlacesCompanion(
       id: Value(id),
+      serverPlaceId: serverPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverPlaceId),
       tripId: Value(tripId),
       name: Value(name),
       address: address == null && nullToAbsent
@@ -1043,6 +1066,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PlaceRow(
       id: serializer.fromJson<String>(json['id']),
+      serverPlaceId: serializer.fromJson<String?>(json['serverPlaceId']),
       tripId: serializer.fromJson<String>(json['tripId']),
       name: serializer.fromJson<String>(json['name']),
       address: serializer.fromJson<String?>(json['address']),
@@ -1064,6 +1088,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'serverPlaceId': serializer.toJson<String?>(serverPlaceId),
       'tripId': serializer.toJson<String>(tripId),
       'name': serializer.toJson<String>(name),
       'address': serializer.toJson<String?>(address),
@@ -1083,6 +1108,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
 
   PlaceRow copyWith(
           {String? id,
+          Value<String?> serverPlaceId = const Value.absent(),
           String? tripId,
           String? name,
           Value<String?> address = const Value.absent(),
@@ -1099,6 +1125,8 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
           String? syncStatus}) =>
       PlaceRow(
         id: id ?? this.id,
+        serverPlaceId:
+            serverPlaceId.present ? serverPlaceId.value : this.serverPlaceId,
         tripId: tripId ?? this.tripId,
         name: name ?? this.name,
         address: address.present ? address.value : this.address,
@@ -1117,6 +1145,9 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   PlaceRow copyWithCompanion(PlacesCompanion data) {
     return PlaceRow(
       id: data.id.present ? data.id.value : this.id,
+      serverPlaceId: data.serverPlaceId.present
+          ? data.serverPlaceId.value
+          : this.serverPlaceId,
       tripId: data.tripId.present ? data.tripId.value : this.tripId,
       name: data.name.present ? data.name.value : this.name,
       address: data.address.present ? data.address.value : this.address,
@@ -1145,6 +1176,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   String toString() {
     return (StringBuffer('PlaceRow(')
           ..write('id: $id, ')
+          ..write('serverPlaceId: $serverPlaceId, ')
           ..write('tripId: $tripId, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
@@ -1166,6 +1198,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
   @override
   int get hashCode => Object.hash(
       id,
+      serverPlaceId,
       tripId,
       name,
       address,
@@ -1185,6 +1218,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
       identical(this, other) ||
       (other is PlaceRow &&
           other.id == this.id &&
+          other.serverPlaceId == this.serverPlaceId &&
           other.tripId == this.tripId &&
           other.name == this.name &&
           other.address == this.address &&
@@ -1203,6 +1237,7 @@ class PlaceRow extends DataClass implements Insertable<PlaceRow> {
 
 class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<String> id;
+  final Value<String?> serverPlaceId;
   final Value<String> tripId;
   final Value<String> name;
   final Value<String?> address;
@@ -1220,6 +1255,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   final Value<int> rowid;
   const PlacesCompanion({
     this.id = const Value.absent(),
+    this.serverPlaceId = const Value.absent(),
     this.tripId = const Value.absent(),
     this.name = const Value.absent(),
     this.address = const Value.absent(),
@@ -1238,6 +1274,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   });
   PlacesCompanion.insert({
     required String id,
+    this.serverPlaceId = const Value.absent(),
     required String tripId,
     required String name,
     this.address = const Value.absent(),
@@ -1263,6 +1300,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
         syncStatus = Value(syncStatus);
   static Insertable<PlaceRow> custom({
     Expression<String>? id,
+    Expression<String>? serverPlaceId,
     Expression<String>? tripId,
     Expression<String>? name,
     Expression<String>? address,
@@ -1281,6 +1319,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverPlaceId != null) 'server_place_id': serverPlaceId,
       if (tripId != null) 'trip_id': tripId,
       if (name != null) 'name': name,
       if (address != null) 'address': address,
@@ -1301,6 +1340,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
 
   PlacesCompanion copyWith(
       {Value<String>? id,
+      Value<String?>? serverPlaceId,
       Value<String>? tripId,
       Value<String>? name,
       Value<String?>? address,
@@ -1318,6 +1358,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
       Value<int>? rowid}) {
     return PlacesCompanion(
       id: id ?? this.id,
+      serverPlaceId: serverPlaceId ?? this.serverPlaceId,
       tripId: tripId ?? this.tripId,
       name: name ?? this.name,
       address: address ?? this.address,
@@ -1341,6 +1382,9 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (serverPlaceId.present) {
+      map['server_place_id'] = Variable<String>(serverPlaceId.value);
     }
     if (tripId.present) {
       map['trip_id'] = Variable<String>(tripId.value);
@@ -1396,6 +1440,7 @@ class PlacesCompanion extends UpdateCompanion<PlaceRow> {
   String toString() {
     return (StringBuffer('PlacesCompanion(')
           ..write('id: $id, ')
+          ..write('serverPlaceId: $serverPlaceId, ')
           ..write('tripId: $tripId, ')
           ..write('name: $name, ')
           ..write('address: $address, ')
@@ -2320,6 +2365,34 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
   late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
       'local_path', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _thumbnailPathMeta =
+      const VerificationMeta('thumbnailPath');
+  @override
+  late final GeneratedColumn<String> thumbnailPath = GeneratedColumn<String>(
+      'thumbnail_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mimeTypeMeta =
+      const VerificationMeta('mimeType');
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+      'mime_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fileSizeBytesMeta =
+      const VerificationMeta('fileSizeBytes');
+  @override
+  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
+      'file_size_bytes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+      'width', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+      'height', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -2327,6 +2400,54 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('photo'));
+  static const VerificationMeta _uploadStatusMeta =
+      const VerificationMeta('uploadStatus');
+  @override
+  late final GeneratedColumn<String> uploadStatus = GeneratedColumn<String>(
+      'upload_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('queued'));
+  static const VerificationMeta _uploadProgressMeta =
+      const VerificationMeta('uploadProgress');
+  @override
+  late final GeneratedColumn<double> uploadProgress = GeneratedColumn<double>(
+      'upload_progress', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _retryCountMeta =
+      const VerificationMeta('retryCount');
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+      'retry_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _errorMessageMeta =
+      const VerificationMeta('errorMessage');
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+      'error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _uploadedAtMeta =
+      const VerificationMeta('uploadedAt');
+  @override
+  late final GeneratedColumn<DateTime> uploadedAt = GeneratedColumn<DateTime>(
+      'uploaded_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _nextAttemptAtMeta =
+      const VerificationMeta('nextAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>('next_attempt_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _workerSessionIdMeta =
+      const VerificationMeta('workerSessionId');
+  @override
+  late final GeneratedColumn<String> workerSessionId = GeneratedColumn<String>(
+      'worker_session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -2358,7 +2479,19 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
         placeId,
         url,
         localPath,
+        thumbnailPath,
+        mimeType,
+        fileSizeBytes,
+        width,
+        height,
         type,
+        uploadStatus,
+        uploadProgress,
+        retryCount,
+        errorMessage,
+        uploadedAt,
+        nextAttemptAt,
+        workerSessionId,
         localUpdatedAt,
         serverUpdatedAt,
         syncStatus,
@@ -2397,9 +2530,75 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
       context.handle(_localPathMeta,
           localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta));
     }
+    if (data.containsKey('thumbnail_path')) {
+      context.handle(
+          _thumbnailPathMeta,
+          thumbnailPath.isAcceptableOrUnknown(
+              data['thumbnail_path']!, _thumbnailPathMeta));
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(_mimeTypeMeta,
+          mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
+    }
+    if (data.containsKey('file_size_bytes')) {
+      context.handle(
+          _fileSizeBytesMeta,
+          fileSizeBytes.isAcceptableOrUnknown(
+              data['file_size_bytes']!, _fileSizeBytesMeta));
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+          _widthMeta, width.isAcceptableOrUnknown(data['width']!, _widthMeta));
+    }
+    if (data.containsKey('height')) {
+      context.handle(_heightMeta,
+          height.isAcceptableOrUnknown(data['height']!, _heightMeta));
+    }
     if (data.containsKey('type')) {
       context.handle(
           _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('upload_status')) {
+      context.handle(
+          _uploadStatusMeta,
+          uploadStatus.isAcceptableOrUnknown(
+              data['upload_status']!, _uploadStatusMeta));
+    }
+    if (data.containsKey('upload_progress')) {
+      context.handle(
+          _uploadProgressMeta,
+          uploadProgress.isAcceptableOrUnknown(
+              data['upload_progress']!, _uploadProgressMeta));
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+          _retryCountMeta,
+          retryCount.isAcceptableOrUnknown(
+              data['retry_count']!, _retryCountMeta));
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+          _errorMessageMeta,
+          errorMessage.isAcceptableOrUnknown(
+              data['error_message']!, _errorMessageMeta));
+    }
+    if (data.containsKey('uploaded_at')) {
+      context.handle(
+          _uploadedAtMeta,
+          uploadedAt.isAcceptableOrUnknown(
+              data['uploaded_at']!, _uploadedAtMeta));
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+          _nextAttemptAtMeta,
+          nextAttemptAt.isAcceptableOrUnknown(
+              data['next_attempt_at']!, _nextAttemptAtMeta));
+    }
+    if (data.containsKey('worker_session_id')) {
+      context.handle(
+          _workerSessionIdMeta,
+          workerSessionId.isAcceptableOrUnknown(
+              data['worker_session_id']!, _workerSessionIdMeta));
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -2450,8 +2649,32 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
           .read(DriftSqlType.string, data['${effectivePrefix}url']),
       localPath: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}local_path']),
+      thumbnailPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}thumbnail_path']),
+      mimeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
+      fileSizeBytes: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}file_size_bytes']),
+      width: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}width']),
+      height: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}height']),
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      uploadStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_status'])!,
+      uploadProgress: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}upload_progress'])!,
+      retryCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
+      errorMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
+      uploadedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}uploaded_at']),
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}next_attempt_at']),
+      workerSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}worker_session_id']),
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
@@ -2475,7 +2698,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
   final String? placeId;
   final String? url;
   final String? localPath;
+  final String? thumbnailPath;
+  final String? mimeType;
+  final int? fileSizeBytes;
+  final int? width;
+  final int? height;
   final String type;
+  final String uploadStatus;
+  final double uploadProgress;
+  final int retryCount;
+  final String? errorMessage;
+  final DateTime? uploadedAt;
+  final DateTime? nextAttemptAt;
+  final String? workerSessionId;
   final DateTime localUpdatedAt;
   final DateTime serverUpdatedAt;
   final String syncStatus;
@@ -2486,7 +2721,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
       this.placeId,
       this.url,
       this.localPath,
+      this.thumbnailPath,
+      this.mimeType,
+      this.fileSizeBytes,
+      this.width,
+      this.height,
       required this.type,
+      required this.uploadStatus,
+      required this.uploadProgress,
+      required this.retryCount,
+      this.errorMessage,
+      this.uploadedAt,
+      this.nextAttemptAt,
+      this.workerSessionId,
       required this.localUpdatedAt,
       required this.serverUpdatedAt,
       required this.syncStatus,
@@ -2505,7 +2752,37 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
     if (!nullToAbsent || localPath != null) {
       map['local_path'] = Variable<String>(localPath);
     }
+    if (!nullToAbsent || thumbnailPath != null) {
+      map['thumbnail_path'] = Variable<String>(thumbnailPath);
+    }
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    if (!nullToAbsent || fileSizeBytes != null) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes);
+    }
+    if (!nullToAbsent || width != null) {
+      map['width'] = Variable<int>(width);
+    }
+    if (!nullToAbsent || height != null) {
+      map['height'] = Variable<int>(height);
+    }
     map['type'] = Variable<String>(type);
+    map['upload_status'] = Variable<String>(uploadStatus);
+    map['upload_progress'] = Variable<double>(uploadProgress);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    if (!nullToAbsent || uploadedAt != null) {
+      map['uploaded_at'] = Variable<DateTime>(uploadedAt);
+    }
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
+    if (!nullToAbsent || workerSessionId != null) {
+      map['worker_session_id'] = Variable<String>(workerSessionId);
+    }
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
     map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -2524,7 +2801,35 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
       localPath: localPath == null && nullToAbsent
           ? const Value.absent()
           : Value(localPath),
+      thumbnailPath: thumbnailPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbnailPath),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      fileSizeBytes: fileSizeBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileSizeBytes),
+      width:
+          width == null && nullToAbsent ? const Value.absent() : Value(width),
+      height:
+          height == null && nullToAbsent ? const Value.absent() : Value(height),
       type: Value(type),
+      uploadStatus: Value(uploadStatus),
+      uploadProgress: Value(uploadProgress),
+      retryCount: Value(retryCount),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      uploadedAt: uploadedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadedAt),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
+      workerSessionId: workerSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workerSessionId),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: Value(serverUpdatedAt),
       syncStatus: Value(syncStatus),
@@ -2541,7 +2846,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
       placeId: serializer.fromJson<String?>(json['placeId']),
       url: serializer.fromJson<String?>(json['url']),
       localPath: serializer.fromJson<String?>(json['localPath']),
+      thumbnailPath: serializer.fromJson<String?>(json['thumbnailPath']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
+      width: serializer.fromJson<int?>(json['width']),
+      height: serializer.fromJson<int?>(json['height']),
       type: serializer.fromJson<String>(json['type']),
+      uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
+      uploadProgress: serializer.fromJson<double>(json['uploadProgress']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      uploadedAt: serializer.fromJson<DateTime?>(json['uploadedAt']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
+      workerSessionId: serializer.fromJson<String?>(json['workerSessionId']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -2557,7 +2874,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
       'placeId': serializer.toJson<String?>(placeId),
       'url': serializer.toJson<String?>(url),
       'localPath': serializer.toJson<String?>(localPath),
+      'thumbnailPath': serializer.toJson<String?>(thumbnailPath),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
+      'width': serializer.toJson<int?>(width),
+      'height': serializer.toJson<int?>(height),
       'type': serializer.toJson<String>(type),
+      'uploadStatus': serializer.toJson<String>(uploadStatus),
+      'uploadProgress': serializer.toJson<double>(uploadProgress),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'uploadedAt': serializer.toJson<DateTime?>(uploadedAt),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
+      'workerSessionId': serializer.toJson<String?>(workerSessionId),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -2571,7 +2900,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
           Value<String?> placeId = const Value.absent(),
           Value<String?> url = const Value.absent(),
           Value<String?> localPath = const Value.absent(),
+          Value<String?> thumbnailPath = const Value.absent(),
+          Value<String?> mimeType = const Value.absent(),
+          Value<int?> fileSizeBytes = const Value.absent(),
+          Value<int?> width = const Value.absent(),
+          Value<int?> height = const Value.absent(),
           String? type,
+          String? uploadStatus,
+          double? uploadProgress,
+          int? retryCount,
+          Value<String?> errorMessage = const Value.absent(),
+          Value<DateTime?> uploadedAt = const Value.absent(),
+          Value<DateTime?> nextAttemptAt = const Value.absent(),
+          Value<String?> workerSessionId = const Value.absent(),
           DateTime? localUpdatedAt,
           DateTime? serverUpdatedAt,
           String? syncStatus,
@@ -2582,7 +2923,25 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
         placeId: placeId.present ? placeId.value : this.placeId,
         url: url.present ? url.value : this.url,
         localPath: localPath.present ? localPath.value : this.localPath,
+        thumbnailPath:
+            thumbnailPath.present ? thumbnailPath.value : this.thumbnailPath,
+        mimeType: mimeType.present ? mimeType.value : this.mimeType,
+        fileSizeBytes:
+            fileSizeBytes.present ? fileSizeBytes.value : this.fileSizeBytes,
+        width: width.present ? width.value : this.width,
+        height: height.present ? height.value : this.height,
         type: type ?? this.type,
+        uploadStatus: uploadStatus ?? this.uploadStatus,
+        uploadProgress: uploadProgress ?? this.uploadProgress,
+        retryCount: retryCount ?? this.retryCount,
+        errorMessage:
+            errorMessage.present ? errorMessage.value : this.errorMessage,
+        uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
+        nextAttemptAt:
+            nextAttemptAt.present ? nextAttemptAt.value : this.nextAttemptAt,
+        workerSessionId: workerSessionId.present
+            ? workerSessionId.value
+            : this.workerSessionId,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -2595,7 +2954,35 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
       placeId: data.placeId.present ? data.placeId.value : this.placeId,
       url: data.url.present ? data.url.value : this.url,
       localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      thumbnailPath: data.thumbnailPath.present
+          ? data.thumbnailPath.value
+          : this.thumbnailPath,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      fileSizeBytes: data.fileSizeBytes.present
+          ? data.fileSizeBytes.value
+          : this.fileSizeBytes,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
       type: data.type.present ? data.type.value : this.type,
+      uploadStatus: data.uploadStatus.present
+          ? data.uploadStatus.value
+          : this.uploadStatus,
+      uploadProgress: data.uploadProgress.present
+          ? data.uploadProgress.value
+          : this.uploadProgress,
+      retryCount:
+          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      uploadedAt:
+          data.uploadedAt.present ? data.uploadedAt.value : this.uploadedAt,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
+      workerSessionId: data.workerSessionId.present
+          ? data.workerSessionId.value
+          : this.workerSessionId,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
@@ -2616,7 +3003,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
           ..write('placeId: $placeId, ')
           ..write('url: $url, ')
           ..write('localPath: $localPath, ')
+          ..write('thumbnailPath: $thumbnailPath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
           ..write('type: $type, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('uploadProgress: $uploadProgress, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('workerSessionId: $workerSessionId, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -2626,8 +3025,30 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
   }
 
   @override
-  int get hashCode => Object.hash(id, tripId, placeId, url, localPath, type,
-      localUpdatedAt, serverUpdatedAt, syncStatus, createdAt);
+  int get hashCode => Object.hashAll([
+        id,
+        tripId,
+        placeId,
+        url,
+        localPath,
+        thumbnailPath,
+        mimeType,
+        fileSizeBytes,
+        width,
+        height,
+        type,
+        uploadStatus,
+        uploadProgress,
+        retryCount,
+        errorMessage,
+        uploadedAt,
+        nextAttemptAt,
+        workerSessionId,
+        localUpdatedAt,
+        serverUpdatedAt,
+        syncStatus,
+        createdAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2637,7 +3058,19 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
           other.placeId == this.placeId &&
           other.url == this.url &&
           other.localPath == this.localPath &&
+          other.thumbnailPath == this.thumbnailPath &&
+          other.mimeType == this.mimeType &&
+          other.fileSizeBytes == this.fileSizeBytes &&
+          other.width == this.width &&
+          other.height == this.height &&
           other.type == this.type &&
+          other.uploadStatus == this.uploadStatus &&
+          other.uploadProgress == this.uploadProgress &&
+          other.retryCount == this.retryCount &&
+          other.errorMessage == this.errorMessage &&
+          other.uploadedAt == this.uploadedAt &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.workerSessionId == this.workerSessionId &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
           other.syncStatus == this.syncStatus &&
@@ -2650,7 +3083,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
   final Value<String?> placeId;
   final Value<String?> url;
   final Value<String?> localPath;
+  final Value<String?> thumbnailPath;
+  final Value<String?> mimeType;
+  final Value<int?> fileSizeBytes;
+  final Value<int?> width;
+  final Value<int?> height;
   final Value<String> type;
+  final Value<String> uploadStatus;
+  final Value<double> uploadProgress;
+  final Value<int> retryCount;
+  final Value<String?> errorMessage;
+  final Value<DateTime?> uploadedAt;
+  final Value<DateTime?> nextAttemptAt;
+  final Value<String?> workerSessionId;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime> serverUpdatedAt;
   final Value<String> syncStatus;
@@ -2662,7 +3107,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     this.placeId = const Value.absent(),
     this.url = const Value.absent(),
     this.localPath = const Value.absent(),
+    this.thumbnailPath = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
     this.type = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.uploadProgress = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2675,7 +3132,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     this.placeId = const Value.absent(),
     this.url = const Value.absent(),
     this.localPath = const Value.absent(),
+    this.thumbnailPath = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
     this.type = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.uploadProgress = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
     required DateTime localUpdatedAt,
     required DateTime serverUpdatedAt,
     required String syncStatus,
@@ -2693,7 +3162,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     Expression<String>? placeId,
     Expression<String>? url,
     Expression<String>? localPath,
+    Expression<String>? thumbnailPath,
+    Expression<String>? mimeType,
+    Expression<int>? fileSizeBytes,
+    Expression<int>? width,
+    Expression<int>? height,
     Expression<String>? type,
+    Expression<String>? uploadStatus,
+    Expression<double>? uploadProgress,
+    Expression<int>? retryCount,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? uploadedAt,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<String>? workerSessionId,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
     Expression<String>? syncStatus,
@@ -2706,7 +3187,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
       if (placeId != null) 'place_id': placeId,
       if (url != null) 'url': url,
       if (localPath != null) 'local_path': localPath,
+      if (thumbnailPath != null) 'thumbnail_path': thumbnailPath,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
       if (type != null) 'type': type,
+      if (uploadStatus != null) 'upload_status': uploadStatus,
+      if (uploadProgress != null) 'upload_progress': uploadProgress,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (workerSessionId != null) 'worker_session_id': workerSessionId,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -2721,7 +3214,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
       Value<String?>? placeId,
       Value<String?>? url,
       Value<String?>? localPath,
+      Value<String?>? thumbnailPath,
+      Value<String?>? mimeType,
+      Value<int?>? fileSizeBytes,
+      Value<int?>? width,
+      Value<int?>? height,
       Value<String>? type,
+      Value<String>? uploadStatus,
+      Value<double>? uploadProgress,
+      Value<int>? retryCount,
+      Value<String?>? errorMessage,
+      Value<DateTime?>? uploadedAt,
+      Value<DateTime?>? nextAttemptAt,
+      Value<String?>? workerSessionId,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime>? serverUpdatedAt,
       Value<String>? syncStatus,
@@ -2733,7 +3238,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
       placeId: placeId ?? this.placeId,
       url: url ?? this.url,
       localPath: localPath ?? this.localPath,
+      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      mimeType: mimeType ?? this.mimeType,
+      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+      width: width ?? this.width,
+      height: height ?? this.height,
       type: type ?? this.type,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
+      uploadProgress: uploadProgress ?? this.uploadProgress,
+      retryCount: retryCount ?? this.retryCount,
+      errorMessage: errorMessage ?? this.errorMessage,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      workerSessionId: workerSessionId ?? this.workerSessionId,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -2760,8 +3277,44 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     if (localPath.present) {
       map['local_path'] = Variable<String>(localPath.value);
     }
+    if (thumbnailPath.present) {
+      map['thumbnail_path'] = Variable<String>(thumbnailPath.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (fileSizeBytes.present) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (uploadStatus.present) {
+      map['upload_status'] = Variable<String>(uploadStatus.value);
+    }
+    if (uploadProgress.present) {
+      map['upload_progress'] = Variable<double>(uploadProgress.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (uploadedAt.present) {
+      map['uploaded_at'] = Variable<DateTime>(uploadedAt.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (workerSessionId.present) {
+      map['worker_session_id'] = Variable<String>(workerSessionId.value);
     }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
@@ -2789,7 +3342,19 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
           ..write('placeId: $placeId, ')
           ..write('url: $url, ')
           ..write('localPath: $localPath, ')
+          ..write('thumbnailPath: $thumbnailPath, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
           ..write('type: $type, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('uploadProgress: $uploadProgress, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('workerSessionId: $workerSessionId, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -4606,6 +5171,7 @@ typedef $$TripsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$PlacesTableCreateCompanionBuilder = PlacesCompanion Function({
   required String id,
+  Value<String?> serverPlaceId,
   required String tripId,
   required String name,
   Value<String?> address,
@@ -4624,6 +5190,7 @@ typedef $$PlacesTableCreateCompanionBuilder = PlacesCompanion Function({
 });
 typedef $$PlacesTableUpdateCompanionBuilder = PlacesCompanion Function({
   Value<String> id,
+  Value<String?> serverPlaceId,
   Value<String> tripId,
   Value<String> name,
   Value<String?> address,
@@ -4652,6 +5219,9 @@ class $$PlacesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serverPlaceId => $composableBuilder(
+      column: $table.serverPlaceId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnFilters(column));
@@ -4714,6 +5284,10 @@ class $$PlacesTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get serverPlaceId => $composableBuilder(
+      column: $table.serverPlaceId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnOrderings(column));
 
@@ -4770,6 +5344,9 @@ class $$PlacesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get serverPlaceId => $composableBuilder(
+      column: $table.serverPlaceId, builder: (column) => column);
 
   GeneratedColumn<String> get tripId =>
       $composableBuilder(column: $table.tripId, builder: (column) => column);
@@ -4839,6 +5416,7 @@ class $$PlacesTableTableManager extends RootTableManager<
               $$PlacesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String?> serverPlaceId = const Value.absent(),
             Value<String> tripId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> address = const Value.absent(),
@@ -4857,6 +5435,7 @@ class $$PlacesTableTableManager extends RootTableManager<
           }) =>
               PlacesCompanion(
             id: id,
+            serverPlaceId: serverPlaceId,
             tripId: tripId,
             name: name,
             address: address,
@@ -4875,6 +5454,7 @@ class $$PlacesTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String?> serverPlaceId = const Value.absent(),
             required String tripId,
             required String name,
             Value<String?> address = const Value.absent(),
@@ -4893,6 +5473,7 @@ class $$PlacesTableTableManager extends RootTableManager<
           }) =>
               PlacesCompanion.insert(
             id: id,
+            serverPlaceId: serverPlaceId,
             tripId: tripId,
             name: name,
             address: address,
@@ -5309,7 +5890,19 @@ typedef $$MediaTableCreateCompanionBuilder = MediaCompanion Function({
   Value<String?> placeId,
   Value<String?> url,
   Value<String?> localPath,
+  Value<String?> thumbnailPath,
+  Value<String?> mimeType,
+  Value<int?> fileSizeBytes,
+  Value<int?> width,
+  Value<int?> height,
   Value<String> type,
+  Value<String> uploadStatus,
+  Value<double> uploadProgress,
+  Value<int> retryCount,
+  Value<String?> errorMessage,
+  Value<DateTime?> uploadedAt,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> workerSessionId,
   required DateTime localUpdatedAt,
   required DateTime serverUpdatedAt,
   required String syncStatus,
@@ -5322,7 +5915,19 @@ typedef $$MediaTableUpdateCompanionBuilder = MediaCompanion Function({
   Value<String?> placeId,
   Value<String?> url,
   Value<String?> localPath,
+  Value<String?> thumbnailPath,
+  Value<String?> mimeType,
+  Value<int?> fileSizeBytes,
+  Value<int?> width,
+  Value<int?> height,
   Value<String> type,
+  Value<String> uploadStatus,
+  Value<double> uploadProgress,
+  Value<int> retryCount,
+  Value<String?> errorMessage,
+  Value<DateTime?> uploadedAt,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> workerSessionId,
   Value<DateTime> localUpdatedAt,
   Value<DateTime> serverUpdatedAt,
   Value<String> syncStatus,
@@ -5353,8 +5958,46 @@ class $$MediaTableFilterComposer extends Composer<_$AppDatabase, $MediaTable> {
   ColumnFilters<String> get localPath => $composableBuilder(
       column: $table.localPath, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get thumbnailPath => $composableBuilder(
+      column: $table.thumbnailPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
+      column: $table.fileSizeBytes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get width => $composableBuilder(
+      column: $table.width, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get height => $composableBuilder(
+      column: $table.height, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get uploadProgress => $composableBuilder(
+      column: $table.uploadProgress,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get uploadedAt => $composableBuilder(
+      column: $table.uploadedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -5395,8 +6038,51 @@ class $$MediaTableOrderingComposer
   ColumnOrderings<String> get localPath => $composableBuilder(
       column: $table.localPath, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get thumbnailPath => $composableBuilder(
+      column: $table.thumbnailPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
+      column: $table.fileSizeBytes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get width => $composableBuilder(
+      column: $table.width, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get height => $composableBuilder(
+      column: $table.height, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get uploadProgress => $composableBuilder(
+      column: $table.uploadProgress,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get uploadedAt => $composableBuilder(
+      column: $table.uploadedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -5437,8 +6123,44 @@ class $$MediaTableAnnotationComposer
   GeneratedColumn<String> get localPath =>
       $composableBuilder(column: $table.localPath, builder: (column) => column);
 
+  GeneratedColumn<String> get thumbnailPath => $composableBuilder(
+      column: $table.thumbnailPath, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
+      column: $table.fileSizeBytes, builder: (column) => column);
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus, builder: (column) => column);
+
+  GeneratedColumn<double> get uploadProgress => $composableBuilder(
+      column: $table.uploadProgress, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get uploadedAt => $composableBuilder(
+      column: $table.uploadedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => column);
+
+  GeneratedColumn<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
@@ -5481,7 +6203,19 @@ class $$MediaTableTableManager extends RootTableManager<
             Value<String?> placeId = const Value.absent(),
             Value<String?> url = const Value.absent(),
             Value<String?> localPath = const Value.absent(),
+            Value<String?> thumbnailPath = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> fileSizeBytes = const Value.absent(),
+            Value<int?> width = const Value.absent(),
+            Value<int?> height = const Value.absent(),
             Value<String> type = const Value.absent(),
+            Value<String> uploadStatus = const Value.absent(),
+            Value<double> uploadProgress = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<DateTime?> uploadedAt = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime> serverUpdatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -5494,7 +6228,19 @@ class $$MediaTableTableManager extends RootTableManager<
             placeId: placeId,
             url: url,
             localPath: localPath,
+            thumbnailPath: thumbnailPath,
+            mimeType: mimeType,
+            fileSizeBytes: fileSizeBytes,
+            width: width,
+            height: height,
             type: type,
+            uploadStatus: uploadStatus,
+            uploadProgress: uploadProgress,
+            retryCount: retryCount,
+            errorMessage: errorMessage,
+            uploadedAt: uploadedAt,
+            nextAttemptAt: nextAttemptAt,
+            workerSessionId: workerSessionId,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,
@@ -5507,7 +6253,19 @@ class $$MediaTableTableManager extends RootTableManager<
             Value<String?> placeId = const Value.absent(),
             Value<String?> url = const Value.absent(),
             Value<String?> localPath = const Value.absent(),
+            Value<String?> thumbnailPath = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> fileSizeBytes = const Value.absent(),
+            Value<int?> width = const Value.absent(),
+            Value<int?> height = const Value.absent(),
             Value<String> type = const Value.absent(),
+            Value<String> uploadStatus = const Value.absent(),
+            Value<double> uploadProgress = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<DateTime?> uploadedAt = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
             required DateTime localUpdatedAt,
             required DateTime serverUpdatedAt,
             required String syncStatus,
@@ -5520,7 +6278,19 @@ class $$MediaTableTableManager extends RootTableManager<
             placeId: placeId,
             url: url,
             localPath: localPath,
+            thumbnailPath: thumbnailPath,
+            mimeType: mimeType,
+            fileSizeBytes: fileSizeBytes,
+            width: width,
+            height: height,
             type: type,
+            uploadStatus: uploadStatus,
+            uploadProgress: uploadProgress,
+            retryCount: retryCount,
+            errorMessage: errorMessage,
+            uploadedAt: uploadedAt,
+            nextAttemptAt: nextAttemptAt,
+            workerSessionId: workerSessionId,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
             syncStatus: syncStatus,

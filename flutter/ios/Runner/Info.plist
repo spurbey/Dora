@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow Dora to take photos for your trip places.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow Dora to access your photos for trip media uploads.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow Dora to save processed photos for uploads when needed.</string>
 </dict>
 </plist>

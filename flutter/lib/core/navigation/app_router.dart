@@ -11,6 +11,7 @@ import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
 import 'package:dora/features/create/presentation/screens/editor_screen.dart';
 import 'package:dora/features/create/presentation/screens/city_search_screen.dart';
+import 'package:dora/features/create/presentation/screens/media_upload_screen.dart';
 import 'package:dora/features/create/presentation/screens/place_search_screen.dart';
 import 'package:dora/features/feed/presentation/screens/feed_screen.dart';
 import 'package:dora/features/feed/presentation/screens/search_screen.dart';
@@ -68,6 +69,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.citySearch,
         builder: (context, state) => CitySearchScreen(
           tripId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: Routes.mediaUpload,
+        builder: (context, state) => MediaUploadScreen(
+          tripId: state.pathParameters['tripId']!,
+          placeId: state.pathParameters['placeId']!,
         ),
       ),
       GoRoute(

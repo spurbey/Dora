@@ -12,6 +12,7 @@ import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
+import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
@@ -77,6 +78,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
+        final selectedPlaceId = editor.selectedItemType == 'place'
+            ? editor.selectedItemId
+            : null;
+        final pendingMediaCount = selectedPlaceId == null
+            ? 0
+            : ref
+                .watch(placePendingUploadCountProvider(selectedPlaceId))
+                .maybeWhen(
+                  data: (count) => count,
+                  orElse: () => 0,
+                );
 
         final showFab = !isWide && !editor.bottomPanelExpanded;
 
@@ -103,11 +115,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         ? _buildWideLayout(
                             editor, mapState, controller,
                             initialCenter, initialZoom,
-                            selectedName, selectedIcon)
+                            selectedName,
+                            selectedIcon,
+                            pendingMediaCount,
+                            selectedPlaceId)
                         : _buildMobileLayout(
                             editor, mapState, controller,
                             initialCenter, initialZoom,
-                            selectedName, selectedIcon),
+                            selectedName,
+                            selectedIcon,
+                            pendingMediaCount,
+                            selectedPlaceId),
                   ),
                 ],
               ),
@@ -195,6 +213,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     double initialZoom,
     String? selectedName,
     IconData? selectedIcon,
+    int pendingMediaCount,
+    String? selectedPlaceId,
   ) {
     final showPanel =
         editor.selectedItemId != null || _isAnyRouteMode(editor.mode);
@@ -232,6 +252,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 onMapTap: controller.handleMapTap,
                 onRouteTap: controller.selectRoute,
                 onRouteLineTap: controller.handleRouteLineTap,
+                showMediaTool: selectedPlaceId != null,
+                onMediaTap: selectedPlaceId == null
+                    ? null
+                    : () => context.push(
+                          Routes.mediaUploadPath(widget.tripId, selectedPlaceId),
+                        ),
               ),
               if (showPanel)
                 Positioned(
@@ -249,6 +275,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     selectedItemIcon: _isAnyRouteMode(editor.mode)
                         ? Icons.route
                         : selectedIcon,
+                    statusText: pendingMediaCount > 0
+                        ? 'Uploading $pendingMediaCount photo(s)...'
+                        : null,
                     child: _buildDetailContent(editor, controller),
                   ),
                 ),
@@ -287,6 +316,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     double initialZoom,
     String? selectedName,
     IconData? selectedIcon,
+    int pendingMediaCount,
+    String? selectedPlaceId,
   ) {
     final showPanel =
         editor.selectedItemId != null || _isAnyRouteMode(editor.mode);
@@ -304,6 +335,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           onMapTap: controller.handleMapTap,
           onRouteTap: controller.selectRoute,
           onRouteLineTap: controller.handleRouteLineTap,
+          showMediaTool: selectedPlaceId != null,
+          onMediaTap: selectedPlaceId == null
+              ? null
+              : () => context.push(
+                    Routes.mediaUploadPath(widget.tripId, selectedPlaceId),
+                  ),
         ),
         if (showPanel)
           Positioned(
@@ -321,6 +358,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               selectedItemIcon: _isAnyRouteMode(editor.mode)
                   ? Icons.route
                   : selectedIcon,
+              statusText: pendingMediaCount > 0
+                  ? 'Uploading $pendingMediaCount photo(s)...'
+                  : null,
               child: _buildDetailContent(editor, controller),
             ),
           ),
@@ -509,6 +549,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           place: place,
           onSave: controller.updatePlace,
           onDelete: () => controller.removePlace(place.id),
+          onManageMedia: () =>
+              context.push(Routes.mediaUploadPath(widget.tripId, place.id)),
         );
       } catch (_) {
         return null;

@@ -12,11 +12,13 @@ class PlaceDetailForm extends StatefulWidget {
     required this.place,
     required this.onSave,
     required this.onDelete,
+    this.onManageMedia,
   });
 
   final Place place;
   final ValueChanged<Place> onSave;
   final VoidCallback onDelete;
+  final VoidCallback? onManageMedia;
 
   @override
   State<PlaceDetailForm> createState() => _PlaceDetailFormState();
@@ -158,6 +160,18 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
           const SizedBox(height: AppSpacing.md),
 
           // Photos
+          Row(
+            children: [
+              Text('Photos', style: AppTypography.caption),
+              const Spacer(),
+              if (widget.onManageMedia != null)
+                TextButton.icon(
+                  onPressed: widget.onManageMedia,
+                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                  label: const Text('Manage'),
+                ),
+            ],
+          ),
           SizedBox(
             height: 70,
             child: ListView(
@@ -176,14 +190,18 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
                       ),
                     ),
                   ),
-                Container(
-                  width: 70,
-                  margin: const EdgeInsets.only(right: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    borderRadius: AppRadius.borderSm,
-                    border: Border.all(color: AppColors.divider),
+                InkWell(
+                  onTap: widget.onManageMedia,
+                  borderRadius: AppRadius.borderSm,
+                  child: Container(
+                    width: 70,
+                    margin: const EdgeInsets.only(right: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      borderRadius: AppRadius.borderSm,
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: const Icon(Icons.add, color: AppColors.accent),
                   ),
-                  child: const Icon(Icons.add, color: AppColors.accent),
                 ),
               ],
             ),

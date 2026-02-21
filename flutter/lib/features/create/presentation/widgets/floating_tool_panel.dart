@@ -13,10 +13,14 @@ class FloatingToolPanel extends StatefulWidget {
     super.key,
     required this.currentMode,
     required this.onToolSelected,
+    this.showMediaTool = false,
+    this.onMediaTap,
   });
 
   final EditorMode currentMode;
   final ValueChanged<EditorMode> onToolSelected;
+  final bool showMediaTool;
+  final VoidCallback? onMediaTap;
 
   @override
   State<FloatingToolPanel> createState() => _FloatingToolPanelState();
@@ -135,6 +139,15 @@ class _FloatingToolPanelState extends State<FloatingToolPanel> {
                       )
                     : const SizedBox.shrink(),
               ),
+              if (widget.showMediaTool) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _ToolIcon(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Media',
+                  active: false,
+                  onTap: widget.onMediaTap ?? () {},
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               _ToolIcon(
                 icon: Icons.explore_outlined,

@@ -16,6 +16,7 @@ class BottomDetailPanel extends StatelessWidget {
     this.child,
     this.selectedItemName,
     this.selectedItemIcon,
+    this.statusText,
   });
 
   final bool expanded;
@@ -23,6 +24,7 @@ class BottomDetailPanel extends StatelessWidget {
   final Widget? child;
   final String? selectedItemName;
   final IconData? selectedItemIcon;
+  final String? statusText;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +120,16 @@ class BottomDetailPanel extends StatelessWidget {
                               ),
                             ],
                           ),
+                          if (statusText != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              statusText!,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.accent,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ] else ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(

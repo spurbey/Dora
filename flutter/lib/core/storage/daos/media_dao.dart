@@ -156,6 +156,31 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
     );
   }
 
+  Future<int> updateUploadProgressIfActive({
+    required String mediaId,
+    required String workerSessionId,
+    required double uploadProgress,
+  }) {
+    return customUpdate(
+      '''
+      UPDATE media
+      SET
+        upload_progress = ?,
+        local_updated_at = ?
+      WHERE id = ?
+        AND worker_session_id = ?
+        AND upload_status = 'uploading'
+      ''',
+      variables: [
+        Variable<double>(uploadProgress),
+        Variable<DateTime>(DateTime.now()),
+        Variable<String>(mediaId),
+        Variable<String>(workerSessionId),
+      ],
+      updates: {media},
+    );
+  }
+
   Future<int> updateLocalArtifacts({
     required String mediaId,
     String? localPath,

@@ -142,12 +142,15 @@ class UploadQueueWorker {
           onProgress: (progress) {
             final normalized = progress.clamp(0.0, 1.0).toDouble();
             final queueProgress = 0.1 + (normalized * 0.9);
+            final session = workerSessionId;
+            if (session == null || session.isEmpty) {
+              return;
+            }
             unawaited(
-              _database.mediaDao.updateUploadState(
+              _database.mediaDao.updateUploadProgressIfActive(
                 mediaId: task!.id,
-                uploadStatus: 'uploading',
+                workerSessionId: session,
                 uploadProgress: queueProgress,
-                workerSessionId: workerSessionId,
               ),
             );
           },

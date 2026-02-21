@@ -86,6 +86,29 @@ subprojects {
             targetCompatibility = JavaVersion.VERSION_1_8.toString()
         }
     }
+
+    // flutter_image_compress_common explicitly targets Java/Kotlin 11.
+    // Keep both toolchains aligned to avoid:
+    // "Inconsistent JVM Target Compatibility Between Java and Kotlin Tasks".
+    if (name == "flutter_image_compress_common") {
+        plugins.withId("com.android.library") {
+            extensions.configure<LibraryExtension> {
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_11
+                    targetCompatibility = JavaVersion.VERSION_11
+                }
+            }
+        }
+        tasks.withType<KotlinCompile>().configureEach {
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_11)
+            }
+        }
+        tasks.withType<JavaCompile>().configureEach {
+            sourceCompatibility = JavaVersion.VERSION_11.toString()
+            targetCompatibility = JavaVersion.VERSION_11.toString()
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

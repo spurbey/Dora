@@ -40,6 +40,9 @@ dependencies:
 
   # Search & Media
   cached_network_image: ^3.3.1
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  permission_handler: ^11.3.1
   shared_preferences: ^2.2.3
   url_launcher: ^6.2.5
 

@@ -17,14 +17,18 @@ class MediaRepository {
     required UploadQueueWorker queueWorker,
     required PlaceRepository placeRepository,
     required AppMediaUploader mediaUploader,
+    Future<Directory> Function()? supportDirectoryProvider,
   })  : _queueWorker = queueWorker,
         _placeRepository = placeRepository,
-        _mediaUploader = mediaUploader;
+        _mediaUploader = mediaUploader,
+        _supportDirectoryProvider =
+            supportDirectoryProvider ?? getApplicationSupportDirectory;
 
   final AppDatabase _db;
   final UploadQueueWorker _queueWorker;
   final PlaceRepository _placeRepository;
   final AppMediaUploader _mediaUploader;
+  final Future<Directory> Function() _supportDirectoryProvider;
 
   Stream<List<MediaItem>> watchPlaceMedia(String placeId) {
     return _db.mediaDao.watchMediaForPlace(placeId);
@@ -203,7 +207,7 @@ class MediaRepository {
       return null;
     }
 
-    final supportDir = await getApplicationSupportDirectory();
+    final supportDir = await _supportDirectoryProvider();
     final uploadDir = Directory(
       p.join(supportDir.path, 'dora', 'media', 'uploads'),
     );

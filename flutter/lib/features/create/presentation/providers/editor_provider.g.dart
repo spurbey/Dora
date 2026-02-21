@@ -6,7 +6,7 @@ part of 'editor_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$tripRepositoryHash() => r'06698f5048a4cc221361756a4b2aa9cac24e44d8';
+String _$tripRepositoryHash() => r'000f7ec0387f0ca6bc8a5386c51a9781ab318cf3';
 
 /// See also [tripRepository].
 @ProviderFor(tripRepository)
@@ -23,7 +23,7 @@ final tripRepositoryProvider = AutoDisposeProvider<TripRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef TripRepositoryRef = AutoDisposeProviderRef<TripRepository>;
-String _$placeRepositoryHash() => r'86d2fb3fb08bfdbb4461c56f139624313fd273ae';
+String _$placeRepositoryHash() => r'6223db50b7335dc1db501106f344adeaf7908b23';
 
 /// See also [placeRepository].
 @ProviderFor(placeRepository)

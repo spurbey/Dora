@@ -29,8 +29,9 @@ Last Updated: 2026-02-20
   - [ ] user action -> `canceled`
 - [ ] Freeze place identity strategy for media uploads:
   - [ ] Add and use `serverPlaceId` mapping
+  - [ ] Add and use `serverTripId` mapping
   - [ ] Define `ensureRemotePlaceId(localPlaceId)` behavior
-- [ ] Confirm migration target is `schemaVersion 6 -> 7`.
+- [ ] Confirm migration target is `schemaVersion 6 -> 7` (and `7 -> 8` if trip mapping is enabled).
 
 ### Exit Criteria
 - [ ] Written contract for API + state machine + place identity mapping exists.
@@ -47,10 +48,13 @@ Last Updated: 2026-02-20
 ### Tasks
 - [ ] Update `flutter/lib/core/storage/tables/places_table.dart`:
   - [ ] add `serverPlaceId` (nullable)
+- [ ] Update `flutter/lib/core/storage/tables/trips_table.dart`:
+  - [ ] add `serverTripId` (nullable)
 - [ ] Update `flutter/lib/core/storage/tables/media_table.dart` with queue columns.
 - [ ] Update `flutter/lib/core/storage/drift_database.dart`:
-  - [ ] bump to schema version 7
+  - [ ] bump to schema version 7 (or 8 if trip identity mapping is enabled)
   - [ ] implement v6 -> v7 migration and backfill rules
+  - [ ] implement v7 -> v8 migration for trip identity mapping (if enabled)
 - [ ] Update `flutter/lib/core/storage/daos/media_dao.dart`:
   - [ ] pending query
   - [ ] failed query
@@ -254,11 +258,15 @@ This section is used to prevent out-of-order implementation drift.
 
 ### Sequence A: Identity + Schema Foundations
 - [ ] `flutter/lib/core/storage/tables/places_table.dart` (`serverPlaceId`)
+- [ ] `flutter/lib/core/storage/tables/trips_table.dart` (`serverTripId`)
 - [ ] `flutter/lib/features/create/domain/place.dart` (`serverPlaceId`)
+- [ ] `flutter/lib/features/create/domain/trip.dart` (`serverTripId`)
 - [ ] `flutter/lib/features/create/data/place_repository.dart` mapping for `serverPlaceId`
+- [ ] `flutter/lib/features/create/data/trip_repository.dart` mapping for `serverTripId`
 - [ ] `flutter/lib/core/storage/tables/media_table.dart` queue metadata columns
 - [ ] `flutter/lib/core/storage/daos/media_dao.dart` queue query/update helpers
 - [ ] `flutter/lib/core/storage/drift_database.dart` migration `6 -> 7`
+- [ ] `flutter/lib/core/storage/drift_database.dart` migration `7 -> 8` (if enabled)
 - [ ] Drift generated files updated and reviewed
 
 ### Sequence B: Core Services

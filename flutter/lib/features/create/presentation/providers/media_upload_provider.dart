@@ -12,6 +12,7 @@ import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/features/create/data/media_repository.dart';
 import 'package:dora/features/create/data/place_repository.dart';
+import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 
 final mediaPermissionsProvider = Provider<MediaPermissions>(
   (ref) => const MediaPermissions(),
@@ -27,11 +28,13 @@ final thumbnailGeneratorProvider = Provider<ThumbnailGenerator>(
 
 final placeRepositoryForMediaProvider = Provider<PlaceRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
+  final tripRepository = ref.watch(tripRepositoryProvider);
   final searchApi = ref.watch(searchApiProvider);
   final placesApi = ref.watch(placesApiProvider);
   final authService = ref.watch(authServiceProvider);
   return PlaceRepository(
     db,
+    tripRepository: tripRepository,
     searchApi: searchApi,
     placesApi: placesApi,
     authService: authService,

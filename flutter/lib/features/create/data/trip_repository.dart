@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -6,12 +7,19 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/domain/trip.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 class TripRepository {
-  TripRepository(this._db, this._authService);
+  TripRepository(
+    this._db,
+    this._authService, {
+    openapi.TripsApi? tripsApi,
+  }) : _tripsApi = tripsApi;
 
   final AppDatabase _db;
   final AuthService _authService;
+  final openapi.TripsApi? _tripsApi;
+  final Map<String, Future<String>> _ensureRemoteTripIdInFlight = {};
 
   Future<Trip?> getTrip(String id) async {
     final row = await _db.tripDao.getTripById(id);
@@ -33,6 +41,7 @@ class TripRepository {
     final now = DateTime.now();
     final trip = Trip(
       id: const Uuid().v4(),
+      serverTripId: null,
       userId: userId,
       name: name,
       description: description,
@@ -82,9 +91,45 @@ class TripRepository {
     await updateTrip(current.copyWith(centerPoint: centerPoint, zoom: zoom));
   }
 
+  /// Resolves the backend trip UUID for a local trip.
+  ///
+  /// For locally-created trips, this creates the remote trip lazily during
+  /// media/place upload flows and persists the mapping as `serverTripId`.
+  Future<String> ensureRemoteTripId(String localTripId) async {
+    final inFlight = _ensureRemoteTripIdInFlight[localTripId];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _ensureRemoteTripIdInternal(localTripId);
+    _ensureRemoteTripIdInFlight[localTripId] = future;
+    try {
+      return await future;
+    } finally {
+      _ensureRemoteTripIdInFlight.remove(localTripId);
+    }
+  }
+
+  Future<void> clearServerTripId(
+    String localTripId, {
+    String? expectedServerTripId,
+  }) async {
+    Expression<bool> predicate = _db.trips.id.equals(localTripId);
+    if (expectedServerTripId != null && expectedServerTripId.isNotEmpty) {
+      predicate =
+          predicate & _db.trips.serverTripId.equals(expectedServerTripId);
+    }
+    await (_db.update(_db.trips)..where((_) => predicate)).write(
+      const TripsCompanion(
+        serverTripId: Value(null),
+      ),
+    );
+  }
+
   Trip _mapRow(TripRow row) {
     return Trip(
       id: row.id,
+      serverTripId: row.serverTripId,
       userId: row.userId,
       name: row.name,
       description: row.description,
@@ -103,8 +148,15 @@ class TripRepository {
   Future<void> _upsertTripRow(Trip trip) async {
     final existing = await _db.tripDao.getTripById(trip.id);
     final createdAt = existing?.createdAt ?? trip.localUpdatedAt;
+    final existingServerTripId = existing?.serverTripId;
+    final resolvedServerTripId =
+        (existingServerTripId != null && existingServerTripId.isNotEmpty)
+            ? existingServerTripId
+            : trip.serverTripId;
+
     final companion = TripsCompanion(
       id: Value(trip.id),
+      serverTripId: Value(resolvedServerTripId),
       userId: Value(trip.userId),
       name: Value(trip.name),
       description: Value(trip.description),
@@ -157,4 +209,173 @@ class TripRepository {
       await _db.userTripsDao.updateTrip(userTrip);
     }
   }
+
+  Future<String> _ensureRemoteTripIdInternal(String localTripId) async {
+    final local = await getTrip(localTripId);
+    if (local == null) {
+      throw TripIdentityException(
+        'Cannot resolve remote trip id: local trip not found ($localTripId)',
+      );
+    }
+
+    final existingServerTripId = local.serverTripId;
+    if (existingServerTripId != null && existingServerTripId.isNotEmpty) {
+      return existingServerTripId;
+    }
+
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      throw const TripIdentityException(
+        'Cannot resolve remote trip id: Trips API unavailable',
+      );
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const TripIdentityException(
+        'Cannot resolve remote trip id: auth token unavailable',
+      );
+    }
+
+    // Migration bridge: pre-existing trips may already be remote-backed
+    // but missing serverTripId in local schema.
+    final existsWithSameId = await _tripExistsOnServer(
+      candidateRemoteTripId: local.id,
+      authorization: 'Bearer $token',
+      tripsApi: tripsApi,
+    );
+    if (existsWithSameId) {
+      await _persistServerTripId(localTripId: local.id, serverTripId: local.id);
+      return local.id;
+    }
+
+    final payload = openapi.TripCreate((builder) {
+      builder
+        ..title = local.name
+        ..description = local.description
+        ..visibility = local.visibility;
+
+      final start = local.startDate;
+      if (start != null) {
+        builder.startDate = openapi.Date(
+          start.year,
+          start.month,
+          start.day,
+        );
+      }
+
+      final end = local.endDate;
+      if (end != null) {
+        builder.endDate = openapi.Date(
+          end.year,
+          end.month,
+          end.day,
+        );
+      }
+    });
+
+    openapi.TripResponse? responseData;
+    try {
+      final response = await tripsApi.createTripApiV1TripsPost(
+        authorization: 'Bearer $token',
+        tripCreate: payload,
+      );
+      responseData = response.data;
+    } on DioException catch (error) {
+      if (_isRetryableDio(error)) {
+        rethrow;
+      }
+      throw TripIdentityException(_mapTripCreateFailure(error));
+    }
+
+    final remoteId = responseData?.id;
+    if (remoteId == null || remoteId.isEmpty) {
+      throw const TripIdentityException(
+        'Cannot resolve remote trip id: backend returned empty id',
+      );
+    }
+
+    await _persistServerTripId(
+      localTripId: local.id,
+      serverTripId: remoteId,
+    );
+    return remoteId;
+  }
+
+  Future<bool> _tripExistsOnServer({
+    required String candidateRemoteTripId,
+    required String authorization,
+    required openapi.TripsApi tripsApi,
+  }) async {
+    try {
+      await tripsApi.getTripApiV1TripsTripIdGet(
+        tripId: candidateRemoteTripId,
+        authorization: authorization,
+      );
+      return true;
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      if (status == 404) {
+        return false;
+      }
+      if (_isRetryableDio(error)) {
+        rethrow;
+      }
+      throw TripIdentityException(
+        'Failed to verify backend trip identity (status ${status ?? 'unknown'}): '
+        '${error.message ?? 'request failed'}',
+      );
+    }
+  }
+
+  Future<void> _persistServerTripId({
+    required String localTripId,
+    required String serverTripId,
+  }) async {
+    final now = DateTime.now();
+    await (_db.update(_db.trips)..where((t) => t.id.equals(localTripId))).write(
+      TripsCompanion(
+        serverTripId: Value(serverTripId),
+        localUpdatedAt: Value(now),
+        syncStatus: const Value('pending'),
+      ),
+    );
+  }
+
+  String _mapTripCreateFailure(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 401) {
+      return 'Session expired while preparing media upload. Please sign in again and retry.';
+    }
+    if (statusCode == 403) {
+      return 'Trip creation is not allowed for this account right now. Check account limits/permissions.';
+    }
+    if (statusCode != null) {
+      return 'Failed to create backend trip for media upload (status $statusCode).';
+    }
+    return 'Failed to create backend trip for media upload: ${error.message ?? 'network error'}';
+  }
+
+  bool _isRetryableDio(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == null) {
+      return true;
+    }
+    if (statusCode == 408 || statusCode == 429) {
+      return true;
+    }
+    if (statusCode >= 500) {
+      return true;
+    }
+    return false;
+  }
+}
+
+class TripIdentityException implements Exception {
+  const TripIdentityException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

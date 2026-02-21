@@ -25,18 +25,25 @@ part 'editor_provider.g.dart';
 @riverpod
 TripRepository tripRepository(TripRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
+  final tripsApi = ref.watch(tripsApiProvider);
   final authService = ref.watch(authServiceProvider);
-  return TripRepository(db, authService);
+  return TripRepository(
+    db,
+    authService,
+    tripsApi: tripsApi,
+  );
 }
 
 @riverpod
 PlaceRepository placeRepository(PlaceRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
+  final tripRepository = ref.watch(tripRepositoryProvider);
   final searchApi = ref.watch(searchApiProvider);
   final placesApi = ref.watch(placesApiProvider);
   final authService = ref.watch(authServiceProvider);
   return PlaceRepository(
     db,
+    tripRepository: tripRepository,
     searchApi: searchApi,
     placesApi: placesApi,
     authService: authService,

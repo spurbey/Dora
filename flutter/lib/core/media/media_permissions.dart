@@ -17,16 +17,13 @@ class MediaPermissions {
   }
 
   Future<MediaPermissionState> ensureGalleryPermission() async {
-    PermissionStatus status;
     if (Platform.isAndroid) {
-      status = await Permission.photos.request();
-      if (!status.isGranted && !status.isPermanentlyDenied) {
-        status = await Permission.storage.request();
-      }
-    } else {
-      status = await Permission.photos.request();
+      // Android photo picker can work without explicit runtime storage permission.
+      // Keep flow non-blocking to avoid manifest mismatch loops from permission_handler.
+      return MediaPermissionState.granted;
     }
 
+    final status = await Permission.photos.request();
     return _mapStatus(status);
   }
 

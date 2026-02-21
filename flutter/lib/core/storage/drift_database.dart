@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -114,6 +114,10 @@ class AppDatabase extends _$AppDatabase {
                 upload_progress = 0.0
               WHERE url IS NULL OR TRIM(url) = ''
             ''');
+          }
+          if (from < 8) {
+            // Trips: persistent mapping to backend trip UUID for place/media sync.
+            await m.addColumn(trips, trips.serverTripId);
           }
         },
       );

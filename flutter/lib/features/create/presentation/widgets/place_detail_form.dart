@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -13,12 +16,14 @@ class PlaceDetailForm extends StatefulWidget {
     required this.onSave,
     required this.onDelete,
     this.onManageMedia,
+    this.mediaItems = const <MediaItem>[],
   });
 
   final Place place;
   final ValueChanged<Place> onSave;
   final VoidCallback onDelete;
   final VoidCallback? onManageMedia;
+  final List<MediaItem> mediaItems;
 
   @override
   State<PlaceDetailForm> createState() => _PlaceDetailFormState();
@@ -72,6 +77,8 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
 
   @override
   Widget build(BuildContext context) {
+    final photoPreviews = _buildPhotoPreviews();
+
     return SingleChildScrollView(
       padding: AppSpacing.allMd,
       child: Column(
@@ -177,18 +184,61 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                for (final url in widget.place.photoUrls)
-                  Container(
-                    width: 70,
-                    margin: const EdgeInsets.only(right: AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      borderRadius: AppRadius.borderSm,
-                      color: AppColors.surface,
-                      image: DecorationImage(
-                        image: NetworkImage(url),
-                        fit: BoxFit.cover,
+                for (final preview in photoPreviews)
+                  Stack(
+                    children: [
+                      Container(
+                        width: 70,
+                        margin: const EdgeInsets.only(right: AppSpacing.sm),
+                        decoration: BoxDecoration(
+                          borderRadius: AppRadius.borderSm,
+                          color: AppColors.surface,
+                          image: DecorationImage(
+                            image: preview.imageProvider,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (preview.uploadStatus == 'failed')
+                        Positioned(
+                          top: 4,
+                          right: 12,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.error_outline,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      else if (preview.uploadStatus != 'uploaded')
+                        Positioned(
+                          top: 4,
+                          right: 12,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 InkWell(
                   onTap: widget.onManageMedia,
@@ -246,6 +296,72 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
     );
   }
 
+  List<_PhotoPreview> _buildPhotoPreviews() {
+    final previews = <_PhotoPreview>[];
+    final seenUrls = <String>{};
+
+    for (final item in widget.mediaItems) {
+      final provider = _imageProviderForMedia(item);
+      if (provider == null) {
+        continue;
+      }
+
+      previews.add(
+        _PhotoPreview(
+          imageProvider: provider,
+          uploadStatus: item.uploadStatus,
+        ),
+      );
+
+      final remoteUrl = item.url;
+      if (remoteUrl != null && remoteUrl.isNotEmpty) {
+        seenUrls.add(remoteUrl);
+      }
+    }
+
+    for (final url in widget.place.photoUrls) {
+      if (seenUrls.contains(url)) {
+        continue;
+      }
+      previews.add(
+        _PhotoPreview(
+          imageProvider: NetworkImage(url),
+          uploadStatus: 'uploaded',
+        ),
+      );
+    }
+
+    return previews;
+  }
+
+  ImageProvider<Object>? _imageProviderForMedia(MediaItem item) {
+    final thumb = item.thumbnailPath;
+    if (thumb != null && thumb.isNotEmpty) {
+      if (thumb.startsWith('http')) {
+        return NetworkImage(thumb);
+      }
+      final file = File(thumb);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    }
+
+    final localPath = item.localPath;
+    if (localPath != null && localPath.isNotEmpty) {
+      final file = File(localPath);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    }
+
+    final url = item.url;
+    if (url != null && url.isNotEmpty) {
+      return NetworkImage(url);
+    }
+
+    return null;
+  }
+
   Widget _typeChip(String value, String label) {
     final selected = _placeType == value;
     return ChoiceChip(
@@ -275,4 +391,14 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
       ),
     );
   }
+}
+
+class _PhotoPreview {
+  const _PhotoPreview({
+    required this.imageProvider,
+    required this.uploadStatus,
+  });
+
+  final ImageProvider<Object> imageProvider;
+  final String uploadStatus;
 }

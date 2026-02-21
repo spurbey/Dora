@@ -9,6 +9,7 @@ part 'trip.g.dart';
 class Trip with _$Trip {
   const factory Trip({
     required String id,
+    String? serverTripId,
     required String userId,
     required String name,
     String? description,

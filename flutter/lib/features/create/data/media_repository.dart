@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/media/app_media_uploader.dart';
@@ -43,19 +45,49 @@ class MediaRepository {
       return const <String>[];
     }
 
-    final now = DateTime.now();
     final insertedIds = <String>[];
 
     await _db.transaction(() async {
       for (final path in filePaths) {
         final id = const Uuid().v4();
         insertedIds.add(id);
+        final nowForRow = DateTime.now();
+        final managedPath = await _copyToManagedUploadPath(
+          sourcePath: path,
+          mediaId: id,
+        );
+
+        if (managedPath == null) {
+          await _db.mediaDao.insertMedia(
+            MediaCompanion(
+              id: Value(id),
+              tripId: Value(tripId),
+              placeId: Value(placeId),
+              localPath: Value(path),
+              type: const Value('photo'),
+              uploadStatus: const Value('failed'),
+              uploadProgress: const Value(0.0),
+              retryCount: const Value(0),
+              errorMessage: const Value(
+                  'Selected file is no longer available on device storage'),
+              uploadedAt: const Value(null),
+              nextAttemptAt: const Value(null),
+              workerSessionId: const Value(null),
+              localUpdatedAt: Value(nowForRow),
+              serverUpdatedAt: Value(nowForRow),
+              syncStatus: const Value('pending'),
+              createdAt: Value(nowForRow),
+            ),
+          );
+          continue;
+        }
+
         await _db.mediaDao.insertMedia(
           MediaCompanion(
             id: Value(id),
             tripId: Value(tripId),
             placeId: Value(placeId),
-            localPath: Value(path),
+            localPath: Value(managedPath),
             type: const Value('photo'),
             uploadStatus: const Value('queued'),
             uploadProgress: const Value(0.0),
@@ -64,10 +96,10 @@ class MediaRepository {
             uploadedAt: const Value(null),
             nextAttemptAt: const Value(null),
             workerSessionId: const Value(null),
-            localUpdatedAt: Value(now),
-            serverUpdatedAt: Value(now),
+            localUpdatedAt: Value(nowForRow),
+            serverUpdatedAt: Value(nowForRow),
             syncStatus: const Value('pending'),
-            createdAt: Value(now),
+            createdAt: Value(nowForRow),
           ),
         );
       }
@@ -160,5 +192,31 @@ class MediaRepository {
     } catch (_) {
       // Cleanup should not block user actions.
     }
+  }
+
+  Future<String?> _copyToManagedUploadPath({
+    required String sourcePath,
+    required String mediaId,
+  }) async {
+    final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      return null;
+    }
+
+    final supportDir = await getApplicationSupportDirectory();
+    final uploadDir = Directory(
+      p.join(supportDir.path, 'dora', 'media', 'uploads'),
+    );
+    if (!await uploadDir.exists()) {
+      await uploadDir.create(recursive: true);
+    }
+
+    final extension = p.extension(sourcePath).toLowerCase();
+    final destinationPath = p.join(
+      uploadDir.path,
+      extension.isEmpty ? '$mediaId.jpg' : '$mediaId$extension',
+    );
+    final copied = await sourceFile.copy(destinationPath);
+    return copied.path;
   }
 }

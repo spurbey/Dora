@@ -21,12 +21,12 @@ Single running handoff document for Phase 5 so milestone context is preserved ac
 | Milestone | Checklist Step | Status | Last Updated | Owner | Notes |
 |---|---|---|---|---|---|
 | M0 Contract Freeze | Step 0 | Done | 2026-02-20 | Codex | Contract freeze captured in `phase5-step0-contract-freeze.md` |
-| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-20 | Codex | Schema bumped to v7, queue columns and DAO methods added; validation pending |
-| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-20 | Codex | `serverPlaceId` path and `ensureRemotePlaceId(...)` added; codegen/validation pending |
-| M3 Core Media Pipeline | Step 3 | Not Started | 2026-02-20 | TBD | permissions, compression, thumbnail, repository |
-| M4 Queue Worker Reliability | Step 4 | Not Started | 2026-02-20 | TBD | idempotent worker, retry, bootstrap |
-| M5 UI + Editor Integration | Step 5 | Not Started | 2026-02-20 | TBD | media screen, providers, editor wiring |
-| M6 Hardening + RC | Step 6 | Not Started | 2026-02-20 | TBD | failures, regressions, release decision |
+| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-21 | Codex | v7 migration + queue columns live; migration/runtime validation still pending on device |
+| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-21 | Codex | `serverPlaceId` flow wired; runtime validation pending |
+| M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-21 | Codex | enqueue/copy/compress/thumbnail/uploader wired; Android gallery permission flow softened |
+| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-21 | Codex | claim/session guards + retry gates added; cleanup and failure handling improved |
+| M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-21 | Codex | media screen + place preview integration wired; UX polish + full validation pending |
+| M6 Hardening + RC | Step 6 | Not Started | 2026-02-21 | TBD | full failure matrix/regression pack pending |
 
 Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 
@@ -253,3 +253,95 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 - Final checklist status:
 - Residual risks:
 - Next phase handoff target:
+
+---
+
+## Session Update 2026-02-21
+
+### What was completed in this session
+- Queue reliability hardening:
+  - Worker now re-checks row/session before finalize and before failure persistence.
+  - Canceled/removed rows are protected from stale in-flight finalization.
+  - Pending counter excludes `failed` items; only `queued|compressing|uploading` are counted.
+  - Failed rows now reset progress to `0.0` to avoid "stuck at 10%" perception.
+- File lifecycle hardening:
+  - Selected media is copied to app-managed upload path before enqueue to avoid cache-path disappearance.
+- Editor/place integration hardening:
+  - Place update/save now preserves system-managed fields (`serverPlaceId`, `photoUrls`) to avoid autosave clobber.
+  - Place detail panel now renders media rows with local-first previews and status badges.
+- Error clarity:
+  - `ensureRemotePlaceId(...)` now maps backend place-create failures to concise user-facing reasons.
+  - `404 Trip not found` now surfaces explicit "trip not available on backend" guidance.
+- Android permission flow:
+  - Gallery selection on Android now uses non-blocking flow (photo picker path) to avoid permission-handler manifest mismatch loops.
+
+### Current blocker
+- Blocker: Backend trip identity mapping is incomplete for local-only trips.
+- Evidence: Upload flow fails during remote place creation with backend `404 Trip not found`.
+- Impact: Media upload succeeds only when the editor trip already exists on backend under the signed-in account.
+- Owner: Codex + Product decision.
+- Next action:
+  - Option A (future): Introduce `serverTripId` mapping (`v7 -> v8`) and resolve remote trip ID before `ensureRemotePlaceId`.
+  - Option B: Keep current behavior and explicitly gate media upload to backend-backed trips only (no local-only upload).
+
+### Files touched this session
+- `flutter/lib/core/media/upload_queue_worker.dart`
+- `flutter/lib/core/storage/daos/media_dao.dart`
+- `flutter/lib/features/create/data/media_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+- `flutter/lib/features/create/presentation/widgets/place_detail_form.dart`
+- `flutter/lib/core/media/media_permissions.dart`
+
+### Validation status
+- Dart/Flutter command validation: Pending (intentionally not run by agent per workspace constraint).
+- Device manual validation: pending latest patch verification for:
+  - backend-backed trip upload success path
+  - `Trip not found` failure clarity path
+  - no retry flood/no log loop on non-retryable errors
+
+---
+
+## Session Update 2026-02-21 (Trip Identity Mapping)
+
+### What was completed in this session
+- Added persistent backend trip mapping for media/place dependency chain:
+  - `Trips.serverTripId` column introduced.
+  - Drift migration advanced to `schemaVersion = 8` with `from < 8` trip mapping migration.
+  - Trip domain/repository now support `serverTripId`.
+- Implemented `TripRepository.ensureRemoteTripId(localTripId)`:
+  - Uses cached `serverTripId` when available.
+  - Probes for legacy same-id remote trips before creating new backend trip.
+  - Creates backend trip lazily via `TripsApi.createTripApiV1TripsPost(...)` when needed.
+  - Persists resolved `serverTripId` locally.
+- Updated place identity binding:
+  - `PlaceRepository.ensureRemotePlaceId(...)` now resolves backend trip id first.
+  - Remote place creation now uses backend `trip_id` (never local-only trip id).
+  - Added one-time stale trip-id self-heal path:
+    - on `404 Trip not found`, clear cached `serverTripId`, re-resolve, retry once.
+- Provider wiring updated:
+  - `TripRepository` now injected with `TripsApi`.
+  - `PlaceRepository` now receives `TripRepository` in both editor and media providers.
+- Retry semantics improved for offline-first behavior:
+  - transient trip/place identity failures rethrow `DioException` so queue retry/backoff still applies.
+  - non-retryable auth/permission/contract failures remain explicit and terminal.
+
+### Blocker status
+- Previous blocker (`Trip not found` for local-only trips) is addressed in code path.
+- Remaining work is runtime verification on device/CI after codegen/migration run.
+
+### Files touched this session
+- `flutter/lib/core/storage/tables/trips_table.dart`
+- `flutter/lib/core/storage/drift_database.dart`
+- `flutter/lib/features/create/domain/trip.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/features/create/presentation/providers/editor_provider.dart`
+- `flutter/lib/features/create/presentation/providers/media_upload_provider.dart`
+
+### Validation status
+- Agent-run validation: not executed (`flutter`/`dart` commands intentionally skipped by constraint).
+- Required local validation after this patch:
+  - regenerate codegen artifacts (drift/freezed/riverpod where needed),
+  - run migration path from v7 to v8 on device,
+  - verify upload success on local-only trip and backend-backed trip.

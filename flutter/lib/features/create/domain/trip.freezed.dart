@@ -21,6 +21,7 @@ Trip _$TripFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$Trip {
   String get id => throw _privateConstructorUsedError;
+  String? get serverTripId => throw _privateConstructorUsedError;
   String get userId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String? get description => throw _privateConstructorUsedError;
@@ -50,6 +51,7 @@ abstract class $TripCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverTripId,
       String userId,
       String name,
       String? description,
@@ -82,6 +84,7 @@ class _$TripCopyWithImpl<$Res, $Val extends Trip>
   @override
   $Res call({
     Object? id = null,
+    Object? serverTripId = freezed,
     Object? userId = null,
     Object? name = null,
     Object? description = freezed,
@@ -100,6 +103,10 @@ class _$TripCopyWithImpl<$Res, $Val extends Trip>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverTripId: freezed == serverTripId
+          ? _value.serverTripId
+          : serverTripId // ignore: cast_nullable_to_non_nullable
+              as String?,
       userId: null == userId
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
@@ -175,6 +182,7 @@ abstract class _$$TripImplCopyWith<$Res> implements $TripCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverTripId,
       String userId,
       String name,
       String? description,
@@ -205,6 +213,7 @@ class __$$TripImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
+    Object? serverTripId = freezed,
     Object? userId = null,
     Object? name = null,
     Object? description = freezed,
@@ -223,6 +232,10 @@ class __$$TripImplCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverTripId: freezed == serverTripId
+          ? _value.serverTripId
+          : serverTripId // ignore: cast_nullable_to_non_nullable
+              as String?,
       userId: null == userId
           ? _value.userId
           : userId // ignore: cast_nullable_to_non_nullable
@@ -280,6 +293,7 @@ class __$$TripImplCopyWithImpl<$Res>
 class _$TripImpl implements _Trip {
   const _$TripImpl(
       {required this.id,
+      this.serverTripId,
       required this.userId,
       required this.name,
       this.description,
@@ -299,6 +313,8 @@ class _$TripImpl implements _Trip {
 
   @override
   final String id;
+  @override
+  final String? serverTripId;
   @override
   final String userId;
   @override
@@ -336,7 +352,7 @@ class _$TripImpl implements _Trip {
 
   @override
   String toString() {
-    return 'Trip(id: $id, userId: $userId, name: $name, description: $description, startDate: $startDate, endDate: $endDate, tags: $tags, visibility: $visibility, centerPoint: $centerPoint, zoom: $zoom, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Trip(id: $id, serverTripId: $serverTripId, userId: $userId, name: $name, description: $description, startDate: $startDate, endDate: $endDate, tags: $tags, visibility: $visibility, centerPoint: $centerPoint, zoom: $zoom, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -345,6 +361,8 @@ class _$TripImpl implements _Trip {
         (other.runtimeType == runtimeType &&
             other is _$TripImpl &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.serverTripId, serverTripId) ||
+                other.serverTripId == serverTripId) &&
             (identical(other.userId, userId) || other.userId == userId) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
@@ -371,6 +389,7 @@ class _$TripImpl implements _Trip {
   int get hashCode => Object.hash(
       runtimeType,
       id,
+      serverTripId,
       userId,
       name,
       description,
@@ -403,6 +422,7 @@ class _$TripImpl implements _Trip {
 abstract class _Trip implements Trip {
   const factory _Trip(
       {required final String id,
+      final String? serverTripId,
       required final String userId,
       required final String name,
       final String? description,
@@ -420,6 +440,8 @@ abstract class _Trip implements Trip {
 
   @override
   String get id;
+  @override
+  String? get serverTripId;
   @override
   String get userId;
   @override

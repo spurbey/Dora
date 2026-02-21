@@ -13,6 +13,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serverTripIdMeta =
+      const VerificationMeta('serverTripId');
+  @override
+  late final GeneratedColumn<String> serverTripId = GeneratedColumn<String>(
+      'server_trip_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
@@ -95,6 +101,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        serverTripId,
         userId,
         name,
         description,
@@ -123,6 +130,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('server_trip_id')) {
+      context.handle(
+          _serverTripIdMeta,
+          serverTripId.isAcceptableOrUnknown(
+              data['server_trip_id']!, _serverTripIdMeta));
     }
     if (data.containsKey('user_id')) {
       context.handle(_userIdMeta,
@@ -201,6 +214,8 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     return TripRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      serverTripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_trip_id']),
       userId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
       name: attachedDatabase.typeMapping
@@ -246,6 +261,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
 
 class TripRow extends DataClass implements Insertable<TripRow> {
   final String id;
+  final String? serverTripId;
   final String userId;
   final String name;
   final String? description;
@@ -261,6 +277,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   final DateTime createdAt;
   const TripRow(
       {required this.id,
+      this.serverTripId,
       required this.userId,
       required this.name,
       this.description,
@@ -278,6 +295,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || serverTripId != null) {
+      map['server_trip_id'] = Variable<String>(serverTripId);
+    }
     map['user_id'] = Variable<String>(userId);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || description != null) {
@@ -308,6 +328,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   TripsCompanion toCompanion(bool nullToAbsent) {
     return TripsCompanion(
       id: Value(id),
+      serverTripId: serverTripId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverTripId),
       userId: Value(userId),
       name: Value(name),
       description: description == null && nullToAbsent
@@ -337,6 +360,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return TripRow(
       id: serializer.fromJson<String>(json['id']),
+      serverTripId: serializer.fromJson<String?>(json['serverTripId']),
       userId: serializer.fromJson<String>(json['userId']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
@@ -357,6 +381,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'serverTripId': serializer.toJson<String?>(serverTripId),
       'userId': serializer.toJson<String>(userId),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
@@ -375,6 +400,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
 
   TripRow copyWith(
           {String? id,
+          Value<String?> serverTripId = const Value.absent(),
           String? userId,
           String? name,
           Value<String?> description = const Value.absent(),
@@ -390,6 +416,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           DateTime? createdAt}) =>
       TripRow(
         id: id ?? this.id,
+        serverTripId:
+            serverTripId.present ? serverTripId.value : this.serverTripId,
         userId: userId ?? this.userId,
         name: name ?? this.name,
         description: description.present ? description.value : this.description,
@@ -407,6 +435,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   TripRow copyWithCompanion(TripsCompanion data) {
     return TripRow(
       id: data.id.present ? data.id.value : this.id,
+      serverTripId: data.serverTripId.present
+          ? data.serverTripId.value
+          : this.serverTripId,
       userId: data.userId.present ? data.userId.value : this.userId,
       name: data.name.present ? data.name.value : this.name,
       description:
@@ -435,6 +466,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   String toString() {
     return (StringBuffer('TripRow(')
           ..write('id: $id, ')
+          ..write('serverTripId: $serverTripId, ')
           ..write('userId: $userId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -455,6 +487,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   @override
   int get hashCode => Object.hash(
       id,
+      serverTripId,
       userId,
       name,
       description,
@@ -473,6 +506,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       identical(this, other) ||
       (other is TripRow &&
           other.id == this.id &&
+          other.serverTripId == this.serverTripId &&
           other.userId == this.userId &&
           other.name == this.name &&
           other.description == this.description &&
@@ -490,6 +524,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
 
 class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> id;
+  final Value<String?> serverTripId;
   final Value<String> userId;
   final Value<String> name;
   final Value<String?> description;
@@ -506,6 +541,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<int> rowid;
   const TripsCompanion({
     this.id = const Value.absent(),
+    this.serverTripId = const Value.absent(),
     this.userId = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
@@ -523,6 +559,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   });
   TripsCompanion.insert({
     required String id,
+    this.serverTripId = const Value.absent(),
     required String userId,
     required String name,
     this.description = const Value.absent(),
@@ -546,6 +583,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
         createdAt = Value(createdAt);
   static Insertable<TripRow> custom({
     Expression<String>? id,
+    Expression<String>? serverTripId,
     Expression<String>? userId,
     Expression<String>? name,
     Expression<String>? description,
@@ -563,6 +601,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverTripId != null) 'server_trip_id': serverTripId,
       if (userId != null) 'user_id': userId,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
@@ -582,6 +621,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
 
   TripsCompanion copyWith(
       {Value<String>? id,
+      Value<String?>? serverTripId,
       Value<String>? userId,
       Value<String>? name,
       Value<String?>? description,
@@ -598,6 +638,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       Value<int>? rowid}) {
     return TripsCompanion(
       id: id ?? this.id,
+      serverTripId: serverTripId ?? this.serverTripId,
       userId: userId ?? this.userId,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -620,6 +661,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (serverTripId.present) {
+      map['server_trip_id'] = Variable<String>(serverTripId.value);
     }
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
@@ -672,6 +716,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   String toString() {
     return (StringBuffer('TripsCompanion(')
           ..write('id: $id, ')
+          ..write('serverTripId: $serverTripId, ')
           ..write('userId: $userId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -4863,6 +4908,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 
 typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
   required String id,
+  Value<String?> serverTripId,
   required String userId,
   required String name,
   Value<String?> description,
@@ -4880,6 +4926,7 @@ typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
 });
 typedef $$TripsTableUpdateCompanionBuilder = TripsCompanion Function({
   Value<String> id,
+  Value<String?> serverTripId,
   Value<String> userId,
   Value<String> name,
   Value<String?> description,
@@ -4906,6 +4953,9 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnFilters(column));
@@ -4965,6 +5015,10 @@ class $$TripsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnOrderings(column));
 
@@ -5018,6 +5072,9 @@ class $$TripsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId, builder: (column) => column);
 
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
@@ -5084,6 +5141,7 @@ class $$TripsTableTableManager extends RootTableManager<
               $$TripsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String?> serverTripId = const Value.absent(),
             Value<String> userId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> description = const Value.absent(),
@@ -5101,6 +5159,7 @@ class $$TripsTableTableManager extends RootTableManager<
           }) =>
               TripsCompanion(
             id: id,
+            serverTripId: serverTripId,
             userId: userId,
             name: name,
             description: description,
@@ -5118,6 +5177,7 @@ class $$TripsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String?> serverTripId = const Value.absent(),
             required String userId,
             required String name,
             Value<String?> description = const Value.absent(),
@@ -5135,6 +5195,7 @@ class $$TripsTableTableManager extends RootTableManager<
           }) =>
               TripsCompanion.insert(
             id: id,
+            serverTripId: serverTripId,
             userId: userId,
             name: name,
             description: description,

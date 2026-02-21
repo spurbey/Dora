@@ -5,6 +5,7 @@ import 'package:dora/core/storage/converters.dart';
 @DataClassName('TripRow')
 class Trips extends Table {
   TextColumn get id => text()();
+  TextColumn get serverTripId => text().nullable()();
   TextColumn get userId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();

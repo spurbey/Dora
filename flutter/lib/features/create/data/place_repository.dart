@@ -1,4 +1,5 @@
 import 'package:built_collection/built_collection.dart';
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -6,20 +7,24 @@ import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/domain/place.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
 class PlaceRepository {
   PlaceRepository(
     this._db, {
+    required TripRepository tripRepository,
     openapi.SearchApi? searchApi,
     openapi.PlacesApi? placesApi,
     AuthService? authService,
   })  : _searchApi = searchApi,
         _placesApi = placesApi,
-        _authService = authService;
+        _authService = authService,
+        _tripRepository = tripRepository;
 
   final AppDatabase _db;
+  final TripRepository _tripRepository;
   final openapi.SearchApi? _searchApi;
   final openapi.PlacesApi? _placesApi;
   final AuthService? _authService;
@@ -47,8 +52,13 @@ class PlaceRepository {
   }
 
   Future<void> updatePlace(Place place) async {
+    final existing = await getPlace(place.id);
+    final merged = _preserveSystemManagedFields(
+      incoming: place,
+      existing: existing,
+    );
     final now = DateTime.now();
-    final updated = place.copyWith(
+    final updated = merged.copyWith(
       localUpdatedAt: now,
       syncStatus: 'pending',
     );
@@ -69,14 +79,26 @@ class PlaceRepository {
     if (places.isEmpty) {
       return;
     }
+
+    final existingRows = await _db.placeDao.getPlacesForTrip(places.first.tripId);
+    final existingById = <String, Place>{
+      for (final row in existingRows) row.id: _mapRow(row),
+    };
+
     final now = DateTime.now();
     final companions = places
-        .map((place) => _toCompanion(
-              place.copyWith(
-                localUpdatedAt: now,
-                syncStatus: 'pending',
-              ),
-            ))
+        .map((place) {
+          final merged = _preserveSystemManagedFields(
+            incoming: place,
+            existing: existingById[place.id],
+          );
+          return _toCompanion(
+            merged.copyWith(
+              localUpdatedAt: now,
+              syncStatus: 'pending',
+            ),
+          );
+        })
         .toList();
     await _db.placeDao.insertPlaces(companions);
     await _updatePlaceCount(places.first.tripId);
@@ -280,36 +302,67 @@ class PlaceRepository {
       );
     }
 
-    final payload = openapi.PlaceCreate((builder) {
-      builder
-        ..tripId = local.tripId
-        ..name = local.name
-        ..lat = local.coordinates.latitude
-        ..lng = local.coordinates.longitude
-        ..orderInTrip = local.orderIndex;
+    String remoteTripId;
+    try {
+      remoteTripId = await _tripRepository.ensureRemoteTripId(local.tripId);
+    } on TripIdentityException catch (error) {
+      throw PlaceIdentityException(error.message);
+    }
 
-      final placeType = local.placeType;
-      if (placeType != null && placeType.isNotEmpty) {
-        builder.placeType = placeType;
+    openapi.PlaceResponse? responseData;
+    try {
+      responseData = await _createRemotePlace(
+        placesApi: placesApi,
+        token: token,
+        local: local,
+        remoteTripId: remoteTripId,
+      );
+    } on DioException catch (error) {
+      if (_isTripNotFoundError(error)) {
+        await _tripRepository.clearServerTripId(
+          local.tripId,
+          expectedServerTripId: remoteTripId,
+        );
+        try {
+          final refreshedRemoteTripId =
+              await _tripRepository.ensureRemoteTripId(local.tripId);
+          responseData = await _createRemotePlace(
+            placesApi: placesApi,
+            token: token,
+            local: local,
+            remoteTripId: refreshedRemoteTripId,
+          );
+        } on DioException catch (retryError) {
+          if (_isRetryableDio(retryError)) {
+            rethrow;
+          }
+          throw PlaceIdentityException(
+            _mapPlaceCreateFailure(
+              retryError,
+              localTripId: local.tripId,
+            ),
+          );
+        } on TripIdentityException catch (retryTripError) {
+          throw PlaceIdentityException(retryTripError.message);
+        }
+      } else {
+        if (_isRetryableDio(error)) {
+          rethrow;
+        }
+        throw PlaceIdentityException(
+          _mapPlaceCreateFailure(
+            error,
+            localTripId: local.tripId,
+          ),
+        );
       }
+    } on TripIdentityException catch (error) {
+      throw PlaceIdentityException(
+        error.message,
+      );
+    }
 
-      final notes = local.notes;
-      if (notes != null && notes.isNotEmpty) {
-        builder.userNotes = notes;
-      }
-
-      final rating = local.rating;
-      if (rating != null) {
-        builder.userRating = rating;
-      }
-    });
-
-    final response = await placesApi.createPlaceApiV1PlacesPost(
-      authorization: 'Bearer $token',
-      placeCreate: payload,
-    );
-
-    final remoteId = response.data?.id;
+    final remoteId = responseData?.id;
     if (remoteId == null || remoteId.isEmpty) {
       throw PlaceIdentityException(
         'Cannot resolve remote place id: backend returned empty id',
@@ -341,6 +394,133 @@ class PlaceRepository {
       syncStatus: 'pending',
     ));
   }
+
+  Place _preserveSystemManagedFields({
+    required Place incoming,
+    Place? existing,
+  }) {
+    if (existing == null) {
+      return incoming;
+    }
+
+    // Media and remote place identity are managed by dedicated sync/upload flows.
+    final existingRemoteId = existing.serverPlaceId;
+    final incomingRemoteId = incoming.serverPlaceId;
+    final resolvedRemoteId =
+        (existingRemoteId != null && existingRemoteId.isNotEmpty)
+            ? existingRemoteId
+            : incomingRemoteId;
+
+    return incoming.copyWith(
+      serverPlaceId: resolvedRemoteId,
+      photoUrls: existing.photoUrls,
+    );
+  }
+
+  String _mapPlaceCreateFailure(
+    DioException error, {
+    required String localTripId,
+  }) {
+    final statusCode = error.response?.statusCode;
+    final detail = _extractErrorDetail(error.response?.data);
+    final normalizedDetail = detail.toLowerCase();
+
+    if (statusCode == 404 && normalizedDetail.contains('trip not found')) {
+      return 'Trip is not available on backend for place/media upload '
+          '(local tripId=$localTripId). Please retry once; if it keeps failing, '
+          'refresh trip sync and retry.';
+    }
+
+    if (statusCode == 403) {
+      return 'You do not have permission to create backend places for this '
+          'trip. Check account ownership and retry.';
+    }
+
+    if (statusCode == 401) {
+      return 'Session expired while preparing media upload. Please sign in '
+          'again and retry.';
+    }
+
+    if (statusCode != null) {
+      return 'Failed to create backend place for media upload '
+          '(status $statusCode): $detail';
+    }
+    return 'Failed to create backend place for media upload: ${error.message ?? detail}';
+  }
+
+  String _extractErrorDetail(Object? payload) {
+    if (payload is Map) {
+      final detail = payload['detail'];
+      if (detail is String && detail.isNotEmpty) {
+        return detail;
+      }
+    }
+    if (payload is String && payload.isNotEmpty) {
+      return payload;
+    }
+    return 'Unknown backend error';
+  }
+
+  bool _isTripNotFoundError(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode != 404) {
+      return false;
+    }
+    final detail = _extractErrorDetail(error.response?.data).toLowerCase();
+    return detail.contains('trip not found');
+  }
+
+  bool _isRetryableDio(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == null) {
+      return true;
+    }
+    if (statusCode == 408 || statusCode == 429) {
+      return true;
+    }
+    if (statusCode >= 500) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<openapi.PlaceResponse?> _createRemotePlace({
+    required openapi.PlacesApi placesApi,
+    required String token,
+    required Place local,
+    required String remoteTripId,
+  }) async {
+    final payload = openapi.PlaceCreate((builder) {
+      builder
+        ..tripId = remoteTripId
+        ..name = local.name
+        ..lat = local.coordinates.latitude
+        ..lng = local.coordinates.longitude
+        ..orderInTrip = local.orderIndex;
+
+      final placeType = local.placeType;
+      if (placeType != null && placeType.isNotEmpty) {
+        builder.placeType = placeType;
+      }
+
+      final notes = local.notes;
+      if (notes != null && notes.isNotEmpty) {
+        builder.userNotes = notes;
+      }
+
+      final rating = local.rating;
+      if (rating != null) {
+        builder.userRating = rating;
+      }
+    });
+
+    final response = await placesApi.createPlaceApiV1PlacesPost(
+      authorization: 'Bearer $token',
+      placeCreate: payload,
+    );
+    return response.data;
+  }
+
 }
 
 class PlaceIdentityException implements Exception {

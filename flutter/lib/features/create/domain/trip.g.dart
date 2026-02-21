@@ -8,6 +8,7 @@ part of 'trip.dart';
 
 _$TripImpl _$$TripImplFromJson(Map<String, dynamic> json) => _$TripImpl(
       id: json['id'] as String,
+      serverTripId: json['serverTripId'] as String?,
       userId: json['userId'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
@@ -33,6 +34,7 @@ _$TripImpl _$$TripImplFromJson(Map<String, dynamic> json) => _$TripImpl(
 Map<String, dynamic> _$$TripImplToJson(_$TripImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'serverTripId': instance.serverTripId,
       'userId': instance.userId,
       'name': instance.name,
       'description': instance.description,

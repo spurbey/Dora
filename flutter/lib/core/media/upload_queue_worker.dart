@@ -122,6 +122,15 @@ class UploadQueueWorker {
       );
       debugPrint('[MEDIA_UPLOAD] start mediaId=${task.id}');
 
+      final latestBeforeUpload = await _database.mediaDao.getMediaById(task.id);
+      if (!_isTaskActive(
+        latestBeforeUpload,
+        workerSessionId: workerSessionId,
+      )) {
+        await _cleanupTemporaryFile(temporaryCompressedPath);
+        return;
+      }
+
       final remotePlaceId = await _placeRepository.ensureRemotePlaceId(task.placeId);
       debugPrint(
           '[PLACE_ID_BIND] resolved local=${task.placeId} remote=$remotePlaceId');
@@ -145,7 +154,17 @@ class UploadQueueWorker {
         ),
       );
 
-      await _database.mediaDao.markUploaded(
+      final latestBeforeFinalize = await _database.mediaDao.getMediaById(task.id);
+      if (!_shouldFinalizeSuccess(
+        latestBeforeFinalize,
+        workerSessionId: workerSessionId,
+      )) {
+        await _safeDeleteRemoteMedia(uploaded.mediaId);
+        await _cleanupTemporaryFile(temporaryCompressedPath);
+        return;
+      }
+
+      final updatedRows = await _database.mediaDao.markUploaded(
         mediaId: task.id,
         url: uploaded.fileUrl,
         thumbnailPath: uploaded.thumbnailUrl ?? generatedThumbnailPath,
@@ -155,6 +174,11 @@ class UploadQueueWorker {
         height: uploaded.height,
         uploadedAt: uploaded.createdAt,
       );
+      if (updatedRows == 0) {
+        await _safeDeleteRemoteMedia(uploaded.mediaId);
+        await _cleanupTemporaryFile(temporaryCompressedPath);
+        return;
+      }
       if (uploaded.mediaId != task.id) {
         await _database.mediaDao.replaceMediaId(
           oldMediaId: task.id,
@@ -171,9 +195,18 @@ class UploadQueueWorker {
     } catch (error, stackTrace) {
       debugPrint('[MEDIA_UPLOAD] failed mediaId=${row.id} error=$error');
       debugPrint('$stackTrace');
-      nextRetryCount = math.min(row.retryCount + 1, _maxRetryAttempts);
+      final latestBeforeFailure = await _database.mediaDao.getMediaById(row.id);
+      if (!_shouldPersistFailure(
+        latestBeforeFailure,
+        workerSessionId: workerSessionId,
+      )) {
+        return;
+      }
+
+      final currentRetryCount = latestBeforeFailure?.retryCount ?? row.retryCount;
+      nextRetryCount = math.min(currentRetryCount + 1, _maxRetryAttempts);
       final canRetry =
-          _isRetryable(error) && row.retryCount < (_maxRetryAttempts - 1);
+          _isRetryable(error) && currentRetryCount < (_maxRetryAttempts - 1);
       final nextAttemptAt = canRetry
           ? DateTime.now().add(_backoffForRetry(nextRetryCount))
           : null;
@@ -195,6 +228,56 @@ class UploadQueueWorker {
         await _cleanupTemporaryFile(generatedThumbnailPath);
       }
     }
+  }
+
+  bool _shouldFinalizeSuccess(
+    MediaItem? latest, {
+    required String? workerSessionId,
+  }) {
+    if (latest == null) {
+      return false;
+    }
+    if (latest.uploadStatus == 'canceled') {
+      return false;
+    }
+    final activeSession = latest.workerSessionId;
+    if (workerSessionId == null) {
+      return false;
+    }
+    return activeSession == workerSessionId;
+  }
+
+  bool _shouldPersistFailure(
+    MediaItem? latest, {
+    required String? workerSessionId,
+  }) {
+    if (latest == null) {
+      return false;
+    }
+    if (latest.uploadStatus == 'canceled') {
+      return false;
+    }
+    final activeSession = latest.workerSessionId;
+    if (workerSessionId == null) {
+      return false;
+    }
+    return activeSession == workerSessionId;
+  }
+
+  bool _isTaskActive(
+    MediaItem? latest, {
+    required String? workerSessionId,
+  }) {
+    if (latest == null) {
+      return false;
+    }
+    if (latest.uploadStatus == 'canceled') {
+      return false;
+    }
+    if (workerSessionId == null) {
+      return false;
+    }
+    return latest.workerSessionId == workerSessionId;
   }
 
   Duration _backoffForRetry(int retryCount) {
@@ -243,6 +326,17 @@ class UploadQueueWorker {
       }
     } catch (_) {
       // Cleanup failures are intentionally non-fatal.
+    }
+  }
+
+  Future<void> _safeDeleteRemoteMedia(String mediaId) async {
+    if (mediaId.isEmpty) {
+      return;
+    }
+    try {
+      await _uploader.deleteMedia(mediaId: mediaId);
+    } catch (_) {
+      // Best-effort cleanup for uploads canceled/removed mid-flight.
     }
   }
 

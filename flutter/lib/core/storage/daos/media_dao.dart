@@ -39,7 +39,8 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
       ..addColumns([countExpression])
       ..where(
         media.placeId.equals(placeId) &
-            media.uploadStatus.isIn(const ['uploaded', 'canceled']).not(),
+            media.uploadStatus
+                .isIn(const ['queued', 'compressing', 'uploading']),
       );
     return query.watchSingle().map(
           (row) => row.read(countExpression) ?? 0,
@@ -63,9 +64,10 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
     return (select(media)
           ..where((m) =>
               m.workerSessionId.isNull() &
-              m.uploadStatus.isIn(const ['queued', 'failed']) &
-              (m.nextAttemptAt.isNull() |
-                  m.nextAttemptAt.isSmallerOrEqualValue(currentTime)))
+              (m.uploadStatus.equals('queued') |
+                  (m.uploadStatus.equals('failed') &
+                      m.nextAttemptAt.isNotNull() &
+                      m.nextAttemptAt.isSmallerOrEqualValue(currentTime))))
           ..orderBy([
             (m) =>
                 OrderingTerm(expression: m.createdAt, mode: OrderingMode.asc),
@@ -238,6 +240,7 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
     return (update(media)..where((m) => m.id.equals(mediaId))).write(
       MediaCompanion(
         uploadStatus: const Value('failed'),
+        uploadProgress: const Value(0.0),
         retryCount: Value(retryCount),
         errorMessage: Value(errorMessage),
         nextAttemptAt: Value(nextAttemptAt),

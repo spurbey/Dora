@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
@@ -276,7 +277,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         ? Icons.route
                         : selectedIcon,
                     statusText: pendingMediaCount > 0
-                        ? 'Uploading $pendingMediaCount photo(s)...'
+                        ? '$pendingMediaCount upload(s) pending'
                         : null,
                     child: _buildDetailContent(editor, controller),
                   ),
@@ -359,7 +360,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   ? Icons.route
                   : selectedIcon,
               statusText: pendingMediaCount > 0
-                  ? 'Uploading $pendingMediaCount photo(s)...'
+                  ? '$pendingMediaCount upload(s) pending'
                   : null,
               child: _buildDetailContent(editor, controller),
             ),
@@ -545,12 +546,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             onDelete: () => controller.removePlace(place.id),
           );
         }
+        final placeMedia = ref.watch(placeMediaProvider(place.id)).maybeWhen(
+              data: (items) => items,
+              orElse: () => const <MediaItem>[],
+            );
         return PlaceDetailForm(
           place: place,
           onSave: controller.updatePlace,
           onDelete: () => controller.removePlace(place.id),
           onManageMedia: () =>
               context.push(Routes.mediaUploadPath(widget.tripId, place.id)),
+          mediaItems: placeMedia,
         );
       } catch (_) {
         return null;

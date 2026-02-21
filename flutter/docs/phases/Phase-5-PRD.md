@@ -1,6 +1,6 @@
 # FLUTTER PHASE 5 PRD: MEDIA INGESTION, QUEUE, AND PLACE GALLERY
 
-Last Updated: 2026-02-20  
+Last Updated: 2026-02-21  
 Owner: TBD  
 Status: Ready for implementation handoff
 
@@ -23,13 +23,12 @@ This phase must preserve all stable Phase 4 editor and route behaviors.
 
 This PRD is aligned to current repository state (not generic docs):
 
-- Drift `schemaVersion` is already `6` in `flutter/lib/core/storage/drift_database.dart`.
-- `Media` table is still minimal in `flutter/lib/core/storage/tables/media_table.dart`.
-- `MediaDao` is still minimal in `flutter/lib/core/storage/daos/media_dao.dart`.
-- No media upload provider/repository/screen exists yet in Flutter.
-- No `mediaApiProvider` exists in `flutter/lib/core/network/api_providers.dart`.
-- No media route exists in `flutter/lib/core/navigation/routes.dart` and `flutter/lib/core/navigation/app_router.dart`.
-- Place detail currently has static photo UI only in `flutter/lib/features/create/presentation/widgets/place_detail_form.dart`.
+- Drift `schemaVersion` is now `8` (v6 -> v7 media/place mapping, v7 -> v8 trip mapping) in `flutter/lib/core/storage/drift_database.dart`.
+- `Media` table and `MediaDao` contain queue/upload fields and worker helpers.
+- Media upload provider/repository/screen wiring exists in Flutter and is under hardening.
+- `mediaApiProvider` exists in `flutter/lib/core/network/api_providers.dart`.
+- Media upload navigation route exists in `flutter/lib/core/navigation/routes.dart` and `flutter/lib/core/navigation/app_router.dart`.
+- Place detail now supports local-first media previews and queue status overlays.
 - Backend upload contract exists via generated OpenAPI client:
   - `MediaApi.uploadMediaApiV1MediaUploadPost(...)`
   - file path: `flutter/packages/dora_api/lib/src/api/media_api.dart`
@@ -67,8 +66,15 @@ Problem:
 Decision for Phase 5:
 
 - Add `serverPlaceId` to local place storage/model.
+- Add `serverTripId` to local trip storage/model.
+- Add repository method `ensureRemoteTripId(localTripId)`:
+  - If `serverTripId` exists, return it.
+  - Else create trip via `TripsApi.createTripApiV1TripsPost(...)`.
+  - Persist `serverTripId` locally.
+  - Return `serverTripId`.
 - Add repository method `ensureRemotePlaceId(localPlaceId)`:
   - If `serverPlaceId` exists, return it.
+  - Resolve backend trip ID first (`ensureRemoteTripId(localTripId)`).
   - Else create place via `PlacesApi.createPlaceApiV1PlacesPost(...)`.
   - Persist `serverPlaceId` locally.
   - Return `serverPlaceId`.
@@ -76,7 +82,7 @@ Decision for Phase 5:
 
 ### 4.2 Schema Versioning (Required)
 
-- Migration target is `v6 -> v7`.
+- Migration target is `v6 -> v7`; add `v7 -> v8` when enabling trip identity mapping.
 - Any doc/spec still saying `v5 -> v6` must be treated as outdated.
 
 ### 4.3 Queue Idempotency (Required)
@@ -156,6 +162,22 @@ Purpose:
 
 - Store remote place UUID used by media upload API.
 
+#### Trip storage/model
+
+Update:
+
+- `flutter/lib/core/storage/tables/trips_table.dart`
+- `flutter/lib/features/create/domain/trip.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+
+Add:
+
+- `serverTripId` (nullable text/string UUID)
+
+Purpose:
+
+- Store remote trip UUID used to create backend places for media upload.
+
 #### Media storage/model
 
 Update:
@@ -180,7 +202,8 @@ Add queue and upload metadata:
 
 Migration:
 
-- Drift `schemaVersion: 6 -> 7`
+- Drift `schemaVersion: 6 -> 7` (media/place mapping)
+- Drift `schemaVersion: 7 -> 8` (trip mapping, if enabled)
 - Backfill:
   - if `url` exists: `uploadStatus=uploaded`, `uploadProgress=1.0`
   - else: `uploadStatus=queued`, `uploadProgress=0.0`
@@ -281,7 +304,7 @@ Add explicit bootstrap wiring:
 ### Phase A: Contract + Foundations
 
 - Freeze upload API request/response handling.
-- Freeze place identity mapping (`serverPlaceId` + `ensureRemotePlaceId`).
+- Freeze place/trip identity mapping (`serverPlaceId` + `serverTripId` + `ensureRemotePlaceId` + `ensureRemoteTripId`).
 - Add route wiring and provider stubs.
 
 Exit gate:
@@ -290,9 +313,11 @@ Exit gate:
 
 ### Phase B: Storage + Migration + DAO
 
-- Implement `v6 -> v7` migration.
+- Implement `v6 -> v7` migration (media/place).
+- Implement `v7 -> v8` migration (trip identity).
 - Add media queue columns and DAO query helpers.
 - Add `serverPlaceId` to place table/model/repository mapping.
+- Add `serverTripId` to trip table/model/repository mapping.
 
 Exit gate:
 
@@ -407,8 +432,8 @@ Mitigation:
 
 Phase 5 is complete when all are true:
 
-1. `v6 -> v7` migration is live and safe.
-2. Place identity mapping to backend UUID is implemented.
+1. `v6 -> v7` migration is live and safe (and `v7 -> v8` when trip mapping is enabled).
+2. Place + trip identity mapping to backend UUIDs is implemented.
 3. Camera/gallery ingestion supports max 10 selection.
 4. Compression and thumbnail generation are active.
 5. Queue persists and resumes after restart/network restore.
@@ -421,7 +446,7 @@ Phase 5 is complete when all are true:
 
 ## 12. AI Agent Execution Guardrails
 
-1. Implement identity mapping first (`serverPlaceId`, `ensureRemotePlaceId`).
+1. Implement identity mapping first (`serverPlaceId`, `serverTripId`, `ensureRemotePlaceId`, `ensureRemoteTripId`).
 2. Persist queue rows before any upload attempt.
 3. Upload worker must be idempotent and lock-safe.
 4. Keep plugin/API details in `core/**` only.
@@ -440,9 +465,11 @@ This section is intentionally explicit so implementation can be delegated withou
 |---|---|---|
 | `flutter/lib/core/storage/tables/places_table.dart` | Add `serverPlaceId` nullable column | Keep stable mapping between local place and backend UUID for upload APIs |
 | `flutter/lib/features/create/domain/place.dart` | Add `serverPlaceId` field | Ensure provider/repository domain includes remote identity |
+| `flutter/lib/core/storage/tables/trips_table.dart` | Add `serverTripId` nullable column | Keep stable mapping between local trip and backend UUID for place/media APIs |
+| `flutter/lib/features/create/domain/trip.dart` | Add `serverTripId` field | Ensure repository can resolve backend trip identity deterministically |
 | `flutter/lib/core/storage/tables/media_table.dart` | Add queue metadata columns | Represent persistent upload lifecycle in Drift |
 | `flutter/lib/core/storage/daos/media_dao.dart` | Add claim/watch/status update methods | Drive queue worker and UI reactivity |
-| `flutter/lib/core/storage/drift_database.dart` | v6 -> v7 migration + backfill | Keep old data valid and queue-aware |
+| `flutter/lib/core/storage/drift_database.dart` | v6 -> v7 (+ optional v7 -> v8) migration + backfill | Keep old data valid and identity-aware |
 
 ### 13.2 Core media files
 
@@ -488,6 +515,19 @@ Rules:
 1. `serverPlaceId != null` means upload can proceed directly.
 2. `serverPlaceId == null` requires `ensureRemotePlaceId(localPlaceId)` before upload.
 3. `ensureRemotePlaceId` must be idempotent for same local place.
+
+### 14.1b Trip identity contract
+
+`Trip` and `TripRow` should include:
+
+- `id` (local trip ID, existing behavior preserved)
+- `serverTripId` (nullable backend UUID)
+
+Rules:
+
+1. `serverTripId != null` means backend place creation can proceed directly.
+2. `serverTripId == null` requires `ensureRemoteTripId(localTripId)` before creating backend place.
+3. `ensureRemoteTripId` must be idempotent for same local trip.
 
 ### 14.2 Media queue contract
 

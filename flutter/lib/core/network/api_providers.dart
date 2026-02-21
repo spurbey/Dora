@@ -25,6 +25,11 @@ final routesApiProvider = Provider<RoutesApi>((ref) {
   return RoutesApi(client.dio, standardSerializers);
 });
 
+final mediaApiProvider = Provider<MediaApi>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return MediaApi(client.dio, standardSerializers);
+});
+
 final componentsApiProvider = Provider<ComponentsApi>((ref) {
   final client = ref.watch(apiClientProvider);
   return ComponentsApi(client.dio, standardSerializers);

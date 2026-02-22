@@ -177,6 +177,118 @@ class _FakePlacesApi extends openapi.PlacesApi {
   }
 }
 
+class _TripNotFoundPlacesApi extends openapi.PlacesApi {
+  _TripNotFoundPlacesApi()
+      : super(
+          Dio(),
+          openapi.standardSerializers,
+        );
+
+  int createCalls = 0;
+  String? lastTripId;
+
+  @override
+  Future<Response<openapi.PlaceResponse>> createPlaceApiV1PlacesPost({
+    required String authorization,
+    required openapi.PlaceCreate placeCreate,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    createCalls += 1;
+    lastTripId = placeCreate.tripId;
+    throw _tripNotFoundDioException(path: '/api/v1/places');
+  }
+}
+
+class _FakeTripsApi extends openapi.TripsApi {
+  _FakeTripsApi({
+    this.existingTripIds = const <String>{},
+  }) : super(
+          Dio(),
+          openapi.standardSerializers,
+        );
+
+  final Set<String> existingTripIds;
+  int getCalls = 0;
+  int createCalls = 0;
+  String? lastGetTripId;
+
+  @override
+  Future<Response<openapi.TripResponse>> getTripApiV1TripsTripIdGet({
+    required String tripId,
+    required String authorization,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    getCalls += 1;
+    lastGetTripId = tripId;
+
+    if (!existingTripIds.contains(tripId)) {
+      throw _tripNotFoundDioException(path: '/api/v1/trips/$tripId');
+    }
+
+    final now = DateTime.utc(2026, 2, 21);
+    return Response<openapi.TripResponse>(
+      data: openapi.TripResponse((builder) {
+        builder
+          ..id = tripId
+          ..userId = 'user-1'
+          ..title = 'Existing Trip'
+          ..visibility = 'private'
+          ..viewsCount = 0
+          ..savesCount = 0
+          ..createdAt = now
+          ..updatedAt = now;
+      }),
+      requestOptions: RequestOptions(path: '/api/v1/trips/$tripId'),
+      statusCode: 200,
+    );
+  }
+
+  @override
+  Future<Response<openapi.TripResponse>> createTripApiV1TripsPost({
+    required String authorization,
+    required openapi.TripCreate tripCreate,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    createCalls += 1;
+    throw StateError(
+      'createTripApiV1TripsPost should not be called in stale-trip retry path tests',
+    );
+  }
+}
+
+DioException _tripNotFoundDioException({
+  required String path,
+}) {
+  final request = RequestOptions(path: path);
+  final response = Response<dynamic>(
+    requestOptions: request,
+    statusCode: 404,
+    statusMessage: 'Not Found',
+    data: <String, dynamic>{'detail': 'Trip not found'},
+  );
+  return DioException(
+    requestOptions: request,
+    response: response,
+    type: DioExceptionType.badResponse,
+    message: 'Trip not found',
+  );
+}
+
 Future<File> _createTempFile(String suffix) async {
   final dir = await Directory.systemTemp.createTemp('dora-media-test');
   final file = File('${dir.path}/$suffix');
@@ -445,6 +557,78 @@ void main() {
       final place = await repo.getPlace(localPlaceWithoutServer);
       expect(place, isNotNull);
       expect(place!.serverPlaceId, 'remote-place-created');
+    });
+
+    test(
+        'stale serverTripId does not create new backend trip after trip-not-found',
+        () async {
+      const localTripWithStaleServerId = 'local-trip-stale';
+      const staleServerTripId = 'remote-trip-deleted';
+      const localPlaceWithoutServer = 'local-place-stale';
+      await _insertTripRow(
+        database: database,
+        localTripId: localTripWithStaleServerId,
+        serverTripId: staleServerTripId,
+      );
+
+      final now = DateTime.utc(2026, 2, 21);
+      await database.placeDao.insertPlace(
+        PlacesCompanion(
+          id: const drift.Value(localPlaceWithoutServer),
+          serverPlaceId: const drift.Value(null),
+          tripId: const drift.Value(localTripWithStaleServerId),
+          name: const drift.Value('Stale Trip Place'),
+          address: const drift.Value.absent(),
+          coordinates:
+              const drift.Value(AppLatLng(latitude: 48.8566, longitude: 2.3522)),
+          notes: const drift.Value.absent(),
+          visitTime: const drift.Value.absent(),
+          dayNumber: const drift.Value.absent(),
+          orderIndex: const drift.Value(1),
+          photoUrls: const drift.Value(<String>[]),
+          placeType: const drift.Value.absent(),
+          rating: const drift.Value.absent(),
+          localUpdatedAt: drift.Value(now),
+          serverUpdatedAt: drift.Value(now),
+          syncStatus: const drift.Value('pending'),
+        ),
+      );
+
+      final fakeTripsApi = _FakeTripsApi();
+      final failingPlacesApi = _TripNotFoundPlacesApi();
+      final staleAwareTripRepository = TripRepository(
+        database,
+        authService,
+        tripsApi: fakeTripsApi,
+      );
+      final repo = PlaceRepository(
+        database,
+        tripRepository: staleAwareTripRepository,
+        placesApi: failingPlacesApi,
+        authService: authService,
+      );
+
+      await expectLater(
+        repo.ensureRemotePlaceId(localPlaceWithoutServer),
+        throwsA(
+          isA<PlaceIdentityException>().having(
+            (error) => error.message,
+            'message',
+            contains('Trip is not available on backend for media upload'),
+          ),
+        ),
+      );
+
+      expect(failingPlacesApi.createCalls, 1);
+      expect(failingPlacesApi.lastTripId, staleServerTripId);
+      expect(fakeTripsApi.getCalls, 1);
+      expect(fakeTripsApi.lastGetTripId, localTripWithStaleServerId);
+      expect(fakeTripsApi.createCalls, 0);
+
+      final tripAfterFailure =
+          await staleAwareTripRepository.getTrip(localTripWithStaleServerId);
+      expect(tripAfterFailure, isNotNull);
+      expect(tripAfterFailure!.serverTripId, isNull);
     });
   });
 }

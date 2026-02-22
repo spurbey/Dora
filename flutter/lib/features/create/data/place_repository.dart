@@ -325,7 +325,10 @@ class PlaceRepository {
         );
         try {
           final refreshedRemoteTripId =
-              await _tripRepository.ensureRemoteTripId(local.tripId);
+              await _tripRepository.ensureRemoteTripId(
+                local.tripId,
+                allowCreate: false,
+              );
           responseData = await _createRemotePlace(
             placesApi: placesApi,
             token: token,
@@ -427,8 +430,8 @@ class PlaceRepository {
 
     if (statusCode == 404 && normalizedDetail.contains('trip not found')) {
       return 'Trip is not available on backend for place/media upload '
-          '(local tripId=$localTripId). Please retry once; if it keeps failing, '
-          'refresh trip sync and retry.';
+          '(local tripId=$localTripId). Sync/create this trip on server first, '
+          'then retry upload.';
     }
 
     if (statusCode == 403) {

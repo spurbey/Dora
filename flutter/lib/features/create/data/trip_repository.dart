@@ -95,18 +95,28 @@ class TripRepository {
   ///
   /// For locally-created trips, this creates the remote trip lazily during
   /// media/place upload flows and persists the mapping as `serverTripId`.
-  Future<String> ensureRemoteTripId(String localTripId) async {
-    final inFlight = _ensureRemoteTripIdInFlight[localTripId];
+  Future<String> ensureRemoteTripId(
+    String localTripId, {
+    bool allowCreate = true,
+  }) async {
+    final operationKey = _identityOperationKey(
+      localTripId: localTripId,
+      allowCreate: allowCreate,
+    );
+    final inFlight = _ensureRemoteTripIdInFlight[operationKey];
     if (inFlight != null) {
       return inFlight;
     }
 
-    final future = _ensureRemoteTripIdInternal(localTripId);
-    _ensureRemoteTripIdInFlight[localTripId] = future;
+    final future = _ensureRemoteTripIdInternal(
+      localTripId,
+      allowCreate: allowCreate,
+    );
+    _ensureRemoteTripIdInFlight[operationKey] = future;
     try {
       return await future;
     } finally {
-      _ensureRemoteTripIdInFlight.remove(localTripId);
+      _ensureRemoteTripIdInFlight.remove(operationKey);
     }
   }
 
@@ -210,7 +220,10 @@ class TripRepository {
     }
   }
 
-  Future<String> _ensureRemoteTripIdInternal(String localTripId) async {
+  Future<String> _ensureRemoteTripIdInternal(
+    String localTripId, {
+    required bool allowCreate,
+  }) async {
     final local = await getTrip(localTripId);
     if (local == null) {
       throw TripIdentityException(
@@ -247,6 +260,13 @@ class TripRepository {
     if (existsWithSameId) {
       await _persistServerTripId(localTripId: local.id, serverTripId: local.id);
       return local.id;
+    }
+
+    if (!allowCreate) {
+      throw TripIdentityException(
+        'Trip is not available on backend for media upload '
+        '(tripId=$localTripId). Sync/create this trip on server first, then retry upload.',
+      );
     }
 
     final payload = openapi.TripCreate((builder) {
@@ -368,6 +388,13 @@ class TripRepository {
       return true;
     }
     return false;
+  }
+
+  String _identityOperationKey({
+    required String localTripId,
+    required bool allowCreate,
+  }) {
+    return '$localTripId|allowCreate=$allowCreate';
   }
 }
 

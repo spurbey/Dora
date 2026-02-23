@@ -212,16 +212,17 @@ class EditorController extends _$EditorController {
         return;
       }
 
-      // Has source — tapping a valid destination from the map finalizes draft
+      // Has source: tapping a valid destination from the map finalizes draft
       // and triggers route generation.
+      if (current.isGeneratingRoute) return;
       if (isAir && place.placeType != 'city') return;
       if (id == current.routeStartItemId) return; // can't pick same place
       selectRouteDestination(id);
-      drawRoute(
+      unawaited(drawRoute(
         current.routeStartItemId!,
         id,
         capturedMode: current.mode,
-      );
+      ));
       return;
     }
 
@@ -315,11 +316,15 @@ class EditorController extends _$EditorController {
     if (current == null) {
       return;
     }
+    final normalized = route.copyWith(
+      localUpdatedAt: DateTime.now(),
+      syncStatus: 'pending',
+    );
     final updated = current.routes
-        .map((item) => item.id == route.id ? route : item)
+        .map((item) => item.id == route.id ? normalized : item)
         .toList();
     state = AsyncData(current.copyWith(routes: updated));
-    Future(() => ref.read(routeRepositoryProvider).updateRoute(route));
+    Future(() => ref.read(routeRepositoryProvider).updateRoute(normalized));
     _scheduleAutoSave();
   }
 
@@ -380,14 +385,14 @@ class EditorController extends _$EditorController {
     if (current.mode == EditorMode.editRoute &&
         current.selectedItemId == routeId &&
         current.selectedItemType == 'route') {
-      // In edit mode on THIS route → insert waypoint at tap point
+      // In edit mode on THIS route, insert waypoint at tap point.
       try {
         final route = current.routes.firstWhere((r) => r.id == routeId);
         if (route.transportMode == 'air') return; // air routes not editable
         await _insertOrderedWaypoint(route, position);
       } catch (_) {}
     } else {
-      // Not in edit mode → select the route
+      // Not in edit mode, select the route.
       selectRoute(routeId);
     }
   }
@@ -456,7 +461,7 @@ class EditorController extends _$EditorController {
     return insertAt;
   }
 
-  /// Projects [p] onto segment [a]→[b]. Returns (distance, snapped point).
+  /// Projects [p] onto segment [a]->[b]. Returns (distance, snapped point).
   (double, AppLatLng) _projectPointToSegment(
       AppLatLng p, AppLatLng a, AppLatLng b) {
     final dx = b.longitude - a.longitude;
@@ -484,6 +489,21 @@ class EditorController extends _$EditorController {
     return sqrt(dx * dx + dy * dy);
   }
 
+  Route? _routeById(String routeId) {
+    final current = state.valueOrNull;
+    if (current == null) return null;
+    for (final route in current.routes) {
+      if (route.id == routeId) return route;
+    }
+    return null;
+  }
+
+  int _bumpRouteRecalcVersion(String routeId) {
+    final version = (_routeRecalcVersion[routeId] ?? 0) + 1;
+    _routeRecalcVersion[routeId] = version;
+    return version;
+  }
+
   Future<void> moveWaypoint(
       String routeId, int index, AppLatLng newPosition) async {
     final current = state.valueOrNull;
@@ -501,12 +521,12 @@ class EditorController extends _$EditorController {
       Route route, List<AppLatLng> newWaypoints) async {
     final current = state.valueOrNull;
     if (current == null) return;
-    if (route.transportMode == 'air') return;
-    final version = (_routeRecalcVersion[route.id] ?? 0) + 1;
-    _routeRecalcVersion[route.id] = version;
+    final baseRoute = _routeById(route.id) ?? route;
+    if (baseRoute.transportMode == 'air') return;
+    final version = _bumpRouteRecalcVersion(route.id);
 
-    // Optimistic update — instant visual feedback
-    final optimistic = route.copyWith(
+    // Optimistic update: instant visual feedback.
+    final optimistic = baseRoute.copyWith(
       waypoints: newWaypoints,
       localUpdatedAt: DateTime.now(),
       syncStatus: 'pending',
@@ -514,50 +534,44 @@ class EditorController extends _$EditorController {
     _updateRouteInState(optimistic);
 
     // Recalculate full path via directions API
-    if (route.startPlaceId != null && route.endPlaceId != null) {
-      try {
-        final fresh = state.valueOrNull;
-        if (fresh == null) return;
-        final startPlace =
-            fresh.places.firstWhere((p) => p.id == route.startPlaceId);
-        final endPlace =
-            fresh.places.firstWhere((p) => p.id == route.endPlaceId);
-        final allPoints = [
-          startPlace.coordinates,
-          ...newWaypoints,
-          endPlace.coordinates,
-        ];
-        final result = await ref
-            .read(directionsServiceProvider)
-            .getRoute(allPoints, route.transportMode);
-        if (_routeRecalcVersion[route.id] != version) return;
-        final latest = state.valueOrNull;
-        if (latest == null || !latest.routes.any((r) => r.id == route.id)) {
-          return;
-        }
-        _updateRouteInState(optimistic.copyWith(
-          coordinates: result.coordinates,
-          distance: result.distanceKm,
-          duration: result.durationMins,
-          routeGeojson: result.routeGeojson,
-          localUpdatedAt: DateTime.now(),
-          syncStatus: 'pending',
-        ));
-      } catch (_) {
-        // Keep optimistic update if recalculation fails
-      }
+    if (optimistic.startPlaceId == null || optimistic.endPlaceId == null) {
+      return;
+    }
+    try {
+      final fresh = state.valueOrNull;
+      if (fresh == null) return;
+      final startPlace =
+          fresh.places.firstWhere((p) => p.id == optimistic.startPlaceId);
+      final endPlace =
+          fresh.places.firstWhere((p) => p.id == optimistic.endPlaceId);
+      final allPoints = [
+        startPlace.coordinates,
+        ...newWaypoints,
+        endPlace.coordinates,
+      ];
+      final result = await ref
+          .read(directionsServiceProvider)
+          .getRoute(allPoints, optimistic.transportMode);
+      if (_routeRecalcVersion[route.id] != version) return;
+
+      final latestRoute = _routeById(route.id);
+      if (latestRoute == null) return;
+      _updateRouteInState(latestRoute.copyWith(
+        waypoints: newWaypoints,
+        coordinates: result.coordinates,
+        distance: result.distanceKm,
+        duration: result.durationMins,
+        routeGeojson: result.routeGeojson,
+        localUpdatedAt: DateTime.now(),
+        syncStatus: 'pending',
+      ));
+    } catch (_) {
+      // Keep optimistic update if recalculation fails.
     }
   }
 
   void _updateRouteInState(Route route) {
-    final current = state.valueOrNull;
-    if (current == null) return;
-    final updated = current.routes
-        .map((r) => r.id == route.id ? route : r)
-        .toList();
-    state = AsyncData(current.copyWith(routes: updated));
-    Future(() => ref.read(routeRepositoryProvider).updateRoute(route));
-    _scheduleAutoSave();
+    updateRoute(route);
   }
 
   Future<void> flipRoute(String routeId) async {
@@ -565,19 +579,28 @@ class EditorController extends _$EditorController {
     if (current == null) return;
     try {
       final route = current.routes.firstWhere((r) => r.id == routeId);
+      final flipVersion = _bumpRouteRecalcVersion(routeId);
       final flipped = route.copyWith(
         startPlaceId: route.endPlaceId,
         endPlaceId: route.startPlaceId,
         coordinates: route.coordinates.reversed.toList(),
         waypoints: route.waypoints.reversed.toList(),
+        routeGeojson: null,
+        localUpdatedAt: DateTime.now(),
+        syncStatus: 'pending',
       );
       updateRoute(flipped);
+      if (flipped.transportMode == 'air') {
+        return;
+      }
       // Recalculate with flipped endpoints + waypoints
       if (flipped.startPlaceId != null && flipped.endPlaceId != null) {
-        final startPlace = current.places
-            .firstWhere((p) => p.id == flipped.startPlaceId);
-        final endPlace = current.places
-            .firstWhere((p) => p.id == flipped.endPlaceId);
+        final fresh = state.valueOrNull;
+        if (fresh == null) return;
+        final startPlace =
+            fresh.places.firstWhere((p) => p.id == flipped.startPlaceId);
+        final endPlace =
+            fresh.places.firstWhere((p) => p.id == flipped.endPlaceId);
         final allWaypoints = [
           startPlace.coordinates,
           ...flipped.waypoints,
@@ -587,11 +610,16 @@ class EditorController extends _$EditorController {
           final result = await ref
               .read(directionsServiceProvider)
               .getRoute(allWaypoints, flipped.transportMode);
-          updateRoute(flipped.copyWith(
+          if (_routeRecalcVersion[routeId] != flipVersion) return;
+          final latestRoute = _routeById(routeId);
+          if (latestRoute == null) return;
+          updateRoute(latestRoute.copyWith(
             coordinates: result.coordinates,
             distance: result.distanceKm,
             duration: result.durationMins,
             routeGeojson: result.routeGeojson,
+            localUpdatedAt: DateTime.now(),
+            syncStatus: 'pending',
           ));
         } catch (_) {}
       }

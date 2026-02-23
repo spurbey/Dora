@@ -9,6 +9,17 @@
 ## Objective
 Deliver reliable, scalable route editing with bikerouter-like interaction quality while preserving architecture boundaries.
 
+## Implementation Progress (2026-02-23)
+### Completed (Fix-Forward)
+1. Commit `db04959` completed Phase 1 correctness hardening and cross-surface UI sync:
+map line-only edit behavior, route-geometry snapping, per-route async recalc versioning, waypoint consistency, detail/timeline waypoint visibility.
+2. Commit `d612255` hardened metadata and async integrity:
+waypoint recalc now merges on latest route state (prevents stale overwrite of name/description and related metadata), flip invalidates in-flight recalc work, air-route flip skips road directions recalc, and route persistence metadata is normalized in state before repository write.
+
+### Remaining (Planned)
+1. Phase 2 interaction parity work (one-gesture insert-and-adjust feel, transient preview, reduced mode friction) is still pending.
+2. Phase 3 modular edit-command refactor remains optional after interaction stability is validated.
+
 ## Final Decision
 1. Keep commit `681f3d1` and correct on top.
 2. Do not reset to `a8944e0` unless a hard platform/API incompatibility is proven.
@@ -261,6 +272,8 @@ Mitigation: deterministic insertion index strategy plus regression checks.
 1. `REF-COMMIT-01`: `681f3d1` - draggable waypoints + tap-on-route-line insertion.
 2. `REF-COMMIT-02`: `48c5f8a` - route edit mode and waypoint tooling.
 3. `REF-COMMIT-03`: `a8944e0` - directions token fallback.
+4. `REF-COMMIT-04`: `db04959` - correctness hardening + waypoint/detail/timeline sync.
+5. `REF-COMMIT-05`: `d612255` - metadata-preserving async recalc + flip invalidation hardening.
 
 ## Code references
 1. `REF-CODE-01`: route line tap handler - `flutter/lib/features/create/presentation/providers/editor_provider.dart:416`

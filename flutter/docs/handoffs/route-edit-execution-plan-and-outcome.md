@@ -276,11 +276,11 @@ Mitigation: deterministic insertion index strategy plus regression checks.
 5. `REF-COMMIT-05`: `d612255` - metadata-preserving async recalc + flip invalidation hardening.
 
 ## Code references
-1. `REF-CODE-01`: route line tap handler - `flutter/lib/features/create/presentation/providers/editor_provider.dart:416`
-2. `REF-CODE-02`: insertion logic - `flutter/lib/features/create/presentation/providers/editor_provider.dart:434`
-3. `REF-CODE-03`: recalc path - `flutter/lib/features/create/presentation/providers/editor_provider.dart:509`
-4. `REF-CODE-04`: map tap behavior - `flutter/lib/features/create/presentation/providers/editor_provider.dart:661`
-5. `REF-CODE-05`: line tap adapter behavior - `flutter/lib/core/map/adapters/mapbox_adapter.dart:315`
+1. `REF-CODE-01`: route line tap handler - `flutter/lib/features/create/presentation/providers/editor_provider.dart:380`
+2. `REF-CODE-02`: insertion logic - `flutter/lib/features/create/presentation/providers/editor_provider.dart:398`
+3. `REF-CODE-03`: recalc path - `flutter/lib/features/create/presentation/providers/editor_provider.dart:520`
+4. `REF-CODE-04`: map tap behavior - `flutter/lib/features/create/presentation/providers/editor_provider.dart:675`
+5. `REF-CODE-05`: line tap adapter behavior - `flutter/lib/core/map/adapters/mapbox_adapter.dart:320`
 6. `REF-CODE-06`: draggable waypoint markers - `flutter/lib/features/create/presentation/providers/map_provider.dart:101`
 7. `REF-CODE-07`: route toolbar - `flutter/lib/features/create/presentation/widgets/route_edit_toolbar.dart:11`
 

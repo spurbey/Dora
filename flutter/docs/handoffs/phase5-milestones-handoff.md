@@ -1,11 +1,12 @@
-# Phase 5 Milestones Handoff (Running Memory)
+# Phase 5 Milestones Handoff (Running Memory, App-Wide Sync Aware)
 
 ## Purpose
-Single running handoff document for Phase 5 so milestone context is preserved across sessions/agents.
+Single running handoff document for Phase 5 and its app-wide sync dependencies so milestone context is preserved across sessions/agents.
 
 ## Source References
 - `flutter/docs/phases/Phase-5-PRD.md`
 - `flutter/docs/phases/Phase-5-Execution-Checklist.md`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
 
 ## Update Rules
 1. Update this file at the end of every milestone (Step 0 to Step 6).
@@ -13,6 +14,7 @@ Single running handoff document for Phase 5 so milestone context is preserved ac
 3. Always include file paths and test evidence.
 4. Never delete prior milestone history; append updates.
 5. If there is a blocker, mark milestone `Blocked` and include owner + next action.
+6. Keep app-wide dependency notes current (Create, Trips, Feed, Profile, Media).
 
 ---
 
@@ -29,6 +31,51 @@ Single running handoff document for Phase 5 so milestone context is preserved ac
 | M6 Hardening + RC | Step 6 | Not Started | 2026-02-21 | TBD | full failure matrix/regression pack pending |
 
 Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
+
+---
+
+## App-Wide Dependency Snapshot (2026-02-23)
+
+### Authoritative Baseline
+
+1. Current DB `schemaVersion` in code is `8`.
+2. Next planned schema for app-wide sync queue is `8 -> 9`.
+3. Any older `6 -> 7` / `7 -> 8` notes in historical entries are retained for history, not for new implementation branching.
+
+### Current State
+
+1. Create writes are local-first and not yet governed by a persistent app-wide entity sync queue.
+2. Media has a dedicated worker and therefore surfaces identity dependency failures first.
+3. `core/network/offline_queue.dart` remains stubbed (no global offline replay layer).
+4. Trips/feed/profile have partial sync/cache behavior but no unified mutation contract.
+
+### Why This Matters
+
+1. Media upload failures are system symptoms, not isolated media defects.
+2. Future feature work will repeat similar failures unless entity sync is centralized.
+
+### Mandatory Direction
+
+1. Build persistent `EntitySyncQueue` for trip/place/route first.
+2. Keep media worker dependent on entity readiness, not direct hidden creation loops.
+3. Preserve system-managed fields during editor autosave and merges.
+
+---
+
+## Fast Recovery Checklist (When Session Goes Wrong)
+
+1. Confirm branch and schema version first.
+2. Re-open this handoff + `phase5-sync-remediation-plan.md`.
+3. Reconfirm last stable milestone commit SHA and changed files.
+4. Reproduce with:
+   - one backend-backed trip
+   - one local-only trip
+5. Classify failure before coding:
+   - identity mapping
+   - queue semantics
+   - backend auth/quota/contract
+   - UI-only issue
+6. Patch only one class at a time and append a new session update block.
 
 ---
 

@@ -30,6 +30,8 @@ class MapboxAdapter implements AppMapController {
   AppLatLng? _lastTapPosition;
   DateTime? _lastTapAt;
   bool _pendingMapTap = false;
+  // True while _handleLineTap is waiting for the map tap position to arrive.
+  bool _lineTapPending = false;
 
   final Map<String, PointAnnotation> _markers = {};
   final Map<String, AppMarker> _markerData = {};
@@ -268,6 +270,7 @@ class MapboxAdapter implements AppMapController {
     _lastTapPosition = null;
     _lastTapAt = null;
     _pendingMapTap = false;
+    _lineTapPending = false;
   }
 
   void handleMapTap(MapContentGestureContext context) {
@@ -278,6 +281,9 @@ class MapboxAdapter implements AppMapController {
     );
     _lastTapPosition = pos;
     _lastTapAt = DateTime.now();
+    // If a line tap is already pending, this map tap is from the same gesture.
+    // Just record the position (for the line tap to pick up) and do not emit.
+    if (_lineTapPending) return;
     _pendingMapTap = true;
     Future.microtask(() {
       if (_pendingMapTap) {
@@ -318,28 +324,33 @@ class MapboxAdapter implements AppMapController {
   }
 
   void _handleLineTap(PolylineAnnotation annotation) {
-    // Cancel the generic map tap — line tap wins for the same gesture
+    // Cancel any already-queued map tap microtask — line tap wins.
     _pendingMapTap = false;
 
     final routeId = _annotationToRouteId[annotation.id];
-    if (routeId == null) {
-      return;
-    }
+    if (routeId == null) return;
     // Synthetic connector lines are not user-tappable
-    if (routeId.startsWith('_conn_')) {
-      return;
-    }
-    final tappedRecently = _lastTapAt != null &&
-        DateTime.now().difference(_lastTapAt!) <
-            const Duration(milliseconds: 600);
-    final pos = tappedRecently ? _lastTapPosition : null;
-    _lastTapPosition = null;
-    _lastTapAt = null;
-    if (pos != null && onRouteLineTap != null) {
-      onRouteLineTap!.call(routeId, pos);
-    } else {
-      onRouteTap?.call(routeId);
-    }
+    if (routeId.startsWith('_conn_')) return;
+
+    // On most Mapbox platforms the annotation tap fires BEFORE the general
+    // map onTapListener, so _lastTapPosition is not yet set here.
+    // Set _lineTapPending so handleMapTap records the position without emitting
+    // a map-tap event, then resolve after a short delay.
+    _lineTapPending = true;
+    Future.delayed(const Duration(milliseconds: 50), () {
+      _lineTapPending = false;
+      final tappedRecently = _lastTapAt != null &&
+          DateTime.now().difference(_lastTapAt!) <
+              const Duration(milliseconds: 600);
+      final pos = tappedRecently ? _lastTapPosition : null;
+      _lastTapPosition = null;
+      _lastTapAt = null;
+      if (pos != null && onRouteLineTap != null) {
+        onRouteLineTap!.call(routeId, pos);
+      } else {
+        onRouteTap?.call(routeId);
+      }
+    });
   }
 
   void _handlePointDragEnd(PointAnnotation annotation) {

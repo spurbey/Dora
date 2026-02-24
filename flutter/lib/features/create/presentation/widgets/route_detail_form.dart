@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -55,9 +56,11 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
   }
 
   void _save() {
+    final name = _nameController.text.trim();
+    final description = _descriptionController.text.trim();
     widget.onSave(widget.route.copyWith(
-      name: _nameController.text.trim(),
-      description: _descriptionController.text.trim(),
+      name: name.isEmpty ? null : name,
+      description: description.isEmpty ? null : description,
     ));
   }
 
@@ -78,6 +81,12 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
               start: widget.startPlaceName,
               end: widget.endPlaceName,
             ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+
+          // Waypoints summary
+          if (widget.route.waypoints.isNotEmpty) ...[
+            _WaypointList(waypoints: widget.route.waypoints),
             const SizedBox(height: AppSpacing.md),
           ],
 
@@ -162,6 +171,48 @@ class _RouteDetailFormState extends State<RouteDetailForm> {
     final h = minutes ~/ 60;
     final m = minutes % 60;
     return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+}
+
+class _WaypointList extends StatelessWidget {
+  const _WaypointList({required this.waypoints});
+
+  final List<AppLatLng> waypoints;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: AppSpacing.allSm,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.borderSm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Waypoints (${waypoints.length})',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (int i = 0; i < waypoints.length; i++)
+            Padding(
+              padding: EdgeInsets.only(
+                top: i == 0 ? 0 : 4,
+              ),
+              child: Text(
+                'W${i + 1}: '
+                '${waypoints[i].latitude.toStringAsFixed(5)}, '
+                '${waypoints[i].longitude.toStringAsFixed(5)}',
+                style: AppTypography.caption,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

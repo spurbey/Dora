@@ -85,7 +85,7 @@ class RouteEditToolbar extends StatelessWidget {
                 SizedBox(
                   width: 56,
                   child: Text(
-                    'Tap line · Drag to move',
+                    'Tap line / drag to move',
                     textAlign: TextAlign.center,
                     style: AppTypography.caption.copyWith(
                       fontSize: 9,
@@ -157,3 +157,4 @@ class _ToolButton extends StatelessWidget {
     );
   }
 }
+

@@ -151,6 +151,7 @@ class TimelineRouteConnector extends StatelessWidget {
     required this.transportMode,
     this.distance,
     this.duration,
+    this.waypointCount = 0,
     required this.selected,
     required this.onTap,
   });
@@ -158,6 +159,7 @@ class TimelineRouteConnector extends StatelessWidget {
   final String transportMode;
   final double? distance;
   final int? duration;
+  final int waypointCount;
   final bool selected;
   final VoidCallback onTap;
 
@@ -180,7 +182,8 @@ class TimelineRouteConnector extends StatelessWidget {
     final distanceStr =
         distance != null ? '${distance!.toStringAsFixed(1)} km' : '';
     final durationStr = duration != null ? '${duration} min' : '';
-    final label = [distanceStr, durationStr]
+    final waypointStr = waypointCount > 0 ? '$waypointCount wp' : '';
+    final label = [distanceStr, durationStr, waypointStr]
         .where((s) => s.isNotEmpty)
         .join(' - ');
 

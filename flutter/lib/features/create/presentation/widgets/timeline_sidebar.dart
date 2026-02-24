@@ -237,6 +237,7 @@ class TimelineSidebar extends StatelessWidget {
             transportMode: route.transportMode,
             distance: route.distance,
             duration: route.duration,
+            waypointCount: route.waypoints.length,
             selected:
                 selectedItemId == route.id && selectedItemType == 'route',
             onTap: () => onItemTap(route.id, 'route'),

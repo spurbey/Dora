@@ -28,6 +28,7 @@ class MapboxAdapter implements AppMapController {
 
   // Deferred tap: line tap fires before map tap resolves in same gesture
   AppLatLng? _lastTapPosition;
+  DateTime? _lastTapAt;
   bool _pendingMapTap = false;
 
   final Map<String, PointAnnotation> _markers = {};
@@ -264,6 +265,9 @@ class MapboxAdapter implements AppMapController {
     _markerData.clear();
     _annotationToMarkerId.clear();
     _annotationToRouteId.clear();
+    _lastTapPosition = null;
+    _lastTapAt = null;
+    _pendingMapTap = false;
   }
 
   void handleMapTap(MapContentGestureContext context) {
@@ -273,6 +277,7 @@ class MapboxAdapter implements AppMapController {
       longitude: coordinates.lng.toDouble(),
     );
     _lastTapPosition = pos;
+    _lastTapAt = DateTime.now();
     _pendingMapTap = true;
     Future.microtask(() {
       if (_pendingMapTap) {
@@ -324,7 +329,12 @@ class MapboxAdapter implements AppMapController {
     if (routeId.startsWith('_conn_')) {
       return;
     }
-    final pos = _lastTapPosition;
+    final tappedRecently = _lastTapAt != null &&
+        DateTime.now().difference(_lastTapAt!) <
+            const Duration(milliseconds: 600);
+    final pos = tappedRecently ? _lastTapPosition : null;
+    _lastTapPosition = null;
+    _lastTapAt = null;
     if (pos != null && onRouteLineTap != null) {
       onRouteLineTap!.call(routeId, pos);
     } else {

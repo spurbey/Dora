@@ -298,6 +298,7 @@ Future<File> _createTempFile(String suffix) async {
 
 Future<void> _clearTables(AppDatabase database) async {
   await database.customStatement('DELETE FROM media');
+  await database.customStatement('DELETE FROM sync_tasks');
   await database.customStatement('DELETE FROM routes');
   await database.customStatement('DELETE FROM places');
   await database.customStatement('DELETE FROM user_trips');
@@ -430,6 +431,59 @@ void main() {
       final place = await placeRepository.getPlace(localPlaceId);
       expect(place, isNotNull);
       expect(place!.photoUrls, contains(uploader.uploadedFileUrl));
+    });
+
+    test('defers upload when trip dependency sync task is not ready', () async {
+      await seedPlaceWithRemoteId();
+      final source = await _createTempFile('queue-deferred.jpg');
+      addTearDown(() async {
+        if (await source.exists()) {
+          await source.delete();
+        }
+      });
+
+      final now = DateTime.utc(2026, 2, 21);
+      await database.customInsert(
+        '''
+        INSERT INTO sync_tasks (
+          id,
+          entity_type,
+          entity_id,
+          operation,
+          status,
+          retry_count,
+          next_attempt_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        ''',
+        variables: [
+          drift.Variable<String>('dep-trip-queued-1'),
+          drift.Variable<String>('trip'),
+          drift.Variable<String>(localTripId),
+          drift.Variable<String>('create'),
+          drift.Variable<String>('queued'),
+          drift.Variable<int>(0),
+          drift.Variable<int>(now.millisecondsSinceEpoch),
+          drift.Variable<int>(now.millisecondsSinceEpoch),
+        ],
+      );
+
+      await mediaRepository.enqueueFilePaths(
+        tripId: localTripId,
+        placeId: localPlaceId,
+        filePaths: [source.path],
+      );
+
+      final rows = await database.mediaDao.getMediaForPlace(localPlaceId);
+      expect(rows, hasLength(1));
+      final row = rows.single;
+      expect(row.uploadStatus, 'failed');
+      expect(row.retryCount, 1);
+      expect(row.nextAttemptAt, isNotNull);
+      expect(row.errorMessage, contains('Upload deferred: trip dependency is not ready yet'));
+      expect(uploader.uploadCalls, 0);
     });
 
     test('canceling in-flight upload keeps row canceled and avoids URL bridge',

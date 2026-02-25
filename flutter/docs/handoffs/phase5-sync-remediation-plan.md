@@ -384,6 +384,9 @@ Phase is considered stable when:
      - dependency check is applied in both `getRunnableTasks` and the claim `UPDATE` guard.
    - Editor viewport persistence no longer enqueues trip sync tasks on every pan/zoom event.
      - viewport updates are persisted locally only (backend `TripUpdate` has no viewport fields).
+   - Media dependency readiness now defers uploads when dependency sync tasks are still `queued`/`in_progress`/`failed`:
+     - upload is marked retryable-failed with backoff instead of attempting place resolution too early.
+     - terminal `blocked` dependency states remain explicit and non-retryable.
 
 4. Tests added/updated:
    - `test/core/storage/sync_task_dao_test.dart`
@@ -391,6 +394,8 @@ Phase is considered stable when:
      - verifies blocked dependency prevents downstream claiming.
    - `test/features/create/trip_repository_viewport_test.dart`
      - verifies `setEditorViewport` persists local viewport without creating sync tasks.
+   - `test/features/create/media_upload_integration_test.dart`
+     - verifies media upload is deferred (retryable) when trip dependency task is not yet ready.
 
 5. Still pending:
    - local runtime validation on device/CI (manual + automated) for full hardening matrix.

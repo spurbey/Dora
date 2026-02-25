@@ -327,23 +327,53 @@ class UploadQueueWorker {
       entityType: 'trip',
       entityId: task.tripId,
     );
-    if (tripTask != null && tripTask.status == 'blocked') {
-      final reason = tripTask.errorMessage ?? 'Trip sync is blocked.';
-      throw PlaceIdentityException(
-        'Upload blocked: trip dependency is blocked. $reason',
-      );
-    }
+    _throwIfDependencyNotReady(
+      task: tripTask,
+      dependencyLabel: 'trip',
+      dependencyEntityId: task.tripId,
+    );
 
     final placeTask = await _syncTaskDao.getTaskByEntity(
       entityType: 'place',
       entityId: task.placeId,
     );
-    if (placeTask != null && placeTask.status == 'blocked') {
-      final reason = placeTask.errorMessage ?? 'Place sync is blocked.';
+    _throwIfDependencyNotReady(
+      task: placeTask,
+      dependencyLabel: 'place',
+      dependencyEntityId: task.placeId,
+    );
+  }
+
+  void _throwIfDependencyNotReady({
+    required SyncTaskRow? task,
+    required String dependencyLabel,
+    required String dependencyEntityId,
+  }) {
+    if (task == null || task.status == 'completed') {
+      return;
+    }
+
+    final reason = task.errorMessage;
+    final status = task.status;
+    if (status == 'blocked') {
       throw PlaceIdentityException(
-        'Upload blocked: place dependency is blocked. $reason',
+        'Upload blocked: $dependencyLabel dependency is blocked '
+        '(entityId=$dependencyEntityId). ${reason ?? 'Resolve dependency and retry.'}',
       );
     }
+
+    if (status == 'queued' || status == 'in_progress' || status == 'failed') {
+      throw PlaceIdentityException(
+        'Upload deferred: $dependencyLabel dependency is not ready yet '
+        '(status=$status, entityId=$dependencyEntityId).',
+        retryable: true,
+      );
+    }
+
+    throw PlaceIdentityException(
+      'Upload blocked: $dependencyLabel dependency is in unsupported sync state '
+      '(status=$status, entityId=$dependencyEntityId). ${reason ?? ''}',
+    );
   }
 
   Duration _backoffForRetry(int retryCount) {

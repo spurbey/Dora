@@ -616,3 +616,38 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
    - dependency chain release order (trip -> place -> media),
    - blocked dependency recovery + retry.
 3. If green, mark M4 done and progress M5/M6 to release hardening closure.
+
+---
+
+## Session Update 2026-02-25 (Media Dependency Deferral Hardening)
+
+### What was completed in this session
+- Media worker dependency check expanded:
+  - `UploadQueueWorker` now treats dependency sync tasks in `queued`, `in_progress`, or `failed` as **not ready** and defers media upload with retryable failure/backoff.
+  - Existing `blocked` dependency behavior remains terminal with explicit reason.
+- Added integration coverage:
+  - media upload now verified to defer without calling uploader when trip dependency task is still queued.
+- Test-suite stabilization for Phase 4B compatibility:
+  - city search provider tests now keep auto-dispose provider subscribed during debounce assertions.
+  - map projection expectation updated for synthetic connector routes.
+  - PlaceDetailForm save test now ensures Save button visibility before tap.
+
+### Files touched this session
+- `flutter/lib/core/media/upload_queue_worker.dart`
+- `flutter/test/features/create/media_upload_integration_test.dart`
+- `flutter/test/features/create/phase4b_business_logic_test.dart`
+- `flutter/test/core/storage/sync_task_dao_test.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Validation status
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - `flutter test test/features/create/media_upload_integration_test.dart -r expanded`
+  - `flutter test test/features/create/phase4b_business_logic_test.dart -r expanded`
+  - `flutter test test/core/storage/sync_task_dao_test.dart -r expanded`
+
+### Remaining plan (next sequence)
+1. Capture local test evidence above in handoff.
+2. Run device manual matrix (backend-backed trip, local-only trip blocked/deferred, recovery retry).
+3. If green, mark M4 done and continue M5 closure tasks.

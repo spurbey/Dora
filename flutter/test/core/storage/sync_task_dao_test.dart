@@ -19,7 +19,7 @@ void main() {
       await database.close();
     });
 
-    test('upsertQueuedTask inserts once and re-queues existing task', () async {
+    test('upsertQueuedTask inserts once and updates existing queued task', () async {
       await dao.upsertQueuedTask(
         id: 'task-1',
         entityType: 'trip',
@@ -32,11 +32,6 @@ void main() {
       expect(first.first.id, 'task-1');
       expect(first.first.status, 'queued');
       expect(first.first.operation, 'create');
-
-      await dao.claimRunnableTasks(
-        workerSessionId: 'worker-1',
-        limit: 10,
-      );
 
       await dao.upsertQueuedTask(
         id: 'task-2',

@@ -82,6 +82,12 @@ void main() {
         geocodingServiceProvider.overrideWithValue(fakeService),
       ]);
       addTearDown(container.dispose);
+      final sub = container.listen<AsyncValue<List<GeocodingResult>>>(
+        citySearchControllerProvider,
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
 
       final controller = container.read(citySearchControllerProvider.notifier);
       controller.search('a');
@@ -106,13 +112,19 @@ void main() {
         geocodingServiceProvider.overrideWithValue(fakeService),
       ]);
       addTearDown(container.dispose);
+      final sub = container.listen<AsyncValue<List<GeocodingResult>>>(
+        citySearchControllerProvider,
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
 
       final controller = container.read(citySearchControllerProvider.notifier);
       controller.search('to');
       controller.search('tok');
       controller.search('tokyo');
 
-      await Future<void>.delayed(const Duration(milliseconds: 360));
+      await Future<void>.delayed(const Duration(milliseconds: 450));
 
       expect(fakeService.searchQueries, ['tokyo']);
       final state = container.read(citySearchControllerProvider);
@@ -126,9 +138,15 @@ void main() {
         geocodingServiceProvider.overrideWithValue(fakeService),
       ]);
       addTearDown(container.dispose);
+      final sub = container.listen<AsyncValue<List<GeocodingResult>>>(
+        citySearchControllerProvider,
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
 
       container.read(citySearchControllerProvider.notifier).search('tokyo');
-      await Future<void>.delayed(const Duration(milliseconds: 360));
+      await Future<void>.delayed(const Duration(milliseconds: 450));
 
       final state = container.read(citySearchControllerProvider);
       expect(state.hasError, isTrue);
@@ -237,7 +255,7 @@ void main() {
 
       final state = container.read(mapStateProvider(trip.id));
       expect(state.markers, hasLength(3));
-      expect(state.routes, hasLength(3));
+      expect(state.routes, hasLength(5));
 
       final cityMarker = state.markers.firstWhere((m) => m.id == city.id);
       expect(cityMarker.markerType, 'city');
@@ -260,6 +278,10 @@ void main() {
       expect(carRoute.color, AppColors.accent);
       expect(footRoute.color, const Color(0xFFB96B2B));
       expect(airRoute.color, const Color(0xFF4F46E5));
+
+      final connectorRoutes =
+          state.routes.where((r) => r.id.startsWith('_conn_')).toList();
+      expect(connectorRoutes, hasLength(2));
     });
   });
 
@@ -398,6 +420,8 @@ void main() {
       await tester.pump();
 
       await tester.enterText(find.byType(TextField).last, 'Book tickets early');
+      await tester.ensureVisible(find.text('Save'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pump();
 

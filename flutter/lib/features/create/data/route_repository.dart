@@ -503,6 +503,28 @@ class RouteRepository {
     if (localPlaceId == null || localPlaceId.isEmpty) {
       return null;
     }
+
+    final localPlace = await placeRepository.getPlace(localPlaceId);
+    if (localPlace == null) {
+      throw RouteIdentityException(
+        'Cannot resolve remote place id: local place not found ($localPlaceId)',
+      );
+    }
+
+    final existingRemotePlaceId = localPlace.serverPlaceId;
+    if (existingRemotePlaceId != null && existingRemotePlaceId.isNotEmpty) {
+      return existingRemotePlaceId;
+    }
+
+    final placeTask = await _syncTaskDao.getTaskByEntity(
+      entityType: 'place',
+      entityId: localPlaceId,
+    );
+    _throwIfPlaceDependencyNotReady(
+      task: placeTask,
+      localPlaceId: localPlaceId,
+    );
+
     try {
       return await placeRepository.ensureRemotePlaceId(localPlaceId);
     } on PlaceIdentityException catch (error) {
@@ -511,6 +533,39 @@ class RouteRepository {
         retryable: error.retryable,
       );
     }
+  }
+
+  void _throwIfPlaceDependencyNotReady({
+    required SyncTaskRow? task,
+    required String localPlaceId,
+  }) {
+    if (task == null || task.status == 'completed') {
+      return;
+    }
+
+    final status = task.status;
+    final reason = task.errorMessage;
+    if (status == 'blocked') {
+      throw RouteIdentityException(
+        'Route sync blocked: place dependency is blocked '
+        '(placeId=$localPlaceId). '
+        '${reason ?? 'Resolve place sync issue and retry.'}',
+      );
+    }
+
+    if (status == 'queued' || status == 'in_progress' || status == 'failed') {
+      throw RouteIdentityException(
+        'Route sync deferred: place dependency is not ready yet '
+        '(status=$status, placeId=$localPlaceId).',
+        retryable: true,
+      );
+    }
+
+    throw RouteIdentityException(
+      'Route sync blocked: place dependency is in unsupported sync state '
+      '(status=$status, placeId=$localPlaceId). '
+      '${reason ?? ''}',
+    );
   }
 
   Object _resolveRouteGeoJson(Route route) {

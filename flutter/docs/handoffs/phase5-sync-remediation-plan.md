@@ -387,6 +387,10 @@ Phase is considered stable when:
    - Media dependency readiness now defers uploads when dependency sync tasks are still `queued`/`in_progress`/`failed`:
      - upload is marked retryable-failed with backoff instead of attempting place resolution too early.
      - terminal `blocked` dependency states remain explicit and non-retryable.
+   - Route sync now enforces unresolved place dependency readiness before remote route creation:
+     - if place has no `serverPlaceId` and place sync task is `queued|in_progress|failed`, route sync is deferred (retryable).
+     - if place sync task is `blocked`, route sync is blocked with explicit cause.
+     - if place already has `serverPlaceId`, route sync proceeds even when a place task exists (prevents false deferral).
 
 4. Tests added/updated:
    - `test/core/storage/sync_task_dao_test.dart`
@@ -397,29 +401,30 @@ Phase is considered stable when:
    - `test/features/create/media_upload_integration_test.dart`
      - verifies media upload is deferred (retryable) when trip dependency task is not yet ready.
      - verifies backend-bound place uploads still proceed (no false deferral).
+   - `test/features/create/route_repository_dependency_test.dart`
+     - verifies route sync defers when place dependency is queued and unresolved.
+     - verifies route sync blocks when place dependency is blocked.
+     - verifies route sync uses existing `serverPlaceId` directly (no false blocking).
 
 5. Still pending:
-   - local runtime validation on device/CI (manual + automated) for full hardening matrix.
+   - manual runtime validation matrix on device/CI for full hardening paths.
    - execution of uninstall/reinstall data-retention expectations against current backend sync policy.
    - optional optimization: dependency-aware prioritization policy (trip-first ordering) beyond current readiness gate.
 
 ## 10. Remaining Plan (Ordered)
 
-1. Validation pass (must run locally by user/CI):
-   - `flutter analyze`
-   - targeted tests:
-     - `test/core/storage/sync_task_dao_test.dart`
-     - `test/features/create/trip_repository_viewport_test.dart`
-     - `test/features/create/media_upload_integration_test.dart`
-   - latest evidence:
-     - `test/features/create/media_upload_integration_test.dart` passed (`5/5`) on user run after `fix(media): allow upload when place already has remote binding`.
+1. Validation status (latest user run):
+   - `flutter analyze`: no errors reported.
+   - targeted tests are green in local run, including media integration (`5/5`).
+   - next validation addition: run `test/features/create/route_repository_dependency_test.dart` and attach output.
 
 2. Hardening matrix (manual):
    - backend-backed trip: upload success path.
    - local-only trip: explicit blocked reason, no retry flood.
    - dependency chain: trip queued -> place queued -> media queued, then ordered release.
    - blocked dependency recovery: dependency fixed then manual retry succeeds.
+   - route dependency chain: queued/blocked place dependency prevents remote route create until ready.
 
 3. Documentation + closure:
-   - update milestone status to `Done` for M4 dependency gating once validation evidence is captured.
+   - keep M4 closed and maintain evidence links in handoff.
    - move M5/M6 from `In Progress` to `Ready for RC` only after hardening matrix evidence is attached.

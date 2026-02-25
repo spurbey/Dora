@@ -23,12 +23,12 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 | Milestone | Checklist Step | Status | Last Updated | Owner | Notes |
 |---|---|---|---|---|---|
 | M0 Contract Freeze | Step 0 | Done | 2026-02-20 | Codex | Contract freeze captured in `phase5-step0-contract-freeze.md` |
-| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-25 | Codex | schema v10 + `sync_tasks.remote_entity_id` + `routes.server_route_id`; runtime validation pending |
-| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-25 | Codex | trip/place/route enqueue hooks + worker expansion (create/update/delete); runtime validation pending |
-| M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-25 | Codex | dependency-aware media blocking surfaced (`blocked` status + dependency checks); runtime validation pending |
-| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-25 | Codex | dependency-aware task claiming added; identity retryability semantics refined; route geometry edge case guarded; runtime validation pending |
-| M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-21 | Codex | media screen + place preview integration wired; UX polish + full validation pending |
-| M6 Hardening + RC | Step 6 | Not Started | 2026-02-21 | TBD | full failure matrix/regression pack pending |
+| M1 Schema + DAO Migration | Step 1 | Done | 2026-02-25 | Codex | schema v10 live with typed Drift sync table + migration coverage in place |
+| M2 Place Identity Binding | Step 2 | Done | 2026-02-25 | Codex | trip/place/route enqueue hooks + worker expansion (create/update/delete) are integrated |
+| M3 Core Media Pipeline | Step 3 | Done | 2026-02-25 | Codex | dependency-aware media upload gating and place-id binding are stable in integration tests |
+| M4 Queue Worker Reliability | Step 4 | Done | 2026-02-25 | Codex | dependency-aware claiming + retryability semantics + route dependency gating hardened |
+| M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-25 | Codex | integration is wired; hardening validation and UX closure remain |
+| M6 Hardening + RC | Step 6 | In Progress | 2026-02-25 | Codex | final manual matrix + RC evidence pack pending |
 
 Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 
@@ -681,3 +681,33 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
    - `flutter test test/features/create/phase4b_business_logic_test.dart -r expanded`
 2. Run `flutter analyze` and capture error-only summary.
 3. Execute manual matrix and decide M4 -> M5 transition.
+
+---
+
+## Session Update 2026-02-25 (Route Sync Dependency Gate Hardening)
+
+### What was completed in this session
+- Hardened route sync dependency behavior:
+  - `RouteRepository` now checks place sync-task readiness before attempting remote place binding.
+  - unresolved place dependencies (`queued|in_progress|failed`) now defer route sync with retryable error.
+  - blocked place dependencies now block route sync with explicit cause.
+  - existing `serverPlaceId` now bypasses dependency-task state checks to avoid false blocking.
+- Added targeted route dependency tests to lock behavior and prevent regression.
+
+### Files touched this session
+- `flutter/lib/features/create/data/route_repository.dart`
+- `flutter/test/features/create/route_repository_dependency_test.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Validation status
+- User-run validation evidence (latest):
+  - `flutter analyze` reported no errors.
+  - `flutter test test/features/create/media_upload_integration_test.dart -r expanded` reported `All tests passed` (`5/5`).
+- Pending new test execution:
+  - `flutter test test/features/create/route_repository_dependency_test.dart -r expanded`.
+
+### Remaining plan (next sequence)
+1. Run the new route dependency test and attach pass output.
+2. Execute final manual hardening matrix (backend-backed upload, local-only blocked flow, dependency recovery retry).
+3. Produce RC evidence summary and close M5/M6.

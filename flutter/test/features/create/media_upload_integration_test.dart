@@ -434,7 +434,6 @@ void main() {
     });
 
     test('defers upload when trip dependency sync task is not ready', () async {
-      await seedPlaceWithRemoteId();
       final source = await _createTempFile('queue-deferred.jpg');
       addTearDown(() async {
         if (await source.exists()) {
@@ -443,6 +442,29 @@ void main() {
       });
 
       final now = DateTime.utc(2026, 2, 21);
+      await database.placeDao.insertPlace(
+        PlacesCompanion(
+          id: const drift.Value(localPlaceId),
+          serverPlaceId: const drift.Value(null),
+          tripId: const drift.Value(localTripId),
+          name: const drift.Value('Deferred Place'),
+          address: const drift.Value.absent(),
+          coordinates: const drift.Value(
+            AppLatLng(latitude: 37.7749, longitude: -122.4194),
+          ),
+          notes: const drift.Value.absent(),
+          visitTime: const drift.Value.absent(),
+          dayNumber: const drift.Value.absent(),
+          orderIndex: const drift.Value(0),
+          photoUrls: const drift.Value(<String>[]),
+          placeType: const drift.Value.absent(),
+          rating: const drift.Value.absent(),
+          localUpdatedAt: drift.Value(now),
+          serverUpdatedAt: drift.Value(now),
+          syncStatus: const drift.Value('pending'),
+        ),
+      );
+
       await database.customInsert(
         '''
         INSERT INTO sync_tasks (

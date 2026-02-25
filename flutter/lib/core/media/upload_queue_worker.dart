@@ -323,6 +323,14 @@ class UploadQueueWorker {
   }
 
   Future<void> _ensureEntityDependenciesReady(QueuedMediaTask task) async {
+    final place = await _placeRepository.getPlace(task.placeId);
+    final remotePlaceId = place?.serverPlaceId;
+    if (remotePlaceId != null && remotePlaceId.isNotEmpty) {
+      // Already bound to a backend place id; media upload can proceed even if
+      // unrelated entity sync tasks are still pending.
+      return;
+    }
+
     final tripTask = await _syncTaskDao.getTaskByEntity(
       entityType: 'trip',
       entityId: task.tripId,

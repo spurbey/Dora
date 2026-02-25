@@ -58,6 +58,7 @@ dependencies:
   # Models & Utils
   freezed_annotation: ^2.4.0
   json_annotation: ^4.8.1
+  built_value: ^8.9.2
   intl: ^0.18.1
   uuid: ^4.2.0
 

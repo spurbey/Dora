@@ -109,12 +109,26 @@ class TripRepository {
     required double zoom,
     required AppLatLng? centerPoint,
   }) async {
-    final current = await getTrip(tripId);
-    if (current == null) {
+    final currentRow = await _db.tripDao.getTripById(tripId);
+    if (currentRow == null) {
       return;
     }
 
-    await updateTrip(current.copyWith(centerPoint: centerPoint, zoom: zoom));
+    final currentCenter = currentRow.centerPoint;
+    final centerUnchanged = currentCenter == centerPoint;
+    final zoomUnchanged = currentRow.zoom == zoom;
+    if (centerUnchanged && zoomUnchanged) {
+      return;
+    }
+
+    // Viewport is editor-local UI state and not part of backend TripUpdate schema.
+    // Persist locally without enqueueing sync tasks to avoid queue spam.
+    await (_db.update(_db.trips)..where((t) => t.id.equals(tripId))).write(
+      TripsCompanion(
+        centerPoint: Value(centerPoint),
+        zoom: Value(zoom),
+      ),
+    );
   }
 
   /// Resolves the backend trip UUID for a local trip.

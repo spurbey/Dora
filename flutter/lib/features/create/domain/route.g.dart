@@ -8,6 +8,7 @@ part of 'route.dart';
 
 _$RouteImpl _$$RouteImplFromJson(Map<String, dynamic> json) => _$RouteImpl(
       id: json['id'] as String,
+      serverRouteId: json['serverRouteId'] as String?,
       tripId: json['tripId'] as String,
       coordinates: (json['coordinates'] as List<dynamic>)
           .map((e) => AppLatLng.fromJson(e as Map<String, dynamic>))
@@ -35,6 +36,7 @@ _$RouteImpl _$$RouteImplFromJson(Map<String, dynamic> json) => _$RouteImpl(
 Map<String, dynamic> _$$RouteImplToJson(_$RouteImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'serverRouteId': instance.serverRouteId,
       'tripId': instance.tripId,
       'coordinates': instance.coordinates,
       'transportMode': instance.transportMode,

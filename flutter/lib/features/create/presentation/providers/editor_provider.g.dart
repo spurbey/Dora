@@ -40,7 +40,7 @@ final placeRepositoryProvider = AutoDisposeProvider<PlaceRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef PlaceRepositoryRef = AutoDisposeProviderRef<PlaceRepository>;
-String _$routeRepositoryHash() => r'afa1211fdee118767111692cb6facf0419c7b892';
+String _$routeRepositoryHash() => r'519cd15bffde022c12f4db98d5d64dc8e200b053';
 
 /// See also [routeRepository].
 @ProviderFor(routeRepository)

@@ -228,5 +228,81 @@ void main() {
       expect(row.read<String>('operation'), 'update');
       expect(row.read<String?>('remote_entity_id'), 'remote-route-1');
     });
+
+    test('claimRunnableTasks waits for dependency task completion', () async {
+      await dao.upsertQueuedTask(
+        id: 'trip-task-1',
+        entityType: 'trip',
+        entityId: 'trip-1',
+        operation: 'create',
+      );
+      await dao.upsertQueuedTask(
+        id: 'place-task-1',
+        entityType: 'place',
+        entityId: 'place-1',
+        operation: 'create',
+        dependsOnEntityType: 'trip',
+        dependsOnEntityId: 'trip-1',
+      );
+
+      final firstClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-dep-1',
+        limit: 10,
+      );
+
+      expect(firstClaim.length, 1);
+      expect(firstClaim.first.id, 'trip-task-1');
+
+      await dao.markCompleted(
+        taskId: 'trip-task-1',
+        expectedSessionId: 'worker-dep-1',
+      );
+
+      final secondClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-dep-2',
+        limit: 10,
+      );
+
+      expect(secondClaim.length, 1);
+      expect(secondClaim.first.id, 'place-task-1');
+    });
+
+    test('claimRunnableTasks does not run when dependency is blocked', () async {
+      await dao.upsertQueuedTask(
+        id: 'trip-task-blocked',
+        entityType: 'trip',
+        entityId: 'trip-b',
+        operation: 'create',
+      );
+      await dao.upsertQueuedTask(
+        id: 'place-task-blocked',
+        entityType: 'place',
+        entityId: 'place-b',
+        operation: 'create',
+        dependsOnEntityType: 'trip',
+        dependsOnEntityId: 'trip-b',
+      );
+
+      final firstClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-dep-block-1',
+        limit: 10,
+      );
+      expect(firstClaim.length, 1);
+      expect(firstClaim.first.id, 'trip-task-blocked');
+
+      await dao.markBlocked(
+        taskId: 'trip-task-blocked',
+        errorCode: 'trip_create_forbidden',
+        errorMessage: 'Trip create denied',
+        expectedSessionId: 'worker-dep-block-1',
+      );
+
+      final secondClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-dep-block-2',
+        limit: 10,
+      );
+
+      expect(secondClaim, isEmpty);
+    });
   });
 }

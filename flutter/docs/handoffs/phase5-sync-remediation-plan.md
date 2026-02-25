@@ -365,18 +365,53 @@ Phase is considered stable when:
 
 ## 9. Progress Update 2026-02-25
 
-1. Completed in code:
+1. Completed in code (core sync/media):
    - `schemaVersion 10` migration (`sync_tasks.remote_entity_id`, `routes.server_route_id`).
-   - Trip/place/route repositories now enqueue create/update/delete sync tasks.
-   - Entity worker now processes route tasks and delete tasks for trip/place/route.
-   - Trip/place update tasks now call backend patch APIs.
-   - Route create/update/delete backend sync paths implemented.
-2. Still pending:
-   - local codegen + runtime verification on device/CI.
-   - hardening matrix execution (restart/offline/quota/conflict scenarios).
-3. Newly addressed after this update:
-   - media worker now checks blocked trip/place dependency tasks before upload and marks media as `blocked`.
-   - queue UI now surfaces blocked count/state.
-   - identity exceptions now carry retryability signals to worker policy.
-   - route sync no longer emits fabricated `0,0` geometry for empty paths.
-   - route backfill tasks added in migration path for unsynced routes.
+   - Trip/place/route repositories enqueue create/update/delete sync tasks.
+   - Entity worker processes trip/place/route create/update/delete paths.
+   - Media worker checks trip/place dependency state and marks media rows `blocked` when upstream entity sync is blocked.
+   - Queue UI surfaces blocked states/count and retryability.
+   - Route sync now rejects insufficient geometry instead of sending fabricated coordinates.
+
+2. Completed in code (dependency hygiene):
+   - Removed app-layer direct `built_collection` imports in create/feed/trips repositories.
+   - Added explicit `built_value` app dependency because route payloads require `JsonObject`.
+   - Refreshed generated files so new schema/model fields are represented in generated Drift/Freezed/provider outputs.
+
+3. Completed in code (stability patch in this session):
+   - Sync task claiming now enforces dependency readiness:
+     - downstream tasks are runnable only when dependency task is either absent or `completed`.
+     - dependency check is applied in both `getRunnableTasks` and the claim `UPDATE` guard.
+   - Editor viewport persistence no longer enqueues trip sync tasks on every pan/zoom event.
+     - viewport updates are persisted locally only (backend `TripUpdate` has no viewport fields).
+
+4. Tests added/updated:
+   - `test/core/storage/sync_task_dao_test.dart`
+     - verifies downstream tasks wait for dependency completion.
+     - verifies blocked dependency prevents downstream claiming.
+   - `test/features/create/trip_repository_viewport_test.dart`
+     - verifies `setEditorViewport` persists local viewport without creating sync tasks.
+
+5. Still pending:
+   - local runtime validation on device/CI (manual + automated) for full hardening matrix.
+   - execution of uninstall/reinstall data-retention expectations against current backend sync policy.
+   - optional optimization: dependency-aware prioritization policy (trip-first ordering) beyond current readiness gate.
+
+## 10. Remaining Plan (Ordered)
+
+1. Validation pass (must run locally by user/CI):
+   - `flutter analyze`
+   - targeted tests:
+     - `test/core/storage/sync_task_dao_test.dart`
+     - `test/features/create/trip_repository_viewport_test.dart`
+     - `test/features/create/media_upload_integration_test.dart`
+
+2. Hardening matrix (manual):
+   - backend-backed trip: upload success path.
+   - local-only trip: explicit blocked reason, no retry flood.
+   - dependency chain: trip queued -> place queued -> media queued, then ordered release.
+   - blocked dependency recovery: dependency fixed then manual retry succeeds.
+
+3. Documentation + closure:
+   - update milestone status to `Done` for M4 dependency gating once validation evidence is captured.
+   - move M5/M6 from `In Progress` to `Ready for RC` only after hardening matrix evidence is attached.

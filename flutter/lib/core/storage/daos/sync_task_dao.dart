@@ -27,7 +27,8 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
 
     if (existing != null) {
       final isInProgress = existing.status == 'in_progress';
-      final remoteEntityIdValue = (remoteEntityId == null && isInProgress)
+      final Value<String?> remoteEntityIdValue =
+          (remoteEntityId == null && isInProgress)
           ? const Value.absent()
           : Value(remoteEntityId);
       await (update(syncTasks)..where((t) => t.id.equals(existing.id))).write(
@@ -73,16 +74,35 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
   Future<List<SyncTaskRow>> getRunnableTasks({
     DateTime? now,
     int limit = 20,
-  }) {
+  }) async {
     final currentTime = now ?? DateTime.now();
-    return (select(syncTasks)
-          ..where((t) =>
-              t.status.isIn(const ['queued', 'failed']) &
-              (t.nextAttemptAt.isNull() |
-                  t.nextAttemptAt.isSmallerOrEqualValue(currentTime)))
-          ..orderBy([(t) => OrderingTerm(expression: t.createdAt)])
-          ..limit(limit))
-        .get();
+    final rows = await customSelect(
+      '''
+      SELECT t.*
+      FROM sync_tasks AS t
+      WHERE t.status IN ('queued', 'failed')
+        AND (t.next_attempt_at IS NULL OR t.next_attempt_at <= ?)
+        AND (
+          t.depends_on_entity_type IS NULL
+          OR t.depends_on_entity_id IS NULL
+          OR NOT EXISTS (
+            SELECT 1
+            FROM sync_tasks AS dependency
+            WHERE dependency.entity_type = t.depends_on_entity_type
+              AND dependency.entity_id = t.depends_on_entity_id
+              AND dependency.status <> 'completed'
+          )
+        )
+      ORDER BY t.created_at
+      LIMIT ?
+      ''',
+      variables: [
+        Variable<DateTime>(currentTime),
+        Variable<int>(limit),
+      ],
+      readsFrom: {syncTasks},
+    ).get();
+    return rows.map((row) => syncTasks.map(row.data)).toList();
   }
 
   Future<List<SyncTaskRow>> claimRunnableTasks({
@@ -109,6 +129,17 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
           WHERE id = ?
             AND status IN ('queued', 'failed')
             AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+            AND (
+              depends_on_entity_type IS NULL
+              OR depends_on_entity_id IS NULL
+              OR NOT EXISTS (
+                SELECT 1
+                FROM sync_tasks AS dependency
+                WHERE dependency.entity_type = sync_tasks.depends_on_entity_type
+                  AND dependency.entity_id = sync_tasks.depends_on_entity_id
+                  AND dependency.status <> 'completed'
+              )
+            )
           ''',
           variables: [
             Variable<String>(workerSessionId),

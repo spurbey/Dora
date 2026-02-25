@@ -1,5 +1,3 @@
-import 'package:built_collection/built_collection.dart';
-
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 import 'package:dora/features/feed/data/models/trip_detail_data.dart';
@@ -56,7 +54,10 @@ class FeedApi {
         tripId: tripId,
         authorization: auth,
       );
-      final places = response.data?.places ?? BuiltList();
+      final places = response.data?.places;
+      if (places == null || places.isEmpty) {
+        return const <TripPlace>[];
+      }
       return places.map(_mapPlace).toList();
     } catch (e) {
       throw FeedApiException('Failed to fetch places: $e');
@@ -70,7 +71,10 @@ class FeedApi {
         tripId: tripId,
         authorization: auth,
       );
-      final routes = response.data?.routes ?? BuiltList();
+      final routes = response.data?.routes;
+      if (routes == null || routes.isEmpty) {
+        return const <TripRoute>[];
+      }
       return routes.map(_mapRoute).toList();
     } catch (e) {
       throw FeedApiException('Failed to fetch routes: $e');
@@ -94,7 +98,10 @@ class FeedApi {
         radiusKm: radiusKm,
         limit: limit,
       );
-      final results = response.data?.results ?? BuiltList();
+      final results = response.data?.results;
+      if (results == null || results.isEmpty) {
+        return const <PlaceSearchResult>[];
+      }
       return results.map(_mapSearchResult).toList();
     } catch (e) {
       throw FeedApiException('Failed to search places: $e');
@@ -114,7 +121,10 @@ class FeedApi {
         authorization: auth,
         radius: radiusKm,
       );
-      final places = response.data?.places ?? BuiltList();
+      final places = response.data?.places;
+      if (places == null || places.isEmpty) {
+        return const <PlaceSearchResult>[];
+      }
       return places.map(_mapNearbyPlace).toList();
     } catch (e) {
       throw FeedApiException('Failed to get nearby places: $e');
@@ -122,7 +132,7 @@ class FeedApi {
   }
 
   TripPlace _mapPlace(PlaceResponse place) {
-    final photos = place.photos ?? BuiltList();
+    final photos = place.photos;
     return TripPlace(
       id: place.id,
       name: place.name,
@@ -130,7 +140,8 @@ class FeedApi {
       longitude: place.lng.toDouble(),
       notes: place.userNotes,
       orderIndex: place.orderInTrip,
-      photoUrls: photos.map((photo) => photo.fileUrl).toList(),
+      photoUrls:
+          photos == null ? const <String>[] : photos.map((photo) => photo.fileUrl).toList(),
     );
   }
 

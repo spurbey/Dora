@@ -26,7 +26,7 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 | M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-25 | Codex | schema v10 + `sync_tasks.remote_entity_id` + `routes.server_route_id`; runtime validation pending |
 | M2 Place Identity Binding | Step 2 | In Progress | 2026-02-25 | Codex | trip/place/route enqueue hooks + worker expansion (create/update/delete); runtime validation pending |
 | M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-25 | Codex | dependency-aware media blocking surfaced (`blocked` status + dependency checks); runtime validation pending |
-| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-25 | Codex | identity retryability semantics refined; route geometry edge case guarded; runtime validation pending |
+| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-25 | Codex | dependency-aware task claiming added; identity retryability semantics refined; route geometry edge case guarded; runtime validation pending |
 | M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-21 | Codex | media screen + place preview integration wired; UX polish + full validation pending |
 | M6 Hardening + RC | Step 6 | Not Started | 2026-02-21 | TBD | full failure matrix/regression pack pending |
 
@@ -569,3 +569,50 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
     - blocked dependency state visible in queue UI
     - retry from blocked after dependency resolved
   - route sync failure path for empty geometry should block with explicit error
+
+---
+
+## Session Update 2026-02-25 (Dependency Gating + Viewport Queue Noise Fix)
+
+### What was completed in this session
+- Dependency-aware runnable/claim semantics in sync DAO:
+  - `getRunnableTasks` now excludes tasks whose dependency row exists and is not `completed`.
+  - claim SQL now re-checks dependency readiness to avoid race claims.
+- Viewport sync noise fix:
+  - `TripRepository.setEditorViewport(...)` no longer calls `updateTrip(...)`.
+  - viewport updates are persisted locally only (no sync task enqueue per pan/zoom).
+- Dependency warning cleanup completed in app layer:
+  - removed direct `built_collection` imports from app repositories.
+  - added direct `built_value` dependency for route payload `JsonObject` usage.
+- Test coverage added:
+  - dependency completion gate and blocked-dependency gate in `sync_task_dao_test.dart`.
+  - local viewport persistence without sync enqueue in `trip_repository_viewport_test.dart`.
+
+### Files touched this session
+- `flutter/lib/core/storage/daos/sync_task_dao.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/features/feed/data/feed_api.dart`
+- `flutter/lib/features/trips/data/trips_api.dart`
+- `flutter/pubspec.yaml`
+- `flutter/test/core/storage/sync_task_dao_test.dart`
+- `flutter/test/features/create/trip_repository_viewport_test.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Validation status
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - `flutter analyze`
+  - `flutter test test/core/storage/sync_task_dao_test.dart -r expanded`
+  - `flutter test test/features/create/trip_repository_viewport_test.dart -r expanded`
+  - `flutter test test/features/create/media_upload_integration_test.dart -r expanded`
+
+### Remaining plan (next sequence)
+1. Run local validation commands above and capture evidence in this handoff.
+2. Execute manual hardening matrix:
+   - backend-backed trip upload success,
+   - local-only trip blocked reason without retry flood,
+   - dependency chain release order (trip -> place -> media),
+   - blocked dependency recovery + retry.
+3. If green, mark M4 done and progress M5/M6 to release hardening closure.

@@ -21,6 +21,7 @@ Route _$RouteFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$Route {
   String get id => throw _privateConstructorUsedError;
+  String? get serverRouteId => throw _privateConstructorUsedError;
   String get tripId => throw _privateConstructorUsedError;
   List<AppLatLng> get coordinates => throw _privateConstructorUsedError;
   String get transportMode =>
@@ -60,6 +61,7 @@ abstract class $RouteCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverRouteId,
       String tripId,
       List<AppLatLng> coordinates,
       String transportMode,
@@ -95,6 +97,7 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
   @override
   $Res call({
     Object? id = null,
+    Object? serverRouteId = freezed,
     Object? tripId = null,
     Object? coordinates = null,
     Object? transportMode = null,
@@ -118,6 +121,10 @@ class _$RouteCopyWithImpl<$Res, $Val extends Route>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverRouteId: freezed == serverRouteId
+          ? _value.serverRouteId
+          : serverRouteId // ignore: cast_nullable_to_non_nullable
+              as String?,
       tripId: null == tripId
           ? _value.tripId
           : tripId // ignore: cast_nullable_to_non_nullable
@@ -199,6 +206,7 @@ abstract class _$$RouteImplCopyWith<$Res> implements $RouteCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? serverRouteId,
       String tripId,
       List<AppLatLng> coordinates,
       String transportMode,
@@ -232,6 +240,7 @@ class __$$RouteImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
+    Object? serverRouteId = freezed,
     Object? tripId = null,
     Object? coordinates = null,
     Object? transportMode = null,
@@ -255,6 +264,10 @@ class __$$RouteImplCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      serverRouteId: freezed == serverRouteId
+          ? _value.serverRouteId
+          : serverRouteId // ignore: cast_nullable_to_non_nullable
+              as String?,
       tripId: null == tripId
           ? _value.tripId
           : tripId // ignore: cast_nullable_to_non_nullable
@@ -332,6 +345,7 @@ class __$$RouteImplCopyWithImpl<$Res>
 class _$RouteImpl implements _Route {
   const _$RouteImpl(
       {required this.id,
+      this.serverRouteId,
       required this.tripId,
       required final List<AppLatLng> coordinates,
       this.transportMode = 'car',
@@ -357,6 +371,8 @@ class _$RouteImpl implements _Route {
 
   @override
   final String id;
+  @override
+  final String? serverRouteId;
   @override
   final String tripId;
   final List<AppLatLng> _coordinates;
@@ -420,7 +436,7 @@ class _$RouteImpl implements _Route {
 
   @override
   String toString() {
-    return 'Route(id: $id, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, name: $name, description: $description, routeCategory: $routeCategory, startPlaceId: $startPlaceId, endPlaceId: $endPlaceId, orderIndex: $orderIndex, routeGeojson: $routeGeojson, waypoints: $waypoints, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
+    return 'Route(id: $id, serverRouteId: $serverRouteId, tripId: $tripId, coordinates: $coordinates, transportMode: $transportMode, distance: $distance, duration: $duration, dayNumber: $dayNumber, name: $name, description: $description, routeCategory: $routeCategory, startPlaceId: $startPlaceId, endPlaceId: $endPlaceId, orderIndex: $orderIndex, routeGeojson: $routeGeojson, waypoints: $waypoints, localUpdatedAt: $localUpdatedAt, serverUpdatedAt: $serverUpdatedAt, syncStatus: $syncStatus)';
   }
 
   @override
@@ -429,6 +445,8 @@ class _$RouteImpl implements _Route {
         (other.runtimeType == runtimeType &&
             other is _$RouteImpl &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.serverRouteId, serverRouteId) ||
+                other.serverRouteId == serverRouteId) &&
             (identical(other.tripId, tripId) || other.tripId == tripId) &&
             const DeepCollectionEquality()
                 .equals(other._coordinates, _coordinates) &&
@@ -465,26 +483,28 @@ class _$RouteImpl implements _Route {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      tripId,
-      const DeepCollectionEquality().hash(_coordinates),
-      transportMode,
-      distance,
-      duration,
-      dayNumber,
-      name,
-      description,
-      routeCategory,
-      startPlaceId,
-      endPlaceId,
-      orderIndex,
-      routeGeojson,
-      const DeepCollectionEquality().hash(_waypoints),
-      localUpdatedAt,
-      serverUpdatedAt,
-      syncStatus);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        serverRouteId,
+        tripId,
+        const DeepCollectionEquality().hash(_coordinates),
+        transportMode,
+        distance,
+        duration,
+        dayNumber,
+        name,
+        description,
+        routeCategory,
+        startPlaceId,
+        endPlaceId,
+        orderIndex,
+        routeGeojson,
+        const DeepCollectionEquality().hash(_waypoints),
+        localUpdatedAt,
+        serverUpdatedAt,
+        syncStatus
+      ]);
 
   /// Create a copy of Route
   /// with the given fields replaced by the non-null parameter values.
@@ -505,6 +525,7 @@ class _$RouteImpl implements _Route {
 abstract class _Route implements Route {
   const factory _Route(
       {required final String id,
+      final String? serverRouteId,
       required final String tripId,
       required final List<AppLatLng> coordinates,
       final String transportMode,
@@ -527,6 +548,8 @@ abstract class _Route implements Route {
 
   @override
   String get id;
+  @override
+  String? get serverRouteId;
   @override
   String get tripId;
   @override

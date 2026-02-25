@@ -1,5 +1,3 @@
-import 'package:built_collection/built_collection.dart';
-
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
@@ -38,7 +36,10 @@ class OpenApiTripsApi implements TripsApi {
         page: page,
         pageSize: limit,
       );
-      final trips = response.data?.trips ?? BuiltList<openapi.TripResponse>();
+      final trips = response.data?.trips;
+      if (trips == null || trips.isEmpty) {
+        return const <UserTrip>[];
+      }
       return trips.map(_mapTrip).toList();
     } catch (e) {
       throw TripsApiException('Failed to fetch trips: $e');

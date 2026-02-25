@@ -1,4 +1,3 @@
-import 'package:built_collection/built_collection.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -245,7 +244,10 @@ class PlaceRepository {
       radiusKm: radiusKm,
       limit: limit,
     );
-    final results = response.data?.results ?? BuiltList();
+    final results = response.data?.results;
+    if (results == null || results.isEmpty) {
+      return const <PlaceSearchResult>[];
+    }
     return results.map(_mapSearchResult).toList();
   }
 

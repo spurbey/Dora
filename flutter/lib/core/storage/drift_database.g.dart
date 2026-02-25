@@ -1516,6 +1516,12 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serverRouteIdMeta =
+      const VerificationMeta('serverRouteId');
+  @override
+  late final GeneratedColumn<String> serverRouteId = GeneratedColumn<String>(
+      'server_route_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
   @override
   late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
@@ -1628,6 +1634,7 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        serverRouteId,
         tripId,
         coordinates,
         transportMode,
@@ -1660,6 +1667,12 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('server_route_id')) {
+      context.handle(
+          _serverRouteIdMeta,
+          serverRouteId.isAcceptableOrUnknown(
+              data['server_route_id']!, _serverRouteIdMeta));
     }
     if (data.containsKey('trip_id')) {
       context.handle(_tripIdMeta,
@@ -1760,6 +1773,8 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
     return RouteRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      serverRouteId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_route_id']),
       tripId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
       coordinates: $RoutesTable.$convertercoordinates.fromSql(attachedDatabase
@@ -1812,6 +1827,7 @@ class $RoutesTable extends Routes with TableInfo<$RoutesTable, RouteRow> {
 
 class RouteRow extends DataClass implements Insertable<RouteRow> {
   final String id;
+  final String? serverRouteId;
   final String tripId;
   final List<AppLatLng> coordinates;
   final String transportMode;
@@ -1831,6 +1847,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   final String syncStatus;
   const RouteRow(
       {required this.id,
+      this.serverRouteId,
       required this.tripId,
       required this.coordinates,
       required this.transportMode,
@@ -1852,6 +1869,9 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || serverRouteId != null) {
+      map['server_route_id'] = Variable<String>(serverRouteId);
+    }
     map['trip_id'] = Variable<String>(tripId);
     {
       map['coordinates'] = Variable<String>(
@@ -1897,6 +1917,9 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   RoutesCompanion toCompanion(bool nullToAbsent) {
     return RoutesCompanion(
       id: Value(id),
+      serverRouteId: serverRouteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverRouteId),
       tripId: Value(tripId),
       coordinates: Value(coordinates),
       transportMode: Value(transportMode),
@@ -1936,6 +1959,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return RouteRow(
       id: serializer.fromJson<String>(json['id']),
+      serverRouteId: serializer.fromJson<String?>(json['serverRouteId']),
       tripId: serializer.fromJson<String>(json['tripId']),
       coordinates: serializer.fromJson<List<AppLatLng>>(json['coordinates']),
       transportMode: serializer.fromJson<String>(json['transportMode']),
@@ -1961,6 +1985,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'serverRouteId': serializer.toJson<String?>(serverRouteId),
       'tripId': serializer.toJson<String>(tripId),
       'coordinates': serializer.toJson<List<AppLatLng>>(coordinates),
       'transportMode': serializer.toJson<String>(transportMode),
@@ -1983,6 +2008,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
 
   RouteRow copyWith(
           {String? id,
+          Value<String?> serverRouteId = const Value.absent(),
           String? tripId,
           List<AppLatLng>? coordinates,
           String? transportMode,
@@ -2002,6 +2028,8 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
           String? syncStatus}) =>
       RouteRow(
         id: id ?? this.id,
+        serverRouteId:
+            serverRouteId.present ? serverRouteId.value : this.serverRouteId,
         tripId: tripId ?? this.tripId,
         coordinates: coordinates ?? this.coordinates,
         transportMode: transportMode ?? this.transportMode,
@@ -2025,6 +2053,9 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   RouteRow copyWithCompanion(RoutesCompanion data) {
     return RouteRow(
       id: data.id.present ? data.id.value : this.id,
+      serverRouteId: data.serverRouteId.present
+          ? data.serverRouteId.value
+          : this.serverRouteId,
       tripId: data.tripId.present ? data.tripId.value : this.tripId,
       coordinates:
           data.coordinates.present ? data.coordinates.value : this.coordinates,
@@ -2068,6 +2099,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   String toString() {
     return (StringBuffer('RouteRow(')
           ..write('id: $id, ')
+          ..write('serverRouteId: $serverRouteId, ')
           ..write('tripId: $tripId, ')
           ..write('coordinates: $coordinates, ')
           ..write('transportMode: $transportMode, ')
@@ -2092,6 +2124,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
   @override
   int get hashCode => Object.hash(
       id,
+      serverRouteId,
       tripId,
       coordinates,
       transportMode,
@@ -2114,6 +2147,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
       identical(this, other) ||
       (other is RouteRow &&
           other.id == this.id &&
+          other.serverRouteId == this.serverRouteId &&
           other.tripId == this.tripId &&
           other.coordinates == this.coordinates &&
           other.transportMode == this.transportMode &&
@@ -2135,6 +2169,7 @@ class RouteRow extends DataClass implements Insertable<RouteRow> {
 
 class RoutesCompanion extends UpdateCompanion<RouteRow> {
   final Value<String> id;
+  final Value<String?> serverRouteId;
   final Value<String> tripId;
   final Value<List<AppLatLng>> coordinates;
   final Value<String> transportMode;
@@ -2155,6 +2190,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   final Value<int> rowid;
   const RoutesCompanion({
     this.id = const Value.absent(),
+    this.serverRouteId = const Value.absent(),
     this.tripId = const Value.absent(),
     this.coordinates = const Value.absent(),
     this.transportMode = const Value.absent(),
@@ -2176,6 +2212,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   });
   RoutesCompanion.insert({
     required String id,
+    this.serverRouteId = const Value.absent(),
     required String tripId,
     this.coordinates = const Value.absent(),
     this.transportMode = const Value.absent(),
@@ -2201,6 +2238,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
         syncStatus = Value(syncStatus);
   static Insertable<RouteRow> custom({
     Expression<String>? id,
+    Expression<String>? serverRouteId,
     Expression<String>? tripId,
     Expression<String>? coordinates,
     Expression<String>? transportMode,
@@ -2222,6 +2260,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serverRouteId != null) 'server_route_id': serverRouteId,
       if (tripId != null) 'trip_id': tripId,
       if (coordinates != null) 'coordinates': coordinates,
       if (transportMode != null) 'transport_mode': transportMode,
@@ -2245,6 +2284,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
 
   RoutesCompanion copyWith(
       {Value<String>? id,
+      Value<String?>? serverRouteId,
       Value<String>? tripId,
       Value<List<AppLatLng>>? coordinates,
       Value<String>? transportMode,
@@ -2265,6 +2305,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
       Value<int>? rowid}) {
     return RoutesCompanion(
       id: id ?? this.id,
+      serverRouteId: serverRouteId ?? this.serverRouteId,
       tripId: tripId ?? this.tripId,
       coordinates: coordinates ?? this.coordinates,
       transportMode: transportMode ?? this.transportMode,
@@ -2291,6 +2332,9 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (serverRouteId.present) {
+      map['server_route_id'] = Variable<String>(serverRouteId.value);
     }
     if (tripId.present) {
       map['trip_id'] = Variable<String>(tripId.value);
@@ -2355,6 +2399,7 @@ class RoutesCompanion extends UpdateCompanion<RouteRow> {
   String toString() {
     return (StringBuffer('RoutesCompanion(')
           ..write('id: $id, ')
+          ..write('serverRouteId: $serverRouteId, ')
           ..write('tripId: $tripId, ')
           ..write('coordinates: $coordinates, ')
           ..write('transportMode: $transportMode, ')
@@ -4905,6 +4950,12 @@ class $SyncTasksTable extends SyncTasks
   late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
       'entity_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _remoteEntityIdMeta =
+      const VerificationMeta('remoteEntityId');
+  @override
+  late final GeneratedColumn<String> remoteEntityId = GeneratedColumn<String>(
+      'remote_entity_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _operationMeta =
       const VerificationMeta('operation');
   @override
@@ -4979,6 +5030,7 @@ class $SyncTasksTable extends SyncTasks
         id,
         entityType,
         entityId,
+        remoteEntityId,
         operation,
         status,
         retryCount,
@@ -5019,6 +5071,12 @@ class $SyncTasksTable extends SyncTasks
           entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
     } else if (isInserting) {
       context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('remote_entity_id')) {
+      context.handle(
+          _remoteEntityIdMeta,
+          remoteEntityId.isAcceptableOrUnknown(
+              data['remote_entity_id']!, _remoteEntityIdMeta));
     }
     if (data.containsKey('operation')) {
       context.handle(_operationMeta,
@@ -5101,6 +5159,8 @@ class $SyncTasksTable extends SyncTasks
           .read(DriftSqlType.string, data['${effectivePrefix}entity_type'])!,
       entityId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      remoteEntityId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}remote_entity_id']),
       operation: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
       status: attachedDatabase.typeMapping
@@ -5137,6 +5197,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
   final String id;
   final String entityType;
   final String entityId;
+  final String? remoteEntityId;
   final String operation;
   final String status;
   final int retryCount;
@@ -5152,6 +5213,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       {required this.id,
       required this.entityType,
       required this.entityId,
+      this.remoteEntityId,
       required this.operation,
       required this.status,
       required this.retryCount,
@@ -5169,6 +5231,9 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
     map['id'] = Variable<String>(id);
     map['entity_type'] = Variable<String>(entityType);
     map['entity_id'] = Variable<String>(entityId);
+    if (!nullToAbsent || remoteEntityId != null) {
+      map['remote_entity_id'] = Variable<String>(remoteEntityId);
+    }
     map['operation'] = Variable<String>(operation);
     map['status'] = Variable<String>(status);
     map['retry_count'] = Variable<int>(retryCount);
@@ -5200,6 +5265,9 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       id: Value(id),
       entityType: Value(entityType),
       entityId: Value(entityId),
+      remoteEntityId: remoteEntityId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteEntityId),
       operation: Value(operation),
       status: Value(status),
       retryCount: Value(retryCount),
@@ -5233,6 +5301,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       id: serializer.fromJson<String>(json['id']),
       entityType: serializer.fromJson<String>(json['entityType']),
       entityId: serializer.fromJson<String>(json['entityId']),
+      remoteEntityId: serializer.fromJson<String?>(json['remoteEntityId']),
       operation: serializer.fromJson<String>(json['operation']),
       status: serializer.fromJson<String>(json['status']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
@@ -5255,6 +5324,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       'id': serializer.toJson<String>(id),
       'entityType': serializer.toJson<String>(entityType),
       'entityId': serializer.toJson<String>(entityId),
+      'remoteEntityId': serializer.toJson<String?>(remoteEntityId),
       'operation': serializer.toJson<String>(operation),
       'status': serializer.toJson<String>(status),
       'retryCount': serializer.toJson<int>(retryCount),
@@ -5273,6 +5343,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           {String? id,
           String? entityType,
           String? entityId,
+          Value<String?> remoteEntityId = const Value.absent(),
           String? operation,
           String? status,
           int? retryCount,
@@ -5288,6 +5359,8 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
         id: id ?? this.id,
         entityType: entityType ?? this.entityType,
         entityId: entityId ?? this.entityId,
+        remoteEntityId:
+            remoteEntityId.present ? remoteEntityId.value : this.remoteEntityId,
         operation: operation ?? this.operation,
         status: status ?? this.status,
         retryCount: retryCount ?? this.retryCount,
@@ -5314,6 +5387,9 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       entityType:
           data.entityType.present ? data.entityType.value : this.entityType,
       entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      remoteEntityId: data.remoteEntityId.present
+          ? data.remoteEntityId.value
+          : this.remoteEntityId,
       operation: data.operation.present ? data.operation.value : this.operation,
       status: data.status.present ? data.status.value : this.status,
       retryCount:
@@ -5345,6 +5421,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           ..write('id: $id, ')
           ..write('entityType: $entityType, ')
           ..write('entityId: $entityId, ')
+          ..write('remoteEntityId: $remoteEntityId, ')
           ..write('operation: $operation, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
@@ -5365,6 +5442,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       id,
       entityType,
       entityId,
+      remoteEntityId,
       operation,
       status,
       retryCount,
@@ -5383,6 +5461,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           other.id == this.id &&
           other.entityType == this.entityType &&
           other.entityId == this.entityId &&
+          other.remoteEntityId == this.remoteEntityId &&
           other.operation == this.operation &&
           other.status == this.status &&
           other.retryCount == this.retryCount &&
@@ -5400,6 +5479,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
   final Value<String> id;
   final Value<String> entityType;
   final Value<String> entityId;
+  final Value<String?> remoteEntityId;
   final Value<String> operation;
   final Value<String> status;
   final Value<int> retryCount;
@@ -5416,6 +5496,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     this.id = const Value.absent(),
     this.entityType = const Value.absent(),
     this.entityId = const Value.absent(),
+    this.remoteEntityId = const Value.absent(),
     this.operation = const Value.absent(),
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
@@ -5433,6 +5514,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     required String id,
     required String entityType,
     required String entityId,
+    this.remoteEntityId = const Value.absent(),
     required String operation,
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
@@ -5455,6 +5537,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     Expression<String>? id,
     Expression<String>? entityType,
     Expression<String>? entityId,
+    Expression<String>? remoteEntityId,
     Expression<String>? operation,
     Expression<String>? status,
     Expression<int>? retryCount,
@@ -5472,6 +5555,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       if (id != null) 'id': id,
       if (entityType != null) 'entity_type': entityType,
       if (entityId != null) 'entity_id': entityId,
+      if (remoteEntityId != null) 'remote_entity_id': remoteEntityId,
       if (operation != null) 'operation': operation,
       if (status != null) 'status': status,
       if (retryCount != null) 'retry_count': retryCount,
@@ -5492,6 +5576,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       {Value<String>? id,
       Value<String>? entityType,
       Value<String>? entityId,
+      Value<String?>? remoteEntityId,
       Value<String>? operation,
       Value<String>? status,
       Value<int>? retryCount,
@@ -5508,6 +5593,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       id: id ?? this.id,
       entityType: entityType ?? this.entityType,
       entityId: entityId ?? this.entityId,
+      remoteEntityId: remoteEntityId ?? this.remoteEntityId,
       operation: operation ?? this.operation,
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
@@ -5534,6 +5620,9 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     }
     if (entityId.present) {
       map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (remoteEntityId.present) {
+      map['remote_entity_id'] = Variable<String>(remoteEntityId.value);
     }
     if (operation.present) {
       map['operation'] = Variable<String>(operation.value);
@@ -5581,6 +5670,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
           ..write('id: $id, ')
           ..write('entityType: $entityType, ')
           ..write('entityId: $entityId, ')
+          ..write('remoteEntityId: $remoteEntityId, ')
           ..write('operation: $operation, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
@@ -6290,6 +6380,7 @@ typedef $$PlacesTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$RoutesTableCreateCompanionBuilder = RoutesCompanion Function({
   required String id,
+  Value<String?> serverRouteId,
   required String tripId,
   Value<List<AppLatLng>> coordinates,
   Value<String> transportMode,
@@ -6311,6 +6402,7 @@ typedef $$RoutesTableCreateCompanionBuilder = RoutesCompanion Function({
 });
 typedef $$RoutesTableUpdateCompanionBuilder = RoutesCompanion Function({
   Value<String> id,
+  Value<String?> serverRouteId,
   Value<String> tripId,
   Value<List<AppLatLng>> coordinates,
   Value<String> transportMode,
@@ -6342,6 +6434,9 @@ class $$RoutesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serverRouteId => $composableBuilder(
+      column: $table.serverRouteId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnFilters(column));
@@ -6413,6 +6508,10 @@ class $$RoutesTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get serverRouteId => $composableBuilder(
+      column: $table.serverRouteId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get tripId => $composableBuilder(
       column: $table.tripId, builder: (column) => ColumnOrderings(column));
 
@@ -6483,6 +6582,9 @@ class $$RoutesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get serverRouteId => $composableBuilder(
+      column: $table.serverRouteId, builder: (column) => column);
 
   GeneratedColumn<String> get tripId =>
       $composableBuilder(column: $table.tripId, builder: (column) => column);
@@ -6562,6 +6664,7 @@ class $$RoutesTableTableManager extends RootTableManager<
               $$RoutesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String?> serverRouteId = const Value.absent(),
             Value<String> tripId = const Value.absent(),
             Value<List<AppLatLng>> coordinates = const Value.absent(),
             Value<String> transportMode = const Value.absent(),
@@ -6583,6 +6686,7 @@ class $$RoutesTableTableManager extends RootTableManager<
           }) =>
               RoutesCompanion(
             id: id,
+            serverRouteId: serverRouteId,
             tripId: tripId,
             coordinates: coordinates,
             transportMode: transportMode,
@@ -6604,6 +6708,7 @@ class $$RoutesTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String?> serverRouteId = const Value.absent(),
             required String tripId,
             Value<List<AppLatLng>> coordinates = const Value.absent(),
             Value<String> transportMode = const Value.absent(),
@@ -6625,6 +6730,7 @@ class $$RoutesTableTableManager extends RootTableManager<
           }) =>
               RoutesCompanion.insert(
             id: id,
+            serverRouteId: serverRouteId,
             tripId: tripId,
             coordinates: coordinates,
             transportMode: transportMode,
@@ -7750,6 +7856,7 @@ typedef $$SyncTasksTableCreateCompanionBuilder = SyncTasksCompanion Function({
   required String id,
   required String entityType,
   required String entityId,
+  Value<String?> remoteEntityId,
   required String operation,
   Value<String> status,
   Value<int> retryCount,
@@ -7767,6 +7874,7 @@ typedef $$SyncTasksTableUpdateCompanionBuilder = SyncTasksCompanion Function({
   Value<String> id,
   Value<String> entityType,
   Value<String> entityId,
+  Value<String?> remoteEntityId,
   Value<String> operation,
   Value<String> status,
   Value<int> retryCount,
@@ -7798,6 +7906,10 @@ class $$SyncTasksTableFilterComposer
 
   ColumnFilters<String> get entityId => $composableBuilder(
       column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteEntityId => $composableBuilder(
+      column: $table.remoteEntityId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get operation => $composableBuilder(
       column: $table.operation, builder: (column) => ColumnFilters(column));
@@ -7853,6 +7965,10 @@ class $$SyncTasksTableOrderingComposer
 
   ColumnOrderings<String> get entityId => $composableBuilder(
       column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteEntityId => $composableBuilder(
+      column: $table.remoteEntityId,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get operation => $composableBuilder(
       column: $table.operation, builder: (column) => ColumnOrderings(column));
@@ -7910,6 +8026,9 @@ class $$SyncTasksTableAnnotationComposer
 
   GeneratedColumn<String> get entityId =>
       $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteEntityId => $composableBuilder(
+      column: $table.remoteEntityId, builder: (column) => column);
 
   GeneratedColumn<String> get operation =>
       $composableBuilder(column: $table.operation, builder: (column) => column);
@@ -7971,6 +8090,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> entityType = const Value.absent(),
             Value<String> entityId = const Value.absent(),
+            Value<String?> remoteEntityId = const Value.absent(),
             Value<String> operation = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
@@ -7988,6 +8108,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             id: id,
             entityType: entityType,
             entityId: entityId,
+            remoteEntityId: remoteEntityId,
             operation: operation,
             status: status,
             retryCount: retryCount,
@@ -8005,6 +8126,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             required String id,
             required String entityType,
             required String entityId,
+            Value<String?> remoteEntityId = const Value.absent(),
             required String operation,
             Value<String> status = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
@@ -8022,6 +8144,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             id: id,
             entityType: entityType,
             entityId: entityId,
+            remoteEntityId: remoteEntityId,
             operation: operation,
             status: status,
             retryCount: retryCount,

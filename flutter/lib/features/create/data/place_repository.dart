@@ -89,6 +89,12 @@ class PlaceRepository {
     }
     await _db.placeDao.deletePlace(id);
     await _updatePlaceCount(existing.tripId);
+    await _enqueuePlaceSyncTask(
+      placeId: id,
+      tripId: existing.tripId,
+      operation: 'delete',
+      remoteEntityId: existing.serverPlaceId,
+    );
   }
 
   Future<void> savePlaces(List<Place> places) async {
@@ -325,6 +331,7 @@ class PlaceRepository {
     if (token == null || token.isEmpty) {
       throw PlaceIdentityException(
         'Cannot resolve remote place id: auth token unavailable',
+        retryable: true,
       );
     }
 
@@ -332,7 +339,10 @@ class PlaceRepository {
     try {
       remoteTripId = await _tripRepository.ensureRemoteTripId(local.tripId);
     } on TripIdentityException catch (error) {
-      throw PlaceIdentityException(error.message);
+      throw PlaceIdentityException(
+        error.message,
+        retryable: error.retryable,
+      );
     }
 
     openapi.PlaceResponse? responseData;
@@ -372,7 +382,10 @@ class PlaceRepository {
             ),
           );
         } on TripIdentityException catch (retryTripError) {
-          throw PlaceIdentityException(retryTripError.message);
+          throw PlaceIdentityException(
+            retryTripError.message,
+            retryable: retryTripError.retryable,
+          );
         }
       } else {
         if (_isRetryableDio(error)) {
@@ -386,9 +399,7 @@ class PlaceRepository {
         );
       }
     } on TripIdentityException catch (error) {
-      throw PlaceIdentityException(
-        error.message,
-      );
+      throw PlaceIdentityException(error.message, retryable: error.retryable);
     }
 
     final remoteId = responseData?.id;
@@ -450,12 +461,14 @@ class PlaceRepository {
     required String placeId,
     required String tripId,
     required String operation,
+    String? remoteEntityId,
   }) async {
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
       entityType: 'place',
       entityId: placeId,
       operation: operation,
+      remoteEntityId: remoteEntityId,
       dependsOnEntityType: 'trip',
       dependsOnEntityId: tripId,
     );
@@ -565,12 +578,114 @@ class PlaceRepository {
     return response.data;
   }
 
+  Future<void> deleteRemotePlaceById(String remotePlaceId) async {
+    final placesApi = _placesApi;
+    final authService = _authService;
+    if (placesApi == null || authService == null) {
+      throw PlaceIdentityException(
+        'Cannot delete backend place: Places API/auth service unavailable.',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw PlaceIdentityException(
+        'Cannot delete backend place: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    await placesApi.deletePlaceApiV1PlacesPlaceIdDelete(
+      placeId: remotePlaceId,
+      authorization: 'Bearer $token',
+    );
+  }
+
+  Future<void> syncPlaceForTask(
+    String localPlaceId, {
+    required String operation,
+  }) async {
+    switch (operation) {
+      case 'create':
+        await ensureRemotePlaceId(localPlaceId);
+        return;
+      case 'update':
+        await _syncRemotePlaceUpdate(localPlaceId);
+        return;
+      case 'delete':
+        throw PlaceIdentityException(
+          'Place delete requires remote place id context.',
+        );
+      default:
+        throw PlaceIdentityException(
+          'Unsupported place sync operation: $operation',
+        );
+    }
+  }
+
+  Future<void> _syncRemotePlaceUpdate(String localPlaceId) async {
+    final local = await getPlace(localPlaceId);
+    if (local == null) {
+      throw PlaceIdentityException(
+        'Cannot sync place update: local place not found ($localPlaceId)',
+      );
+    }
+
+    final remotePlaceId = await ensureRemotePlaceId(localPlaceId);
+    final placesApi = _placesApi;
+    final authService = _authService;
+    if (placesApi == null || authService == null) {
+      throw PlaceIdentityException(
+        'Cannot sync place update: Places API/auth service unavailable.',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw PlaceIdentityException(
+        'Cannot sync place update: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    final payload = openapi.PlaceUpdate((builder) {
+      builder
+        ..name = local.name
+        ..lat = local.coordinates.latitude
+        ..lng = local.coordinates.longitude
+        ..orderInTrip = local.orderIndex;
+
+      final placeType = local.placeType;
+      if (placeType != null && placeType.isNotEmpty) {
+        builder.placeType = placeType;
+      }
+      final notes = local.notes;
+      if (notes != null && notes.isNotEmpty) {
+        builder.userNotes = notes;
+      }
+      final rating = local.rating;
+      if (rating != null) {
+        builder.userRating = rating;
+      }
+    });
+
+    await placesApi.updatePlaceApiV1PlacesPlaceIdPatch(
+      placeId: remotePlaceId,
+      authorization: 'Bearer $token',
+      placeUpdate: payload,
+    );
+  }
+
 }
 
 class PlaceIdentityException implements Exception {
-  PlaceIdentityException(this.message);
+  PlaceIdentityException(
+    this.message, {
+    this.retryable = false,
+  });
 
   final String message;
+  final bool retryable;
 
   @override
   String toString() => message;

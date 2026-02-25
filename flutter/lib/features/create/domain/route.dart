@@ -9,6 +9,7 @@ part 'route.g.dart';
 class Route with _$Route {
   const factory Route({
     required String id,
+    String? serverRouteId,
     required String tripId,
     required List<AppLatLng> coordinates,
     @Default('car') String transportMode, // 'car', 'foot', 'air'

@@ -88,8 +88,20 @@ class TripRepository {
   }
 
   Future<void> deleteTrip(String id) async {
+    final existing = await _db.tripDao.getTripById(id);
+    if (existing == null) {
+      return;
+    }
+
+    await _db.routeDao.deleteRoutesForTrip(id);
+    await _db.placeDao.deletePlacesForTrip(id);
     await _db.tripDao.deleteTrip(id);
     await _db.userTripsDao.deleteTrip(id);
+    await _enqueueTripSyncTask(
+      localTripId: id,
+      operation: 'delete',
+      remoteEntityId: existing.serverTripId,
+    );
   }
 
   Future<void> setEditorViewport({
@@ -261,6 +273,7 @@ class TripRepository {
     if (token == null || token.isEmpty) {
       throw const TripIdentityException(
         'Cannot resolve remote trip id: auth token unavailable',
+        retryable: true,
       );
     }
 
@@ -376,6 +389,97 @@ class TripRepository {
     );
   }
 
+  Future<void> deleteRemoteTripById(String remoteTripId) async {
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      throw const TripIdentityException(
+        'Cannot delete backend trip: Trips API unavailable.',
+      );
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const TripIdentityException(
+        'Cannot delete backend trip: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    await tripsApi.deleteTripApiV1TripsTripIdDelete(
+      tripId: remoteTripId,
+      authorization: 'Bearer $token',
+    );
+  }
+
+  Future<void> syncTripForTask(
+    String localTripId, {
+    required String operation,
+  }) async {
+    switch (operation) {
+      case 'create':
+        await ensureRemoteTripId(localTripId);
+        return;
+      case 'update':
+        await _syncRemoteTripUpdate(localTripId);
+        return;
+      case 'delete':
+        throw const TripIdentityException(
+          'Trip delete requires remote trip id context.',
+        );
+      default:
+        throw TripIdentityException(
+          'Unsupported trip sync operation: $operation',
+        );
+    }
+  }
+
+  Future<void> _syncRemoteTripUpdate(String localTripId) async {
+    final local = await getTrip(localTripId);
+    if (local == null) {
+      throw TripIdentityException(
+        'Cannot sync trip update: local trip not found ($localTripId)',
+      );
+    }
+
+    final remoteTripId = await ensureRemoteTripId(localTripId);
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      throw const TripIdentityException(
+        'Cannot sync trip update: Trips API unavailable.',
+      );
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const TripIdentityException(
+        'Cannot sync trip update: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    final payload = openapi.TripUpdate((builder) {
+      builder
+        ..title = local.name
+        ..description = local.description
+        ..visibility = local.visibility;
+
+      final start = local.startDate;
+      if (start != null) {
+        builder.startDate = openapi.Date(start.year, start.month, start.day);
+      }
+      final end = local.endDate;
+      if (end != null) {
+        builder.endDate = openapi.Date(end.year, end.month, end.day);
+      }
+    });
+
+    await tripsApi.updateTripApiV1TripsTripIdPatch(
+      tripId: remoteTripId,
+      authorization: 'Bearer $token',
+      tripUpdate: payload,
+    );
+  }
+
   String _mapTripCreateFailure(DioException error) {
     final statusCode = error.response?.statusCode;
     if (statusCode == 401) {
@@ -414,20 +518,26 @@ class TripRepository {
   Future<void> _enqueueTripSyncTask({
     required String localTripId,
     required String operation,
+    String? remoteEntityId,
   }) async {
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
       entityType: 'trip',
       entityId: localTripId,
       operation: operation,
+      remoteEntityId: remoteEntityId,
     );
   }
 }
 
 class TripIdentityException implements Exception {
-  const TripIdentityException(this.message);
+  const TripIdentityException(
+    this.message, {
+    this.retryable = false,
+  });
 
   final String message;
+  final bool retryable;
 
   @override
   String toString() => message;

@@ -3,7 +3,7 @@
 Date: 2026-02-23  
 Owner: Codex  
 Branch: `Media-Integration`  
-Status: In Progress (`M1` schema/DAO and `M2` worker/repository foundation implemented; runtime validation and delete/route flows pending)
+Status: In Progress (`M1` advanced to v10 and `M2/M3` route+delete sync coverage implemented; runtime validation pending)
 
 ---
 
@@ -360,3 +360,23 @@ Phase is considered stable when:
 5. No retry flood loops.
 6. Regression suite for editor/media dependency flows is green.
 7. App-wide feature modules reference one sync contract (not ad hoc sync logic per feature).
+
+---
+
+## 9. Progress Update 2026-02-25
+
+1. Completed in code:
+   - `schemaVersion 10` migration (`sync_tasks.remote_entity_id`, `routes.server_route_id`).
+   - Trip/place/route repositories now enqueue create/update/delete sync tasks.
+   - Entity worker now processes route tasks and delete tasks for trip/place/route.
+   - Trip/place update tasks now call backend patch APIs.
+   - Route create/update/delete backend sync paths implemented.
+2. Still pending:
+   - local codegen + runtime verification on device/CI.
+   - hardening matrix execution (restart/offline/quota/conflict scenarios).
+3. Newly addressed after this update:
+   - media worker now checks blocked trip/place dependency tasks before upload and marks media as `blocked`.
+   - queue UI now surfaces blocked count/state.
+   - identity exceptions now carry retryability signals to worker policy.
+   - route sync no longer emits fabricated `0,0` geometry for empty paths.
+   - route backfill tasks added in migration path for unsynced routes.

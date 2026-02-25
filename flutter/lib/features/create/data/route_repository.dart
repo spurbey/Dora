@@ -1,20 +1,44 @@
+import 'dart:convert';
 import 'dart:math';
 
+import 'package:built_value/json_object.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/directions/app_directions_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/arc_generator.dart';
+import 'package:dora/features/create/data/place_repository.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/create/domain/route.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 class RouteRepository {
-  RouteRepository(this._db, {AppDirectionsService? directionsService})
-      : _directionsService = directionsService;
+  RouteRepository(
+    this._db, {
+    AppDirectionsService? directionsService,
+    AuthService? authService,
+    openapi.RoutesApi? routesApi,
+    TripRepository? tripRepository,
+    PlaceRepository? placeRepository,
+  })  : _directionsService = directionsService,
+        _authService = authService,
+        _routesApi = routesApi,
+        _tripRepository = tripRepository,
+        _placeRepository = placeRepository,
+        _syncTaskDao = SyncTaskDao(_db);
 
   final AppDatabase _db;
   final AppDirectionsService? _directionsService;
+  final AuthService? _authService;
+  final openapi.RoutesApi? _routesApi;
+  final TripRepository? _tripRepository;
+  final PlaceRepository? _placeRepository;
+  final SyncTaskDao _syncTaskDao;
+  final Map<String, Future<String>> _ensureRemoteRouteIdInFlight = {};
 
   Future<List<Route>> getRoutes(String tripId) async {
     final rows = await _db.routeDao.getRoutesForTrip(tripId);
@@ -33,36 +57,92 @@ class RouteRepository {
       syncStatus: 'pending',
     );
     await _db.routeDao.insertRoute(_toCompanion(updated));
+    await _enqueueRouteSyncTask(
+      routeId: updated.id,
+      tripId: updated.tripId,
+      operation:
+          (updated.serverRouteId == null || updated.serverRouteId!.isEmpty)
+              ? 'create'
+              : 'update',
+    );
     return updated;
   }
 
   Future<void> updateRoute(Route route) async {
+    final existing = await _db.routeDao.getRouteById(route.id);
+    final existingServerRouteId = existing?.serverRouteId;
+    final resolvedServerRouteId =
+        (existingServerRouteId != null && existingServerRouteId.isNotEmpty)
+            ? existingServerRouteId
+            : route.serverRouteId;
     final now = DateTime.now();
     final updated = route.copyWith(
+      serverRouteId: resolvedServerRouteId,
       localUpdatedAt: now,
       syncStatus: 'pending',
     );
     await _db.routeDao.updateRoute(_toCompanion(updated));
+    await _enqueueRouteSyncTask(
+      routeId: updated.id,
+      tripId: updated.tripId,
+      operation:
+          (updated.serverRouteId == null || updated.serverRouteId!.isEmpty)
+              ? 'create'
+              : 'update',
+    );
   }
 
   Future<void> deleteRoute(String id) async {
+    final existing = await _db.routeDao.getRouteById(id);
+    if (existing == null) {
+      return;
+    }
     await _db.routeDao.deleteRoute(id);
+    await _enqueueRouteSyncTask(
+      routeId: id,
+      tripId: existing.tripId,
+      operation: 'delete',
+      remoteEntityId: existing.serverRouteId,
+    );
   }
 
   Future<void> saveRoutes(List<Route> routes) async {
     if (routes.isEmpty) {
       return;
     }
+    final existingRows = await _db.routeDao.getRoutesForTrip(routes.first.tripId);
+    final existingById = {
+      for (final row in existingRows) row.id: row.serverRouteId,
+    };
     final now = DateTime.now();
-    final companions = routes
-        .map((route) => _toCompanion(
-              route.copyWith(
-                localUpdatedAt: now,
-                syncStatus: 'pending',
-              ),
-            ))
+    final normalizedRoutes = routes
+        .map((route) {
+          final existingServerRouteId = existingById[route.id];
+          final resolvedServerRouteId =
+              (existingServerRouteId != null && existingServerRouteId.isNotEmpty)
+                  ? existingServerRouteId
+                  : route.serverRouteId;
+          return route.copyWith(
+            serverRouteId: resolvedServerRouteId,
+            localUpdatedAt: now,
+            syncStatus: 'pending',
+          );
+        })
+        .toList();
+    final companions = normalizedRoutes
+        .map(_toCompanion)
         .toList();
     await _db.routeDao.insertRoutes(companions);
+    for (final route in normalizedRoutes) {
+      await _enqueueRouteSyncTask(
+        routeId: route.id,
+        tripId: route.tripId,
+        operation:
+            (route.serverRouteId == null || route.serverRouteId!.isEmpty)
+                ? 'create'
+                : 'update',
+      );
+    }
   }
 
   Route generateRoute({
@@ -81,6 +161,7 @@ class RouteRepository {
 
     return Route(
       id: const Uuid().v4(),
+      serverRouteId: null,
       tripId: tripId,
       coordinates: [start, end],
       transportMode: transportMode,
@@ -112,6 +193,7 @@ class RouteRepository {
 
     return Route(
       id: const Uuid().v4(),
+      serverRouteId: null,
       tripId: tripId,
       coordinates: arcCoordinates,
       transportMode: 'air',
@@ -146,6 +228,7 @@ class RouteRepository {
     final now = DateTime.now();
     return Route(
       id: const Uuid().v4(),
+      serverRouteId: null,
       tripId: tripId,
       transportMode: mode,
       coordinates: result.coordinates,
@@ -165,6 +248,7 @@ class RouteRepository {
   Route _mapRow(RouteRow row) {
     return Route(
       id: row.id,
+      serverRouteId: row.serverRouteId,
       tripId: row.tripId,
       coordinates: row.coordinates,
       transportMode: row.transportMode,
@@ -188,6 +272,7 @@ class RouteRepository {
   RoutesCompanion _toCompanion(Route route) {
     return RoutesCompanion(
       id: Value(route.id),
+      serverRouteId: Value(route.serverRouteId),
       tripId: Value(route.tripId),
       coordinates: Value(route.coordinates),
       transportMode: Value(route.transportMode),
@@ -205,6 +290,284 @@ class RouteRepository {
       localUpdatedAt: Value(route.localUpdatedAt),
       serverUpdatedAt: Value(route.serverUpdatedAt),
       syncStatus: Value(route.syncStatus),
+    );
+  }
+
+  Future<void> syncRouteForTask(
+    String localRouteId, {
+    required String operation,
+  }) async {
+    switch (operation) {
+      case 'create':
+        await ensureRemoteRouteId(localRouteId);
+        return;
+      case 'update':
+        await _syncRemoteRouteUpdate(localRouteId);
+        return;
+      case 'delete':
+        throw const RouteIdentityException(
+          'Route delete requires remote route id context.',
+        );
+      default:
+        throw RouteIdentityException(
+          'Unsupported route sync operation: $operation',
+        );
+    }
+  }
+
+  Future<String> ensureRemoteRouteId(String localRouteId) async {
+    final inFlight = _ensureRemoteRouteIdInFlight[localRouteId];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _ensureRemoteRouteIdInternal(localRouteId);
+    _ensureRemoteRouteIdInFlight[localRouteId] = future;
+    try {
+      return await future;
+    } finally {
+      _ensureRemoteRouteIdInFlight.remove(localRouteId);
+    }
+  }
+
+  Future<void> deleteRemoteRouteById(String remoteRouteId) async {
+    final routesApi = _routesApi;
+    final authService = _authService;
+    if (routesApi == null || authService == null) {
+      throw const RouteIdentityException(
+        'Cannot delete backend route: Routes API/auth service unavailable.',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const RouteIdentityException(
+        'Cannot delete backend route: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    await routesApi.deleteRouteApiV1RoutesRouteIdDelete(
+      routeId: remoteRouteId,
+      authorization: 'Bearer $token',
+    );
+  }
+
+  Future<String> _ensureRemoteRouteIdInternal(String localRouteId) async {
+    final local = await getRoute(localRouteId);
+    if (local == null) {
+      throw RouteIdentityException(
+        'Cannot resolve remote route id: local route not found ($localRouteId)',
+      );
+    }
+
+    final existingRemoteId = local.serverRouteId;
+    if (existingRemoteId != null && existingRemoteId.isNotEmpty) {
+      return existingRemoteId;
+    }
+
+    final routesApi = _routesApi;
+    final authService = _authService;
+    final tripRepository = _tripRepository;
+    final placeRepository = _placeRepository;
+    if (routesApi == null ||
+        authService == null ||
+        tripRepository == null ||
+        placeRepository == null) {
+      throw const RouteIdentityException(
+        'Cannot resolve remote route id: sync dependencies unavailable.',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const RouteIdentityException(
+        'Cannot resolve remote route id: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    late final String remoteTripId;
+    try {
+      remoteTripId = await tripRepository.ensureRemoteTripId(local.tripId);
+    } on TripIdentityException catch (error) {
+      throw RouteIdentityException(
+        error.message,
+        retryable: error.retryable,
+      );
+    }
+    final remoteStartPlaceId = await _resolveRemotePlaceId(
+      localPlaceId: local.startPlaceId,
+      placeRepository: placeRepository,
+    );
+    final remoteEndPlaceId = await _resolveRemotePlaceId(
+      localPlaceId: local.endPlaceId,
+      placeRepository: placeRepository,
+    );
+
+    final payload = openapi.RouteCreate((builder) {
+      builder
+        ..transportMode = _mapTransportMode(local.transportMode)
+        ..routeCategory = _mapRouteCategory(local.routeCategory)
+        ..routeGeojson = JsonObject(_resolveRouteGeoJson(local))
+        ..orderInTrip = local.orderIndex;
+
+      final name = local.name;
+      if (name != null && name.isNotEmpty) {
+        builder.name = name;
+      }
+      final description = local.description;
+      if (description != null && description.isNotEmpty) {
+        builder.description = description;
+      }
+      if (remoteStartPlaceId != null && remoteStartPlaceId.isNotEmpty) {
+        builder.startPlaceId = remoteStartPlaceId;
+      }
+      if (remoteEndPlaceId != null && remoteEndPlaceId.isNotEmpty) {
+        builder.endPlaceId = remoteEndPlaceId;
+      }
+    });
+
+    final response = await routesApi.createRouteApiV1TripsTripIdRoutesPost(
+      tripId: remoteTripId,
+      authorization: 'Bearer $token',
+      routeCreate: payload,
+    );
+    final remoteRouteId = response.data?.id;
+    if (remoteRouteId == null || remoteRouteId.isEmpty) {
+      throw const RouteIdentityException(
+        'Cannot resolve remote route id: backend returned empty id.',
+      );
+    }
+
+    await (_db.update(_db.routes)..where((r) => r.id.equals(localRouteId))).write(
+      RoutesCompanion(
+        serverRouteId: Value(remoteRouteId),
+        localUpdatedAt: Value(DateTime.now()),
+        syncStatus: const Value('pending'),
+      ),
+    );
+    return remoteRouteId;
+  }
+
+  Future<void> _syncRemoteRouteUpdate(String localRouteId) async {
+    final local = await getRoute(localRouteId);
+    if (local == null) {
+      throw RouteIdentityException(
+        'Cannot sync route update: local route not found ($localRouteId)',
+      );
+    }
+
+    final remoteRouteId = await ensureRemoteRouteId(localRouteId);
+    final routesApi = _routesApi;
+    final authService = _authService;
+    if (routesApi == null || authService == null) {
+      throw const RouteIdentityException(
+        'Cannot sync route update: Routes API/auth service unavailable.',
+      );
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const RouteIdentityException(
+        'Cannot sync route update: auth token unavailable.',
+        retryable: true,
+      );
+    }
+
+    final payload = openapi.RouteUpdate((builder) {
+      final name = local.name;
+      if (name != null && name.isNotEmpty) {
+        builder.name = name;
+      }
+      final description = local.description;
+      if (description != null && description.isNotEmpty) {
+        builder.description = description;
+      }
+      builder
+        ..orderInTrip = local.orderIndex
+        ..routeGeojson = JsonObject(_resolveRouteGeoJson(local));
+    });
+
+    await routesApi.updateRouteApiV1RoutesRouteIdPatch(
+      routeId: remoteRouteId,
+      authorization: 'Bearer $token',
+      routeUpdate: payload,
+    );
+  }
+
+  Future<String?> _resolveRemotePlaceId({
+    required String? localPlaceId,
+    required PlaceRepository placeRepository,
+  }) async {
+    if (localPlaceId == null || localPlaceId.isEmpty) {
+      return null;
+    }
+    try {
+      return await placeRepository.ensureRemotePlaceId(localPlaceId);
+    } on PlaceIdentityException catch (error) {
+      throw RouteIdentityException(
+        error.message,
+        retryable: error.retryable,
+      );
+    }
+  }
+
+  Object _resolveRouteGeoJson(Route route) {
+    final raw = route.routeGeojson;
+    if (raw != null && raw.trim().isNotEmpty) {
+      try {
+        return jsonDecode(raw);
+      } catch (_) {
+        // fall through to generated linestring
+      }
+    }
+    final coordinates = route.coordinates;
+    if (coordinates.length < 2) {
+      throw RouteIdentityException(
+        'Cannot sync route: geometry requires at least 2 coordinates '
+        '(routeId=${route.id}).',
+      );
+    }
+    return {
+      'type': 'LineString',
+      'coordinates': coordinates
+          .map((point) => [point.longitude, point.latitude])
+          .toList(),
+    };
+  }
+
+  openapi.RouteCreateTransportModeEnum _mapTransportMode(String mode) {
+    return switch (mode) {
+      'bike' || 'cycling' => openapi.RouteCreateTransportModeEnum.bike,
+      'foot' || 'walk' || 'walking' => openapi.RouteCreateTransportModeEnum.foot,
+      'air' => openapi.RouteCreateTransportModeEnum.air,
+      'bus' => openapi.RouteCreateTransportModeEnum.bus,
+      'train' => openapi.RouteCreateTransportModeEnum.train,
+      _ => openapi.RouteCreateTransportModeEnum.car,
+    };
+  }
+
+  openapi.RouteCreateRouteCategoryEnum _mapRouteCategory(String category) {
+    return category == 'air'
+        ? openapi.RouteCreateRouteCategoryEnum.air
+        : openapi.RouteCreateRouteCategoryEnum.ground;
+  }
+
+  Future<void> _enqueueRouteSyncTask({
+    required String routeId,
+    required String tripId,
+    required String operation,
+    String? remoteEntityId,
+  }) async {
+    await _syncTaskDao.upsertQueuedTask(
+      id: const Uuid().v4(),
+      entityType: 'route',
+      entityId: routeId,
+      operation: operation,
+      remoteEntityId: remoteEntityId,
+      dependsOnEntityType: 'trip',
+      dependsOnEntityId: tripId,
     );
   }
 
@@ -233,4 +596,17 @@ class RouteRepository {
   }
 
   static double _degToRad(double deg) => deg * pi / 180.0;
+}
+
+class RouteIdentityException implements Exception {
+  const RouteIdentityException(
+    this.message, {
+    this.retryable = false,
+  });
+
+  final String message;
+  final bool retryable;
+
+  @override
+  String toString() => message;
 }

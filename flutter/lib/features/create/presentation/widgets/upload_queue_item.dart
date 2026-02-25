@@ -88,6 +88,14 @@ class UploadQueueItem extends StatelessWidget {
           child: const Text('Retry'),
         ),
       );
+    } else if (item.uploadStatus == 'blocked') {
+      actions.insert(
+        0,
+        TextButton(
+          onPressed: () => onRetry(item.id),
+          child: const Text('Retry'),
+        ),
+      );
     } else if (item.uploadStatus == 'queued' ||
         item.uploadStatus == 'compressing' ||
         item.uploadStatus == 'uploading') {
@@ -112,6 +120,7 @@ class UploadQueueItem extends StatelessWidget {
       'queued' => 'Queued',
       'compressing' => 'Compressing',
       'failed' => 'Failed',
+      'blocked' => 'Blocked',
       'uploaded' => 'Uploaded',
       'canceled' => 'Canceled',
       _ => status,
@@ -122,6 +131,7 @@ class UploadQueueItem extends StatelessWidget {
     return switch (status) {
       'uploaded' => AppColors.success,
       'failed' => AppColors.error,
+      'blocked' => AppColors.warning,
       'uploading' || 'compressing' || 'queued' => AppColors.accent,
       'canceled' => AppColors.textSecondary,
       _ => AppColors.textSecondary,

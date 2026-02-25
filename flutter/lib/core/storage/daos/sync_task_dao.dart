@@ -14,6 +14,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
     required String entityType,
     required String entityId,
     required String operation,
+    String? remoteEntityId,
     String? dependsOnEntityType,
     String? dependsOnEntityId,
   }) async {
@@ -26,10 +27,14 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
 
     if (existing != null) {
       final isInProgress = existing.status == 'in_progress';
+      final remoteEntityIdValue = (remoteEntityId == null && isInProgress)
+          ? const Value.absent()
+          : Value(remoteEntityId);
       await (update(syncTasks)..where((t) => t.id.equals(existing.id))).write(
         SyncTasksCompanion(
           operation: Value(operation),
           status: isInProgress ? const Value.absent() : const Value('queued'),
+          remoteEntityId: remoteEntityIdValue,
           retryCount: isInProgress ? const Value.absent() : const Value(0),
           nextAttemptAt: isInProgress ? const Value.absent() : const Value(null),
           dependsOnEntityType: Value(dependsOnEntityType),
@@ -50,6 +55,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
         entityType: entityType,
         entityId: entityId,
         operation: operation,
+        remoteEntityId: Value(remoteEntityId),
         status: const Value('queued'),
         retryCount: const Value(0),
         nextAttemptAt: const Value(null),
@@ -220,6 +226,17 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
           ..orderBy([(t) => OrderingTerm(expression: t.createdAt)])
           ..limit(limit))
         .get();
+  }
+
+  Future<SyncTaskRow?> getTaskByEntity({
+    required String entityType,
+    required String entityId,
+  }) {
+    return (select(syncTasks)
+          ..where((t) =>
+              t.entityType.equals(entityType) & t.entityId.equals(entityId))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   Future<int> _updateTaskState({

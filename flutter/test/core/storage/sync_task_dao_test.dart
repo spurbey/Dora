@@ -136,6 +136,28 @@ void main() {
       expect(statusById['task-failed-future'], 'failed');
     });
 
+    test('upsertQueuedTask stores remoteEntityId for delete operations', () async {
+      await dao.upsertQueuedTask(
+        id: 'task-delete-1',
+        entityType: 'place',
+        entityId: 'place-remote-1',
+        operation: 'delete',
+        remoteEntityId: 'remote-place-1',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT operation, remote_entity_id
+        FROM sync_tasks
+        WHERE entity_type = 'place' AND entity_id = 'place-remote-1'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('operation'), 'delete');
+      expect(row.read<String?>('remote_entity_id'), 'remote-place-1');
+    });
+
     test('upsertQueuedTask does not clear in-progress worker lock', () async {
       await dao.upsertQueuedTask(
         id: 'task-lock-1',
@@ -170,6 +192,41 @@ void main() {
       expect(row.read<String>('status'), 'in_progress');
       expect(row.read<String>('operation'), 'update');
       expect(row.read<String?>('worker_session_id'), isNot(equals(null)));
+    });
+
+    test('upsertQueuedTask preserves in-progress remoteEntityId when absent', () async {
+      await dao.upsertQueuedTask(
+        id: 'task-lock-remote-1',
+        entityType: 'route',
+        entityId: 'route-lock-1',
+        operation: 'delete',
+        remoteEntityId: 'remote-route-1',
+      );
+
+      await dao.claimRunnableTasks(
+        workerSessionId: 'worker-lock-remote',
+        limit: 10,
+      );
+
+      await dao.upsertQueuedTask(
+        id: 'task-lock-remote-2',
+        entityType: 'route',
+        entityId: 'route-lock-1',
+        operation: 'update',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT status, operation, remote_entity_id
+        FROM sync_tasks
+        WHERE entity_type = 'route' AND entity_id = 'route-lock-1'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('status'), 'in_progress');
+      expect(row.read<String>('operation'), 'update');
+      expect(row.read<String?>('remote_entity_id'), 'remote-route-1');
     });
   });
 }

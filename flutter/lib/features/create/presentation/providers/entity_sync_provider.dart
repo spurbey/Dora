@@ -9,10 +9,12 @@ final entitySyncWorkerProvider = Provider<EntitySyncWorker>((ref) {
   final syncTaskDao = ref.watch(syncTaskDaoProvider);
   final tripRepository = ref.watch(tripRepositoryProvider);
   final placeRepository = ref.watch(placeRepositoryProvider);
+  final routeRepository = ref.watch(routeRepositoryProvider);
   return EntitySyncWorker(
     syncTaskDao: syncTaskDao,
     tripRepository: tripRepository,
     placeRepository: placeRepository,
+    routeRepository: routeRepository,
   );
 });
 

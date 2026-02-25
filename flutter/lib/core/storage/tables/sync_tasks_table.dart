@@ -5,6 +5,7 @@ class SyncTasks extends Table {
   TextColumn get id => text()();
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
+  TextColumn get remoteEntityId => text().nullable()();
   TextColumn get operation => text()();
   TextColumn get status => text().withDefault(const Constant('queued'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();

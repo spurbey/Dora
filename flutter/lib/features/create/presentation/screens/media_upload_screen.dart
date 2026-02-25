@@ -49,6 +49,10 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
     final controller = ref.read(mediaUploadControllerProvider(_context).notifier);
     final queueAsync = ref.watch(placeMediaProvider(widget.placeId));
     final pendingAsync = ref.watch(placePendingUploadCountProvider(widget.placeId));
+    final blockedCount = queueAsync.maybeWhen(
+      data: (items) => items.where((item) => item.uploadStatus == 'blocked').length,
+      orElse: () => 0,
+    );
 
     ref.listen(mediaUploadControllerProvider(_context), (previous, next) {
       final error = next.errorMessage;
@@ -97,12 +101,22 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
                     style: AppTypography.caption),
                 const Spacer(),
                 pendingAsync.when(
-                  data: (count) => Text(
-                    count > 0 ? 'Pending: $count' : 'Queue idle',
-                    style: AppTypography.caption.copyWith(
-                      color: count > 0 ? AppColors.accent : AppColors.textSecondary,
-                    ),
-                  ),
+                  data: (count) {
+                    final label = count > 0
+                        ? 'Pending: $count'
+                        : blockedCount > 0
+                            ? 'Blocked: $blockedCount'
+                            : 'Queue idle';
+                    final color = count > 0
+                        ? AppColors.accent
+                        : blockedCount > 0
+                            ? AppColors.warning
+                            : AppColors.textSecondary;
+                    return Text(
+                      label,
+                      style: AppTypography.caption.copyWith(color: color),
+                    );
+                  },
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),

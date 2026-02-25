@@ -11,6 +11,7 @@ import 'package:dora/core/media/app_media_uploader.dart';
 import 'package:dora/core/media/image_compressor.dart';
 import 'package:dora/core/media/models/queued_media_task.dart';
 import 'package:dora/core/media/thumbnail_generator.dart';
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 
@@ -27,6 +28,7 @@ class UploadQueueWorker {
         _uploader = uploader,
         _imageCompressor = imageCompressor,
         _thumbnailGenerator = thumbnailGenerator,
+        _syncTaskDao = SyncTaskDao(database),
         _maxConcurrency = maxConcurrency;
 
   final AppDatabase _database;
@@ -34,6 +36,7 @@ class UploadQueueWorker {
   final AppMediaUploader _uploader;
   final ImageCompressor _imageCompressor;
   final ThumbnailGenerator _thumbnailGenerator;
+  final SyncTaskDao _syncTaskDao;
   final int _maxConcurrency;
 
   static const int _maxRetryAttempts = 3;
@@ -131,6 +134,7 @@ class UploadQueueWorker {
         return;
       }
 
+      await _ensureEntityDependenciesReady(task);
       final remotePlaceId = await _placeRepository.ensureRemotePlaceId(task.placeId);
       debugPrint(
           '[PLACE_ID_BIND] resolved local=${task.placeId} remote=$remotePlaceId');
@@ -195,6 +199,41 @@ class UploadQueueWorker {
       debugPrint('[MEDIA_UPLOAD] success mediaId=${task.id}');
 
       await _cleanupTemporaryFile(temporaryCompressedPath);
+    } on PlaceIdentityException catch (error, stackTrace) {
+      debugPrint('[MEDIA_UPLOAD] blocked mediaId=${row.id} error=${error.message}');
+      debugPrint('$stackTrace');
+      final latestBeforeFailure = await _database.mediaDao.getMediaById(row.id);
+      if (!_shouldPersistFailure(
+        latestBeforeFailure,
+        workerSessionId: workerSessionId,
+      )) {
+        return;
+      }
+
+      if (error.retryable) {
+        final currentRetryCount =
+            latestBeforeFailure?.retryCount ?? row.retryCount;
+        nextRetryCount = math.min(currentRetryCount + 1, _maxRetryAttempts);
+        final canRetry = currentRetryCount < (_maxRetryAttempts - 1);
+        final nextAttemptAt = canRetry
+            ? DateTime.now().add(_backoffForRetry(nextRetryCount))
+            : null;
+        await _database.mediaDao.markFailed(
+          mediaId: row.id,
+          errorMessage: error.message,
+          retryCount: nextRetryCount,
+          nextAttemptAt: nextAttemptAt,
+        );
+      } else {
+        await _database.mediaDao.updateUploadState(
+          mediaId: row.id,
+          uploadStatus: 'blocked',
+          uploadProgress: 0.0,
+          errorMessage: error.message,
+          nextAttemptAt: null,
+          workerSessionId: null,
+        );
+      }
     } catch (error, stackTrace) {
       debugPrint('[MEDIA_UPLOAD] failed mediaId=${row.id} error=$error');
       debugPrint('$stackTrace');
@@ -281,6 +320,30 @@ class UploadQueueWorker {
       return false;
     }
     return latest.workerSessionId == workerSessionId;
+  }
+
+  Future<void> _ensureEntityDependenciesReady(QueuedMediaTask task) async {
+    final tripTask = await _syncTaskDao.getTaskByEntity(
+      entityType: 'trip',
+      entityId: task.tripId,
+    );
+    if (tripTask != null && tripTask.status == 'blocked') {
+      final reason = tripTask.errorMessage ?? 'Trip sync is blocked.';
+      throw PlaceIdentityException(
+        'Upload blocked: trip dependency is blocked. $reason',
+      );
+    }
+
+    final placeTask = await _syncTaskDao.getTaskByEntity(
+      entityType: 'place',
+      entityId: task.placeId,
+    );
+    if (placeTask != null && placeTask.status == 'blocked') {
+      final reason = placeTask.errorMessage ?? 'Place sync is blocked.';
+      throw PlaceIdentityException(
+        'Upload blocked: place dependency is blocked. $reason',
+      );
+    }
   }
 
   Duration _backoffForRetry(int retryCount) {

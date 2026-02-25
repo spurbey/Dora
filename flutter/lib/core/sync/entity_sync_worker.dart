@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/place_repository.dart';
+import 'package:dora/features/create/data/route_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 
 class EntitySyncWorker {
@@ -15,15 +16,18 @@ class EntitySyncWorker {
     required SyncTaskDao syncTaskDao,
     required TripRepository tripRepository,
     required PlaceRepository placeRepository,
+    required RouteRepository routeRepository,
     int maxConcurrency = 2,
   })  : _syncTaskDao = syncTaskDao,
         _tripRepository = tripRepository,
         _placeRepository = placeRepository,
+        _routeRepository = routeRepository,
         _maxConcurrency = maxConcurrency;
 
   final SyncTaskDao _syncTaskDao;
   final TripRepository _tripRepository;
   final PlaceRepository _placeRepository;
+  final RouteRepository _routeRepository;
   final int _maxConcurrency;
 
   static const int _maxRetryAttempts = 3;
@@ -68,10 +72,8 @@ class EntitySyncWorker {
           await _processPlaceTask(task);
           break;
         case 'route':
-          throw const _EntitySyncTerminalException(
-            code: 'route_sync_unimplemented',
-            message: 'Route sync worker handling is not implemented yet.',
-          );
+          await _processRouteTask(task);
+          break;
         default:
           throw _EntitySyncTerminalException(
             code: 'unsupported_entity_type',
@@ -103,7 +105,7 @@ class EntitySyncWorker {
         sessionId: sessionId,
         code: 'trip_identity_failure',
         message: error.message,
-        retryable: false,
+        retryable: error.retryable,
       );
     } on PlaceIdentityException catch (error) {
       await _handleRecoverableFailure(
@@ -111,7 +113,15 @@ class EntitySyncWorker {
         sessionId: sessionId,
         code: 'place_identity_failure',
         message: error.message,
-        retryable: false,
+        retryable: error.retryable,
+      );
+    } on RouteIdentityException catch (error) {
+      await _handleRecoverableFailure(
+        task: task,
+        sessionId: sessionId,
+        code: 'route_identity_failure',
+        message: error.message,
+        retryable: error.retryable,
       );
     } on DioException catch (error) {
       await _handleRecoverableFailure(
@@ -159,13 +169,18 @@ class EntitySyncWorker {
     switch (task.operation) {
       case 'create':
       case 'update':
-        await _tripRepository.ensureRemoteTripId(task.entityId);
+        await _tripRepository.syncTripForTask(
+          task.entityId,
+          operation: task.operation,
+        );
         return;
       case 'delete':
-        throw const _EntitySyncTerminalException(
-          code: 'trip_delete_sync_unimplemented',
-          message: 'Trip delete sync is not implemented yet.',
-        );
+        final remoteTripId = task.remoteEntityId;
+        if (remoteTripId == null || remoteTripId.isEmpty) {
+          return;
+        }
+        await _tripRepository.deleteRemoteTripById(remoteTripId);
+        return;
       default:
         throw _EntitySyncTerminalException(
           code: 'unsupported_trip_operation',
@@ -178,17 +193,46 @@ class EntitySyncWorker {
     switch (task.operation) {
       case 'create':
       case 'update':
-        await _placeRepository.ensureRemotePlaceId(task.entityId);
+        await _placeRepository.syncPlaceForTask(
+          task.entityId,
+          operation: task.operation,
+        );
         return;
       case 'delete':
-        throw const _EntitySyncTerminalException(
-          code: 'place_delete_sync_unimplemented',
-          message: 'Place delete sync is not implemented yet.',
-        );
+        final remotePlaceId = task.remoteEntityId;
+        if (remotePlaceId == null || remotePlaceId.isEmpty) {
+          return;
+        }
+        await _placeRepository.deleteRemotePlaceById(remotePlaceId);
+        return;
       default:
         throw _EntitySyncTerminalException(
           code: 'unsupported_place_operation',
           message: 'Unsupported place sync operation: ${task.operation}',
+        );
+    }
+  }
+
+  Future<void> _processRouteTask(SyncTaskRow task) async {
+    switch (task.operation) {
+      case 'create':
+      case 'update':
+        await _routeRepository.syncRouteForTask(
+          task.entityId,
+          operation: task.operation,
+        );
+        return;
+      case 'delete':
+        final remoteRouteId = task.remoteEntityId;
+        if (remoteRouteId == null || remoteRouteId.isEmpty) {
+          return;
+        }
+        await _routeRepository.deleteRemoteRouteById(remoteRouteId);
+        return;
+      default:
+        throw _EntitySyncTerminalException(
+          code: 'unsupported_route_operation',
+          message: 'Unsupported route sync operation: ${task.operation}',
         );
     }
   }

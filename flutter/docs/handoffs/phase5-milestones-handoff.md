@@ -23,10 +23,10 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 | Milestone | Checklist Step | Status | Last Updated | Owner | Notes |
 |---|---|---|---|---|---|
 | M0 Contract Freeze | Step 0 | Done | 2026-02-20 | Codex | Contract freeze captured in `phase5-step0-contract-freeze.md` |
-| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-24 | Codex | schema v9 + persistent `sync_tasks` schema/backfill + DAO added; runtime validation pending |
-| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-24 | Codex | repository enqueue hooks + entity sync worker/bootstrap foundation added; runtime validation pending |
-| M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-21 | Codex | enqueue/copy/compress/thumbnail/uploader wired; Android gallery permission flow softened |
-| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-21 | Codex | claim/session guards + retry gates added; cleanup and failure handling improved |
+| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-25 | Codex | schema v10 + `sync_tasks.remote_entity_id` + `routes.server_route_id`; runtime validation pending |
+| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-25 | Codex | trip/place/route enqueue hooks + worker expansion (create/update/delete); runtime validation pending |
+| M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-25 | Codex | dependency-aware media blocking surfaced (`blocked` status + dependency checks); runtime validation pending |
+| M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-25 | Codex | identity retryability semantics refined; route geometry edge case guarded; runtime validation pending |
 | M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-21 | Codex | media screen + place preview integration wired; UX polish + full validation pending |
 | M6 Hardening + RC | Step 6 | Not Started | 2026-02-21 | TBD | full failure matrix/regression pack pending |
 
@@ -34,20 +34,22 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 
 ---
 
-## App-Wide Dependency Snapshot (2026-02-23)
+## App-Wide Dependency Snapshot (2026-02-25)
 
 ### Authoritative Baseline
 
-1. Current DB `schemaVersion` in code is `8`.
-2. Next planned schema for app-wide sync queue is `8 -> 9`.
-3. Any older `6 -> 7` / `7 -> 8` notes in historical entries are retained for history, not for new implementation branching.
+1. Current DB `schemaVersion` in code is `10`.
+2. Active sync schema baseline includes:
+   - `sync_tasks.remote_entity_id`
+   - `routes.server_route_id`
+3. Any older `6 -> 7` / `7 -> 8` / `8 -> 9` notes in historical entries are retained for history, not for new implementation branching.
 
 ### Current State
 
-1. Create writes are local-first and not yet governed by a persistent app-wide entity sync queue.
-2. Media has a dedicated worker and therefore surfaces identity dependency failures first.
-3. `core/network/offline_queue.dart` remains stubbed (no global offline replay layer).
-4. Trips/feed/profile have partial sync/cache behavior but no unified mutation contract.
+1. Create writes are local-first and now enqueue persistent sync tasks for trip/place/route mutations.
+2. Media has a dedicated upload worker and now surfaces blocked trip/place dependency states explicitly.
+3. `core/network/offline_queue.dart` remains stubbed (no single global replay layer yet).
+4. Entity sync dependency ordering and auto-recovery behavior are partially implemented and still require hardening.
 
 ### Why This Matters
 
@@ -473,3 +475,97 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 ### Current blocker / next action
 - Blocker: entity worker currently handles trip/place create/update only; delete and route sync are deferred.
 - Next action (M3/M4): implement backend delete flows for trip/place and add explicit route sync strategy before enabling delete/route task enqueue.
+
+---
+
+## Session Update 2026-02-25 (M2/M3 Sync Coverage Expansion)
+
+### What was completed in this session
+- Extended sync schema for durable delete operations and route identity mapping:
+  - DB `schemaVersion` advanced `9 -> 10`.
+  - Added `sync_tasks.remote_entity_id` (delete-safe remote reference).
+  - Added `routes.server_route_id` (persistent backend route mapping).
+- Expanded repository enqueue coverage:
+  - Trip/Place delete now enqueue sync tasks with `remoteEntityId` snapshot before local data loss.
+  - Route repository now enqueues `route` tasks for create/update/delete.
+  - Route save/update now preserve `serverRouteId` from Drift to avoid autosave clobber.
+- Expanded worker execution coverage:
+  - `EntitySyncWorker` now processes `route` tasks (create/update/delete).
+  - Trip/Place delete operations now call backend delete APIs when remote IDs exist.
+  - Trip/Place update operations now call backend patch APIs (not identity-only).
+  - Route create uses remote trip/place identity resolution and persists `serverRouteId`.
+  - Route update calls backend patch; route delete uses `remoteEntityId`.
+- Added DAO test coverage for delete metadata behavior:
+  - `remote_entity_id` persistence for delete tasks.
+  - in-progress task upsert preserves existing `remote_entity_id` when not provided.
+
+### Files touched this session
+- `flutter/lib/core/storage/drift_database.dart`
+- `flutter/lib/core/storage/tables/sync_tasks_table.dart`
+- `flutter/lib/core/storage/tables/routes_table.dart`
+- `flutter/lib/core/storage/daos/sync_task_dao.dart`
+- `flutter/lib/features/create/domain/route.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/features/create/data/route_repository.dart`
+- `flutter/lib/core/sync/entity_sync_worker.dart`
+- `flutter/lib/features/create/presentation/providers/editor_provider.dart`
+- `flutter/lib/features/create/presentation/providers/entity_sync_provider.dart`
+- `flutter/test/core/storage/sync_task_dao_test.dart`
+
+### Validation status
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - run codegen (`drift` + `freezed` + `riverpod`) after schema/domain changes
+  - run `sync_task_dao_test.dart`
+  - run create/media integration tests with:
+    - backend-backed trip
+    - local-only trip upgraded online
+    - trip/place/route delete sync against backend
+    - app restart with pending sync tasks
+
+### Current blocker / next action
+- Blocker: runtime validation not yet executed after `v10` migration and route sync expansion.
+- Next action:
+  - execute migration/codegen/tests locally
+  - verify backend route create/update payload compatibility on device logs
+  - then proceed to UI-level sync state surfacing and hardening matrix (M4/M5)
+
+---
+
+## Session Update 2026-02-25 (M3/M4 Media Dependency Surfacing)
+
+### What was completed in this session
+- Media dependency-awareness integrated into upload worker:
+  - before place ID resolution, worker checks entity sync tasks for blocked trip/place dependencies.
+  - blocked dependency now marks media row as `upload_status='blocked'` with actionable reason.
+- Media UI status surfacing improved:
+  - upload queue items support `Blocked` state with retry action.
+  - media screen header now shows `Blocked: N` when no pending uploads are active.
+- Retry semantics hardened:
+  - `TripIdentityException`, `PlaceIdentityException`, and `RouteIdentityException` now carry `retryable` flag.
+  - entity sync worker now respects exception retryability instead of hard-coding all identity failures as terminal.
+- Route sync edge-case fix:
+  - removed `0,0` fallback for empty route geometry; now throws explicit route identity failure.
+- Migration backfill improvement:
+  - unsynced routes are now backfilled into `sync_tasks` as `route:create` tasks during migration paths.
+
+### Files touched this session
+- `flutter/lib/core/media/upload_queue_worker.dart`
+- `flutter/lib/core/storage/daos/sync_task_dao.dart`
+- `flutter/lib/features/create/presentation/widgets/upload_queue_item.dart`
+- `flutter/lib/features/create/presentation/screens/media_upload_screen.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/features/create/data/route_repository.dart`
+- `flutter/lib/core/sync/entity_sync_worker.dart`
+- `flutter/lib/core/storage/drift_database.dart`
+
+### Validation status
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - codegen refresh for drift/freezed/riverpod artifacts
+  - media upload flows:
+    - blocked dependency state visible in queue UI
+    - retry from blocked after dependency resolved
+  - route sync failure path for empty geometry should block with explicit error

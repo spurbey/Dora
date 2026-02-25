@@ -5,6 +5,7 @@ import 'package:dora/core/storage/converters.dart';
 @DataClassName('RouteRow')
 class Routes extends Table {
   TextColumn get id => text()();
+  TextColumn get serverRouteId => text().nullable()();
   TextColumn get tripId => text()();
   TextColumn get coordinates =>
       text().map(const LatLngListConverter()).withDefault(const Constant('[]'))();

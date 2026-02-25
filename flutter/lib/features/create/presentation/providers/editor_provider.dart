@@ -54,7 +54,18 @@ PlaceRepository placeRepository(PlaceRepositoryRef ref) {
 RouteRepository routeRepository(RouteRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
   final directionsService = ref.watch(directionsServiceProvider);
-  return RouteRepository(db, directionsService: directionsService);
+  final authService = ref.watch(authServiceProvider);
+  final routesApi = ref.watch(routesApiProvider);
+  final tripRepository = ref.watch(tripRepositoryProvider);
+  final placeRepository = ref.watch(placeRepositoryProvider);
+  return RouteRepository(
+    db,
+    directionsService: directionsService,
+    authService: authService,
+    routesApi: routesApi,
+    tripRepository: tripRepository,
+    placeRepository: placeRepository,
+  );
 }
 
 @riverpod

@@ -40,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,6 +126,13 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(syncTasks);
             await _backfillSyncTasksForUnsyncedEntities();
           }
+          if (from >= 9 && from < 10) {
+            await m.addColumn(syncTasks, syncTasks.remoteEntityId);
+          }
+          if (from >= 4 && from < 10) {
+            await m.addColumn(routes, routes.serverRouteId);
+            await _backfillRouteSyncTasks();
+          }
         },
       );
 
@@ -188,6 +195,42 @@ class AppDatabase extends _$AppDatabase {
         ?
       FROM places p
       WHERE p.server_place_id IS NULL OR TRIM(p.server_place_id) = ''
+      ''',
+      [now, now],
+    );
+
+    await _backfillRouteSyncTasks();
+  }
+
+  Future<void> _backfillRouteSyncTasks() async {
+    final now = DateTime.now();
+    await customStatement(
+      '''
+      INSERT OR IGNORE INTO sync_tasks (
+        id,
+        entity_type,
+        entity_id,
+        operation,
+        status,
+        retry_count,
+        depends_on_entity_type,
+        depends_on_entity_id,
+        created_at,
+        updated_at
+      )
+      SELECT
+        lower(hex(randomblob(16))),
+        'route',
+        r.id,
+        'create',
+        'queued',
+        0,
+        'trip',
+        r.trip_id,
+        ?,
+        ?
+      FROM routes r
+      WHERE r.server_route_id IS NULL OR TRIM(r.server_route_id) = ''
       ''',
       [now, now],
     );

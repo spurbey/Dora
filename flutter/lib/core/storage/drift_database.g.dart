@@ -4882,6 +4882,722 @@ class UserTripsCompanion extends UpdateCompanion<UserTripRow> {
   }
 }
 
+class $SyncTasksTable extends SyncTasks
+    with TableInfo<$SyncTasksTable, SyncTaskRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityTypeMeta =
+      const VerificationMeta('entityType');
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+      'entity_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityIdMeta =
+      const VerificationMeta('entityId');
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+      'entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _operationMeta =
+      const VerificationMeta('operation');
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+      'operation', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('queued'));
+  static const VerificationMeta _retryCountMeta =
+      const VerificationMeta('retryCount');
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+      'retry_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _nextAttemptAtMeta =
+      const VerificationMeta('nextAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>('next_attempt_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _dependsOnEntityTypeMeta =
+      const VerificationMeta('dependsOnEntityType');
+  @override
+  late final GeneratedColumn<String> dependsOnEntityType =
+      GeneratedColumn<String>('depends_on_entity_type', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dependsOnEntityIdMeta =
+      const VerificationMeta('dependsOnEntityId');
+  @override
+  late final GeneratedColumn<String> dependsOnEntityId =
+      GeneratedColumn<String>('depends_on_entity_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _errorCodeMeta =
+      const VerificationMeta('errorCode');
+  @override
+  late final GeneratedColumn<String> errorCode = GeneratedColumn<String>(
+      'error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _errorMessageMeta =
+      const VerificationMeta('errorMessage');
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+      'error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _workerSessionIdMeta =
+      const VerificationMeta('workerSessionId');
+  @override
+  late final GeneratedColumn<String> workerSessionId = GeneratedColumn<String>(
+      'worker_session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        entityType,
+        entityId,
+        operation,
+        status,
+        retryCount,
+        nextAttemptAt,
+        dependsOnEntityType,
+        dependsOnEntityId,
+        errorCode,
+        errorMessage,
+        workerSessionId,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_tasks';
+  @override
+  VerificationContext validateIntegrity(Insertable<SyncTaskRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+          _entityTypeMeta,
+          entityType.isAcceptableOrUnknown(
+              data['entity_type']!, _entityTypeMeta));
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(_entityIdMeta,
+          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(_operationMeta,
+          operation.isAcceptableOrUnknown(data['operation']!, _operationMeta));
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+          _retryCountMeta,
+          retryCount.isAcceptableOrUnknown(
+              data['retry_count']!, _retryCountMeta));
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+          _nextAttemptAtMeta,
+          nextAttemptAt.isAcceptableOrUnknown(
+              data['next_attempt_at']!, _nextAttemptAtMeta));
+    }
+    if (data.containsKey('depends_on_entity_type')) {
+      context.handle(
+          _dependsOnEntityTypeMeta,
+          dependsOnEntityType.isAcceptableOrUnknown(
+              data['depends_on_entity_type']!, _dependsOnEntityTypeMeta));
+    }
+    if (data.containsKey('depends_on_entity_id')) {
+      context.handle(
+          _dependsOnEntityIdMeta,
+          dependsOnEntityId.isAcceptableOrUnknown(
+              data['depends_on_entity_id']!, _dependsOnEntityIdMeta));
+    }
+    if (data.containsKey('error_code')) {
+      context.handle(_errorCodeMeta,
+          errorCode.isAcceptableOrUnknown(data['error_code']!, _errorCodeMeta));
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+          _errorMessageMeta,
+          errorMessage.isAcceptableOrUnknown(
+              data['error_message']!, _errorMessageMeta));
+    }
+    if (data.containsKey('worker_session_id')) {
+      context.handle(
+          _workerSessionIdMeta,
+          workerSessionId.isAcceptableOrUnknown(
+              data['worker_session_id']!, _workerSessionIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {entityType, entityId},
+      ];
+  @override
+  SyncTaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncTaskRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      entityType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_type'])!,
+      entityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      operation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      retryCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}next_attempt_at']),
+      dependsOnEntityType: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}depends_on_entity_type']),
+      dependsOnEntityId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}depends_on_entity_id']),
+      errorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_code']),
+      errorMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
+      workerSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}worker_session_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $SyncTasksTable createAlias(String alias) {
+    return $SyncTasksTable(attachedDatabase, alias);
+  }
+}
+
+class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
+  final String id;
+  final String entityType;
+  final String entityId;
+  final String operation;
+  final String status;
+  final int retryCount;
+  final DateTime? nextAttemptAt;
+  final String? dependsOnEntityType;
+  final String? dependsOnEntityId;
+  final String? errorCode;
+  final String? errorMessage;
+  final String? workerSessionId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SyncTaskRow(
+      {required this.id,
+      required this.entityType,
+      required this.entityId,
+      required this.operation,
+      required this.status,
+      required this.retryCount,
+      this.nextAttemptAt,
+      this.dependsOnEntityType,
+      this.dependsOnEntityId,
+      this.errorCode,
+      this.errorMessage,
+      this.workerSessionId,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['operation'] = Variable<String>(operation);
+    map['status'] = Variable<String>(status);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
+    if (!nullToAbsent || dependsOnEntityType != null) {
+      map['depends_on_entity_type'] = Variable<String>(dependsOnEntityType);
+    }
+    if (!nullToAbsent || dependsOnEntityId != null) {
+      map['depends_on_entity_id'] = Variable<String>(dependsOnEntityId);
+    }
+    if (!nullToAbsent || errorCode != null) {
+      map['error_code'] = Variable<String>(errorCode);
+    }
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    if (!nullToAbsent || workerSessionId != null) {
+      map['worker_session_id'] = Variable<String>(workerSessionId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncTasksCompanion toCompanion(bool nullToAbsent) {
+    return SyncTasksCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      operation: Value(operation),
+      status: Value(status),
+      retryCount: Value(retryCount),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
+      dependsOnEntityType: dependsOnEntityType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dependsOnEntityType),
+      dependsOnEntityId: dependsOnEntityId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dependsOnEntityId),
+      errorCode: errorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorCode),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      workerSessionId: workerSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workerSessionId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncTaskRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncTaskRow(
+      id: serializer.fromJson<String>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      operation: serializer.fromJson<String>(json['operation']),
+      status: serializer.fromJson<String>(json['status']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
+      dependsOnEntityType:
+          serializer.fromJson<String?>(json['dependsOnEntityType']),
+      dependsOnEntityId:
+          serializer.fromJson<String?>(json['dependsOnEntityId']),
+      errorCode: serializer.fromJson<String?>(json['errorCode']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      workerSessionId: serializer.fromJson<String?>(json['workerSessionId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'operation': serializer.toJson<String>(operation),
+      'status': serializer.toJson<String>(status),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
+      'dependsOnEntityType': serializer.toJson<String?>(dependsOnEntityType),
+      'dependsOnEntityId': serializer.toJson<String?>(dependsOnEntityId),
+      'errorCode': serializer.toJson<String?>(errorCode),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'workerSessionId': serializer.toJson<String?>(workerSessionId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncTaskRow copyWith(
+          {String? id,
+          String? entityType,
+          String? entityId,
+          String? operation,
+          String? status,
+          int? retryCount,
+          Value<DateTime?> nextAttemptAt = const Value.absent(),
+          Value<String?> dependsOnEntityType = const Value.absent(),
+          Value<String?> dependsOnEntityId = const Value.absent(),
+          Value<String?> errorCode = const Value.absent(),
+          Value<String?> errorMessage = const Value.absent(),
+          Value<String?> workerSessionId = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      SyncTaskRow(
+        id: id ?? this.id,
+        entityType: entityType ?? this.entityType,
+        entityId: entityId ?? this.entityId,
+        operation: operation ?? this.operation,
+        status: status ?? this.status,
+        retryCount: retryCount ?? this.retryCount,
+        nextAttemptAt:
+            nextAttemptAt.present ? nextAttemptAt.value : this.nextAttemptAt,
+        dependsOnEntityType: dependsOnEntityType.present
+            ? dependsOnEntityType.value
+            : this.dependsOnEntityType,
+        dependsOnEntityId: dependsOnEntityId.present
+            ? dependsOnEntityId.value
+            : this.dependsOnEntityId,
+        errorCode: errorCode.present ? errorCode.value : this.errorCode,
+        errorMessage:
+            errorMessage.present ? errorMessage.value : this.errorMessage,
+        workerSessionId: workerSessionId.present
+            ? workerSessionId.value
+            : this.workerSessionId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  SyncTaskRow copyWithCompanion(SyncTasksCompanion data) {
+    return SyncTaskRow(
+      id: data.id.present ? data.id.value : this.id,
+      entityType:
+          data.entityType.present ? data.entityType.value : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      status: data.status.present ? data.status.value : this.status,
+      retryCount:
+          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
+      dependsOnEntityType: data.dependsOnEntityType.present
+          ? data.dependsOnEntityType.value
+          : this.dependsOnEntityType,
+      dependsOnEntityId: data.dependsOnEntityId.present
+          ? data.dependsOnEntityId.value
+          : this.dependsOnEntityId,
+      errorCode: data.errorCode.present ? data.errorCode.value : this.errorCode,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      workerSessionId: data.workerSessionId.present
+          ? data.workerSessionId.value
+          : this.workerSessionId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTaskRow(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('dependsOnEntityType: $dependsOnEntityType, ')
+          ..write('dependsOnEntityId: $dependsOnEntityId, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('workerSessionId: $workerSessionId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      entityType,
+      entityId,
+      operation,
+      status,
+      retryCount,
+      nextAttemptAt,
+      dependsOnEntityType,
+      dependsOnEntityId,
+      errorCode,
+      errorMessage,
+      workerSessionId,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncTaskRow &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.operation == this.operation &&
+          other.status == this.status &&
+          other.retryCount == this.retryCount &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.dependsOnEntityType == this.dependsOnEntityType &&
+          other.dependsOnEntityId == this.dependsOnEntityId &&
+          other.errorCode == this.errorCode &&
+          other.errorMessage == this.errorMessage &&
+          other.workerSessionId == this.workerSessionId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
+  final Value<String> id;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> operation;
+  final Value<String> status;
+  final Value<int> retryCount;
+  final Value<DateTime?> nextAttemptAt;
+  final Value<String?> dependsOnEntityType;
+  final Value<String?> dependsOnEntityId;
+  final Value<String?> errorCode;
+  final Value<String?> errorMessage;
+  final Value<String?> workerSessionId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SyncTasksCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.dependsOnEntityType = const Value.absent(),
+    this.dependsOnEntityId = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncTasksCompanion.insert({
+    required String id,
+    required String entityType,
+    required String entityId,
+    required String operation,
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.dependsOnEntityType = const Value.absent(),
+    this.dependsOnEntityId = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        entityType = Value(entityType),
+        entityId = Value(entityId),
+        operation = Value(operation),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<SyncTaskRow> custom({
+    Expression<String>? id,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? operation,
+    Expression<String>? status,
+    Expression<int>? retryCount,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<String>? dependsOnEntityType,
+    Expression<String>? dependsOnEntityId,
+    Expression<String>? errorCode,
+    Expression<String>? errorMessage,
+    Expression<String>? workerSessionId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (operation != null) 'operation': operation,
+      if (status != null) 'status': status,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (dependsOnEntityType != null)
+        'depends_on_entity_type': dependsOnEntityType,
+      if (dependsOnEntityId != null) 'depends_on_entity_id': dependsOnEntityId,
+      if (errorCode != null) 'error_code': errorCode,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (workerSessionId != null) 'worker_session_id': workerSessionId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncTasksCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? entityType,
+      Value<String>? entityId,
+      Value<String>? operation,
+      Value<String>? status,
+      Value<int>? retryCount,
+      Value<DateTime?>? nextAttemptAt,
+      Value<String?>? dependsOnEntityType,
+      Value<String?>? dependsOnEntityId,
+      Value<String?>? errorCode,
+      Value<String?>? errorMessage,
+      Value<String?>? workerSessionId,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return SyncTasksCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      operation: operation ?? this.operation,
+      status: status ?? this.status,
+      retryCount: retryCount ?? this.retryCount,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      dependsOnEntityType: dependsOnEntityType ?? this.dependsOnEntityType,
+      dependsOnEntityId: dependsOnEntityId ?? this.dependsOnEntityId,
+      errorCode: errorCode ?? this.errorCode,
+      errorMessage: errorMessage ?? this.errorMessage,
+      workerSessionId: workerSessionId ?? this.workerSessionId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (dependsOnEntityType.present) {
+      map['depends_on_entity_type'] =
+          Variable<String>(dependsOnEntityType.value);
+    }
+    if (dependsOnEntityId.present) {
+      map['depends_on_entity_id'] = Variable<String>(dependsOnEntityId.value);
+    }
+    if (errorCode.present) {
+      map['error_code'] = Variable<String>(errorCode.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (workerSessionId.present) {
+      map['worker_session_id'] = Variable<String>(workerSessionId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('dependsOnEntityType: $dependsOnEntityType, ')
+          ..write('dependsOnEntityId: $dependsOnEntityId, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('workerSessionId: $workerSessionId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4891,6 +5607,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MediaTable media = $MediaTable(this);
   late final $PublicTripsTable publicTrips = $PublicTripsTable(this);
   late final $UserTripsTable userTrips = $UserTripsTable(this);
+  late final $SyncTasksTable syncTasks = $SyncTasksTable(this);
   late final TripDao tripDao = TripDao(this as AppDatabase);
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
@@ -4898,12 +5615,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PublicTripsDao publicTripsDao =
       PublicTripsDao(this as AppDatabase);
   late final UserTripsDao userTripsDao = UserTripsDao(this as AppDatabase);
+  late final SyncTaskDao syncTaskDao = SyncTaskDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [trips, places, routes, media, publicTrips, userTrips];
+      [trips, places, routes, media, publicTrips, userTrips, syncTasks];
 }
 
 typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
@@ -7028,6 +7746,314 @@ typedef $$UserTripsTableProcessedTableManager = ProcessedTableManager<
     (UserTripRow, BaseReferences<_$AppDatabase, $UserTripsTable, UserTripRow>),
     UserTripRow,
     PrefetchHooks Function()>;
+typedef $$SyncTasksTableCreateCompanionBuilder = SyncTasksCompanion Function({
+  required String id,
+  required String entityType,
+  required String entityId,
+  required String operation,
+  Value<String> status,
+  Value<int> retryCount,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> dependsOnEntityType,
+  Value<String?> dependsOnEntityId,
+  Value<String?> errorCode,
+  Value<String?> errorMessage,
+  Value<String?> workerSessionId,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$SyncTasksTableUpdateCompanionBuilder = SyncTasksCompanion Function({
+  Value<String> id,
+  Value<String> entityType,
+  Value<String> entityId,
+  Value<String> operation,
+  Value<String> status,
+  Value<int> retryCount,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> dependsOnEntityType,
+  Value<String?> dependsOnEntityId,
+  Value<String?> errorCode,
+  Value<String?> errorMessage,
+  Value<String?> workerSessionId,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$SyncTasksTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncTasksTable> {
+  $$SyncTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get operation => $composableBuilder(
+      column: $table.operation, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dependsOnEntityType => $composableBuilder(
+      column: $table.dependsOnEntityType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dependsOnEntityId => $composableBuilder(
+      column: $table.dependsOnEntityId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorCode => $composableBuilder(
+      column: $table.errorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SyncTasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncTasksTable> {
+  $$SyncTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+      column: $table.operation, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dependsOnEntityType => $composableBuilder(
+      column: $table.dependsOnEntityType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dependsOnEntityId => $composableBuilder(
+      column: $table.dependsOnEntityId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get errorCode => $composableBuilder(
+      column: $table.errorCode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SyncTasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncTasksTable> {
+  $$SyncTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => column);
+
+  GeneratedColumn<String> get dependsOnEntityType => $composableBuilder(
+      column: $table.dependsOnEntityType, builder: (column) => column);
+
+  GeneratedColumn<String> get dependsOnEntityId => $composableBuilder(
+      column: $table.dependsOnEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get errorCode =>
+      $composableBuilder(column: $table.errorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => column);
+
+  GeneratedColumn<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncTasksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SyncTasksTable,
+    SyncTaskRow,
+    $$SyncTasksTableFilterComposer,
+    $$SyncTasksTableOrderingComposer,
+    $$SyncTasksTableAnnotationComposer,
+    $$SyncTasksTableCreateCompanionBuilder,
+    $$SyncTasksTableUpdateCompanionBuilder,
+    (SyncTaskRow, BaseReferences<_$AppDatabase, $SyncTasksTable, SyncTaskRow>),
+    SyncTaskRow,
+    PrefetchHooks Function()> {
+  $$SyncTasksTableTableManager(_$AppDatabase db, $SyncTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> entityType = const Value.absent(),
+            Value<String> entityId = const Value.absent(),
+            Value<String> operation = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> dependsOnEntityType = const Value.absent(),
+            Value<String?> dependsOnEntityId = const Value.absent(),
+            Value<String?> errorCode = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncTasksCompanion(
+            id: id,
+            entityType: entityType,
+            entityId: entityId,
+            operation: operation,
+            status: status,
+            retryCount: retryCount,
+            nextAttemptAt: nextAttemptAt,
+            dependsOnEntityType: dependsOnEntityType,
+            dependsOnEntityId: dependsOnEntityId,
+            errorCode: errorCode,
+            errorMessage: errorMessage,
+            workerSessionId: workerSessionId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String entityType,
+            required String entityId,
+            required String operation,
+            Value<String> status = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> dependsOnEntityType = const Value.absent(),
+            Value<String?> dependsOnEntityId = const Value.absent(),
+            Value<String?> errorCode = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncTasksCompanion.insert(
+            id: id,
+            entityType: entityType,
+            entityId: entityId,
+            operation: operation,
+            status: status,
+            retryCount: retryCount,
+            nextAttemptAt: nextAttemptAt,
+            dependsOnEntityType: dependsOnEntityType,
+            dependsOnEntityId: dependsOnEntityId,
+            errorCode: errorCode,
+            errorMessage: errorMessage,
+            workerSessionId: workerSessionId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SyncTasksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SyncTasksTable,
+    SyncTaskRow,
+    $$SyncTasksTableFilterComposer,
+    $$SyncTasksTableOrderingComposer,
+    $$SyncTasksTableAnnotationComposer,
+    $$SyncTasksTableCreateCompanionBuilder,
+    $$SyncTasksTableUpdateCompanionBuilder,
+    (SyncTaskRow, BaseReferences<_$AppDatabase, $SyncTasksTable, SyncTaskRow>),
+    SyncTaskRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7044,4 +8070,6 @@ class $AppDatabaseManager {
       $$PublicTripsTableTableManager(_db, _db.publicTrips);
   $$UserTripsTableTableManager get userTrips =>
       $$UserTripsTableTableManager(_db, _db.userTrips);
+  $$SyncTasksTableTableManager get syncTasks =>
+      $$SyncTasksTableTableManager(_db, _db.syncTasks);
 }

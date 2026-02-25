@@ -23,8 +23,8 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 | Milestone | Checklist Step | Status | Last Updated | Owner | Notes |
 |---|---|---|---|---|---|
 | M0 Contract Freeze | Step 0 | Done | 2026-02-20 | Codex | Contract freeze captured in `phase5-step0-contract-freeze.md` |
-| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-21 | Codex | v7 migration + queue columns live; migration/runtime validation still pending on device |
-| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-21 | Codex | `serverPlaceId` flow wired; runtime validation pending |
+| M1 Schema + DAO Migration | Step 1 | In Progress | 2026-02-24 | Codex | schema v9 + persistent `sync_tasks` schema/backfill + DAO added; runtime validation pending |
+| M2 Place Identity Binding | Step 2 | In Progress | 2026-02-24 | Codex | repository enqueue hooks + entity sync worker/bootstrap foundation added; runtime validation pending |
 | M3 Core Media Pipeline | Step 3 | In Progress | 2026-02-21 | Codex | enqueue/copy/compress/thumbnail/uploader wired; Android gallery permission flow softened |
 | M4 Queue Worker Reliability | Step 4 | In Progress | 2026-02-21 | Codex | claim/session guards + retry gates added; cleanup and failure handling improved |
 | M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-21 | Codex | media screen + place preview integration wired; UX polish + full validation pending |
@@ -392,3 +392,84 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
   - regenerate codegen artifacts (drift/freezed/riverpod where needed),
   - run migration path from v7 to v8 on device,
   - verify upload success on local-only trip and backend-backed trip.
+
+---
+
+## Session Update 2026-02-24 (M1 App-Wide Sync Foundation)
+
+### What was completed in this session
+- Implemented persistent app-wide sync task storage layer:
+  - Drift DB `schemaVersion` advanced from `8` to `9`.
+  - Added `sync_tasks` SQL schema creation in DB create/upgrade path.
+  - Added indexes for runnable task scanning and dependency lookup.
+- Added migration/backfill logic for existing local data:
+  - enqueues trip `create` sync tasks for trips missing `serverTripId`.
+  - enqueues place `create` sync tasks for places missing `serverPlaceId`.
+  - place backfill tasks depend on their parent trip identity (`depends_on_entity_type='trip'`).
+- Added reusable sync task data access surface:
+  - `SyncTaskDao` with upsert, claim, block, fail, complete, release methods.
+  - provider wiring in `database_provider.dart` for future worker/repository integration.
+
+### Files touched this session
+- `flutter/lib/core/storage/drift_database.dart`
+- `flutter/lib/core/storage/daos/sync_task_dao.dart`
+- `flutter/lib/core/storage/database_provider.dart`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+
+### Validation status
+- Agent-run validation: not executed (per constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - verify migration from existing v8 DB to v9.
+  - verify backfilled task count is non-zero for unsynced trips/places.
+  - verify no duplicate `(entity_type, entity_id)` tasks are created.
+
+### Current blocker / next action
+- Blocker: entity sync worker is not wired yet, so tasks are persistent but not processed.
+- Next action (M2): implement `EntitySyncWorker` + bootstrap and enqueue hooks in trip/place repositories.
+
+---
+
+## Session Update 2026-02-24 (M2 Entity Sync Worker Foundation)
+
+### What was completed in this session
+- Refactored `sync_tasks` to first-class Drift architecture (long-term consistency):
+  - Added `sync_tasks_table.dart` (typed Drift table).
+  - Converted `SyncTaskDao` to `@DriftAccessor` + typed `SyncTaskRow` model.
+  - Removed raw SQL table-definition path from migrations (table now created via Drift migrator).
+- Added enqueue hooks from local writes into `sync_tasks`:
+  - Trip repository now enqueues `trip` create/update tasks.
+  - Place repository now enqueues `place` create/update tasks with trip dependency metadata.
+  - Route sync remains intentionally deferred in this step (trip/place first).
+- Added app-wide entity sync runtime foundation:
+  - `EntitySyncWorker` with claim/process/retry/block lifecycle.
+  - `EntitySyncBootstrap` heartbeat + resume trigger.
+  - Root app bootstrap wiring via provider.
+- Added validation test scaffold for sync task DAO behavior:
+  - in-memory DB test for upsert + claim semantics.
+
+### Files touched this session
+- `flutter/lib/core/storage/tables/sync_tasks_table.dart`
+- `flutter/lib/core/storage/daos/sync_task_dao.dart`
+- `flutter/lib/core/storage/drift_database.dart`
+- `flutter/lib/core/storage/database_provider.dart`
+- `flutter/lib/features/create/data/trip_repository.dart`
+- `flutter/lib/features/create/data/place_repository.dart`
+- `flutter/lib/core/sync/entity_sync_worker.dart`
+- `flutter/lib/core/sync/entity_sync_bootstrap.dart`
+- `flutter/lib/features/create/presentation/providers/entity_sync_provider.dart`
+- `flutter/lib/app.dart`
+- `flutter/test/core/storage/sync_task_dao_test.dart`
+
+### Validation status
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+- Required local validation:
+  - run drift codegen to regenerate `drift_database.g.dart` and `sync_task_dao.g.dart`.
+  - run sync DAO tests and media integration tests.
+  - verify no duplicate sync tasks for repeated editor saves.
+  - verify worker retries only retryable failures and blocks non-retryable ones.
+  - verify app startup does not regress existing editor/media flows.
+
+### Current blocker / next action
+- Blocker: entity worker currently handles trip/place create/update only; delete and route sync are deferred.
+- Next action (M3/M4): implement backend delete flows for trip/place and add explicit route sync strategy before enabling delete/route task enqueue.

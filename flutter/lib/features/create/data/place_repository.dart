@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -21,13 +22,15 @@ class PlaceRepository {
   })  : _searchApi = searchApi,
         _placesApi = placesApi,
         _authService = authService,
-        _tripRepository = tripRepository;
+        _tripRepository = tripRepository,
+        _syncTaskDao = SyncTaskDao(_db);
 
   final AppDatabase _db;
   final TripRepository _tripRepository;
   final openapi.SearchApi? _searchApi;
   final openapi.PlacesApi? _placesApi;
   final AuthService? _authService;
+  final SyncTaskDao _syncTaskDao;
   final Map<String, Future<String>> _ensureRemotePlaceIdInFlight = {};
 
   Future<List<Place>> getPlaces(String tripId) async {
@@ -48,6 +51,11 @@ class PlaceRepository {
     );
     await _db.placeDao.insertPlace(_toCompanion(updated));
     await _updatePlaceCount(updated.tripId);
+    await _enqueuePlaceSyncTask(
+      placeId: updated.id,
+      tripId: updated.tripId,
+      operation: 'create',
+    );
     return updated;
   }
 
@@ -64,6 +72,14 @@ class PlaceRepository {
     );
     await _db.placeDao.updatePlace(_toCompanion(updated));
     await _updatePlaceCount(updated.tripId);
+    await _enqueuePlaceSyncTask(
+      placeId: updated.id,
+      tripId: updated.tripId,
+      operation:
+          (updated.serverPlaceId == null || updated.serverPlaceId!.isEmpty)
+              ? 'create'
+              : 'update',
+    );
   }
 
   Future<void> deletePlace(String id) async {
@@ -102,6 +118,16 @@ class PlaceRepository {
         .toList();
     await _db.placeDao.insertPlaces(companions);
     await _updatePlaceCount(places.first.tripId);
+    for (final place in places) {
+      await _enqueuePlaceSyncTask(
+        placeId: place.id,
+        tripId: place.tripId,
+        operation:
+            (place.serverPlaceId == null || place.serverPlaceId!.isEmpty)
+                ? 'create'
+                : 'update',
+      );
+    }
   }
 
   Place createFromSearchResult({
@@ -417,6 +443,21 @@ class PlaceRepository {
     return incoming.copyWith(
       serverPlaceId: resolvedRemoteId,
       photoUrls: existing.photoUrls,
+    );
+  }
+
+  Future<void> _enqueuePlaceSyncTask({
+    required String placeId,
+    required String tripId,
+    required String operation,
+  }) async {
+    await _syncTaskDao.upsertQueuedTask(
+      id: const Uuid().v4(),
+      entityType: 'place',
+      entityId: placeId,
+      operation: operation,
+      dependsOnEntityType: 'trip',
+      dependsOnEntityId: tripId,
     );
   }
 

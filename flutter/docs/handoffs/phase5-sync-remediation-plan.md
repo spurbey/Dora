@@ -3,7 +3,7 @@
 Date: 2026-02-23  
 Owner: Codex  
 Branch: `Media-Integration`  
-Status: Proposed (app-wide expansion required before Phase 5 can be considered stable)
+Status: In Progress (`M1` schema/DAO and `M2` worker/repository foundation implemented; runtime validation and delete/route flows pending)
 
 ---
 

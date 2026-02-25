@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/domain/trip.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
@@ -14,11 +15,13 @@ class TripRepository {
     this._db,
     this._authService, {
     openapi.TripsApi? tripsApi,
-  }) : _tripsApi = tripsApi;
+  })  : _tripsApi = tripsApi,
+        _syncTaskDao = SyncTaskDao(_db);
 
   final AppDatabase _db;
   final AuthService _authService;
   final openapi.TripsApi? _tripsApi;
+  final SyncTaskDao _syncTaskDao;
   final Map<String, Future<String>> _ensureRemoteTripIdInFlight = {};
 
   Future<Trip?> getTrip(String id) async {
@@ -56,6 +59,10 @@ class TripRepository {
 
     await _upsertTripRow(trip);
     await _upsertUserTrip(trip, createdAt: now);
+    await _enqueueTripSyncTask(
+      localTripId: trip.id,
+      operation: 'create',
+    );
 
     return trip;
   }
@@ -69,6 +76,13 @@ class TripRepository {
 
     await _upsertTripRow(updated);
     await _upsertUserTrip(updated);
+    await _enqueueTripSyncTask(
+      localTripId: updated.id,
+      operation:
+          (updated.serverTripId == null || updated.serverTripId!.isEmpty)
+              ? 'create'
+              : 'update',
+    );
 
     return updated;
   }
@@ -395,6 +409,18 @@ class TripRepository {
     required bool allowCreate,
   }) {
     return '$localTripId|allowCreate=$allowCreate';
+  }
+
+  Future<void> _enqueueTripSyncTask({
+    required String localTripId,
+    required String operation,
+  }) async {
+    await _syncTaskDao.upsertQueuedTask(
+      id: const Uuid().v4(),
+      entityType: 'trip',
+      entityId: localTripId,
+      operation: operation,
+    );
   }
 }
 

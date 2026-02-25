@@ -396,6 +396,7 @@ Phase is considered stable when:
      - verifies `setEditorViewport` persists local viewport without creating sync tasks.
    - `test/features/create/media_upload_integration_test.dart`
      - verifies media upload is deferred (retryable) when trip dependency task is not yet ready.
+     - verifies backend-bound place uploads still proceed (no false deferral).
 
 5. Still pending:
    - local runtime validation on device/CI (manual + automated) for full hardening matrix.
@@ -410,6 +411,8 @@ Phase is considered stable when:
      - `test/core/storage/sync_task_dao_test.dart`
      - `test/features/create/trip_repository_viewport_test.dart`
      - `test/features/create/media_upload_integration_test.dart`
+   - latest evidence:
+     - `test/features/create/media_upload_integration_test.dart` passed (`5/5`) on user run after `fix(media): allow upload when place already has remote binding`.
 
 2. Hardening matrix (manual):
    - backend-backed trip: upload success path.

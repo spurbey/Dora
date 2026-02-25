@@ -651,3 +651,33 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 1. Capture local test evidence above in handoff.
 2. Run device manual matrix (backend-backed trip, local-only trip blocked/deferred, recovery retry).
 3. If green, mark M4 done and continue M5 closure tasks.
+
+---
+
+## Session Update 2026-02-25 (Media Binding Regression Follow-up)
+
+### What was completed in this session
+- Fixed regression from strict dependency deferral:
+  - media uploads now proceed when place already has `serverPlaceId` (backend-bound place).
+  - dependency deferral is now scoped to unresolved place identity paths only.
+- Updated media integration deferral test setup to use unresolved place mapping (`serverPlaceId = null`) so assertions match intended contract.
+
+### Files touched this session
+- `flutter/lib/core/media/upload_queue_worker.dart`
+- `flutter/test/features/create/media_upload_integration_test.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Validation status
+- User-run validation evidence:
+  - `flutter test test/features/create/media_upload_integration_test.dart -r expanded`
+  - result: `All tests passed` (`5/5`)
+- Agent-run validation: not executed (constraint: no `flutter`/`dart` command execution).
+
+### Remaining plan (next sequence)
+1. Run remaining gate tests:
+   - `flutter test test/core/storage/sync_task_dao_test.dart -r expanded`
+   - `flutter test test/features/create/trip_repository_viewport_test.dart -r expanded`
+   - `flutter test test/features/create/phase4b_business_logic_test.dart -r expanded`
+2. Run `flutter analyze` and capture error-only summary.
+3. Execute manual matrix and decide M4 -> M5 transition.

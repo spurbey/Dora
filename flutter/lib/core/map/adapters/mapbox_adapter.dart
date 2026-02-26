@@ -32,6 +32,7 @@ class MapboxAdapter implements AppMapController {
   bool _pendingMapTap = false;
   // True while _handleLineTap is waiting for the map tap position to arrive.
   bool _lineTapPending = false;
+  int _lineTapSerial = 0;
 
   final Map<String, PointAnnotation> _markers = {};
   final Map<String, AppMarker> _markerData = {};
@@ -271,6 +272,7 @@ class MapboxAdapter implements AppMapController {
     _lastTapAt = null;
     _pendingMapTap = false;
     _lineTapPending = false;
+    _lineTapSerial = 0;
   }
 
   void handleMapTap(MapContentGestureContext context) {
@@ -289,6 +291,9 @@ class MapboxAdapter implements AppMapController {
       if (_pendingMapTap) {
         _pendingMapTap = false;
         onMapTap?.call(pos);
+        // Plain map taps should not leave stale tap coordinates behind.
+        _lastTapPosition = null;
+        _lastTapAt = null;
       }
     });
   }
@@ -324,25 +329,36 @@ class MapboxAdapter implements AppMapController {
   }
 
   void _handleLineTap(PolylineAnnotation annotation) {
-    // Cancel any already-queued map tap microtask — line tap wins.
+    // Cancel any already-queued map tap microtask; line tap wins.
     _pendingMapTap = false;
 
     final routeId = _annotationToRouteId[annotation.id];
     if (routeId == null) return;
-    // Synthetic connector lines are not user-tappable
+    // Synthetic connector lines are not user-tappable.
     if (routeId.startsWith('_conn_')) return;
 
-    // On most Mapbox platforms the annotation tap fires BEFORE the general
-    // map onTapListener, so _lastTapPosition is not yet set here.
-    // Set _lineTapPending so handleMapTap records the position without emitting
-    // a map-tap event, then resolve after a short delay.
+    // Annotation tap can fire before map onTapListener. Retry briefly so
+    // slower map-tap callbacks can still provide the tap position.
     _lineTapPending = true;
-    Future.delayed(const Duration(milliseconds: 50), () {
-      _lineTapPending = false;
+    final serial = ++_lineTapSerial;
+    _resolveDeferredLineTap(routeId, serial, 0);
+  }
+
+  void _resolveDeferredLineTap(String routeId, int serial, int attempt) {
+    Future.delayed(const Duration(milliseconds: 60), () {
+      if (serial != _lineTapSerial) return;
+
       final tappedRecently = _lastTapAt != null &&
           DateTime.now().difference(_lastTapAt!) <
-              const Duration(milliseconds: 600);
+              const Duration(milliseconds: 1200);
       final pos = tappedRecently ? _lastTapPosition : null;
+
+      if (pos == null && attempt < 5) {
+        _resolveDeferredLineTap(routeId, serial, attempt + 1);
+        return;
+      }
+
+      _lineTapPending = false;
       _lastTapPosition = null;
       _lastTapAt = null;
       if (pos != null && onRouteLineTap != null) {

@@ -97,17 +97,17 @@ Exit criteria:
 ## Phase 1: Correctness Hardening (Required)
 Goal: make current edit behavior deterministic and safe.
 
-### Task 1.1: Enforce line-only insertion
-1. In `handleMapTap`, remove route-edit insertion behavior.
-2. Keep route-edit insertion exclusively behind `handleRouteLineTap`.
-3. Preserve non-edit map tap behavior (`deselectAll`) as appropriate.
+### Task 1.1: Enforce line-first insertion with safe fallback
+1. Keep route-edit insertion on the line-tap path (`handleRouteLineTap`) as primary behavior.
+2. Allow a narrow fallback in `handleMapTap` only when the tap is near the selected route polyline (covers SDK line/map tap ordering variance).
+3. Preserve non-edit map tap behavior (`deselectAll`) and block generic off-route insertion.
 
 Files:
 1. `flutter/lib/features/create/presentation/providers/editor_provider.dart`
 
 Acceptance:
-1. In edit mode, tapping empty map does not add waypoint.
-2. Tapping route line still inserts/selects correctly.
+1. In edit mode, tapping empty/off-route map area does not add waypoint.
+2. Tapping route line still inserts/selects correctly, including platforms where annotation tap position arrives late.
 
 ### Task 1.2: Add per-route recalc version guard
 1. Add route-scoped version counter map in controller:
@@ -223,19 +223,22 @@ Expected: one waypoint inserted.
 2. VM-02: Tap non-route map area in edit mode
 Expected: no waypoint insertion.
 
-3. VM-03: Rapidly drag waypoint multiple times
+3. VM-02B: Tap very near selected route line in edit mode on platforms where line-tap position is delayed
+Expected: exactly one waypoint inserted (no duplicate insertion).
+
+4. VM-03: Rapidly drag waypoint multiple times
 Expected: final geometry matches last drag endpoint only.
 
-4. VM-04: Insert on curved segment
+5. VM-04: Insert on curved segment
 Expected: inserted waypoint lies on visible curved polyline.
 
-5. VM-05: Tap synthetic connector line
+6. VM-05: Tap synthetic connector line
 Expected: no edit insertion/select side effects.
 
-6. VM-06: Air route in edit context
+7. VM-06: Air route in edit context
 Expected: waypoint editing is blocked.
 
-7. VM-07: Reopen trip after edits
+8. VM-07: Reopen trip after edits
 Expected: latest waypoints and geometry persist.
 
 ## Risks and Mitigations

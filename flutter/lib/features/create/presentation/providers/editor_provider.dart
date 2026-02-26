@@ -509,6 +509,30 @@ class EditorController extends _$EditorController {
     return sqrt(dx * dx + dy * dy);
   }
 
+  double _minDistanceToPolyline(AppLatLng point, List<AppLatLng> polyline) {
+    if (polyline.length < 2) {
+      return double.infinity;
+    }
+    var minDist = double.infinity;
+    for (var i = 0; i < polyline.length - 1; i++) {
+      final (dist, _) =
+          _projectPointToSegment(point, polyline[i], polyline[i + 1]);
+      if (dist < minDist) minDist = dist;
+    }
+    return minDist;
+  }
+
+  bool _isTapNearRouteLine(AppLatLng tap, Route route) {
+    final current = state.valueOrNull;
+    final logicalNodes = current == null
+        ? const <AppLatLng>[]
+        : (_resolveLogicalNodes(current, route) ?? const <AppLatLng>[]);
+    final polyline =
+        route.coordinates.length >= 2 ? route.coordinates : logicalNodes;
+    // ~60m at the equator; tolerant enough for finger taps on mobile.
+    return _minDistanceToPolyline(tap, polyline) <= 0.00055;
+  }
+
   Route? _routeById(String routeId) {
     final current = state.valueOrNull;
     if (current == null) return null;
@@ -706,13 +730,22 @@ class EditorController extends _$EditorController {
     setMode(EditorMode.view);
   }
 
-  Future<void> handleMapTap(AppLatLng _position) async {
+  Future<void> handleMapTap(AppLatLng position) async {
     final current = state.valueOrNull;
     if (current == null) return;
     if (current.mode == EditorMode.editRoute &&
         current.selectedItemId != null &&
         current.selectedItemType == 'route') {
-      // Route edits are line-driven; ignore generic map taps in edit mode.
+      try {
+        final route =
+            current.routes.firstWhere((r) => r.id == current.selectedItemId);
+        if (route.transportMode == 'air') return;
+        // Fallback path: if route-line tap didn't deliver a point on this
+        // platform, a near-line map tap still inserts the waypoint.
+        if (_isTapNearRouteLine(position, route)) {
+          await _insertOrderedWaypoint(route, position);
+        }
+      } catch (_) {}
       return;
     }
     deselectAll();

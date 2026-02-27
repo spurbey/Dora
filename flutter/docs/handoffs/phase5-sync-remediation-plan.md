@@ -441,3 +441,20 @@ Phase is considered stable when:
    - keep M4 closed and maintain evidence links in handoff.
    - `phase5-rc-report.md` now contains automated evidence; add manual matrix outcomes.
    - move M6 from `In Progress` to `Done` after hardening matrix evidence is attached.
+
+## 11. Read-Path Remediation (2026-02-26)
+
+1. Trips module backend parity work started:
+   - removed mock API wiring in `trips_provider`.
+   - switched to `OpenApiTripsApi` with tokenized backend calls.
+2. Trips deletion integrity improved:
+   - backend delete is now enforced for synced rows.
+   - local rollback restores trip row on remote delete failure.
+3. Feed module moved from mock-first to backend-first list retrieval:
+   - `FeedApi.getTrips(...)` introduced using `listTripsApiV1TripsGet`.
+   - `FeedRepository.getPublicTrips(...)` now hydrates cache from backend response.
+
+Next validation gate:
+1. Confirm backend-created trips are visible in Trips screen after login.
+2. Confirm Trips-screen delete triggers backend delete and persists after app restart.
+3. Confirm feed list behavior under backend-only data for current user.

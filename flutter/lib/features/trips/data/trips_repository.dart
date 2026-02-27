@@ -86,10 +86,28 @@ class TripsRepository {
   }
 
   Future<void> deleteTrip(String id) async {
+    final existing = await _db.userTripsDao.getTripById(id);
+    if (existing == null) {
+      return;
+    }
+
     await _db.userTripsDao.deleteTrip(id);
-    Future(() async {
+
+    // Local-only pending trips have no guaranteed backend representation yet.
+    if (existing.syncStatus != 'synced') {
+      return;
+    }
+
+    try {
       await _api.deleteTrip(id);
-    }).catchError((_) {});
+    } catch (e) {
+      final restored = existing.copyWith(
+        syncStatus: 'failed',
+        localUpdatedAt: DateTime.now(),
+      );
+      await _db.userTripsDao.insertTrip(restored);
+      throw TripsRepositoryException('Failed to delete trip: $e');
+    }
   }
 
   Future<UserTrip> updateVisibility(String id, String visibility) async {

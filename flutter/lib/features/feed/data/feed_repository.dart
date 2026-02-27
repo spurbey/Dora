@@ -1,6 +1,5 @@
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/feed/data/feed_api.dart';
-import 'package:dora/features/feed/data/mock_feed_data.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 import 'package:dora/features/feed/data/models/public_trip.dart';
 import 'package:dora/features/feed/data/models/trip_detail_data.dart';
@@ -32,7 +31,11 @@ class FeedRepository {
     }
 
     try {
-      final trips = MockFeedData.getPublicTrips(page: page, limit: limit);
+      final responses = await _api.getTrips(
+        page: page,
+        limit: limit,
+      );
+      final trips = responses.map(_mapTripResponse).toList();
       if (page == 1) {
         await _db.publicTripsDao.clearAll();
       }
@@ -58,15 +61,6 @@ class FeedRepository {
       return local;
     }
 
-    if (MockFeedData.isMockId(id)) {
-      try {
-        return MockFeedData.getPublicTrips(page: 1, limit: 50)
-            .firstWhere((trip) => trip.id == id);
-      } catch (_) {
-        return null;
-      }
-    }
-
     try {
       final trip = await _api.getTripById(id);
       final mapped = _mapTripResponse(trip);
@@ -78,11 +72,6 @@ class FeedRepository {
   }
 
   Future<TripDetailData> getTripDetail(String id) async {
-    final mock = MockFeedData.getTripDetail(id);
-    if (mock != null) {
-      return mock;
-    }
-
     try {
       final tripResponse = await _api.getTripById(id);
       final places = await _api.getTripPlaces(id);
@@ -126,7 +115,21 @@ class FeedRepository {
   }
 
   Future<List<PublicTrip>> searchTrips(String query) async {
-    return MockFeedData.searchTrips(query);
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return const <PublicTrip>[];
+    }
+
+    final trips = await getPublicTrips(
+      page: 1,
+      limit: 100,
+      forceRefresh: true,
+    );
+    return trips
+        .where((trip) =>
+            trip.name.toLowerCase().contains(normalized) ||
+            (trip.description?.toLowerCase().contains(normalized) ?? false))
+        .toList();
   }
 
   Future<void> copyTrip(String tripId) async {
@@ -146,17 +149,14 @@ class FeedRepository {
     TripFilter? filter,
   }) {
     Future(() async {
-      final trips = MockFeedData.getPublicTrips(page: 1, limit: limit);
+      final responses = await _api.getTrips(page: 1, limit: limit);
+      final trips = responses.map(_mapTripResponse).toList();
       await _db.publicTripsDao.clearAll();
       await _db.publicTripsDao.insertTrips(trips);
     }).catchError((_) {});
   }
 
   void _refreshTripInBackground(String id) {
-    if (MockFeedData.isMockId(id)) {
-      return;
-    }
-
     Future(() async {
       final trip = await _api.getTripById(id);
       final mapped = _mapTripResponse(trip);

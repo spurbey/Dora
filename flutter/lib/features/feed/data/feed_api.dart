@@ -47,6 +47,29 @@ class FeedApi {
     }
   }
 
+  Future<List<TripResponse>> getTrips({
+    int page = 1,
+    int limit = 10,
+    String? visibility,
+  }) async {
+    try {
+      final auth = await _authorizationHeader();
+      final response = await _tripsApi.listTripsApiV1TripsGet(
+        authorization: auth,
+        page: page,
+        pageSize: limit,
+        visibility: visibility,
+      );
+      final trips = response.data?.trips;
+      if (trips == null || trips.isEmpty) {
+        return const <TripResponse>[];
+      }
+      return trips.toList();
+    } catch (e) {
+      throw FeedApiException('Failed to fetch trips: $e');
+    }
+  }
+
   Future<List<TripPlace>> getTripPlaces(String tripId) async {
     try {
       final auth = await _authorizationHeader();

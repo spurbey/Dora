@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/features/profile/presentation/providers/profile_provider.dart';
-import 'package:dora/features/trips/data/mock_trips_api.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora/features/trips/data/trips_api.dart';
 import 'package:dora/features/trips/data/trips_repository.dart';
@@ -16,8 +16,11 @@ part 'trips_provider.g.dart';
 @riverpod
 TripsApi userTripsApi(UserTripsApiRef ref) {
   final authService = ref.watch(authServiceProvider);
-  final userId = authService.currentUser?.id ?? 'mock-user';
-  return MockTripsApi(userId: userId);
+  final tripsApi = ref.watch(tripsApiProvider);
+  return OpenApiTripsApi(
+    tripsApi: tripsApi,
+    authService: authService,
+  );
 }
 
 @riverpod

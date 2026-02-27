@@ -797,3 +797,34 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 1. Launch upgraded build once on existing install (without uninstall) and verify Feed/Trips/Profile load.
 2. If still failing, capture first DB exception from `adb logcat` (search `SQLiteException`, `drift`, `sync_tasks`, `server_route_id`).
 3. Re-check media upload flow after app load is restored.
+
+---
+
+## Session Update 2026-02-26 (Trips/Feed Backend Read-Path Remediation)
+
+### What was completed in this session
+1. Trips provider wiring moved from mock to real backend API:
+   - `userTripsApiProvider` now uses `OpenApiTripsApi` with auth + generated `TripsApi`.
+2. Trips delete behavior hardened for backend parity:
+   - synced trips now require backend delete call,
+   - local row is restored if remote delete fails (prevents silent divergence).
+3. Feed repository moved from mock-first to backend-first trip fetch:
+   - primary source now backend list endpoint via `FeedApi.getTrips(...)`,
+   - Drift cache remains for local fallback and read performance.
+
+### Files touched
+- `flutter/lib/features/trips/presentation/providers/trips_provider.dart`
+- `flutter/lib/features/trips/data/trips_repository.dart`
+- `flutter/lib/features/feed/data/feed_api.dart`
+- `flutter/lib/features/feed/data/feed_repository.dart`
+- `flutter/docs/handoffs/phase5-rc-report.md`
+
+### Validation to run
+1. Login with backend-backed account and verify Trips list hydrates server trips.
+2. Delete a synced trip from Trips screen and confirm backend receives `DELETE /api/v1/trips/{id}`.
+3. Relaunch and verify deleted trip remains deleted in both app and backend.
+4. Validate Feed list behavior against backend-driven data for current user.
+
+### Remaining risks
+1. Backend feed semantics are still user-trip based (no dedicated public-discovery endpoint parity yet).
+2. Full app-wide convergence between `features/create` and `features/trips` trip lifecycles still needs final consolidation.

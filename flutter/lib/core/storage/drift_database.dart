@@ -40,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,14 +127,89 @@ class AppDatabase extends _$AppDatabase {
             await _backfillSyncTasksForUnsyncedEntities();
           }
           if (from >= 9 && from < 10) {
-            await m.addColumn(syncTasks, syncTasks.remoteEntityId);
+            await _addColumnIfMissing(
+              tableName: 'sync_tasks',
+              columnName: 'remote_entity_id',
+              definition: 'TEXT',
+            );
           }
           if (from >= 4 && from < 10) {
-            await m.addColumn(routes, routes.serverRouteId);
-            await _backfillRouteSyncTasks();
+            await _addColumnIfMissing(
+              tableName: 'routes',
+              columnName: 'server_route_id',
+              definition: 'TEXT',
+            );
+          }
+          if (from < 11) {
+            await _repairSchemaForV11(m);
           }
         },
       );
+
+  Future<void> _repairSchemaForV11(Migrator m) async {
+    await _ensureTableExists(m, 'sync_tasks');
+    await _addColumnIfMissing(
+      tableName: 'sync_tasks',
+      columnName: 'remote_entity_id',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'routes',
+      columnName: 'server_route_id',
+      definition: 'TEXT',
+    );
+    await _backfillSyncTasksForUnsyncedEntities();
+  }
+
+  Future<void> _ensureTableExists(Migrator m, String tableName) async {
+    final exists = await _tableExists(tableName);
+    if (exists) {
+      return;
+    }
+
+    if (tableName == 'sync_tasks') {
+      await m.createTable(syncTasks);
+    }
+  }
+
+  Future<void> _addColumnIfMissing({
+    required String tableName,
+    required String columnName,
+    required String definition,
+  }) async {
+    final exists = await _columnExists(
+      tableName: tableName,
+      columnName: columnName,
+    );
+    if (exists) {
+      return;
+    }
+    await customStatement(
+      'ALTER TABLE $tableName ADD COLUMN $columnName $definition',
+    );
+  }
+
+  Future<bool> _tableExists(String tableName) async {
+    final row = await customSelect(
+      'SELECT name FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1',
+      variables: [
+        Variable<String>('table'),
+        Variable<String>(tableName),
+      ],
+    ).getSingleOrNull();
+    return row != null;
+  }
+
+  Future<bool> _columnExists({
+    required String tableName,
+    required String columnName,
+  }) async {
+    if (!await _tableExists(tableName)) {
+      return false;
+    }
+    final rows = await customSelect('PRAGMA table_info($tableName)').get();
+    return rows.any((row) => row.read<String>('name') == columnName);
+  }
 
   Future<void> _backfillSyncTasksForUnsyncedEntities() async {
     final now = DateTime.now();

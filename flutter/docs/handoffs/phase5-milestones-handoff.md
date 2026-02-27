@@ -7,6 +7,7 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 - `flutter/docs/phases/Phase-5-PRD.md`
 - `flutter/docs/phases/Phase-5-Execution-Checklist.md`
 - `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-rc-report.md`
 
 ## Update Rules
 1. Update this file at the end of every milestone (Step 0 to Step 6).
@@ -23,12 +24,12 @@ Single running handoff document for Phase 5 and its app-wide sync dependencies s
 | Milestone | Checklist Step | Status | Last Updated | Owner | Notes |
 |---|---|---|---|---|---|
 | M0 Contract Freeze | Step 0 | Done | 2026-02-20 | Codex | Contract freeze captured in `phase5-step0-contract-freeze.md` |
-| M1 Schema + DAO Migration | Step 1 | Done | 2026-02-25 | Codex | schema v10 live with typed Drift sync table + migration coverage in place |
+| M1 Schema + DAO Migration | Step 1 | Done | 2026-02-26 | Codex | schema v11 live with idempotent schema-repair safeguards for stale installs |
 | M2 Place Identity Binding | Step 2 | Done | 2026-02-25 | Codex | trip/place/route enqueue hooks + worker expansion (create/update/delete) are integrated |
 | M3 Core Media Pipeline | Step 3 | Done | 2026-02-25 | Codex | dependency-aware media upload gating and place-id binding are stable in integration tests |
 | M4 Queue Worker Reliability | Step 4 | Done | 2026-02-25 | Codex | dependency-aware claiming + retryability semantics + route dependency gating hardened |
-| M5 UI + Editor Integration | Step 5 | In Progress | 2026-02-25 | Codex | integration is wired; hardening validation and UX closure remain |
-| M6 Hardening + RC | Step 6 | In Progress | 2026-02-25 | Codex | final manual matrix + RC evidence pack pending |
+| M5 UI + Editor Integration | Step 5 | Done | 2026-02-25 | Codex | integration complete with automated regression coverage green |
+| M6 Hardening + RC | Step 6 | In Progress | 2026-02-25 | Codex | automated validation complete; final manual matrix + `phase5-rc-report.md` evidence pending |
 
 Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 
@@ -38,10 +39,11 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 
 ### Authoritative Baseline
 
-1. Current DB `schemaVersion` in code is `10`.
+1. Current DB `schemaVersion` in code is `11`.
 2. Active sync schema baseline includes:
    - `sync_tasks.remote_entity_id`
    - `routes.server_route_id`
+   - v11 repair logic to reconcile missing/partial columns on existing on-device DBs
 3. Any older `6 -> 7` / `7 -> 8` / `8 -> 9` notes in historical entries are retained for history, not for new implementation branching.
 
 ### Current State
@@ -711,3 +713,87 @@ Legend: `Not Started` | `In Progress` | `Blocked` | `Done`
 1. Run the new route dependency test and attach pass output.
 2. Execute final manual hardening matrix (backend-backed upload, local-only blocked flow, dependency recovery retry).
 3. Produce RC evidence summary and close M5/M6.
+
+---
+
+## Session Update 2026-02-25 (Entity Worker Failure Semantics Test Hardening)
+
+### What was completed in this session
+- Added worker-level sync reliability tests covering terminal/retry behavior:
+  - retryable trip/route identity failures become `failed` with backoff metadata.
+  - non-retryable trip identity failures become `blocked` with explicit code.
+  - successful tasks become `completed`.
+  - unsupported entity types become `blocked` with explicit `unsupported_entity_type`.
+  - trip delete without remote id completes safely without remote delete call.
+
+### Files touched this session
+- `flutter/test/core/sync/entity_sync_worker_test.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Validation status
+- Pending local execution:
+  - `flutter test test/core/sync/entity_sync_worker_test.dart -r expanded`
+
+### Remaining plan (next sequence)
+1. Run new worker test and attach pass output.
+2. Run route dependency test and attach pass output.
+3. Execute final manual hardening matrix and compile RC evidence.
+
+---
+
+## Session Update 2026-02-25 (Automated Validation Green Gate)
+
+### What was completed in this session
+- User-confirmed automated validation is green:
+  - `flutter analyze`
+  - sync DAO / worker / media / route dependency / viewport / Phase 4B test suites.
+- RC evidence pack was updated to reflect automated green status.
+
+### Files touched this session
+- `flutter/docs/handoffs/phase5-rc-report.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+
+### Validation status
+- Automated validation: PASS (user-run).
+- Remaining validation: manual hardening matrix only.
+
+### Remaining plan (next sequence)
+1. Run final manual hardening matrix scenarios on device.
+2. Attach scenario outcomes/evidence in `phase5-rc-report.md`.
+3. Mark M6 as `Done` and prepare release sign-off note.
+
+---
+
+## Session Update 2026-02-26 (App-Wide Load Failure Diagnosis + Schema Repair)
+
+### What was observed
+1. Runtime symptom: Feed/Trips/Profile all showed generic load failures, while `flutter run` had no matching API request logs.
+2. Backend reachability alone could not explain this because feed/trips paths are mock-backed in current code.
+3. Shared dependency suspected: local Drift initialization/schema compatibility on existing device data.
+
+### What was changed
+1. Drift schema advanced to `11` with a repair migration path for stale/partial installs.
+2. Migration guards now use idempotent column reconciliation for:
+   - `sync_tasks.remote_entity_id`
+   - `routes.server_route_id`
+3. Added repair routine for `from < 11`:
+   - ensure `sync_tasks` table exists,
+   - add missing critical columns safely,
+   - backfill unsynced entity tasks after reconciliation.
+
+### Files touched
+- `flutter/lib/core/storage/drift_database.dart`
+- `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/handoffs/phase5-milestones-handoff.md`
+
+### Why this is long-term/scalable
+1. Prevents app-wide silent failures caused by historical local schema drift during frequent iterative phase development.
+2. Keeps Drift-first architecture while making migrations resilient to partial/stale on-device states.
+3. Avoids brittle one-off local data wipes as the primary recovery mechanism.
+
+### Required runtime validation (user-side)
+1. Launch upgraded build once on existing install (without uninstall) and verify Feed/Trips/Profile load.
+2. If still failing, capture first DB exception from `adb logcat` (search `SQLiteException`, `drift`, `sync_tasks`, `server_route_id`).
+3. Re-check media upload flow after app load is restored.

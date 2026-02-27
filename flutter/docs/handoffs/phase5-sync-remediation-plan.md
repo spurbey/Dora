@@ -3,7 +3,7 @@
 Date: 2026-02-23  
 Owner: Codex  
 Branch: `Media-Integration`  
-Status: In Progress (`M1` advanced to v10 and `M2/M3` route+delete sync coverage implemented; runtime validation pending)
+Status: In Progress (`M1` advanced to v11 with schema-repair safeguards and `M2/M3` route+delete sync coverage implemented; runtime validation pending)
 
 ---
 
@@ -367,6 +367,9 @@ Phase is considered stable when:
 
 1. Completed in code (core sync/media):
    - `schemaVersion 10` migration (`sync_tasks.remote_entity_id`, `routes.server_route_id`).
+   - `schemaVersion 11` migration repair:
+     - idempotent `sync_tasks` and `routes` column reconciliation (`remote_entity_id`, `server_route_id`)
+     - safety repair for stale/partial on-device schemas before queue workers run
    - Trip/place/route repositories enqueue create/update/delete sync tasks.
    - Entity worker processes trip/place/route create/update/delete paths.
    - Media worker checks trip/place dependency state and marks media rows `blocked` when upstream entity sync is blocked.
@@ -405,6 +408,10 @@ Phase is considered stable when:
      - verifies route sync defers when place dependency is queued and unresolved.
      - verifies route sync blocks when place dependency is blocked.
      - verifies route sync uses existing `serverPlaceId` directly (no false blocking).
+   - `test/core/sync/entity_sync_worker_test.dart`
+     - verifies retryable identity failures are persisted as `failed` with backoff.
+     - verifies non-retryable identity failures are persisted as `blocked`.
+     - verifies success and unsupported entity handling paths.
 
 5. Still pending:
    - manual runtime validation matrix on device/CI for full hardening paths.
@@ -415,8 +422,13 @@ Phase is considered stable when:
 
 1. Validation status (latest user run):
    - `flutter analyze`: no errors reported.
-   - targeted tests are green in local run, including media integration (`5/5`).
-   - next validation addition: run `test/features/create/route_repository_dependency_test.dart` and attach output.
+    - targeted tests are green in local run, including:
+      - `test/core/storage/sync_task_dao_test.dart`
+      - `test/core/sync/entity_sync_worker_test.dart`
+      - `test/features/create/trip_repository_viewport_test.dart`
+      - `test/features/create/route_repository_dependency_test.dart`
+      - `test/features/create/media_upload_integration_test.dart` (`5/5`)
+      - `test/features/create/phase4b_business_logic_test.dart`
 
 2. Hardening matrix (manual):
    - backend-backed trip: upload success path.
@@ -427,4 +439,5 @@ Phase is considered stable when:
 
 3. Documentation + closure:
    - keep M4 closed and maintain evidence links in handoff.
-   - move M5/M6 from `In Progress` to `Ready for RC` only after hardening matrix evidence is attached.
+   - `phase5-rc-report.md` now contains automated evidence; add manual matrix outcomes.
+   - move M6 from `In Progress` to `Done` after hardening matrix evidence is attached.

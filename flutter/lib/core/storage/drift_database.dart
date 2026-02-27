@@ -100,23 +100,7 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(media, media.nextAttemptAt);
             await m.addColumn(media, media.workerSessionId);
 
-            // Backfill upload state from legacy rows.
-            await customStatement('''
-              UPDATE media
-              SET
-                upload_status = 'uploaded',
-                upload_progress = 1.0,
-                uploaded_at = COALESCE(uploaded_at, created_at)
-              WHERE url IS NOT NULL AND TRIM(url) != ''
-            ''');
-
-            await customStatement('''
-              UPDATE media
-              SET
-                upload_status = 'queued',
-                upload_progress = 0.0
-              WHERE url IS NULL OR TRIM(url) = ''
-            ''');
+            await _backfillMediaUploadState();
           }
           if (from < 8) {
             // Trips: persistent mapping to backend trip UUID for place/media sync.
@@ -124,7 +108,6 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) {
             await m.createTable(syncTasks);
-            await _backfillSyncTasksForUnsyncedEntities();
           }
           if (from >= 9 && from < 10) {
             await _addColumnIfMissing(
@@ -147,6 +130,77 @@ class AppDatabase extends _$AppDatabase {
       );
 
   Future<void> _repairSchemaForV11(Migrator m) async {
+    await _addColumnIfMissing(
+      tableName: 'trips',
+      columnName: 'server_trip_id',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'places',
+      columnName: 'server_place_id',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'thumbnail_path',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'mime_type',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'file_size_bytes',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'width',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'height',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'upload_status',
+      definition: "TEXT NOT NULL DEFAULT 'queued'",
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'upload_progress',
+      definition: 'REAL NOT NULL DEFAULT 0.0',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'retry_count',
+      definition: 'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'error_message',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'uploaded_at',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'next_attempt_at',
+      definition: 'INTEGER',
+    );
+    await _addColumnIfMissing(
+      tableName: 'media',
+      columnName: 'worker_session_id',
+      definition: 'TEXT',
+    );
+    await _backfillMediaUploadState();
     await _ensureTableExists(m, 'sync_tasks');
     await _addColumnIfMissing(
       tableName: 'sync_tasks',
@@ -177,6 +231,9 @@ class AppDatabase extends _$AppDatabase {
     required String columnName,
     required String definition,
   }) async {
+    if (!await _tableExists(tableName)) {
+      return;
+    }
     final exists = await _columnExists(
       tableName: tableName,
       columnName: columnName,
@@ -300,8 +357,16 @@ class AppDatabase extends _$AppDatabase {
         'create',
         'queued',
         0,
-        'trip',
-        r.trip_id,
+        CASE
+          WHEN r.start_place_id IS NOT NULL AND TRIM(r.start_place_id) != '' THEN 'place'
+          WHEN r.end_place_id IS NOT NULL AND TRIM(r.end_place_id) != '' THEN 'place'
+          ELSE 'trip'
+        END,
+        CASE
+          WHEN r.start_place_id IS NOT NULL AND TRIM(r.start_place_id) != '' THEN r.start_place_id
+          WHEN r.end_place_id IS NOT NULL AND TRIM(r.end_place_id) != '' THEN r.end_place_id
+          ELSE r.trip_id
+        END,
         ?,
         ?
       FROM routes r
@@ -309,6 +374,33 @@ class AppDatabase extends _$AppDatabase {
       ''',
       [now, now],
     );
+  }
+
+  Future<void> _backfillMediaUploadState() async {
+    if (!await _tableExists('media') ||
+        !await _columnExists(tableName: 'media', columnName: 'upload_status') ||
+        !await _columnExists(tableName: 'media', columnName: 'upload_progress') ||
+        !await _columnExists(tableName: 'media', columnName: 'uploaded_at') ||
+        !await _columnExists(tableName: 'media', columnName: 'url')) {
+      return;
+    }
+
+    await customStatement('''
+      UPDATE media
+      SET
+        upload_status = 'uploaded',
+        upload_progress = 1.0,
+        uploaded_at = COALESCE(uploaded_at, created_at)
+      WHERE url IS NOT NULL AND TRIM(url) != ''
+    ''');
+
+    await customStatement('''
+      UPDATE media
+      SET
+        upload_status = 'queued',
+        upload_progress = 0.0
+      WHERE url IS NULL OR TRIM(url) = ''
+    ''');
   }
 
   static LazyDatabase _openConnection() {

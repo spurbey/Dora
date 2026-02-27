@@ -19,7 +19,7 @@ class FeedController extends _$FeedController {
   Future<FeedState> build() async {
     final repository = ref.watch(feedRepositoryProvider);
     final trips = await repository.getPublicTrips(page: 1, limit: _pageSize);
-    final activeTrip = await ref.watch(tripsRepositoryProvider).getActiveTrip();
+    final activeTrip = await ref.read(tripsRepositoryProvider).getActiveTrip();
 
     return FeedState(
       trips: trips,

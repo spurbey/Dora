@@ -615,15 +615,91 @@ class RouteRepository {
     required String operation,
     String? remoteEntityId,
   }) async {
+    final dependency = await _resolveRouteSyncDependency(
+      routeId: routeId,
+      tripId: tripId,
+      operation: operation,
+    );
+
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
       entityType: 'route',
       entityId: routeId,
       operation: operation,
       remoteEntityId: remoteEntityId,
-      dependsOnEntityType: 'trip',
-      dependsOnEntityId: tripId,
+      dependsOnEntityType: dependency.entityType,
+      dependsOnEntityId: dependency.entityId,
     );
+  }
+
+  Future<_SyncTaskDependency> _resolveRouteSyncDependency({
+    required String routeId,
+    required String tripId,
+    required String operation,
+  }) async {
+    if (operation == 'delete') {
+      return const _SyncTaskDependency();
+    }
+
+    final tripTask = await _syncTaskDao.getTaskByEntity(
+      entityType: 'trip',
+      entityId: tripId,
+    );
+    if (_isDependencyPending(tripTask)) {
+      return _SyncTaskDependency(
+        entityType: 'trip',
+        entityId: tripId,
+      );
+    }
+
+    final route = await _db.routeDao.getRouteById(routeId);
+    if (route == null) {
+      return _SyncTaskDependency(
+        entityType: 'trip',
+        entityId: tripId,
+      );
+    }
+
+    final placeIds = <String>[
+      if (route.startPlaceId != null && route.startPlaceId!.isNotEmpty)
+        route.startPlaceId!,
+      if (route.endPlaceId != null && route.endPlaceId!.isNotEmpty)
+        route.endPlaceId!,
+    ];
+
+    for (final placeId in placeIds) {
+      final placeTask = await _syncTaskDao.getTaskByEntity(
+        entityType: 'place',
+        entityId: placeId,
+      );
+      if (_isDependencyPending(placeTask)) {
+        return _SyncTaskDependency(
+          entityType: 'place',
+          entityId: placeId,
+        );
+      }
+
+      final place = await _db.placeDao.getPlaceById(placeId);
+      final serverPlaceId = place?.serverPlaceId;
+      if (serverPlaceId == null || serverPlaceId.trim().isEmpty) {
+        return _SyncTaskDependency(
+          entityType: 'place',
+          entityId: placeId,
+        );
+      }
+    }
+
+    return _SyncTaskDependency(
+      entityType: 'trip',
+      entityId: tripId,
+    );
+  }
+
+  bool _isDependencyPending(SyncTaskRow? task) {
+    if (task == null) {
+      return false;
+    }
+    return task.status != 'completed';
   }
 
   static double _haversineKm(AppLatLng start, AppLatLng end) {
@@ -664,4 +740,14 @@ class RouteIdentityException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class _SyncTaskDependency {
+  const _SyncTaskDependency({
+    this.entityType,
+    this.entityId,
+  });
+
+  final String? entityType;
+  final String? entityId;
 }

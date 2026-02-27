@@ -44,6 +44,7 @@ Record device/environment, expected behavior, and observed results.
 | Blocked dependency recovery + retry | After dependency fixed, manual retry succeeds | Pending | |
 | Route sync with unresolved place dependency | Route sync defers/blocks with clear reason | Pending | |
 | Route sync with existing `serverPlaceId` | Route sync proceeds without false deferral | Pending | |
+| Profile backend parity (`/users/me/profile`) | Profile/Settings show backend user + stats; fallback works offline | Pending | |
 | App restart with pending sync/media tasks | Queue resumes without duplicate in-flight execution | Pending | |
 | Cancel/remove during in-flight media upload | Row remains canceled/removed, no stale URL bridge | Pending | |
 
@@ -64,7 +65,7 @@ Validation notes:
 
 1. Full app-wide global offline replay queue remains future work (`core/network/offline_queue.dart` still stubbed).
 2. Dependency-aware prioritization policy (trip-first scheduling optimization) is not yet implemented.
-3. Read-path parity is incomplete until Trips/Feed are fully backend-driven and validated end-to-end.
+3. Read-path parity is incomplete until Trips/Feed/Profile are fully backend-driven and validated end-to-end.
 4. Manual matrix evidence is still required to convert this report to final RC sign-off.
 
 ---
@@ -74,6 +75,7 @@ Validation notes:
 1. Trips tab was wired to `MockTripsApi`, so list/delete did not consistently represent backend state.
 2. Trip delete in Trips module removed local row first and swallowed remote delete failures (fire-and-forget), which could leave backend trip undeleted.
 3. Feed repository was mock-first (`MockFeedData`) and could not surface previously created backend trips for the signed-in user.
+4. Profile repository stats/user payload were local-only and did not consume backend `/api/v1/users/me/profile`.
 
 ---
 
@@ -85,12 +87,14 @@ Validation notes:
    - backend delete required for synced rows,
    - local rollback on remote delete failure.
 3. Feed repository switched to backend trip list API as primary source with Drift cache retention.
+4. Profile repository switched to backend-first profile fetch (`/api/v1/users/me/profile`) with local fallback for offline/degraded API states.
 
 Validation to run after this batch:
 1. New account: create trip + places -> confirm backend rows.
 2. Trips screen: delete trip -> confirm `DELETE /api/v1/trips/{id}` and backend row removal.
 3. Relaunch/login: confirm backend trips hydrate into Trips/Feed views.
-4. Re-run Phase 5 targeted test suite and manual matrix rows impacted by this change.
+4. Profile + Settings: confirm username/email/stats render from backend profile payload and gracefully fall back when API is unavailable.
+5. Re-run Phase 5 targeted test suite and manual matrix rows impacted by this change.
 
 ---
 

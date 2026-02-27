@@ -39,3 +39,8 @@ final searchApiProvider = Provider<SearchApi>((ref) {
   final client = ref.watch(apiClientProvider);
   return SearchApi(client.dio, standardSerializers);
 });
+
+final usersApiProvider = Provider<UsersApi>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return UsersApi(client.dio, standardSerializers);
+});

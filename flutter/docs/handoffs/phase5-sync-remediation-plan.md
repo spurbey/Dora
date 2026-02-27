@@ -453,8 +453,13 @@ Phase is considered stable when:
 3. Feed module moved from mock-first to backend-first list retrieval:
    - `FeedApi.getTrips(...)` introduced using `listTripsApiV1TripsGet`.
    - `FeedRepository.getPublicTrips(...)` now hydrates cache from backend response.
+4. Profile module moved to backend-first profile data:
+   - wired `usersApiProvider` (`UsersApi`) in `core/network/api_providers.dart`.
+   - `ProfileRepository` now uses `getCurrentUserCompleteProfileApiV1UsersMeProfileGet(...)`.
+   - local profile/stats fallback retained for offline/degraded backend behavior.
 
 Next validation gate:
 1. Confirm backend-created trips are visible in Trips screen after login.
 2. Confirm Trips-screen delete triggers backend delete and persists after app restart.
 3. Confirm feed list behavior under backend-only data for current user.
+4. Confirm profile/settings read backend user+stats payload for authenticated users.

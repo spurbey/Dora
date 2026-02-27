@@ -4,12 +4,18 @@ import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/profile/data/models/user_profile.dart';
 import 'package:dora/features/trips/data/models/trip_stats.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 class ProfileRepository {
-  ProfileRepository(this._db, this._authService);
+  ProfileRepository(
+    this._db,
+    this._authService, {
+    openapi.UsersApi? usersApi,
+  }) : _usersApi = usersApi;
 
   final AppDatabase _db;
   final AuthService _authService;
+  final openapi.UsersApi? _usersApi;
 
   Future<UserProfile> getProfile() async {
     final user = _authService.currentUser;
@@ -17,18 +23,30 @@ class ProfileRepository {
       throw ProfileRepositoryException('No authenticated user');
     }
 
-    final stats = await getStats();
-    final username =
-        (user.userMetadata?['username'] as String?) ?? _fallbackUsername(user);
-    final avatarUrl = user.userMetadata?['avatar_url'] as String?;
+    final fallback = await _getLocalProfile(user);
+    final usersApi = _usersApi;
+    if (usersApi == null) {
+      return fallback;
+    }
 
-    return UserProfile(
-      userId: user.id,
-      username: username,
-      email: user.email ?? '',
-      avatarUrl: avatarUrl,
-      stats: stats,
-    );
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return fallback;
+    }
+
+    try {
+      final response =
+          await usersApi.getCurrentUserCompleteProfileApiV1UsersMeProfileGet(
+        authorization: 'Bearer $token',
+      );
+      final remote = response.data;
+      if (remote == null) {
+        return fallback;
+      }
+      return _mapRemoteProfile(remote);
+    } catch (_) {
+      return fallback;
+    }
   }
 
   Future<TripStats> getStats() async {
@@ -67,6 +85,38 @@ class ProfileRepository {
       return 'Traveler';
     }
     return email.split('@').first;
+  }
+
+  Future<UserProfile> _getLocalProfile(User user) async {
+    final stats = await getStats();
+    final username =
+        (user.userMetadata?['username'] as String?) ?? _fallbackUsername(user);
+    final avatarUrl = user.userMetadata?['avatar_url'] as String?;
+
+    return UserProfile(
+      userId: user.id,
+      username: username,
+      email: user.email ?? '',
+      avatarUrl: avatarUrl,
+      stats: stats,
+    );
+  }
+
+  UserProfile _mapRemoteProfile(openapi.UserProfileResponse response) {
+    final user = response.user;
+    final stats = response.stats;
+    return UserProfile(
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      stats: TripStats(
+        totalTrips: stats.tripCount ?? 0,
+        totalPlaces: stats.placeCount ?? 0,
+        totalVideos: 0,
+        totalViews: stats.totalViews ?? 0,
+      ),
+    );
   }
 }
 

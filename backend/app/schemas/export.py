@@ -70,6 +70,7 @@ class ExportStatusResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
+    render_duration_ms: Optional[int] = None
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None

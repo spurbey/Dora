@@ -58,10 +58,25 @@ def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
     now = utcnow()
     recovered_count = 0
     for job in stale_jobs:
+        if job.status == "cancel_requested":
+            # Preserve user intent on recovery: canceled jobs must not re-queue.
+            job.status = "canceled"
+            job.stage = None
+            job.progress = 0.0
+            job.completed_at = now
+            job.worker_session_id = None
+            job.renderer_job_id = None
+            job.next_attempt_at = None
+            job.error_code = "canceled_by_user"
+            job.error_message = "Canceled during stale recovery after worker restart"
+            recovered_count += 1
+            continue
+
         if job.retry_count < job.max_retries:
             job.status = "queued"
             job.stage = None
             job.progress = 0.0
+            job.completed_at = None
             job.worker_session_id = None
             job.renderer_job_id = None
             job.next_attempt_at = now
@@ -72,7 +87,11 @@ def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
 
         job.status = "failed"
         job.stage = None
+        job.progress = 0.0
         job.completed_at = now
+        job.worker_session_id = None
+        job.renderer_job_id = None
+        job.next_attempt_at = None
         job.error_code = "worker_timeout"
         job.error_message = "Marked failed during stale recovery after retry limit reached"
         recovered_count += 1
@@ -116,6 +135,8 @@ async def _cancel_job(db: Session, job: ExportJob, renderer: MockRemotionRendere
     job.stage = None
     job.progress = 0.0
     job.completed_at = utcnow()
+    job.worker_session_id = None
+    job.next_attempt_at = None
     job.error_code = "canceled_by_user"
     job.error_message = "Export canceled by user request"
     db.commit()
@@ -135,11 +156,15 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
         job.progress = 0.0
         job.next_attempt_at = now + timedelta(seconds=delay)
         job.worker_session_id = None
+        job.completed_at = None
         db.commit()
         return
 
     job.status = "failed"
+    job.progress = 0.0
     job.completed_at = now
+    job.worker_session_id = None
+    job.next_attempt_at = None
     db.commit()
 
 
@@ -190,6 +215,11 @@ async def run_job_once(db: Session, job: ExportJob, renderer: MockRemotionRender
                         if render_status.status == "completed":
                             output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
                             job.output_url = job.output_url or f"file://{output_path}"
+                            # Cancel request arrived too late; continue and finalize completion.
+                            job.status = "processing"
+                            job.error_code = None
+                            job.error_message = None
+                            db.commit()
                             break
                         await _cancel_job(db, job, renderer)
                         db.refresh(job)
@@ -216,6 +246,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: MockRemotionRender
         job.completed_at = utcnow()
         job.render_duration_ms = duration_ms
         job.next_attempt_at = None
+        job.worker_session_id = None
         job.error_code = None
         job.error_message = None
         db.commit()

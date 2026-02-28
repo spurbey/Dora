@@ -113,6 +113,24 @@ def test_recover_orphaned_jobs_requeues_processing_jobs_on_restart(db, test_user
     assert job.next_attempt_at is not None
 
 
+def test_recover_orphaned_jobs_cancels_stale_cancel_requested_jobs(db, test_user):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id, status="cancel_requested")
+    job.worker_session_id = "worker-old"
+    job.renderer_job_id = "render-old"
+    job.updated_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    db.commit()
+
+    recovered = recover_orphaned_jobs(db=db, stale_after_seconds=60)
+    assert recovered >= 1
+
+    db.refresh(job)
+    assert job.status == "canceled"
+    assert job.worker_session_id is None
+    assert job.next_attempt_at is None
+    assert job.completed_at is not None
+
+
 def test_retry_backoff_uses_prd_intervals():
     assert backoff_seconds(1) == 30
     assert backoff_seconds(2) == 120
@@ -143,13 +161,15 @@ def test_run_job_once_requeues_on_retryable_failure(db, test_user):
 
 
 class _CancelThenCompleteRenderer(MockRemotionRenderer):
-    def __init__(self, job):
+    def __init__(self, db, job):
         super().__init__()
+        self._db = db
         self._job = job
 
     async def get_status(self, render_id: str) -> RenderStatus:
         # Simulate race: cancel request arrives but renderer has already completed.
         self._job.status = "cancel_requested"
+        self._db.commit()
         return RenderStatus(
             render_id=render_id,
             status="completed",
@@ -164,7 +184,7 @@ def test_cancel_requested_race_accepts_completed_artifact(db, test_user):
     claimed = claim_next_job(db=db, worker_session_id="worker-race")
     assert claimed is not None
 
-    renderer = _CancelThenCompleteRenderer(claimed)
+    renderer = _CancelThenCompleteRenderer(db, claimed)
     result = asyncio.run(run_job_once(db=db, job=claimed, renderer=renderer))
 
     assert result.status == "completed"

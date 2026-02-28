@@ -123,6 +123,18 @@ def test_get_export_status_enforces_ownership(client, db, test_user, other_user,
     assert response.status_code == 403
 
 
+def test_get_export_status_includes_render_duration_ms(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.render_duration_ms = 12345
+    db.commit()
+
+    response = client.get(f"/api/v1/exports/{job.id}")
+    assert response.status_code == 200
+    assert response.json()["render_duration_ms"] == 12345
+
+
 def test_cancel_queued_export_returns_200(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)

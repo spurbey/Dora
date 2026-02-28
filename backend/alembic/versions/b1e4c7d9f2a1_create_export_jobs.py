@@ -105,9 +105,30 @@ def upgrade() -> None:
     op.create_index("idx_export_jobs_status_next_attempt", "export_jobs", ["status", "next_attempt_at"], unique=False)
     op.create_index("idx_export_jobs_trip", "export_jobs", ["trip_id"], unique=False)
     op.create_index("idx_export_jobs_snapshot_hash", "export_jobs", ["snapshot_hash"], unique=False)
+    op.execute(
+        """
+        CREATE OR REPLACE FUNCTION set_export_jobs_updated_at()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = NOW();
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_export_jobs_updated_at
+        BEFORE UPDATE ON export_jobs
+        FOR EACH ROW
+        EXECUTE PROCEDURE set_export_jobs_updated_at();
+        """
+    )
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS trg_export_jobs_updated_at ON export_jobs")
+    op.execute("DROP FUNCTION IF EXISTS set_export_jobs_updated_at()")
     op.drop_index("idx_export_jobs_snapshot_hash", table_name="export_jobs")
     op.drop_index("idx_export_jobs_trip", table_name="export_jobs")
     op.drop_index("idx_export_jobs_status_next_attempt", table_name="export_jobs")

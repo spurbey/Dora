@@ -61,6 +61,7 @@ async def get_export_status(
         thumbnail_url=job.thumbnail_url,
         error_code=job.error_code,
         error_message=job.error_message,
+        render_duration_ms=job.render_duration_ms,
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,

@@ -29,5 +29,6 @@ from app.models.place_metadata import PlaceMetadata
 from app.models.route import Route
 from app.models.waypoint import Waypoint
 from app.models.route_metadata import RouteMetadata
+from app.models.export_job import ExportJob
 
-__all__ = ["User", "Trip", "TripPlace", "MediaFile", "SearchEvent", "PlaceView", "PlaceSave", "TripMetadata", "PlaceMetadata", "Route", "Waypoint", "RouteMetadata"]
+__all__ = ["User", "Trip", "TripPlace", "MediaFile", "SearchEvent", "PlaceView", "PlaceSave", "TripMetadata", "PlaceMetadata", "Route", "Waypoint", "RouteMetadata", "ExportJob"]

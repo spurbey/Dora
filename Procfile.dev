@@ -1,0 +1,3 @@
+api: cd backend && uvicorn app.main:app --port 8000 --reload
+worker: cd backend && python -m app.workers.export_worker
+renderer: cd video-renderer && npm run dev

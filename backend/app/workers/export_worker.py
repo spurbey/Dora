@@ -107,7 +107,7 @@ async def _stage_asset_fetch(
 ) -> None:
     """HEAD all media URLs found in the snapshot.
 
-    Raises RuntimeError('asset_all_404') only when *every* found URL returns
+    Raises TerminalJobError('asset_all_404') only when *every* found URL returns
     HTTP 404.  Partial availability is acceptable — the render proceeds and
     missing photos are replaced with the solid-colour fallback in Classic.jsx.
     Network errors and timeouts are treated as "reachable" to avoid
@@ -169,6 +169,11 @@ async def _stage_uploading(
     The optional _transport parameter is for test injection only.
     """
     # ── Thumbnail (independent of upload) ────────────────────────────────────
+    # 6B shortcut: reuse the first trip photo URL as thumbnail_url rather than
+    # uploading a video-frame JPEG to private storage.  The photo is already a
+    # valid Supabase Storage URL so no upload is needed.
+    # TODO(6D): extend the renderer API to emit a JPEG thumbnail frame and
+    #           upload it to exports/private/{user_id}/{job_id}/thumbnail.jpg.
     if not job.thumbnail_url:
         first_photo = _extract_first_photo_url(job.snapshot_json)
         if first_photo:

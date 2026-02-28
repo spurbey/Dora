@@ -11,6 +11,7 @@ import pytest
 from app.models.export_job import ExportJob
 from app.models.trip import Trip
 from app.services.export_renderer import MockRemotionRenderer, RenderStatus
+import app.workers.export_worker as export_worker_module
 from app.workers.export_worker import (
     backoff_seconds,
     claim_next_job,
@@ -100,12 +101,16 @@ def test_cancel_requested_becomes_canceled(db, test_user):
     assert result.error_code == "canceled_by_user"
 
 
-def test_recover_orphaned_jobs_requeues_processing_jobs_on_restart(db, test_user):
+def test_recover_orphaned_jobs_requeues_processing_jobs_on_restart(db, test_user, monkeypatch):
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id, status="processing")
     job.worker_session_id = "worker-old"
-    job.updated_at = datetime.now(timezone.utc) - timedelta(minutes=20)
     db.commit()
+    db.refresh(job)
+
+    # Simulate stale time without mutating updated_at (trigger-managed).
+    stale_now = job.updated_at + timedelta(minutes=20)
+    monkeypatch.setattr(export_worker_module, "utcnow", lambda: stale_now)
 
     recovered = recover_orphaned_jobs(db=db, stale_after_seconds=60)
     assert recovered >= 1
@@ -116,13 +121,17 @@ def test_recover_orphaned_jobs_requeues_processing_jobs_on_restart(db, test_user
     assert job.next_attempt_at is not None
 
 
-def test_recover_orphaned_jobs_cancels_stale_cancel_requested_jobs(db, test_user):
+def test_recover_orphaned_jobs_cancels_stale_cancel_requested_jobs(db, test_user, monkeypatch):
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id, status="cancel_requested")
     job.worker_session_id = "worker-old"
     job.renderer_job_id = "render-old"
-    job.updated_at = datetime.now(timezone.utc) - timedelta(minutes=20)
     db.commit()
+    db.refresh(job)
+
+    # Simulate stale time without mutating updated_at (trigger-managed).
+    stale_now = job.updated_at + timedelta(minutes=20)
+    monkeypatch.setattr(export_worker_module, "utcnow", lambda: stale_now)
 
     recovered = recover_orphaned_jobs(db=db, stale_after_seconds=60)
     assert recovered >= 1

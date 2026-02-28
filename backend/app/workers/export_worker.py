@@ -244,6 +244,9 @@ async def run_job_once(db: Session, job: ExportJob, renderer: MockRemotionRender
                     if render_status.status == "completed":
                         output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
                         job.output_url = job.output_url or f"file://{output_path}"
+                        # Persist output before leaving rendering loop; the next
+                        # stage boundary refresh would otherwise discard this.
+                        db.commit()
                         break
                     if render_status.status in {"failed", "canceled"}:
                         raise RuntimeError(render_status.error or "renderer_failed")

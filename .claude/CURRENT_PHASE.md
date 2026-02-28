@@ -1,47 +1,32 @@
-# Current Phase: Flutter Phase 4C — Route UX + Bug Fixes ✅ COMPLETE
+# Current Phase: Phase 6B - Remotion MVP Renderer Kickoff
 
-Phase: Flutter-Phase-4C | Status: Complete — ready for device testing
+Phase: Flutter-Phase-6B | Status: Kickoff started, 6A delivered
 
 ## Active Branch
-- `Flutter-Dev`
+- `phase-6-video-export`
 
-## Latest Committed Milestones
-- Phase 4B: city search, geocoding, bottom-sheet forms
-- Phase 4C: route bug fixes, route creator UX, Directions API, edit toolbar + waypoints
+## 6A Delivered (Control Plane + Flutter Wiring)
+- Backend export control plane and worker:
+  - `export_jobs` migration/model/schema/service/router/worker
+  - endpoint and worker test suites for submit/status/cancel/recovery/retry/race paths
+- Flutter export scaffolding:
+  - export feature module (`features/export/**`)
+  - export routing and feature-flag route guard
+  - submit-time precheck revalidation and hardened error parsing
+  - route delete dependency fix for sync-blocking detection
+- Contracts and orchestration docs:
+  - `phase6-contract-freeze.md`
+  - renderer contract (`video-renderer/docs/renderer-api-contract.md`)
+  - local runtime orchestration (`docker-compose.dev.yml`, `Procfile.dev`)
 
-## What Is Done (4C)
+## Validation Snapshot (2026-02-28)
+- Backend Phase 6A tests (dependency-ready local env): `17/17` passed.
+- Flutter Phase 6A export tests: passed in local env after latest guard/error-string alignment.
+- Current sandbox limitation: backend test rerun is blocked here by missing `sqlalchemy` dependency.
 
-### Phase A — Bug Fixes
-- **A1** `timeline_sidebar.dart`: ID-based route connector (was index-based, always showed wrong route)
-- **A2** `route_dao.dart`: Deterministic `ORDER BY orderIndex, localUpdatedAt`
-- **A3** `editor_provider.dart`: Fixed draft leakage in `setMode()` and `deselectAll()` — all 3 draft fields always cleared
-- **A4** `app_map_view.dart`: Serial sync guard (`_syncInFlight + _needsResync`) — no concurrent `_syncOverlays()`
-- **A5** `map_provider.dart` + `mapbox_adapter.dart`: Synthetic gray-dashed connectors; `_conn_` prefixed routes not tappable
-
-### Phase B — Route Creator UX
-- `EditorState`: added `routeEndItemId`, `isGeneratingRoute`
-- `EditorProvider`: `selectRouteSource`, `selectRouteDestination`, `clearRouteDraft`, `cancelRouteMode`, `handleMapTap` — no auto-draw
-- New `route_creator_form.dart`: From/To dropdowns (Air = cities only), loading indicator, disabled Create button
-- `editor_screen.dart`: `_buildDetailContent(EditorState, EditorController)` — RouteCreatorForm in bottom panel, auto-expanded in route mode
-- `map_canvas.dart`: Removed old instruction overlay
-
-### Phase C — Directions API
-- New `core/map/directions/`: `AppDirectionsService` abstract, `BackendDirectionsAdapter` (Dio → `POST /api/v1/routes/generate`, haversine fallback), `directionsServiceProvider`
-- `RouteRepository.generateRouteViaApi()` with fallback
-- Car/walk routes call API; air routes use arc generator
-
-### Phase D — Route Edit Toolbar + Waypoints
-- `EditorMode.editRoute` added
-- `Route.waypoints: List<AppLatLng>` added; Drift schema v5→v6 (`waypointsJson` column + migration)
-- New `route_edit_toolbar.dart`: Edit/Flip/Delete/Close glassmorphism toolbar
-- `EditorProvider`: `toggleRouteEditMode`, `addWaypoint`, `removeWaypoint`, `flipRoute`
-- `MapProvider`: waypoint markers (`_wp_` prefix, purple), 3x route width in editRoute, blue dest marker
-
-## QA Status
-- `flutter analyze` — zero new issues on all changed files
-- `build_runner` run 3× (EditorState B1, directions C1, Route+Drift+EditorMode D1-D3) — all successful
-- Business logic test: `flutter/test/features/create/phase4c_business_logic_test.dart`
-
-## Next Phase (5)
-- PRD at: `flutter/docs/phases/Phase-5-PRD.md`
-- Checklist: `flutter/docs/phases/Phase-5-Execution-Checklist.md`
+## Immediate 6B Procedure
+1. Verify 6B precondition gate from checklist (contract freeze + 6A evidence + no pending schema drift).
+2. Implement local `video-renderer/` Express + Remotion service against frozen HTTP contract.
+3. Integrate `LocalRemotionRenderer` in backend worker with stage-level progress/cancel flow.
+4. Upgrade Flutter Export Studio from 6A single-template submit to 6B template + progress/share UX.
+5. Capture 6B evidence report with artifact playability and full stage logs.

@@ -1,144 +1,100 @@
 # Phase 6 Rolling Handoff
 
-Last Updated: 2026-02-28  
-Branch: `phase-6-video-export`  
-Owner: Codex (handoff for continuation)
+Last Updated: 2026-02-28
+Branch: `phase-6-video-export`
+Owner: Codex
 
 ## 1. Purpose
 
-Single continuity document for Phase 6 execution across subphases (6A, 6B, 6C, 6D).  
-This file records what is already implemented, what is validated, and what remains.
+Continuity log across Phase 6 subphases (6A, 6B, 6C, 6D). Keep this file updated after each subphase milestone so follow-up agents can resume without re-discovery.
 
 ## 2. Source of Truth
 
 - PRD: `flutter/docs/phases/Phase-6-PRD.md`
 - Checklist: `flutter/docs/phases/Phase-6-Execution-Checklist.md`
-- Contract freeze doc (required by checklist): `flutter/docs/handoffs/phase6-contract-freeze.md` (must exist and be signed before closing 6A)
+- 6A contract freeze: `flutter/docs/handoffs/phase6-contract-freeze.md`
+- Renderer contract: `video-renderer/docs/renderer-api-contract.md`
 
 ## 3. Subphase Status
 
 ### 6A - Control Plane and Product Wiring
 
-Status: **In Progress**
+Status: Completed
 
-Completed in this pass (backend-first scaffold):
-
-- Added export job model:
-  - `backend/app/models/export_job.py`
-- Added export schemas:
-  - `backend/app/schemas/export.py`
-- Added renderer abstraction and 6A mock renderer:
-  - `backend/app/services/export_renderer.py`
-- Added export service with:
-  - trip ownership checks
-  - dedup check (409)
-  - precondition hooks (pending media/sync placeholders for 6A)
-  - snapshot hash and 500KB size validation
-  - cancel semantics (`queued -> canceled`, `processing -> cancel_requested`)
-  - download/share response builders
-  - file: `backend/app/services/export_service.py`
-- Added export API router endpoints:
+Delivered backend scope:
+- Export DB/model/schema/service/router/worker stack.
+- Endpoints:
   - `POST /api/v1/trips/{trip_id}/export`
   - `GET /api/v1/exports/{job_id}`
   - `POST /api/v1/exports/{job_id}/cancel`
   - `GET /api/v1/exports/{job_id}/download-url`
   - `GET /api/v1/exports/{job_id}/share`
-  - file: `backend/app/api/v1/exports.py`
-- Registered exports router in `backend/app/main.py`.
-- Added worker skeleton with:
-  - `with_for_update(skip_locked=True)` claim
-  - stage progression
-  - cancel-request handling
-  - retry backoff (30/120/480)
-  - restart recovery helper for stale `processing` / `cancel_requested`
-  - file: `backend/app/workers/export_worker.py`
-- Added Alembic migration:
+- Worker behaviors:
+  - atomic claim via `.with_for_update(skip_locked=True)`
+  - six-stage progression scaffold
+  - cancel_requested semantics and cancel race handling
+  - retry/backoff + stale processing recovery
+- Migration and tests:
   - `backend/alembic/versions/b1e4c7d9f2a1_create_export_jobs.py`
-  - includes `cancel_requested` in status constraint
-  - includes required indexes:
-    - `(user_id, status)`
-    - `(status, next_attempt_at)`
-    - `(trip_id)`
-    - `(snapshot_hash)`
-- Added tests:
   - `backend/tests/test_export_endpoints.py`
   - `backend/tests/test_export_worker.py`
-  - includes stale recovery + cancel race acceptance coverage in worker tests
-- Added renderer contract + local orchestration artifacts:
-  - `video-renderer/docs/renderer-api-contract.md`
-  - `docker-compose.dev.yml`
-  - `Procfile.dev`
-- Updated model/schema exports:
-  - `backend/app/models/__init__.py`
-  - `backend/app/schemas/__init__.py`
 
-Completed in this pass (Flutter 6A + review hardening):
-
-- Added Flutter export module and routing:
-  - `flutter/lib/features/export/**`
-  - `flutter/lib/core/navigation/routes.dart`
-  - `flutter/lib/core/navigation/app_router.dart`
-- Wired export entry points:
-  - `flutter/lib/features/trips/presentation/screens/my_trips_screen.dart`
-  - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
-- Added local pre-submit guard checks and submit flow.
-- Hardened submit path after review:
-  - handles nested backend error envelopes (`detail.error`, `detail.reason`) for 409/422
-  - re-validates pre-submit guards at tap-time before POST
-  - moved raw endpoint calls behind `ExportApi` adapter
-- Fixed route delete dependency ownership gap for export guard:
-  - `flutter/lib/features/create/data/route_repository.dart`
-- Added export feature tests:
+Delivered Flutter scope:
+- Export module at `flutter/lib/features/export/**`.
+- Wiring from Trips + Editor to Export Studio.
+- Pre-submit guard evaluation + submit-time revalidation.
+- 409/422 nested error envelope parsing hardening.
+- Route delete dependency fix for sync-blocking precheck.
+- Route-level feature-flag guard in router.
+- Tests:
   - `flutter/test/features/export/export_repository_precheck_test.dart`
   - `flutter/test/features/export/export_provider_test.dart`
   - `flutter/test/features/export/export_studio_screen_test.dart`
-- Added route delete dependency regression test:
   - `flutter/test/features/create/route_repository_dependency_test.dart`
 
-Pending for 6A completion:
-
-- Apply migration in runtime/test DB and run new tests in a dependency-ready backend environment.
-- Review/sign-off `phase6-contract-freeze.md` against checklist-required structure.
-- Regenerate `dora_api` with export endpoints and bump `flutter/packages/dora_api/pubspec.yaml`.
+6A carry-forward items:
+- Regenerate `dora_api` for export endpoints and bump package version.
 
 ### 6B - Remotion MVP Renderer
 
-Status: Not Started  
-Precondition remains: freeze renderer HTTP contract before implementation.
+Status: Kickoff started
+
+Started procedure:
+- 6B kickoff execution doc created: `flutter/docs/handoffs/phase6b-kickoff-procedure.md`.
+- Gate check confirms renderer HTTP contract exists and is frozen in 6A docs.
+- Next implementation target is local `video-renderer/` Express + Remotion service, then backend `LocalRemotionRenderer` integration.
 
 ### 6C - AWS Lambda Scale
 
-Status: Not Started
+Status: Not started
 
 ### 6D - Quality + Hardening
 
-Status: Not Started
+Status: Not started
 
 ## 4. Verification Log
 
-Executed:
+Validated in user dependency-ready environment:
+- Backend export tests: `17/17` passed (8 endpoint + 9 worker).
+- Flutter export tests: passed after latest guard/error-string alignment.
 
-- `python -m py_compile backend/app/models/export_job.py backend/app/schemas/export.py backend/app/services/export_renderer.py backend/app/services/export_service.py backend/app/api/v1/exports.py backend/app/workers/export_worker.py backend/tests/test_export_endpoints.py backend/tests/test_export_worker.py backend/alembic/versions/b1e4c7d9f2a1_create_export_jobs.py`
-  - Result: pass (syntax-level validation)
-- Contract-freeze artifact created:
-  - `flutter/docs/handoffs/phase6-contract-freeze.md`
+Attempted in this sandbox:
+- `cd backend; pytest tests/test_export_endpoints.py tests/test_export_worker.py -q`
+  - Failed before tests due missing dependency: `ModuleNotFoundError: No module named 'sqlalchemy'`.
 
-Attempted but blocked by local environment dependencies:
+## 5. Commit Trail (Phase 6)
 
-- `cd backend; pytest tests/test_export_endpoints.py tests/test_export_worker.py -v`
-  - Result: failed before test run (`ModuleNotFoundError: No module named 'sqlalchemy'`)
+- `a8ee884` fix(flutter): harden phase 6A export guards and routing gates
+- `19b11ad` feat(flutter): scaffold phase 6A export studio and guard checks
+- `eff1807` fix(phase6a-worker): persist output_url and harden stale tests with mocked time
+- `1698b8d` fix(phase6a-worker): preserve late-cancel completion and clear stale renderer ids
+- `06ea1bd` fix(phase6a): harden export worker recovery, race handling, and status contract
+- `70326a0` feat(phase6a): scaffold export control plane, worker, and contracts
 
-## 5. Known Gaps / Assumptions
+## 6. Next Actions
 
-- Backend precondition checks for `pending_media` and `pending_sync` are implemented as 6A hooks returning `False` because backend currently has no durable queue state tables for these checks.
-- `download-url` and `share` are functional control-plane responses, but full storage token revocation mechanics remain for 6C.
-- Worker restart recovery is implemented via stale-job reset helper; full stale reaper policy hardening remains for later subphases.
-- Worker includes cancel race handling in mock path ("cancel_requested" with renderer already `completed` accepts artifact), but this still needs integration validation against real renderer backends in 6B/6C.
-- Flutter currently uses a 6A `ExportApi` transport adapter until generated `dora_api` export endpoints are available.
-
-## 6. Next Action Plan
-
-1. Finish 6A contract artifacts (`phase6-contract-freeze.md`, renderer API contract doc, local orchestration docs).
-2. Run migration + tests in a backend environment with dependencies installed.
-3. Implement Flutter 6A wiring and `dora_api` regeneration/version bump.
-4. Gate 6B start on frozen renderer contract and clean 6A evidence pack.
+1. Finalize 6A evidence document (`phase6a-control-plane-report.md`) and mark checklist status.
+2. Execute 6B-1 renderer scaffold from frozen HTTP contract.
+3. Execute 6B-2 backend local renderer integration and stage progression validation.
+4. Execute 6B-3 Flutter progress/share UX upgrades.
+5. Capture 6B evidence artifact set and sign-off doc.

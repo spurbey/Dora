@@ -71,6 +71,11 @@ Class | Method | HTTP request | Description
 [*ComponentsApi*](doc/ComponentsApi.md) | [**reorderComponentsApiV1TripsTripIdComponentsReorderPatch**](doc/ComponentsApi.md#reordercomponentsapiv1tripstripidcomponentsreorderpatch) | **PATCH** /api/v1/trips/{trip_id}/components/reorder | Bulk reorder components
 [*DefaultApi*](doc/DefaultApi.md) | [**healthHealthGet**](doc/DefaultApi.md#healthhealthget) | **GET** /health | Health
 [*DefaultApi*](doc/DefaultApi.md) | [**rootGet**](doc/DefaultApi.md#rootget) | **GET** / | Root
+[*ExportsApi*](doc/ExportsApi.md) | [**cancelExportApiV1ExportsJobIdCancelPost**](doc/ExportsApi.md#cancelexportapiv1exportsjobidcancelpost) | **POST** /api/v1/exports/{job_id}/cancel | Cancel Export
+[*ExportsApi*](doc/ExportsApi.md) | [**createExportApiV1TripsTripIdExportPost**](doc/ExportsApi.md#createexportapiv1tripstripidexportpost) | **POST** /api/v1/trips/{trip_id}/export | Create Export
+[*ExportsApi*](doc/ExportsApi.md) | [**getExportDownloadUrlApiV1ExportsJobIdDownloadUrlGet**](doc/ExportsApi.md#getexportdownloadurlapiv1exportsjobiddownloadurlget) | **GET** /api/v1/exports/{job_id}/download-url | Get Export Download Url
+[*ExportsApi*](doc/ExportsApi.md) | [**getExportShareUrlApiV1ExportsJobIdShareGet**](doc/ExportsApi.md#getexportshareurlapiv1exportsjobidshareget) | **GET** /api/v1/exports/{job_id}/share | Get Export Share Url
+[*ExportsApi*](doc/ExportsApi.md) | [**getExportStatusApiV1ExportsJobIdGet**](doc/ExportsApi.md#getexportstatusapiv1exportsjobidget) | **GET** /api/v1/exports/{job_id} | Get Export Status
 [*MediaApi*](doc/MediaApi.md) | [**deleteMediaApiV1MediaMediaIdDelete**](doc/MediaApi.md#deletemediaapiv1mediamediaiddelete) | **DELETE** /api/v1/media/{media_id} | Delete Media
 [*MediaApi*](doc/MediaApi.md) | [**getMediaApiV1MediaMediaIdGet**](doc/MediaApi.md#getmediaapiv1mediamediaidget) | **GET** /api/v1/media/{media_id} | Get Media
 [*MediaApi*](doc/MediaApi.md) | [**uploadMediaApiV1MediaUploadPost**](doc/MediaApi.md#uploadmediaapiv1mediauploadpost) | **POST** /api/v1/media/upload | Upload Media
@@ -123,6 +128,17 @@ Class | Method | HTTP request | Description
  - [ComponentReorderItem](doc/ComponentReorderItem.md)
  - [ComponentReorderRequest](doc/ComponentReorderRequest.md)
  - [ComponentReorderResponse](doc/ComponentReorderResponse.md)
+ - [ExportAspectRatio](doc/ExportAspectRatio.md)
+ - [ExportCancelResponse](doc/ExportCancelResponse.md)
+ - [ExportCreateRequest](doc/ExportCreateRequest.md)
+ - [ExportCreateResponse](doc/ExportCreateResponse.md)
+ - [ExportDownloadUrlResponse](doc/ExportDownloadUrlResponse.md)
+ - [ExportQuality](doc/ExportQuality.md)
+ - [ExportShareUrlResponse](doc/ExportShareUrlResponse.md)
+ - [ExportStage](doc/ExportStage.md)
+ - [ExportStatus](doc/ExportStatus.md)
+ - [ExportStatusResponse](doc/ExportStatusResponse.md)
+ - [ExportTemplate](doc/ExportTemplate.md)
  - [FuelCost](doc/FuelCost.md)
  - [HTTPValidationError](doc/HTTPValidationError.md)
  - [LocationInner](doc/LocationInner.md)

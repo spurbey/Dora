@@ -20,6 +20,17 @@ import 'package:dora_api/src/model/budget_per_person.dart';
 import 'package:dora_api/src/model/component_reorder_item.dart';
 import 'package:dora_api/src/model/component_reorder_request.dart';
 import 'package:dora_api/src/model/component_reorder_response.dart';
+import 'package:dora_api/src/model/export_aspect_ratio.dart';
+import 'package:dora_api/src/model/export_cancel_response.dart';
+import 'package:dora_api/src/model/export_create_request.dart';
+import 'package:dora_api/src/model/export_create_response.dart';
+import 'package:dora_api/src/model/export_download_url_response.dart';
+import 'package:dora_api/src/model/export_quality.dart';
+import 'package:dora_api/src/model/export_share_url_response.dart';
+import 'package:dora_api/src/model/export_stage.dart';
+import 'package:dora_api/src/model/export_status.dart';
+import 'package:dora_api/src/model/export_status_response.dart';
+import 'package:dora_api/src/model/export_template.dart';
 import 'package:dora_api/src/model/fuel_cost.dart';
 import 'package:dora_api/src/model/http_validation_error.dart';
 import 'package:dora_api/src/model/location_inner.dart';
@@ -73,6 +84,17 @@ part 'serializers.g.dart';
   ComponentReorderItem,
   ComponentReorderRequest,
   ComponentReorderResponse,
+  ExportAspectRatio,
+  ExportCancelResponse,
+  ExportCreateRequest,
+  ExportCreateResponse,
+  ExportDownloadUrlResponse,
+  ExportQuality,
+  ExportShareUrlResponse,
+  ExportStage,
+  ExportStatus,
+  ExportStatusResponse,
+  ExportTemplate,
   FuelCost,
   HTTPValidationError,
   LocationInner,

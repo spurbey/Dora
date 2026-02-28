@@ -12,6 +12,7 @@ import 'package:dora_api/src/auth/oauth.dart';
 import 'package:dora_api/src/api/authentication_api.dart';
 import 'package:dora_api/src/api/components_api.dart';
 import 'package:dora_api/src/api/default_api.dart';
+import 'package:dora_api/src/api/exports_api.dart';
 import 'package:dora_api/src/api/media_api.dart';
 import 'package:dora_api/src/api/metadata_api.dart';
 import 'package:dora_api/src/api/places_api.dart';
@@ -90,6 +91,12 @@ class DoraApi {
   /// by doing that all interceptors will not be executed
   DefaultApi getDefaultApi() {
     return DefaultApi(dio, serializers);
+  }
+
+  /// Get ExportsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ExportsApi getExportsApi() {
+    return ExportsApi(dio, serializers);
   }
 
   /// Get MediaApi instance, base route and serializer can be overridden by a given but be careful,

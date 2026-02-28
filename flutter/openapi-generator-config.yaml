@@ -1,6 +1,6 @@
 generatorName: dart-dio
-inputSpec: http://localhost:8000/openapi.json
-outputDir: lib/generated/api/
+inputSpec: openapi.json
+outputDir: packages/dora_api
 additionalProperties:
   pubName: dora_api
   useEnumExtension: true

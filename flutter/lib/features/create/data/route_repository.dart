@@ -110,37 +110,33 @@ class RouteRepository {
     if (routes.isEmpty) {
       return;
     }
-    final existingRows = await _db.routeDao.getRoutesForTrip(routes.first.tripId);
+    final existingRows =
+        await _db.routeDao.getRoutesForTrip(routes.first.tripId);
     final existingById = {
       for (final row in existingRows) row.id: row.serverRouteId,
     };
     final now = DateTime.now();
-    final normalizedRoutes = routes
-        .map((route) {
-          final existingServerRouteId = existingById[route.id];
-          final resolvedServerRouteId =
-              (existingServerRouteId != null && existingServerRouteId.isNotEmpty)
-                  ? existingServerRouteId
-                  : route.serverRouteId;
-          return route.copyWith(
-            serverRouteId: resolvedServerRouteId,
-            localUpdatedAt: now,
-            syncStatus: 'pending',
-          );
-        })
-        .toList();
-    final companions = normalizedRoutes
-        .map(_toCompanion)
-        .toList();
+    final normalizedRoutes = routes.map((route) {
+      final existingServerRouteId = existingById[route.id];
+      final resolvedServerRouteId =
+          (existingServerRouteId != null && existingServerRouteId.isNotEmpty)
+              ? existingServerRouteId
+              : route.serverRouteId;
+      return route.copyWith(
+        serverRouteId: resolvedServerRouteId,
+        localUpdatedAt: now,
+        syncStatus: 'pending',
+      );
+    }).toList();
+    final companions = normalizedRoutes.map(_toCompanion).toList();
     await _db.routeDao.insertRoutes(companions);
     for (final route in normalizedRoutes) {
       await _enqueueRouteSyncTask(
         routeId: route.id,
         tripId: route.tripId,
-        operation:
-            (route.serverRouteId == null || route.serverRouteId!.isEmpty)
-                ? 'create'
-                : 'update',
+        operation: (route.serverRouteId == null || route.serverRouteId!.isEmpty)
+            ? 'create'
+            : 'update',
       );
     }
   }
@@ -440,7 +436,8 @@ class RouteRepository {
       );
     }
 
-    await (_db.update(_db.routes)..where((r) => r.id.equals(localRouteId))).write(
+    await (_db.update(_db.routes)..where((r) => r.id.equals(localRouteId)))
+        .write(
       RoutesCompanion(
         serverRouteId: Value(remoteRouteId),
         localUpdatedAt: Value(DateTime.now()),
@@ -595,7 +592,10 @@ class RouteRepository {
   openapi.RouteCreateTransportModeEnum _mapTransportMode(String mode) {
     return switch (mode) {
       'bike' || 'cycling' => openapi.RouteCreateTransportModeEnum.bike,
-      'foot' || 'walk' || 'walking' => openapi.RouteCreateTransportModeEnum.foot,
+      'foot' ||
+      'walk' ||
+      'walking' =>
+        openapi.RouteCreateTransportModeEnum.foot,
       'air' => openapi.RouteCreateTransportModeEnum.air,
       'bus' => openapi.RouteCreateTransportModeEnum.bus,
       'train' => openapi.RouteCreateTransportModeEnum.train,
@@ -638,7 +638,10 @@ class RouteRepository {
     required String operation,
   }) async {
     if (operation == 'delete') {
-      return const _SyncTaskDependency();
+      return _SyncTaskDependency(
+        entityType: 'trip',
+        entityId: tripId,
+      );
     }
 
     final tripTask = await _syncTaskDao.getTaskByEntity(
@@ -709,8 +712,8 @@ class RouteRepository {
     final lat1 = _degToRad(start.latitude);
     final lat2 = _degToRad(end.latitude);
 
-    final a = pow(sin(dLat / 2), 2) +
-        cos(lat1) * cos(lat2) * pow(sin(dLon / 2), 2);
+    final a =
+        pow(sin(dLat / 2), 2) + cos(lat1) * cos(lat2) * pow(sin(dLon / 2), 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earthRadius * c;
   }

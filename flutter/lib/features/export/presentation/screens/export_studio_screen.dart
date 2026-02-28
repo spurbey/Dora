@@ -172,6 +172,21 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
     final repository = ref.read(exportRepositoryProvider);
 
     try {
+      final latestPrecheck =
+          await ref.refresh(exportPrecheckProvider(widget.tripId).future);
+      if (!latestPrecheck.canExport) {
+        if (!mounted) {
+          return;
+        }
+        final message = ExportErrorStrings.messageForFailure(
+          latestPrecheck.failures.first,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        return;
+      }
+
       final result = await repository.submitClassicExport(widget.tripId);
       if (!mounted) {
         return;

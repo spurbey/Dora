@@ -1,6 +1,6 @@
 # Phase 6 Rolling Handoff
 
-Last Updated: 2026-02-27  
+Last Updated: 2026-02-28  
 Branch: `phase-6-video-export`  
 Owner: Codex (handoff for continuation)
 
@@ -72,12 +72,34 @@ Completed in this pass (backend-first scaffold):
   - `backend/app/models/__init__.py`
   - `backend/app/schemas/__init__.py`
 
+Completed in this pass (Flutter 6A + review hardening):
+
+- Added Flutter export module and routing:
+  - `flutter/lib/features/export/**`
+  - `flutter/lib/core/navigation/routes.dart`
+  - `flutter/lib/core/navigation/app_router.dart`
+- Wired export entry points:
+  - `flutter/lib/features/trips/presentation/screens/my_trips_screen.dart`
+  - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+- Added local pre-submit guard checks and submit flow.
+- Hardened submit path after review:
+  - handles nested backend error envelopes (`detail.error`, `detail.reason`) for 409/422
+  - re-validates pre-submit guards at tap-time before POST
+  - moved raw endpoint calls behind `ExportApi` adapter
+- Fixed route delete dependency ownership gap for export guard:
+  - `flutter/lib/features/create/data/route_repository.dart`
+- Added export feature tests:
+  - `flutter/test/features/export/export_repository_precheck_test.dart`
+  - `flutter/test/features/export/export_provider_test.dart`
+  - `flutter/test/features/export/export_studio_screen_test.dart`
+- Added route delete dependency regression test:
+  - `flutter/test/features/create/route_repository_dependency_test.dart`
+
 Pending for 6A completion:
 
 - Apply migration in runtime/test DB and run new tests in a dependency-ready backend environment.
 - Review/sign-off `phase6-contract-freeze.md` against checklist-required structure.
-- Implement Flutter 6A skeleton wiring and pre-submit guard UX.
-- Regenerate and version bump `dora_api`.
+- Regenerate `dora_api` with export endpoints and bump `flutter/packages/dora_api/pubspec.yaml`.
 
 ### 6B - Remotion MVP Renderer
 
@@ -112,6 +134,7 @@ Attempted but blocked by local environment dependencies:
 - `download-url` and `share` are functional control-plane responses, but full storage token revocation mechanics remain for 6C.
 - Worker restart recovery is implemented via stale-job reset helper; full stale reaper policy hardening remains for later subphases.
 - Worker includes cancel race handling in mock path ("cancel_requested" with renderer already `completed` accepts artifact), but this still needs integration validation against real renderer backends in 6B/6C.
+- Flutter currently uses a 6A `ExportApi` transport adapter until generated `dora_api` export endpoints are available.
 
 ## 6. Next Action Plan
 

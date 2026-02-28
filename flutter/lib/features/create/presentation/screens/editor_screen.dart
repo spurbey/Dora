@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
@@ -511,6 +512,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   void _openExportStudio() {
     if (!mounted) {
+      return;
+    }
+    if (!FeatureFlags.enableExport) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Export is not enabled yet.')),
+      );
       return;
     }
     context.push(Routes.exportStudioPath(widget.tripId));

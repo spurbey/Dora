@@ -57,7 +57,8 @@ class _FakeRoutesApi extends openapi.RoutesApi {
   String? lastEndPlaceId;
 
   @override
-  Future<Response<openapi.RouteResponse>> createRouteApiV1TripsTripIdRoutesPost({
+  Future<Response<openapi.RouteResponse>>
+      createRouteApiV1TripsTripIdRoutesPost({
     required String tripId,
     required String authorization,
     required openapi.RouteCreate routeCreate,
@@ -369,6 +370,21 @@ void main() {
       final route = await database.routeDao.getRouteById(localRouteId);
       expect(route, isNotNull);
       expect(route!.serverRouteId, 'remote-route-1');
+    });
+
+    test('enqueue delete route task with trip dependency for export guard',
+        () async {
+      await routeRepository.deleteRoute(localRouteId);
+
+      final task = await syncTaskDao.getTaskByEntity(
+        entityType: 'route',
+        entityId: localRouteId,
+      );
+
+      expect(task, isNotNull);
+      expect(task!.operation, 'delete');
+      expect(task.dependsOnEntityType, 'trip');
+      expect(task.dependsOnEntityId, localTripId);
     });
   });
 }

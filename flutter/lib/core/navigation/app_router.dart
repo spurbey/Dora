@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dora/core/navigation/go_router_refresh_stream.dart';
 import 'package:dora/core/navigation/navigation_shell.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/features/auth/presentation/screens/login_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
@@ -79,6 +80,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.exportStudio,
+        redirect: (_, __) => FeatureFlags.enableExport ? null : Routes.trips,
         builder: (context, state) => ExportStudioScreen(
           tripId: state.pathParameters['id']!,
         ),

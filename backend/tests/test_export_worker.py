@@ -1,11 +1,12 @@
 """
-Tests for export worker claim/retry/cancel/recovery behavior.
+Tests for export worker claim/retry/cancel/recovery/stage behavior.
 """
 
 import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from app.models.export_job import ExportJob
@@ -13,6 +14,10 @@ from app.models.trip import Trip
 from app.services.export_renderer import MockRemotionRenderer, RenderStatus
 import app.workers.export_worker as export_worker_module
 from app.workers.export_worker import (
+    _extract_media_urls,
+    _stage_asset_fetch,
+    _stage_uploading,
+    _validate_snapshot_size,
     backoff_seconds,
     claim_next_job,
     recover_orphaned_jobs,
@@ -214,3 +219,154 @@ def test_late_cancel_after_output_is_set_still_finalizes_completed(db, test_user
 
     result = asyncio.run(run_job_once(db=db, job=job, renderer=MockRemotionRenderer()))
     assert result.status == "completed"
+
+
+# ─── Snapshotting stage ───────────────────────────────────────────────────────
+
+
+def test_validate_snapshot_size_passes_for_small_payload():
+    _validate_snapshot_size({"trip": {"id": "test"}, "timeline": []})
+
+
+def test_validate_snapshot_size_raises_when_over_limit():
+    large = {"data": "x" * (500 * 1024 + 1)}
+    with pytest.raises(RuntimeError, match="snapshot_too_large"):
+        _validate_snapshot_size(large)
+
+
+# ─── Media URL extraction ─────────────────────────────────────────────────────
+
+
+def test_extract_media_urls_finds_http_urls():
+    snapshot = {
+        "timeline": [
+            {"type": "place", "name": "Temple", "url": "https://example.com/photo.jpg"},
+            {"type": "place", "name": "Market", "photo_url": "https://cdn.test/img.png"},
+        ]
+    }
+    urls = _extract_media_urls(snapshot)
+    assert "https://example.com/photo.jpg" in urls
+    assert "https://cdn.test/img.png" in urls
+
+
+def test_extract_media_urls_ignores_non_http():
+    snapshot = {"timeline": [{"url": "data:image/png;base64,abc"}]}
+    assert _extract_media_urls(snapshot) == []
+
+
+def test_extract_media_urls_returns_empty_for_no_media():
+    assert _extract_media_urls({"trip": {"id": "t1"}, "timeline": []}) == []
+
+
+# ─── Asset fetch stage ────────────────────────────────────────────────────────
+
+
+def test_asset_fetch_passes_when_no_urls():
+    asyncio.run(_stage_asset_fetch({"trip": {"id": "t1"}, "timeline": []}))
+
+
+def test_asset_fetch_passes_when_some_urls_reachable():
+    call_order = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        call_order.append(request.url.path)
+        # First URL 404, second 200 — partial availability should not fail.
+        return httpx.Response(404 if "gone" in str(request.url) else 200)
+
+    transport = httpx.MockTransport(handler)
+    snapshot = {
+        "timeline": [
+            {"url": "https://cdn.test/gone.jpg"},
+            {"url": "https://cdn.test/exists.jpg"},
+        ]
+    }
+    asyncio.run(_stage_asset_fetch(snapshot, _transport=transport))
+
+
+def test_asset_fetch_raises_when_all_urls_404():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404)
+
+    transport = httpx.MockTransport(handler)
+    snapshot = {"timeline": [{"url": "https://cdn.test/a.jpg"}, {"url": "https://cdn.test/b.jpg"}]}
+    with pytest.raises(RuntimeError, match="asset_all_404"):
+        asyncio.run(_stage_asset_fetch(snapshot, _transport=transport))
+
+
+def test_asset_fetch_treats_network_error_as_reachable():
+    """A transport error must NOT cause asset_all_404 — only confirmed 404s count."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    transport = httpx.MockTransport(handler)
+    snapshot = {"timeline": [{"url": "https://cdn.test/flaky.jpg"}]}
+    # Should NOT raise — network errors are treated as "reachable" to avoid false positives.
+    asyncio.run(_stage_asset_fetch(snapshot, _transport=transport))
+
+
+# ─── Uploading stage ──────────────────────────────────────────────────────────
+
+
+def test_uploading_skips_when_supabase_not_configured(db, test_user, monkeypatch):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+    job.output_url = "file:///tmp/fake-render.mp4"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    asyncio.run(_stage_uploading(db, job))
+    assert job.output_url == "file:///tmp/fake-render.mp4"
+
+
+def test_uploading_skips_when_local_artifact_missing(db, test_user, monkeypatch):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+    job.output_url = "file:///nonexistent/path/render.mp4"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    asyncio.run(_stage_uploading(db, job))
+    assert job.output_url == "file:///nonexistent/path/render.mp4"
+
+
+def test_uploading_skips_when_output_url_is_none(db, test_user, monkeypatch):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+    job.output_url = None
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    asyncio.run(_stage_uploading(db, job))
+    assert job.output_url is None
+
+
+def test_uploading_raises_on_storage_error(db, test_user, monkeypatch, tmp_path):
+    """When the upload POST returns a non-2xx, uploading should raise RuntimeError."""
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+
+    artifact = tmp_path / "render.mp4"
+    artifact.write_bytes(b"fake-mp4-content")
+    job.output_url = f"file://{artifact}"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="internal_server_error")
+
+    transport = httpx.MockTransport(handler)
+    with pytest.raises(RuntimeError, match="upload_failed:500"):
+        asyncio.run(_stage_uploading(db, job, _transport=transport))

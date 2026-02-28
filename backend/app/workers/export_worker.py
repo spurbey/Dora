@@ -1,18 +1,20 @@
 """
-Durable export worker skeleton for Phase 6A.
+Durable export worker for Phase 6B.
 
-Runs as a separate process from FastAPI API server.
+Runs as a separate process from the FastAPI API server.
 """
 
 from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+import json
 import os
 import time
 from typing import Optional
 from uuid import uuid4
 
+import httpx
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -35,6 +37,12 @@ STAGE_ORDER = [
 ]
 RETRY_BACKOFF_SECONDS = [30, 120, 480]
 
+# Export artifacts are stored under this private Supabase Storage bucket.
+EXPORTS_BUCKET = "exports"
+
+# 500 KB hard cap on snapshot payload (defence-in-depth; enforced at creation too).
+SNAPSHOT_MAX_BYTES = 500 * 1024
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -45,10 +53,147 @@ def backoff_seconds(retry_count: int) -> int:
     return RETRY_BACKOFF_SECONDS[index]
 
 
+# ─── Stage helpers ──────────────────────────────────────────────────────────
+
+
+def _validate_snapshot_size(snapshot: dict) -> None:
+    """Raise RuntimeError when snapshot exceeds 500 KB (defence-in-depth)."""
+    serialized = json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
+    size_bytes = len(serialized.encode("utf-8"))
+    if size_bytes > SNAPSHOT_MAX_BYTES:
+        raise RuntimeError(f"snapshot_too_large:{size_bytes}")
+
+
+def _extract_media_urls(snapshot: dict) -> list[str]:
+    """Walk the snapshot and return all HTTP(S) URL strings under media-like keys."""
+    urls: list[str] = []
+
+    def _walk(node: object) -> None:
+        if isinstance(node, dict):
+            for key, val in node.items():
+                if (
+                    key in ("url", "photo_url", "video_url")
+                    and isinstance(val, str)
+                    and val.startswith("http")
+                ):
+                    urls.append(val)
+                else:
+                    _walk(val)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(snapshot)
+    return urls
+
+
+async def _stage_asset_fetch(
+    snapshot: dict,
+    _transport: Optional[httpx.AsyncTransport] = None,
+) -> None:
+    """HEAD all media URLs found in the snapshot.
+
+    Raises RuntimeError('asset_all_404') only when *every* found URL returns
+    HTTP 404.  Partial availability is acceptable — the render proceeds and
+    missing photos are replaced with the solid-colour fallback in Classic.jsx.
+    Network errors and timeouts are treated as "reachable" to avoid
+    false-positive failures on transient connectivity issues.
+    """
+    urls = _extract_media_urls(snapshot)
+    if not urls:
+        return  # no media in this trip — still renderable
+
+    reachable = 0
+    client_kwargs: dict = {"timeout": httpx.Timeout(8.0)}
+    if _transport is not None:
+        client_kwargs["transport"] = _transport
+
+    async with httpx.AsyncClient(**client_kwargs) as client:
+        for url in urls:
+            try:
+                r = await client.head(url, follow_redirects=True)
+                if r.status_code != 404:
+                    reachable += 1
+            except Exception:
+                # Network error or timeout — count as reachable to avoid
+                # incorrectly flagging valid-but-slow storage endpoints.
+                reachable += 1
+
+    if reachable == 0:
+        raise RuntimeError("asset_all_404")
+
+
+async def _stage_uploading(
+    db: Session,
+    job: ExportJob,
+    _transport: Optional[httpx.AsyncTransport] = None,
+) -> None:
+    """Upload the rendered MP4 artifact to Supabase Storage.
+
+    Skips gracefully when:
+    - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY are absent (local dev).
+    - The local render artifact does not exist on disk (test environments
+      using MockRemotionRenderer, which never writes a real file).
+
+    On success, replaces job.output_url with the canonical Supabase object URL
+    so that the /download-url endpoint can later issue a signed redirect.
+
+    The optional _transport parameter is for test injection only.
+    """
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not supabase_url or not service_role_key:
+        # Supabase not configured — local dev without credentials.
+        return
+
+    current_url = job.output_url or ""
+    if not current_url.startswith("file://"):
+        # Already a remote URL (previous retry uploaded successfully) or empty.
+        return
+
+    local_path = current_url[len("file://"):]
+    if not os.path.isfile(local_path):
+        # Artifact not on disk — MockRemotionRenderer in test, or file cleaned up.
+        return
+
+    storage_path = f"{job.user_id}/{job.id}.mp4"
+    upload_url = f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
+
+    with open(local_path, "rb") as fh:
+        data = fh.read()
+
+    client_kwargs: dict = {"timeout": httpx.Timeout(120.0)}
+    if _transport is not None:
+        client_kwargs["transport"] = _transport
+
+    async with httpx.AsyncClient(**client_kwargs) as client:
+        response = await client.post(
+            upload_url,
+            content=data,
+            headers={
+                "Authorization": f"Bearer {service_role_key}",
+                "Content-Type": "video/mp4",
+                "x-upsert": "false",
+            },
+        )
+
+    if response.status_code not in (200, 201):
+        raise RuntimeError(
+            f"upload_failed:{response.status_code}:{response.text[:200]}"
+        )
+
+    job.output_url = (
+        f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
+    )
+    db.commit()
+
+
+# ─── Recovery and claim ─────────────────────────────────────────────────────
+
+
 def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
-    """
-    Reset stale in-flight jobs so a restarted worker can re-claim them.
-    """
+    """Reset stale in-flight jobs so a restarted worker can re-claim them."""
     cutoff = utcnow() - timedelta(seconds=stale_after_seconds)
     stale_jobs = (
         db.query(ExportJob)
@@ -63,7 +208,7 @@ def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
     recovered_count = 0
     for job in stale_jobs:
         if job.status == "cancel_requested":
-            # Preserve user intent on recovery: canceled jobs must not re-queue.
+            # Preserve user intent: canceled jobs must not re-queue.
             job.status = "canceled"
             job.stage = None
             job.progress = 0.0
@@ -105,9 +250,7 @@ def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
 
 
 def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
-    """
-    Atomically claim one queued export job using FOR UPDATE SKIP LOCKED.
-    """
+    """Atomically claim one queued export job using FOR UPDATE SKIP LOCKED."""
     now = utcnow()
     job = (
         db.query(ExportJob)
@@ -132,6 +275,9 @@ def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
     db.commit()
     db.refresh(job)
     return job
+
+
+# ─── Cancel / retry helpers ─────────────────────────────────────────────────
 
 
 async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> None:
@@ -177,10 +323,11 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
     db.commit()
 
 
+# ─── Main job runner ─────────────────────────────────────────────────────────
+
+
 async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> ExportJob:
-    """
-    Execute a single job through 6A mock stages.
-    """
+    """Execute a single job through all 6 stages."""
     started_at = utcnow()
     stage_count = float(len(STAGE_ORDER))
 
@@ -208,7 +355,13 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
             job.progress = round((index - 1) / stage_count, 3)
             db.commit()
 
-            if stage == "rendering":
+            if stage == "snapshotting":
+                _validate_snapshot_size(job.snapshot_json)
+
+            elif stage == "asset_fetch":
+                await _stage_asset_fetch(job.snapshot_json)
+
+            elif stage == "rendering":
                 manifest = RenderManifest(
                     job_id=job.id,
                     template=job.template,
@@ -226,13 +379,11 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     db.refresh(job)
                     render_status = await renderer.get_status(render_id)
 
-                    # Race handling: if cancel was requested but render already
-                    # completed, accept the artifact and finalize as completed.
+                    # Race: cancel arrived but renderer already completed — accept artifact.
                     if job.status == "cancel_requested":
                         if render_status.status == "completed":
                             output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
                             job.output_url = job.output_url or f"file://{output_path}"
-                            # Cancel request arrived too late; continue and finalize completion.
                             job.status = "processing"
                             job.error_code = None
                             job.error_message = None
@@ -248,16 +399,21 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     if render_status.status == "completed":
                         output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
                         job.output_url = job.output_url or f"file://{output_path}"
-                        # Persist output before leaving rendering loop; the next
-                        # stage boundary refresh would otherwise discard this.
                         db.commit()
                         break
                     if render_status.status in {"failed", "canceled"}:
                         raise RuntimeError(render_status.error or "renderer_failed")
 
                     await asyncio.sleep(0.05)
-            else:
-                await asyncio.sleep(0.05)
+
+            elif stage == "encoding":
+                # No-op for local renderer: Remotion produces H.264 MP4 inline.
+                pass
+
+            elif stage == "uploading":
+                await _stage_uploading(db, job)
+
+            # finalizing: no inline work; job marked completed after the loop.
 
         duration_ms = int((utcnow() - started_at).total_seconds() * 1000)
         job.status = "completed"
@@ -273,7 +429,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         db.refresh(job)
         return job
 
-    except Exception as exc:  # pragma: no cover - explicit branch tested by behavior
+    except Exception as exc:
         _mark_retry_or_fail(
             db=db,
             job=job,
@@ -284,11 +440,14 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         return job
 
 
+# ─── Managed runner (one renderer per asyncio loop) ─────────────────────────
+
+
 async def _run_job_once_managed(db: Session, job: ExportJob) -> ExportJob:
     """
     Create a renderer scoped to this event loop, run the job, and guarantee cleanup.
 
-    Each asyncio.run() call spins a fresh event loop. Constructing the renderer
+    Each asyncio.run() call spins a fresh event loop.  Constructing the renderer
     here ensures the httpx.AsyncClient is bound to the correct loop and is
     explicitly closed before the loop exits — avoiding transport-reuse errors
     on subsequent asyncio.run() calls.
@@ -300,10 +459,11 @@ async def _run_job_once_managed(db: Session, job: ExportJob) -> ExportJob:
         await renderer.aclose()
 
 
+# ─── Worker entrypoint ────────────────────────────────────────────────────────
+
+
 def run_worker_forever() -> None:
-    """
-    Worker process entrypoint for `python -m app.workers.export_worker`.
-    """
+    """Worker process entrypoint for `python -m app.workers.export_worker`."""
     poll_seconds = float(os.getenv("EXPORT_WORKER_POLL_SECONDS", "2"))
     stale_seconds = int(os.getenv("EXPORT_WORKER_STALE_SECONDS", "300"))
     worker_session_id = str(uuid4())

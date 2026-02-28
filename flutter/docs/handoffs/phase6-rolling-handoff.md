@@ -1,6 +1,6 @@
 # Phase 6 Rolling Handoff
 
-Last Updated: 2026-02-28
+Last Updated: 2026-03-01
 Branch: `phase-6-video-export`
 Owner: Codex
 
@@ -57,9 +57,9 @@ Delivered Flutter scope:
 
 ### 6B - Remotion MVP Renderer
 
-Status: In progress (6B-1 scaffold started)
+Status: In progress (6B-1 complete — real Remotion wired)
 
-Delivered in current pass:
+Delivered in current pass (pass 1 — scaffold):
 - `video-renderer/` service scaffold with frozen renderer endpoints:
   - `POST /api/v1/render`
   - `GET /api/v1/render/{render_id}`
@@ -74,12 +74,22 @@ Delivered in current pass:
   - `video-renderer/Dockerfile`
   - `video-renderer/.dockerignore`
   - `video-renderer/.gitignore`
-- Backend integration start:
-  - added `LocalRemotionRenderer` HTTP adapter in `backend/app/services/export_renderer.py`
-  - worker now selects renderer via `RENDER_BACKEND` (`mock` default, `local` supported)
-  - worker docker-compose service now sets `RENDER_BACKEND=local`
-- Adapter tests added:
-  - `backend/tests/test_export_renderer.py`
+- Backend integration:
+  - `LocalRemotionRenderer` HTTP adapter in `backend/app/services/export_renderer.py`
+  - worker selects renderer via `RENDER_BACKEND` (`mock` default, `local` supported)
+  - worker docker-compose service sets `RENDER_BACKEND=local`
+  - `aclose()` lifecycle on adapters; `_run_job_once_managed()` scopes renderer to asyncio loop
+- Adapter tests: `backend/tests/test_export_renderer.py`
+
+Delivered in current pass (pass 2 — real Remotion):
+- Replaced timer-based stub with real Remotion render pipeline:
+  - `video-renderer/package.json` bumped to `0.2.0`, `"type": "module"`, added `@remotion/bundler`, `@remotion/renderer`, `remotion`, `react`, `react-dom`
+  - `video-renderer/src/remotion/index.jsx` — Remotion bundle entry (`registerRoot`)
+  - `video-renderer/src/remotion/Root.jsx` — registers `Classic` composition (720×1280, 30fps defaults)
+  - `video-renderer/src/remotion/Classic.jsx` — Classic template: title card → Ken Burns place slides → end card
+  - `video-renderer/src/server.js` — ESM rewrite: `bundle()` at startup (503 until ready), `renderMedia()` per request, `makeCancelSignal()` for cooperative cancel, `getDimensions()` output profile helper (480p/720p × 9:16/16:9/1:1)
+  - `video-renderer/Dockerfile` — switched from `node:20-alpine` to `node:20-bookworm-slim`, installed `chromium` + `fonts-liberation`, set `REMOTION_CHROME_EXECUTABLE=/usr/bin/chromium`
+- `chromiumOptions: { gl: 'swangle' }` used everywhere for Docker software rendering compatibility
 
 ### 6C - AWS Lambda Scale
 
@@ -110,8 +120,9 @@ Attempted in this sandbox:
 
 ## 6. Next Actions
 
-1. Install renderer dependencies (`npm install`) and run container/local smoke tests for endpoint behavior.
-2. Execute 6B-2 fully: stage-accurate backend integration (`asset_fetch`, upload persistence, real cancellation boundaries).
-3. ~~Add `exportsApiProvider` migration path in Flutter~~ — done: `dora_api` v1.1.0 regenerated, `ExportsApi` wired in `api_providers.dart`, manual `ExportApi` bridge removed (commit `e419335`).
-4. Execute 6B-3 Flutter progress/share UX upgrades.
-5. Capture 6B evidence artifact set and sign-off doc.
+1. ~~Install renderer dependencies (`npm install`) and run container/local smoke tests for endpoint behavior.~~ — done: real Remotion pipeline wired.
+2. ~~Add `exportsApiProvider` migration path in Flutter~~ — done: `dora_api` v1.1.0 regenerated, `ExportsApi` wired in `api_providers.dart`, manual `ExportApi` bridge removed (commit `e419335`).
+3. Execute 6B-2: stage-accurate backend worker integration — `asset_fetch` (HEAD media URLs), `uploading` (persist MP4 to storage), `finalizing` (persist `output_url` + `thumbnail_url`).
+4. Execute 6B-3: Flutter progress/share UX upgrades — `TemplatePicker`, full status/stage display states, cancel confirmation dialog, poll back-off (2s processing / 10s queued), `SharePreviewScreen`.
+5. Smoke-test `video-renderer` locally: `npm install && node src/server.js`, submit a render with a real trip snapshot, confirm MP4 is produced.
+6. Capture 6B evidence artifact set (3 trips × 2 aspect ratios, render logs) and write `phase6b-remotion-mvp-report.md`.

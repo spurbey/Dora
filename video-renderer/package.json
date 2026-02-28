@@ -1,8 +1,9 @@
 {
   "name": "dora-video-renderer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Local renderer service for Dora Phase 6 exports",
+  "description": "Remotion renderer service for Dora Phase 6 exports",
+  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
@@ -12,6 +13,11 @@
     "node": ">=20"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
   }
 }

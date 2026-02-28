@@ -14,6 +14,8 @@ from app.models.trip import Trip
 from app.services.export_renderer import MockRemotionRenderer, RenderStatus
 import app.workers.export_worker as export_worker_module
 from app.workers.export_worker import (
+    TerminalJobError,
+    _extract_first_photo_url,
     _extract_media_urls,
     _stage_asset_fetch,
     _stage_uploading,
@@ -283,14 +285,15 @@ def test_asset_fetch_passes_when_some_urls_reachable():
     asyncio.run(_stage_asset_fetch(snapshot, _transport=transport))
 
 
-def test_asset_fetch_raises_when_all_urls_404():
+def test_asset_fetch_raises_terminal_error_when_all_urls_404():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404)
 
     transport = httpx.MockTransport(handler)
     snapshot = {"timeline": [{"url": "https://cdn.test/a.jpg"}, {"url": "https://cdn.test/b.jpg"}]}
-    with pytest.raises(RuntimeError, match="asset_all_404"):
+    with pytest.raises(TerminalJobError) as exc_info:
         asyncio.run(_stage_asset_fetch(snapshot, _transport=transport))
+    assert exc_info.value.error_code == "asset_all_404"
 
 
 def test_asset_fetch_treats_network_error_as_reachable():
@@ -322,7 +325,9 @@ def test_uploading_skips_when_supabase_not_configured(db, test_user, monkeypatch
     assert job.output_url == "file:///tmp/fake-render.mp4"
 
 
-def test_uploading_skips_when_local_artifact_missing(db, test_user, monkeypatch):
+def test_uploading_raises_when_supabase_configured_and_artifact_missing(db, test_user, monkeypatch):
+    """When Supabase IS configured but the render artifact is absent, uploading must raise
+    so the job retries rather than completing with an unusable file:// output_url."""
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
     job.output_url = "file:///nonexistent/path/render.mp4"
@@ -332,8 +337,8 @@ def test_uploading_skips_when_local_artifact_missing(db, test_user, monkeypatch)
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
 
-    asyncio.run(_stage_uploading(db, job))
-    assert job.output_url == "file:///nonexistent/path/render.mp4"
+    with pytest.raises(RuntimeError, match="upload_artifact_missing"):
+        asyncio.run(_stage_uploading(db, job))
 
 
 def test_uploading_skips_when_output_url_is_none(db, test_user, monkeypatch):
@@ -370,3 +375,128 @@ def test_uploading_raises_on_storage_error(db, test_user, monkeypatch, tmp_path)
     transport = httpx.MockTransport(handler)
     with pytest.raises(RuntimeError, match="upload_failed:500"):
         asyncio.run(_stage_uploading(db, job, _transport=transport))
+
+
+# ─── New coverage: terminal blocked + upload success ─────────────────────────
+
+
+def test_asset_all_404_marks_job_blocked_via_run_job_once(db, test_user, monkeypatch):
+    """End-to-end: asset_all_404 must route to status='blocked', not retry."""
+    trip = _create_trip(db, test_user.id)
+
+    # Give the job a snapshot with exactly one media URL that will return 404.
+    job = ExportJob(
+        user_id=test_user.id,
+        trip_id=trip.id,
+        status="processing",
+        stage="asset_fetch",
+        progress=0.167,
+        template="classic",
+        aspect_ratio="9:16",
+        duration_sec=15,
+        quality="720p",
+        fps=30,
+        snapshot_json={
+            "trip": {"id": str(trip.id)},
+            "timeline": [{"url": "https://cdn.test/gone.jpg"}],
+        },
+        snapshot_hash=f"snapshot-{uuid4().hex}",
+        retry_count=0,
+        max_retries=3,
+        next_attempt_at=None,
+        worker_session_id="worker-block-test",
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    # Patch _stage_asset_fetch to raise TerminalJobError directly (avoids real HTTP).
+    import app.workers.export_worker as mod
+
+    original = mod._stage_asset_fetch
+
+    async def _always_404(snapshot, _transport=None):
+        raise TerminalJobError("asset_all_404", "All media assets returned HTTP 404.")
+
+    monkeypatch.setattr(mod, "_stage_asset_fetch", _always_404)
+
+    result = asyncio.run(run_job_once(db=db, job=job, renderer=MockRemotionRenderer()))
+
+    assert result.status == "blocked"
+    assert result.error_code == "asset_all_404"
+    assert result.retry_count == 0  # must NOT have incremented retry counter
+    assert result.next_attempt_at is None
+    assert result.completed_at is not None
+
+
+def test_uploading_rewrites_output_url_on_success(db, test_user, monkeypatch, tmp_path):
+    """Successful upload must rewrite output_url to the canonical Supabase storage URL."""
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+
+    artifact = tmp_path / "render.mp4"
+    artifact.write_bytes(b"fake-mp4-content")
+    job.output_url = f"file://{artifact}"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"Key": str(request.url.path)})
+
+    transport = httpx.MockTransport(handler)
+    asyncio.run(_stage_uploading(db, job, _transport=transport))
+
+    assert job.output_url.startswith("https://example.supabase.co/storage/v1/object/exports/")
+    assert f"private/{job.user_id}/{job.id}/output.mp4" in job.output_url
+
+
+def test_uploading_sets_thumbnail_url_from_snapshot(db, test_user, monkeypatch):
+    """thumbnail_url must be set from the first photo URL in the snapshot."""
+    trip = _create_trip(db, test_user.id)
+    job = ExportJob(
+        user_id=test_user.id,
+        trip_id=trip.id,
+        status="processing",
+        stage="uploading",
+        progress=0.833,
+        template="classic",
+        aspect_ratio="9:16",
+        duration_sec=15,
+        quality="720p",
+        fps=30,
+        snapshot_json={
+            "trip": {"id": str(trip.id)},
+            "timeline": [
+                {"url": "https://cdn.test/photo1.jpg"},
+                {"url": "https://cdn.test/photo2.jpg"},
+            ],
+        },
+        snapshot_hash=f"snapshot-{uuid4().hex}",
+        retry_count=0,
+        max_retries=3,
+        next_attempt_at=None,
+        output_url=None,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    # No Supabase configured — upload is skipped but thumbnail must still be set.
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    asyncio.run(_stage_uploading(db, job))
+
+    assert job.thumbnail_url == "https://cdn.test/photo1.jpg"
+
+
+def test_extract_first_photo_url_returns_none_when_no_media():
+    assert _extract_first_photo_url({"trip": {"id": "t1"}, "timeline": []}) is None
+
+
+def test_extract_first_photo_url_returns_first_http_url():
+    snapshot = {"timeline": [{"url": "https://cdn.test/a.jpg"}, {"url": "https://cdn.test/b.jpg"}]}
+    assert _extract_first_photo_url(snapshot) == "https://cdn.test/a.jpg"

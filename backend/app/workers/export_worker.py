@@ -44,6 +44,20 @@ EXPORTS_BUCKET = "exports"
 SNAPSHOT_MAX_BYTES = 500 * 1024
 
 
+class TerminalJobError(Exception):
+    """Raised by stage handlers for non-retryable terminal conditions.
+
+    The worker catches this before the generic RuntimeError handler and
+    calls _mark_terminal_blocked() instead of _mark_retry_or_fail(), setting
+    status='blocked' with the structured error_code from the PRD taxonomy.
+    """
+
+    def __init__(self, error_code: str, error_message: str) -> None:
+        super().__init__(error_message)
+        self.error_code = error_code
+        self.error_message = error_message
+
+
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -120,7 +134,16 @@ async def _stage_asset_fetch(
                 reachable += 1
 
     if reachable == 0:
-        raise RuntimeError("asset_all_404")
+        raise TerminalJobError(
+            "asset_all_404",
+            "All media assets returned HTTP 404; nothing to render.",
+        )
+
+
+def _extract_first_photo_url(snapshot: dict) -> Optional[str]:
+    """Return the first HTTP(S) media URL from the snapshot for use as thumbnail."""
+    urls = _extract_media_urls(snapshot)
+    return urls[0] if urls else None
 
 
 async def _stage_uploading(
@@ -128,36 +151,51 @@ async def _stage_uploading(
     job: ExportJob,
     _transport: Optional[httpx.AsyncTransport] = None,
 ) -> None:
-    """Upload the rendered MP4 artifact to Supabase Storage.
+    """Upload the rendered MP4 to Supabase Storage and persist artifact metadata.
 
-    Skips gracefully when:
-    - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY are absent (local dev).
-    - The local render artifact does not exist on disk (test environments
-      using MockRemotionRenderer, which never writes a real file).
+    Storage path (PRD §5.3): exports/private/{user_id}/{job_id}/output.mp4
 
-    On success, replaces job.output_url with the canonical Supabase object URL
-    so that the /download-url endpoint can later issue a signed redirect.
+    Thumbnail is set from the first photo URL in the snapshot (no upload needed —
+    the photo is already stored in Supabase).  This is independent of the MP4
+    upload so it works even in local dev without Supabase credentials.
+
+    MP4 upload is skipped when SUPABASE_URL/SERVICE_ROLE_KEY are absent (local
+    dev without credentials), leaving output_url as the local file:// path.
+
+    When Supabase IS configured but the local artifact is missing from disk, a
+    RuntimeError is raised so the job retries rather than completing with an
+    unusable file:// URL.
 
     The optional _transport parameter is for test injection only.
     """
+    # ── Thumbnail (independent of upload) ────────────────────────────────────
+    if not job.thumbnail_url:
+        first_photo = _extract_first_photo_url(job.snapshot_json)
+        if first_photo:
+            job.thumbnail_url = first_photo
+            db.commit()
+
+    # ── MP4 upload ────────────────────────────────────────────────────────────
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     if not supabase_url or not service_role_key:
-        # Supabase not configured — local dev without credentials.
+        # Supabase not configured — local dev without credentials; keep file:// path.
         return
 
     current_url = job.output_url or ""
     if not current_url.startswith("file://"):
-        # Already a remote URL (previous retry uploaded successfully) or empty.
+        # Already a remote URL from a previous successful retry — nothing to do.
         return
 
     local_path = current_url[len("file://"):]
     if not os.path.isfile(local_path):
-        # Artifact not on disk — MockRemotionRenderer in test, or file cleaned up.
-        return
+        # Supabase IS configured but the render artifact is absent from disk.
+        # This indicates a worker crash or storage issue — mark retriable.
+        raise RuntimeError(f"upload_artifact_missing:{local_path}")
 
-    storage_path = f"{job.user_id}/{job.id}.mp4"
+    # PRD §5.3 private path: exports/private/{user_id}/{job_id}/output.mp4
+    storage_path = f"private/{job.user_id}/{job.id}/output.mp4"
     upload_url = f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
 
     with open(local_path, "rb") as fh:
@@ -323,6 +361,22 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
     db.commit()
 
 
+def _mark_terminal_blocked(
+    db: Session, job: ExportJob, error_code: str, error_message: str
+) -> None:
+    """Set job to the terminal 'blocked' status (non-retryable, per PRD §5 taxonomy)."""
+    job.status = "blocked"
+    job.stage = None
+    job.progress = 0.0
+    job.completed_at = utcnow()
+    job.worker_session_id = None
+    job.renderer_job_id = None
+    job.next_attempt_at = None
+    job.error_code = error_code
+    job.error_message = error_message
+    db.commit()
+
+
 # ─── Main job runner ─────────────────────────────────────────────────────────
 
 
@@ -426,6 +480,16 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         job.error_code = None
         job.error_message = None
         db.commit()
+        db.refresh(job)
+        return job
+
+    except TerminalJobError as exc:
+        _mark_terminal_blocked(
+            db=db,
+            job=job,
+            error_code=exc.error_code,
+            error_message=exc.error_message,
+        )
         db.refresh(job)
         return job
 

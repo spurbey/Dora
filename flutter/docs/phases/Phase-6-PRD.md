@@ -611,7 +611,7 @@ Objective: Render first real video template with deterministic quality.
   - `asset_fetch`: pre-fetch and verify all media URLs are reachable (HEAD requests).
   - `rendering`: call `LocalRemotionRenderer.render(manifest)`, poll progress.
   - `encoding`: no-op for local path (Remotion handles encoding inline).
-  - `uploading`: upload MP4 + thumbnail to private storage path.
+  - `uploading`: upload MP4 to private storage path; set `thumbnail_url` from first snapshot media URL (6B shortcut, no thumbnail artifact upload).
   - `finalizing`: persist `output_url`, `thumbnail_url`, `render_duration_ms`, mark `completed`.
 - Cancellation check: worker reads current `status` from DB before entering each stage. If `status == cancel_requested`, the worker initiates renderer cancellation and exits the stage loop. The worker never checks for `canceled` directly as the trigger — `canceled` is the outcome, not the signal.
 
@@ -766,6 +766,10 @@ Objective: Reach product-grade export quality and operational confidence.
 - Cancel behavior consistent across all stages: worker checks cancel flag at entry of each stage.
 - Stale job reaper: background task that marks jobs stuck in `processing` **or** `cancel_requested` for >30 minutes as `failed` with `error_code = worker_timeout`. Configurable via `EXPORT_WORKER_TIMEOUT_MINUTES` env var. (`cancel_requested` jobs are reaped with the same timeout to handle the case where the renderer never acknowledged the cancel or the worker crashed mid-cancel.)
 - Storage lifecycle cleanup: `pinned_at` column used to protect shared artifacts from auto-delete.
+- Replace 6B thumbnail shortcut with generated export thumbnail artifact:
+  - Extend renderer API to emit thumbnail frame metadata.
+  - Upload `thumbnail.jpg` under `exports/private/{user_id}/{job_id}/thumbnail.jpg`.
+  - Persist `thumbnail_url` as export artifact URL rather than reused trip media URL.
 
 **Regression deliverables:**
 

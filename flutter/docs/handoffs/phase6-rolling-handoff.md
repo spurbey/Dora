@@ -57,8 +57,9 @@ Completed in 6B-2 (backend stage pipeline):
   - uploading path with Supabase storage integration
   - finalizing with metadata persistence
 - Non-retryable terminal blocked handling for `asset_all_404`.
-- Upload path aligned to private layout and thumbnail extraction from snapshot.
+- Upload path aligned to private layout and thumbnail extraction from snapshot (6B shortcut; generated export thumbnail artifact deferred to 6D).
 - Worker test coverage expanded for stage helpers and terminal behavior.
+- Doc/code alignment commit (`5307a41`) corrected asset_fetch exception docstring and explicitly documented thumbnail shortcut intent in worker.
 
 Still pending for 6B closure:
 - Full 6B-2 integration verification in dependency-ready environment.
@@ -85,6 +86,7 @@ Current sandbox limitation:
 
 ## 5. Commit Trail (latest first)
 
+- `5307a41` fix(6b-2): correct asset_fetch docstring and annotate thumbnail shortcut
 - `0f2762a` fix(6b-2): address 5 audit findings in export worker
 - `2737880` feat(6b-2): implement stage-accurate worker pipeline (asset_fetch, uploading)
 - `a11c855` feat(6b-1): wire real Remotion render pipeline into video-renderer

@@ -77,6 +77,7 @@ Exit criteria:
    - snapshot size enforcement (`<=500KB`)
    - `asset_fetch` media URL checks
    - upload stage persistence behavior for storage-backed environments
+   - 6B thumbnail behavior: set `thumbnail_url` from first snapshot media URL (generated thumbnail artifact deferred to 6D)
 
 Exit criteria:
 - One full job runs through all 6 stages and completes.

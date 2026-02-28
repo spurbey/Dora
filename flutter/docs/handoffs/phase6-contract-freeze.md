@@ -42,6 +42,11 @@ Stage enum:
 - `uploading`
 - `finalizing`
 
+6B implementation note:
+- `uploading` guarantees MP4 artifact upload to private export storage.
+- `thumbnail_url` may be populated from an existing snapshot media URL in 6B.
+- Renderer-produced export thumbnail artifact upload is deferred to 6D hardening.
+
 ## 3. API Contract (Frozen)
 
 ### 3.1 Create Export

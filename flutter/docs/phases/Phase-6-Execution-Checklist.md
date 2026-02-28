@@ -212,7 +212,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] `asset_fetch` — HEAD request all media URLs; fail fast if all 404
   - [ ] `rendering` — call `LocalRemotionRenderer.render(manifest)`, poll until complete
   - [ ] `encoding` — no-op for local path (Remotion handles inline)
-  - [ ] `uploading` — upload MP4 + thumbnail to private storage path
+  - [ ] `uploading` — upload MP4 to private storage path and set `thumbnail_url` from snapshot media URL (6B shortcut)
   - [ ] `finalizing` — persist output_url, thumbnail_url, render_duration_ms, mark completed
 - [ ] Cancel check at entry of each stage: read `status` from DB before proceeding.
 - [ ] Persist artifact metadata in `export_jobs` on completion.
@@ -371,6 +371,10 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] retryable codes: `network_timeout`, `render_crash`, `upload_timeout`, `lambda_throttle`
   - [ ] terminal (blocked) codes: `trip_deleted`, `auth_revoked`, `quota_exceeded`, `asset_all_404`, `worker_timeout`
   - [ ] user-facing copy for each code
+- [ ] Replace 6B thumbnail shortcut with generated thumbnail artifact pipeline:
+  - [ ] renderer emits thumbnail frame metadata
+  - [ ] upload `thumbnail.jpg` to `exports/private/{user_id}/{job_id}/thumbnail.jpg`
+  - [ ] persist export-owned `thumbnail_url` (not reused trip media URL)
 - [ ] Verify cancel works at every stage boundary (test each stage individually).
 - [ ] Verify stale job reaper fires correctly for stuck `processing` jobs.
 - [ ] Add `pinned_at` UI control: "Keep this video" option on completion screen sets `pinned_at`.

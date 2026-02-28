@@ -300,7 +300,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
         onEdit: () => context.push(Routes.editorPath(trip.id)),
         onDuplicate: () => _handleDuplicate(controller, trip.id),
         onShare: () => _handleShare(controller, trip),
-        onExport: _handleExport,
+        onExport: () => _handleExport(trip),
         onDelete: () => _confirmDelete(controller, trip),
       ),
     );
@@ -329,8 +329,8 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
     }
   }
 
-  void _handleExport() {
-    _showToast('Export studio coming soon');
+  void _handleExport(UserTrip trip) {
+    context.push(Routes.exportStudioPath(trip.id));
   }
 
   Future<void> _confirmDelete(TripsController controller, UserTrip trip) async {

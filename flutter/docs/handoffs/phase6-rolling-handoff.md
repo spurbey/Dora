@@ -75,7 +75,7 @@ Completed in this pass (backend-first scaffold):
 Pending for 6A completion:
 
 - Apply migration in runtime/test DB and run new tests in a dependency-ready backend environment.
-- Add/confirm `phase6-contract-freeze.md` against checklist-required structure.
+- Review/sign-off `phase6-contract-freeze.md` against checklist-required structure.
 - Implement Flutter 6A skeleton wiring and pre-submit guard UX.
 - Regenerate and version bump `dora_api`.
 
@@ -98,6 +98,8 @@ Executed:
 
 - `python -m py_compile backend/app/models/export_job.py backend/app/schemas/export.py backend/app/services/export_renderer.py backend/app/services/export_service.py backend/app/api/v1/exports.py backend/app/workers/export_worker.py backend/tests/test_export_endpoints.py backend/tests/test_export_worker.py backend/alembic/versions/b1e4c7d9f2a1_create_export_jobs.py`
   - Result: pass (syntax-level validation)
+- Contract-freeze artifact created:
+  - `flutter/docs/handoffs/phase6-contract-freeze.md`
 
 Attempted but blocked by local environment dependencies:
 

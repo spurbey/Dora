@@ -15,6 +15,7 @@ class Routes {
   static const String placeSearch = '/trips/:id/places/search';
   static const String citySearch = '/trips/:id/cities/search';
   static const String mediaUpload = '/trips/:tripId/places/:placeId/media';
+  static const String exportStudio = '/trips/:id/export';
   static const String tripDetail = '/trip/:id';
 
   static String tripDetailPath(String id) => '/trip/$id';
@@ -23,4 +24,5 @@ class Routes {
   static String citySearchPath(String id) => '/trips/$id/cities/search';
   static String mediaUploadPath(String tripId, String placeId) =>
       '/trips/$tripId/places/$placeId/media';
+  static String exportStudioPath(String id) => '/trips/$id/export';
 }

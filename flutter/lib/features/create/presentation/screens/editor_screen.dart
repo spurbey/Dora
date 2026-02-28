@@ -44,13 +44,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final prevMode = prev?.valueOrNull?.mode;
       final nextMode = next.valueOrNull?.mode;
 
-      if (nextMode == EditorMode.addPlace &&
-          prevMode != EditorMode.addPlace) {
+      if (nextMode == EditorMode.addPlace && prevMode != EditorMode.addPlace) {
         _openPlaceSearch();
       }
 
-      if (nextMode == EditorMode.addCity &&
-          prevMode != EditorMode.addCity) {
+      if (nextMode == EditorMode.addCity && prevMode != EditorMode.addCity) {
         _openCitySearch();
       }
     });
@@ -79,9 +77,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
-        final selectedPlaceId = editor.selectedItemType == 'place'
-            ? editor.selectedItemId
-            : null;
+        final selectedPlaceId =
+            editor.selectedItemType == 'place' ? editor.selectedItemId : null;
         final pendingMediaCount = selectedPlaceId == null
             ? 0
             : ref
@@ -108,21 +105,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       }
                     }),
                     onNameChanged: controller.updateTripName,
-                    onExport: () {},
+                    onExport: _openExportStudio,
                     onMore: () {},
                   ),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
-                            editor, mapState, controller,
-                            initialCenter, initialZoom,
+                            editor,
+                            mapState,
+                            controller,
+                            initialCenter,
+                            initialZoom,
                             selectedName,
                             selectedIcon,
                             pendingMediaCount,
                             selectedPlaceId)
                         : _buildMobileLayout(
-                            editor, mapState, controller,
-                            initialCenter, initialZoom,
+                            editor,
+                            mapState,
+                            controller,
+                            initialCenter,
+                            initialZoom,
                             selectedName,
                             selectedIcon,
                             pendingMediaCount,
@@ -131,9 +134,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 ],
               ),
             ),
-            floatingActionButton: showFab
-                ? _buildMobileFab(editor, controller)
-                : null,
+            floatingActionButton:
+                showFab ? _buildMobileFab(editor, controller) : null,
             floatingActionButtonLocation:
                 FloatingActionButtonLocation.startFloat,
           ),
@@ -163,8 +165,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _getSelectedItemName(EditorState editor) {
     if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
       try {
-        final place = editor.places
-            .firstWhere((p) => p.id == editor.selectedItemId);
+        final place =
+            editor.places.firstWhere((p) => p.id == editor.selectedItemId);
         if (place.placeType == 'city') {
           return '${place.name} (City)';
         }
@@ -175,8 +177,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
     if (editor.selectedItemType == 'route' && editor.selectedItemId != null) {
       try {
-        final route = editor.routes
-            .firstWhere((r) => r.id == editor.selectedItemId);
+        final route =
+            editor.routes.firstWhere((r) => r.id == editor.selectedItemId);
         return route.name ?? 'Route';
       } catch (_) {
         return 'Route';
@@ -188,11 +190,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   IconData? _getSelectedItemIcon(EditorState editor) {
     if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
       try {
-        final place = editor.places
-            .firstWhere((p) => p.id == editor.selectedItemId);
-        return place.placeType == 'city'
-            ? Icons.location_city
-            : Icons.place;
+        final place =
+            editor.places.firstWhere((p) => p.id == editor.selectedItemId);
+        return place.placeType == 'city' ? Icons.location_city : Icons.place;
       } catch (_) {
         return Icons.place;
       }
@@ -257,7 +257,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 onMediaTap: selectedPlaceId == null
                     ? null
                     : () => context.push(
-                          Routes.mediaUploadPath(widget.tripId, selectedPlaceId),
+                          Routes.mediaUploadPath(
+                              widget.tripId, selectedPlaceId),
                         ),
               ),
               if (showPanel)
@@ -293,9 +294,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   child: Center(
                     child: RouteEditToolbar(
                       currentMode: editor.mode,
-                      onToggleEdit: () =>
-                          controller.toggleRouteEditMode(editor.selectedItemId!),
-                      onFlip: () => controller.flipRoute(editor.selectedItemId!),
+                      onToggleEdit: () => controller
+                          .toggleRouteEditMode(editor.selectedItemId!),
+                      onFlip: () =>
+                          controller.flipRoute(editor.selectedItemId!),
                       onDelete: () =>
                           controller.removeRoute(editor.selectedItemId!),
                       onClose: controller.deselectAll,
@@ -356,9 +358,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               selectedItemName: _isAnyRouteMode(editor.mode)
                   ? _routeModeName(editor.mode)
                   : selectedName,
-              selectedItemIcon: _isAnyRouteMode(editor.mode)
-                  ? Icons.route
-                  : selectedIcon,
+              selectedItemIcon:
+                  _isAnyRouteMode(editor.mode) ? Icons.route : selectedIcon,
               statusText: pendingMediaCount > 0
                   ? '$pendingMediaCount upload(s) pending'
                   : null,
@@ -506,6 +507,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ),
     );
     return result ?? false;
+  }
+
+  void _openExportStudio() {
+    if (!mounted) {
+      return;
+    }
+    context.push(Routes.exportStudioPath(widget.tripId));
   }
 
   Widget? _buildDetailContent(

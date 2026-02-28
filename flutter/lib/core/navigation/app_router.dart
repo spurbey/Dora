@@ -16,6 +16,7 @@ import 'package:dora/features/create/presentation/screens/place_search_screen.da
 import 'package:dora/features/feed/presentation/screens/feed_screen.dart';
 import 'package:dora/features/feed/presentation/screens/search_screen.dart';
 import 'package:dora/features/feed/presentation/screens/trip_detail_screen.dart';
+import 'package:dora/features/export/presentation/screens/export_studio_screen.dart';
 import 'package:dora/features/profile/presentation/screens/profile_screen.dart';
 import 'package:dora/features/profile/presentation/screens/settings_screen.dart';
 import 'package:dora/features/trips/presentation/screens/my_trips_screen.dart';
@@ -28,11 +29,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: Routes.feed,
     refreshListenable: GoRouterRefreshStream(authChanges),
     redirect: (BuildContext context, GoRouterState state) {
-      final isLoggedIn =
-          Supabase.instance.client.auth.currentSession != null;
+      final isLoggedIn = Supabase.instance.client.auth.currentSession != null;
       final location = state.uri.path;
-      final isAuthRoute =
-          location == Routes.login || location == Routes.signup;
+      final isAuthRoute = location == Routes.login || location == Routes.signup;
 
       if (!isLoggedIn && !isAuthRoute) {
         return Routes.login;
@@ -76,6 +75,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => MediaUploadScreen(
           tripId: state.pathParameters['tripId']!,
           placeId: state.pathParameters['placeId']!,
+        ),
+      ),
+      GoRoute(
+        path: Routes.exportStudio,
+        builder: (context, state) => ExportStudioScreen(
+          tripId: state.pathParameters['id']!,
         ),
       ),
       GoRoute(

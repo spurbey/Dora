@@ -37,7 +37,7 @@ def test_create_renderer_local_backend(monkeypatch):
     monkeypatch.setenv("RENDER_BACKEND", "local")
     renderer = create_renderer_from_env()
     assert isinstance(renderer, LocalRemotionRenderer)
-    asyncio.run(renderer._client.aclose())
+    asyncio.run(renderer.aclose())
 
 
 def test_local_renderer_render_and_status_success():
@@ -89,3 +89,17 @@ def test_local_renderer_cancel_allows_not_found():
 
     asyncio.run(renderer.cancel("render-missing"))
     asyncio.run(client.aclose())
+
+
+def test_local_renderer_aclose_releases_client():
+    """aclose() must close the underlying httpx client without error."""
+    renderer = LocalRemotionRenderer(base_url="http://renderer.test")
+    asyncio.run(renderer.aclose())
+    assert renderer._client.is_closed
+
+
+def test_mock_renderer_aclose_is_noop():
+    """aclose() on MockRemotionRenderer must not raise."""
+    from app.services.export_renderer import MockRemotionRenderer
+    renderer = MockRemotionRenderer()
+    asyncio.run(renderer.aclose())  # must complete without error

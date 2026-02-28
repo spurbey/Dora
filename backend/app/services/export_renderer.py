@@ -44,6 +44,9 @@ class AbstractRemotionRenderer(ABC):
     async def cancel(self, render_id: str) -> None:
         """Request cancellation of an in-flight render."""
 
+    async def aclose(self) -> None:
+        """Release any I/O resources held by this renderer. No-op by default."""
+
 
 class LocalRemotionRenderer(AbstractRemotionRenderer):
     """
@@ -114,6 +117,9 @@ class LocalRemotionRenderer(AbstractRemotionRenderer):
         if response.status_code in {200, 404}:
             return
         raise RuntimeError(f"renderer_cancel_failed:{response.status_code}:{response.text}")
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
 
 
 class MockRemotionRenderer(AbstractRemotionRenderer):

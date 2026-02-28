@@ -112,6 +112,6 @@ Attempted in this sandbox:
 
 1. Install renderer dependencies (`npm install`) and run container/local smoke tests for endpoint behavior.
 2. Execute 6B-2 fully: stage-accurate backend integration (`asset_fetch`, upload persistence, real cancellation boundaries).
-3. Add `exportsApiProvider` migration path in Flutter once `dora_api` regeneration is finalized and committed.
+3. ~~Add `exportsApiProvider` migration path in Flutter~~ — done: `dora_api` v1.1.0 regenerated, `ExportsApi` wired in `api_providers.dart`, manual `ExportApi` bridge removed (commit `e419335`).
 4. Execute 6B-3 Flutter progress/share UX upgrades.
 5. Capture 6B evidence artifact set and sign-off doc.

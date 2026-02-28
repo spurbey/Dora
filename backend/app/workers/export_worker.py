@@ -284,6 +284,22 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         return job
 
 
+async def _run_job_once_managed(db: Session, job: ExportJob) -> ExportJob:
+    """
+    Create a renderer scoped to this event loop, run the job, and guarantee cleanup.
+
+    Each asyncio.run() call spins a fresh event loop. Constructing the renderer
+    here ensures the httpx.AsyncClient is bound to the correct loop and is
+    explicitly closed before the loop exits — avoiding transport-reuse errors
+    on subsequent asyncio.run() calls.
+    """
+    renderer = create_renderer_from_env()
+    try:
+        return await run_job_once(db=db, job=job, renderer=renderer)
+    finally:
+        await renderer.aclose()
+
+
 def run_worker_forever() -> None:
     """
     Worker process entrypoint for `python -m app.workers.export_worker`.
@@ -291,7 +307,6 @@ def run_worker_forever() -> None:
     poll_seconds = float(os.getenv("EXPORT_WORKER_POLL_SECONDS", "2"))
     stale_seconds = int(os.getenv("EXPORT_WORKER_STALE_SECONDS", "300"))
     worker_session_id = str(uuid4())
-    renderer = create_renderer_from_env()
 
     while True:
         with SessionLocal() as db:
@@ -303,7 +318,7 @@ def run_worker_forever() -> None:
                 time.sleep(poll_seconds)
                 continue
 
-            asyncio.run(run_job_once(db=db, job=claimed, renderer=renderer))
+            asyncio.run(_run_job_once_managed(db=db, job=claimed))
 
 
 if __name__ == "__main__":

@@ -121,6 +121,8 @@ def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
     job.progress = 0.0
     job.started_at = job.started_at or now
     job.worker_session_id = worker_session_id
+    # Ensure retries do not accidentally carry a stale renderer ID.
+    job.renderer_job_id = None
     job.error_code = None
     job.error_message = None
     db.commit()
@@ -136,6 +138,7 @@ async def _cancel_job(db: Session, job: ExportJob, renderer: MockRemotionRendere
     job.progress = 0.0
     job.completed_at = utcnow()
     job.worker_session_id = None
+    job.renderer_job_id = None
     job.next_attempt_at = None
     job.error_code = "canceled_by_user"
     job.error_message = "Export canceled by user request"
@@ -156,6 +159,7 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
         job.progress = 0.0
         job.next_attempt_at = now + timedelta(seconds=delay)
         job.worker_session_id = None
+        job.renderer_job_id = None
         job.completed_at = None
         db.commit()
         return
@@ -164,6 +168,7 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
     job.progress = 0.0
     job.completed_at = now
     job.worker_session_id = None
+    job.renderer_job_id = None
     job.next_attempt_at = None
     db.commit()
 
@@ -179,9 +184,17 @@ async def run_job_once(db: Session, job: ExportJob, renderer: MockRemotionRender
         for index, stage in enumerate(STAGE_ORDER, start=1):
             db.refresh(job)
             if job.status == "cancel_requested":
-                await _cancel_job(db, job, renderer)
-                db.refresh(job)
-                return job
+                # If output already exists, render completion won the race; finalize.
+                if job.output_url:
+                    job.status = "processing"
+                    job.error_code = None
+                    job.error_message = None
+                    db.commit()
+                    db.refresh(job)
+                else:
+                    await _cancel_job(db, job, renderer)
+                    db.refresh(job)
+                    return job
 
             if job.status != "processing":
                 db.refresh(job)

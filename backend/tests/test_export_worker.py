@@ -62,13 +62,16 @@ def _create_job(db, user_id, trip_id, status="queued"):
 
 def test_claim_next_job_sets_processing_and_session(db, test_user):
     trip = _create_trip(db, test_user.id)
-    _create_job(db, test_user.id, trip.id, status="queued")
+    job = _create_job(db, test_user.id, trip.id, status="queued")
+    job.renderer_job_id = "stale-render-id"
+    db.commit()
 
     claimed = claim_next_job(db=db, worker_session_id="worker-abc")
     assert claimed is not None
     assert claimed.status == "processing"
     assert claimed.stage == "snapshotting"
     assert claimed.worker_session_id == "worker-abc"
+    assert claimed.renderer_job_id is None
 
 
 def test_run_job_once_completes_with_mock_renderer(db, test_user):
@@ -158,6 +161,7 @@ def test_run_job_once_requeues_on_retryable_failure(db, test_user):
     assert result.status == "queued"
     assert result.retry_count == 1
     assert result.next_attempt_at is not None
+    assert result.renderer_job_id is None
 
 
 class _CancelThenCompleteRenderer(MockRemotionRenderer):
@@ -189,3 +193,15 @@ def test_cancel_requested_race_accepts_completed_artifact(db, test_user):
 
     assert result.status == "completed"
     assert result.output_url is not None
+
+
+def test_late_cancel_after_output_is_set_still_finalizes_completed(db, test_user):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id, status="processing")
+    job.output_url = "file:///tmp/already-rendered.mp4"
+    job.status = "cancel_requested"
+    db.commit()
+    db.refresh(job)
+
+    result = asyncio.run(run_job_once(db=db, job=job, renderer=MockRemotionRenderer()))
+    assert result.status == "completed"

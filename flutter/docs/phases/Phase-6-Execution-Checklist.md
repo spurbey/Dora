@@ -3,7 +3,7 @@
 Phase: Video Export Platform (Remotion + Durable Jobs)
 Duration Target: 4 sub-phases (6A, 6B, 6C, 6D)
 Owner: TBD
-Last Updated: 2026-02-27
+Last Updated: 2026-03-01
 
 ---
 
@@ -14,6 +14,20 @@ Last Updated: 2026-02-27
 - Attach evidence notes at each gate.
 - Follow all guardrails in `Phase-6-PRD.md`.
 - For every `dora_api` client regeneration: also bump `flutter/packages/dora_api/pubspec.yaml` version.
+
+---
+
+## Implementation Progress Snapshot (2026-03-01)
+
+This checklist remains the canonical gate list. Current implementation state from committed work:
+
+- 6A implementation: completed (control plane, worker skeleton, Flutter wiring, contract freeze docs, `dora_api` regeneration and provider migration).
+- 6B-1 implementation: completed (local renderer service plus real Remotion pipeline and backend local renderer adapter wiring).
+- 6B-2 implementation: in progress with committed stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling), pending dependency-ready verification and evidence capture.
+- 6B-3 implementation: pending (Flutter template/progress/share UX).
+- 6B final evidence/sign-off: pending (`phase6b-remotion-mvp-report.md`).
+
+Use this snapshot for quick orientation, then drive execution by the checkbox gates below.
 
 ---
 

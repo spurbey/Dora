@@ -8,14 +8,28 @@ Branch: `phase-6-video-export`
 
 Deliver end-to-end local Remotion rendering with real stage progress, cancel handling, and playable export artifacts, while staying within Phase 6 PRD and checklist guardrails.
 
-## 2. Entry Gates (Must Be True Before 6B Build)
+## 2. Current Progress Snapshot (2026-03-01)
+
+Completed:
+- 6B-0 gate verification and kickoff docs.
+- 6B-1 renderer service scaffold and frozen contract endpoints.
+- Real Remotion pipeline wired in `video-renderer` (`a11c855`).
+- Backend renderer lifecycle fix for `asyncio.run()` loop safety (`ab93058`).
+- 6B-2 backend stage pipeline implementation (`2737880`, `0f2762a`).
+
+Pending:
+- 6B-2 dependency-ready test/e2e verification.
+- 6B-3 Flutter export UX upgrades.
+- 6B evidence report and sign-off.
+
+## 3. Entry Gates (Must Be True Before 6B Build)
 
 - `phase6-contract-freeze.md` exists and is frozen.
 - `video-renderer/docs/renderer-api-contract.md` exists and is frozen.
 - 6A codebase is merged and green in dependency-ready local environment.
 - No unresolved status/cancel contract conflicts in backend API behavior.
 
-## 3. Execution Sequence
+## 4. Execution Sequence
 
 ### 6B-0: Gate Verification and Tooling Baseline
 
@@ -31,7 +45,7 @@ Exit criteria:
 - Contract files unchanged from freeze intent.
 - 6B backlog and ownership documented.
 
-### 6B-1: Renderer Service Scaffold (`video-renderer/`)
+### 6B-1: Renderer Service
 
 1. Implement Node/Express service with frozen endpoints:
    - `POST /api/v1/render`
@@ -59,6 +73,10 @@ Exit criteria:
    - accept race completion (`cancel_requested -> completed`) per freeze contract
 4. Finalize all stage transitions and metadata persistence:
    - `output_url`, `thumbnail_url`, `render_duration_ms`, `completed_at`
+5. Implement stage-specific behaviors:
+   - snapshot size enforcement (`<=500KB`)
+   - `asset_fetch` media URL checks
+   - upload stage persistence behavior for storage-backed environments
 
 Exit criteria:
 - One full job runs through all 6 stages and completes.
@@ -90,7 +108,7 @@ Exit criteria:
 Exit criteria:
 - 6B checklist criteria met and report signed.
 
-## 4. Mandatory Guardrails During 6B
+## 5. Mandatory Guardrails During 6B
 
 - No FastAPI `BackgroundTasks` for rendering.
 - Claim logic must remain `skip_locked=True`.
@@ -98,7 +116,8 @@ Exit criteria:
 - Export artifacts private by default.
 - No direct transport calls from Flutter UI widgets.
 
-## 5. Open Follow-ups (Track During 6B)
+## 6. Open Follow-ups (Track During 6B)
 
-- Regenerate `dora_api` exports client and bump package version.
 - Reconfirm OpenAPI drift after any export response schema changes.
+- Run dependency-ready backend/renderer tests and log results in 6B evidence report.
+- Complete Flutter 6B UX and status-state coverage before 6B sign-off.

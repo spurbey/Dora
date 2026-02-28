@@ -1,8 +1,8 @@
 # PHASE 6 PRD: VIDEO EXPORT PLATFORM (REMOTION + DURABLE JOBS)
 
-Last Updated: 2026-02-27
+Last Updated: 2026-03-01
 Owner: TBD
-Status: Draft - Ready for contract freeze
+Status: Active - 6B in progress (6A complete)
 
 ---
 
@@ -45,6 +45,24 @@ This PRD is anchored to what is currently implemented:
   - `flutter/docs/screens/screen6-12.md` (Screen 10/11/12)
   - `flutter/docs/architecture.md` (export abstractions, dark export studio concept)
 - There is no Remotion service or FFmpeg export worker currently in repo.
+
+### 2.1 Implementation Addendum (2026-03-01)
+
+The bullet list above reflects the original pre-implementation baseline. Current committed state now includes:
+
+- 6A completed:
+  - backend export endpoints, schemas, migration, worker skeleton
+  - Flutter export feature wiring and pre-submit guards
+  - contract freeze artifacts
+- `dora_api` export client regeneration and Flutter `ExportsApi` wiring completed (`a536af9`, `e419335`).
+- 6B-1 completed:
+  - local renderer service scaffold
+  - real Remotion render pipeline in `video-renderer` with `Classic` composition
+  - backend local renderer adapter and renderer lifecycle fix for worker loop
+- 6B-2 in progress:
+  - committed worker stage helpers for snapshot-size defense, `asset_fetch`, and upload/finalize paths (`2737880`, `0f2762a`)
+  - dependency-ready validation and evidence capture still pending
+- 6B-3 Flutter UX and 6B sign-off evidence are still pending.
 
 ---
 

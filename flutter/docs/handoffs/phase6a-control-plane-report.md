@@ -35,9 +35,6 @@ Delivered:
 - Renderer HTTP API contract document exists.
 - Local orchestration files exist (`docker-compose.dev.yml`, `Procfile.dev`).
 
-Carry-forward:
-- Regenerate `dora_api` with export endpoints and bump package version.
-
 ## 3. Validation Evidence
 
 User/local environment results:
@@ -49,14 +46,17 @@ User/local environment results:
 Sandbox note:
 - Local rerun attempt from this workspace failed before test execution due missing `sqlalchemy` dependency.
 
-## 4. Known Deviations and Decisions
+## 4. Post-6A Closure Updates (2026-03-01)
 
-- Flutter currently uses temporary `ExportApi` adapter because generated `ExportsApi` client does not exist yet in `dora_api`.
-- This deviation is accepted only as an interim 6A state and must be resolved before 6B completion.
+Originally tracked 6A carry-forward items are now closed:
+- `dora_api` regenerated with export endpoints and version bump (`a536af9`).
+- Flutter migrated from temporary bridge to generated `ExportsApi` (`e419335`).
+
+6B has already progressed beyond kickoff (renderer pipeline and stage-accurate worker commits), but those are tracked in `phase6-rolling-handoff.md` and not part of 6A scope.
 
 ## 5. Exit Decision
 
-6A implementation is accepted for kickoff to 6B with carry-forward items tracked and explicitly gated.
+6A remains accepted and closed. No open 6A blockers remain.
 
 ## 6. Linked Files
 

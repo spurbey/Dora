@@ -15,6 +15,7 @@ services:
     command: python -m app.workers.export_worker
     env_file: backend/.env
     environment:
+      RENDER_BACKEND: local
       RENDERER_URL: http://renderer:3100
       RENDER_OUTPUT_DIR: /render_artifacts
     volumes:

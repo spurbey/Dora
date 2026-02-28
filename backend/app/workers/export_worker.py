@@ -18,7 +18,11 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.export_job import ExportJob
-from app.services.export_renderer import MockRemotionRenderer, RenderManifest
+from app.services.export_renderer import (
+    AbstractRemotionRenderer,
+    RenderManifest,
+    create_renderer_from_env,
+)
 
 
 STAGE_ORDER = [
@@ -130,7 +134,7 @@ def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
     return job
 
 
-async def _cancel_job(db: Session, job: ExportJob, renderer: MockRemotionRenderer) -> None:
+async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> None:
     if job.renderer_job_id:
         await renderer.cancel(job.renderer_job_id)
     job.status = "canceled"
@@ -173,7 +177,7 @@ def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_mess
     db.commit()
 
 
-async def run_job_once(db: Session, job: ExportJob, renderer: MockRemotionRenderer) -> ExportJob:
+async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> ExportJob:
     """
     Execute a single job through 6A mock stages.
     """
@@ -287,7 +291,7 @@ def run_worker_forever() -> None:
     poll_seconds = float(os.getenv("EXPORT_WORKER_POLL_SECONDS", "2"))
     stale_seconds = int(os.getenv("EXPORT_WORKER_STALE_SECONDS", "300"))
     worker_session_id = str(uuid4())
-    renderer = MockRemotionRenderer()
+    renderer = create_renderer_from_env()
 
     while True:
         with SessionLocal() as db:

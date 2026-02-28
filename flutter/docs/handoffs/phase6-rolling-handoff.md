@@ -57,12 +57,29 @@ Delivered Flutter scope:
 
 ### 6B - Remotion MVP Renderer
 
-Status: Kickoff started
+Status: In progress (6B-1 scaffold started)
 
-Started procedure:
-- 6B kickoff execution doc created: `flutter/docs/handoffs/phase6b-kickoff-procedure.md`.
-- Gate check confirms renderer HTTP contract exists and is frozen in 6A docs.
-- Next implementation target is local `video-renderer/` Express + Remotion service, then backend `LocalRemotionRenderer` integration.
+Delivered in current pass:
+- `video-renderer/` service scaffold with frozen renderer endpoints:
+  - `POST /api/v1/render`
+  - `GET /api/v1/render/{render_id}`
+  - `DELETE /api/v1/render/{render_id}`
+- Contract enforcement:
+  - `X-Renderer-Version: 1` header validation (`400 version_mismatch` if invalid)
+  - manifest enum and structure validation (`422 validation_error`)
+  - output path constrained to `RENDER_OUTPUT_DIR`
+- Runtime artifacts:
+  - `video-renderer/package.json`
+  - `video-renderer/src/server.js`
+  - `video-renderer/Dockerfile`
+  - `video-renderer/.dockerignore`
+  - `video-renderer/.gitignore`
+- Backend integration start:
+  - added `LocalRemotionRenderer` HTTP adapter in `backend/app/services/export_renderer.py`
+  - worker now selects renderer via `RENDER_BACKEND` (`mock` default, `local` supported)
+  - worker docker-compose service now sets `RENDER_BACKEND=local`
+- Adapter tests added:
+  - `backend/tests/test_export_renderer.py`
 
 ### 6C - AWS Lambda Scale
 
@@ -93,8 +110,8 @@ Attempted in this sandbox:
 
 ## 6. Next Actions
 
-1. Finalize 6A evidence document (`phase6a-control-plane-report.md`) and mark checklist status.
-2. Execute 6B-1 renderer scaffold from frozen HTTP contract.
-3. Execute 6B-2 backend local renderer integration and stage progression validation.
+1. Install renderer dependencies (`npm install`) and run container/local smoke tests for endpoint behavior.
+2. Execute 6B-2 fully: stage-accurate backend integration (`asset_fetch`, upload persistence, real cancellation boundaries).
+3. Add `exportsApiProvider` migration path in Flutter once `dora_api` regeneration is finalized and committed.
 4. Execute 6B-3 Flutter progress/share UX upgrades.
 5. Capture 6B evidence artifact set and sign-off doc.

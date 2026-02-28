@@ -1,30 +1,42 @@
-# Video Renderer Service (Phase 6)
+# Video Renderer Service (Phase 6B)
 
-This folder hosts the local Remotion render service used by the backend export worker.
+This folder hosts the local renderer service used by the backend export worker.
 
-## Contract First
+## Contract
 
-The API contract is frozen in:
+Renderer HTTP contract:
 - `video-renderer/docs/renderer-api-contract.md`
 
-Phase 6B implementation must conform to that contract.
+Implemented endpoints:
+- `POST /api/v1/render`
+- `GET /api/v1/render/{render_id}`
+- `DELETE /api/v1/render/{render_id}`
 
-## Planned Runtime
+All requests must include:
+- `X-Renderer-Version: 1`
 
-- Node + Express server
-- Remotion composition render pipeline
-- Output directory from `RENDER_OUTPUT_DIR`
+## Runtime
 
-## Local Orchestration
+- Node + Express service (`src/server.js`)
+- In-memory render lifecycle (`queued -> rendering -> completed|failed`)
+- Artifacts written to `RENDER_OUTPUT_DIR`
 
-Use either:
-- `docker-compose.dev.yml` (api + worker + renderer + db), or
-- `Procfile.dev` for multi-process local runs.
+## Local Run
 
-Required env vars for renderer:
+```bash
+cd video-renderer
+npm install
+npm run dev
+```
+
+Required env vars:
 - `PORT` (default `3100`)
-- `RENDER_OUTPUT_DIR` (shared with worker)
+- `RENDER_OUTPUT_DIR` (must be shared with backend worker in Docker)
 
-## Current State
+Backend worker must use:
+- `RENDER_BACKEND=local`
+- `RENDERER_URL=http://renderer:3100` (or local host URL outside Docker)
 
-Scaffold docs only. Service implementation begins in Phase 6B.
+Or use root orchestration:
+- `docker-compose.dev.yml`
+- `Procfile.dev`

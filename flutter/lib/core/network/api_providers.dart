@@ -44,3 +44,8 @@ final usersApiProvider = Provider<UsersApi>((ref) {
   final client = ref.watch(apiClientProvider);
   return UsersApi(client.dio, standardSerializers);
 });
+
+final exportsApiProvider = Provider<ExportsApi>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return ExportsApi(client.dio, standardSerializers);
+});

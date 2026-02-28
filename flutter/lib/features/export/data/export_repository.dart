@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:dora_api/dora_api.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/export/data/export_api.dart';
 import 'package:dora/features/export/domain/export_error_strings.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 
@@ -14,10 +14,12 @@ abstract class ExportRepositoryContract {
 
 /// Export repository that owns local pre-submit guards and create-export calls.
 class ExportRepository implements ExportRepositoryContract {
-  ExportRepository(this._db, this._api);
+  ExportRepository(this._db, this._exportsApi, this._getToken);
 
   final AppDatabase _db;
-  final ExportApi _api;
+  final ExportsApi _exportsApi;
+  /// Returns the current auth bearer token, or null if the session has expired.
+  final Future<String?> Function() _getToken;
 
   static const Set<String> _pendingMediaStatuses = {
     'queued',
@@ -90,19 +92,23 @@ class ExportRepository implements ExportRepositoryContract {
       );
     }
 
-    try {
-      final body = await _api.createExportJob(
-        serverTripId: serverTripId,
-        payload: const <String, dynamic>{
-          'template': 'classic',
-          'aspect_ratio': '9:16',
-          'duration_sec': 15,
-          'quality': '720p',
-          'fps': 30,
-        },
+    final token = await _getToken();
+    if (token == null || token.isEmpty) {
+      throw const ExportRepositoryException(
+        'Session expired. Sign in again and retry export.',
       );
-      final jobId = _readString(body, 'job_id');
-      if (jobId == null || jobId.isEmpty) {
+    }
+    final authorization = 'Bearer $token';
+
+    try {
+      final response = await _exportsApi.createExportApiV1TripsTripIdExportPost(
+        tripId: serverTripId,
+        authorization: authorization,
+        exportCreateRequest: ExportCreateRequest(),
+      );
+
+      final jobId = response.data?.jobId ?? '';
+      if (jobId.isEmpty) {
         throw const ExportRepositoryException(
           'Export request was accepted but no job id was returned.',
         );
@@ -249,7 +255,6 @@ class ExportRepository implements ExportRepositoryContract {
     }
     return value.toString();
   }
-
 }
 
 /// Repository-level export error surfaced to presentation layer.

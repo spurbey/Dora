@@ -3,10 +3,11 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dora_api/dora_api.dart';
 
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/export/data/export_api.dart';
+import 'package:dora/features/export/data/export_repository.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 import 'package:dora/features/export/presentation/providers/export_provider.dart';
 
@@ -25,7 +26,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
-          exportApiProvider.overrideWithValue(_FakeExportApi()),
+          exportRepositoryProvider.overrideWith(
+            (ref) => ExportRepository(db, _FakeExportsApi(), () async => null),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -60,6 +63,7 @@ Future<void> _insertTrip(
       );
 }
 
-class _FakeExportApi extends ExportApi {
-  _FakeExportApi() : super(Dio());
+/// Minimal fake for the provider test — precheck never calls the API.
+class _FakeExportsApi extends ExportsApi {
+  _FakeExportsApi() : super(Dio(), standardSerializers);
 }

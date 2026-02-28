@@ -2,23 +2,23 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dora_api/dora_api.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/export/data/export_api.dart';
 import 'package:dora/features/export/data/export_repository.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 
 void main() {
   group('ExportRepository pre-submit guards', () {
     late AppDatabase database;
-    late _FakeExportApi api;
+    late _FakeExportsApi api;
     late ExportRepository repository;
 
     setUp(() {
       database = AppDatabase(NativeDatabase.memory());
-      api = _FakeExportApi();
-      repository = ExportRepository(database, api);
+      api = _FakeExportsApi();
+      repository = ExportRepository(database, api, () async => 'fake-token');
     });
 
     tearDown(() async {
@@ -347,26 +347,43 @@ Future<void> _insertSyncTask(
       );
 }
 
-class _FakeExportApi extends ExportApi {
-  _FakeExportApi() : super(Dio());
+/// Fake [ExportsApi] that lets tests control the create-export response.
+class _FakeExportsApi extends ExportsApi {
+  _FakeExportsApi() : super(Dio(), standardSerializers);
 
   bool createCalled = false;
-  Future<Map<String, dynamic>> Function(
-    String serverTripId,
-    Map<String, dynamic> payload,
+  Future<Response<ExportCreateResponse>> Function(
+    String tripId,
+    String authorization,
   )? onCreate;
 
   @override
-  Future<Map<String, dynamic>> createExportJob({
-    required String serverTripId,
-    required Map<String, dynamic> payload,
+  Future<Response<ExportCreateResponse>>
+      createExportApiV1TripsTripIdExportPost({
+    required String tripId,
+    required String authorization,
+    required ExportCreateRequest exportCreateRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
   }) async {
     createCalled = true;
     final handler = onCreate;
     if (handler != null) {
-      return handler(serverTripId, payload);
+      return handler(tripId, authorization);
     }
-    return const <String, dynamic>{'job_id': 'job-default-1'};
+    final responseObj = ExportCreateResponse((b) => b
+      ..jobId = 'job-default-1'
+      ..status = ExportStatus.queued
+      ..progress = 0);
+    return Response<ExportCreateResponse>(
+      data: responseObj,
+      requestOptions: RequestOptions(path: '/api/v1/trips/$tripId/export'),
+      statusCode: 200,
+    );
   }
 }
 

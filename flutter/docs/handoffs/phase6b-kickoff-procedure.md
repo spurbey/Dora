@@ -16,10 +16,19 @@ Completed:
 - Real Remotion pipeline wired in `video-renderer` (`a11c855`).
 - Backend renderer lifecycle fix for `asyncio.run()` loop safety (`ab93058`).
 - 6B-2 backend stage pipeline implementation (`2737880`, `0f2762a`).
+- 6B-3 Flutter UX implementation (`f30274d`):
+  - TemplatePicker
+  - polling/status matrix UI
+  - cancel confirmation flow
+  - completion/share preview surface
+- 6B-3 post-review hardening fixes (`a345901`):
+  - domain transport decoupling for template enum
+  - completion-navigation guard
+  - immediate refresh after cancel
+  - tracking-flow tests aligned to real screen behavior
 
 Pending:
-- 6B-2 dependency-ready test/e2e verification.
-- 6B-3 Flutter export UX upgrades.
+- 6B dependency-ready test/e2e verification (backend + Flutter).
 - 6B evidence report and sign-off.
 
 ## 3. Entry Gates (Must Be True Before 6B Build)
@@ -121,4 +130,4 @@ Exit criteria:
 
 - Reconfirm OpenAPI drift after any export response schema changes.
 - Run dependency-ready backend/renderer tests and log results in 6B evidence report.
-- Complete Flutter 6B UX and status-state coverage before 6B sign-off.
+- Run dependency-ready Flutter export tests and attach results before 6B sign-off.

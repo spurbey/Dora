@@ -59,10 +59,13 @@ The bullet list above reflects the original pre-implementation baseline. Current
   - local renderer service scaffold
   - real Remotion render pipeline in `video-renderer` with `Classic` composition
   - backend local renderer adapter and renderer lifecycle fix for worker loop
-- 6B-2 in progress:
-  - committed worker stage helpers for snapshot-size defense, `asset_fetch`, and upload/finalize paths (`2737880`, `0f2762a`)
+- 6B-2 completed in code:
+  - worker stage helpers for snapshot-size defense, `asset_fetch`, and upload/finalize paths (`2737880`, `0f2762a`, `5307a41`)
   - dependency-ready validation and evidence capture still pending
-- 6B-3 Flutter UX and 6B sign-off evidence are still pending.
+- 6B-3 completed in code:
+  - Flutter export UX implementation (`f30274d`) for template selection, polling/status matrix, cancel flow, and completion/share surface
+  - post-review hardening fixes (`a345901`) for transport decoupling, completion navigation guard, cancel refresh behavior, and tracking tests
+- 6B sign-off evidence is still pending.
 
 ---
 

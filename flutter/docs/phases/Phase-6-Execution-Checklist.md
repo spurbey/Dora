@@ -23,8 +23,8 @@ This checklist remains the canonical gate list. Current implementation state fro
 
 - 6A implementation: completed (control plane, worker skeleton, Flutter wiring, contract freeze docs, `dora_api` regeneration and provider migration).
 - 6B-1 implementation: completed (local renderer service plus real Remotion pipeline and backend local renderer adapter wiring).
-- 6B-2 implementation: in progress with committed stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling), pending dependency-ready verification and evidence capture.
-- 6B-3 implementation: pending (Flutter template/progress/share UX).
+- 6B-2 implementation: completed in code with committed stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling); dependency-ready verification and evidence capture still pending.
+- 6B-3 implementation: completed in code (`f30274d`, `a345901`) with template picker, polling/status UX, cancel flow, completion/share surface, and post-review hardening fixes; dependency-ready verification still pending.
 - 6B final evidence/sign-off: pending (`phase6b-remotion-mvp-report.md`).
 
 Use this snapshot for quick orientation, then drive execution by the checkbox gates below.

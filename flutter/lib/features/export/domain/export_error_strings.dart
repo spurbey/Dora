@@ -1,8 +1,11 @@
+import 'package:dora/features/export/domain/export_job.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 
-/// User-facing copy for export pre-submit checks and local validation errors.
+/// User-facing copy for export pre-submit checks, status labels, and errors.
 class ExportErrorStrings {
   const ExportErrorStrings._();
+
+  // ─── Pre-submit guard copy ────────────────────────────────────────────────
 
   static String messageForFailure(ExportPrecheckFailure failure) {
     switch (failure) {
@@ -39,5 +42,43 @@ class ExportErrorStrings {
     }
 
     return details;
+  }
+
+  // ─── Stage label (shown during processing) ────────────────────────────────
+
+  static String stageLabel(ExportJobStage? stage) {
+    switch (stage) {
+      case ExportJobStage.snapshotting:
+        return 'Preparing snapshot...';
+      case ExportJobStage.assetFetch:
+        return 'Verifying media assets...';
+      case ExportJobStage.rendering:
+        return 'Rendering video...';
+      case ExportJobStage.encoding:
+        return 'Encoding...';
+      case ExportJobStage.uploading:
+        return 'Uploading to storage...';
+      case ExportJobStage.finalizing:
+        return 'Finalizing...';
+      case null:
+        return 'Processing...';
+    }
+  }
+
+  // ─── Blocked error copy (PRD §5 taxonomy) ────────────────────────────────
+
+  static String messageForBlockedCode(String? errorCode) {
+    switch (errorCode) {
+      case 'asset_all_404':
+        return 'All media in this trip is unavailable. Re-upload your photos and try again.';
+      case 'trip_deleted':
+        return 'This trip no longer exists on the server.';
+      case 'auth_revoked':
+        return 'Your session has expired. Sign in again to export.';
+      case 'quota_exceeded':
+        return 'Export quota reached. Please contact support.';
+      default:
+        return 'Export was blocked due to an unrecoverable error. Please contact support.';
+    }
   }
 }

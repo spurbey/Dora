@@ -4,12 +4,24 @@ import 'package:dora_api/dora_api.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/export/domain/export_error_strings.dart';
+import 'package:dora/features/export/domain/export_job.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 
 /// Contract for export data operations used by providers/UI.
 abstract class ExportRepositoryContract {
   Future<ExportPrecheckResult> evaluatePreSubmitGuards(String tripId);
+
+  /// 6A compat: submits with the default classic template.
   Future<ExportSubmitResult> submitClassicExport(String localTripId);
+
+  /// 6B: submits with the user-selected template.
+  Future<ExportSubmitResult> submitExport(
+      String localTripId, ExportTemplate template);
+
+  Future<ExportJob> getJobStatus(String jobId);
+  Future<void> cancelJob(String jobId);
+  Future<String> getDownloadUrl(String jobId);
+  Future<String> getShareUrl(String jobId);
 }
 
 /// Export repository that owns local pre-submit guards and create-export calls.
@@ -18,6 +30,7 @@ class ExportRepository implements ExportRepositoryContract {
 
   final AppDatabase _db;
   final ExportsApi _exportsApi;
+
   /// Returns the current auth bearer token, or null if the session has expired.
   final Future<String?> Function() _getToken;
 
@@ -68,9 +81,15 @@ class ExportRepository implements ExportRepositoryContract {
     );
   }
 
-  /// Submits a hardcoded 6A `classic` export request to backend control-plane.
+  /// 6A compat: submits with the default classic template.
   @override
-  Future<ExportSubmitResult> submitClassicExport(String localTripId) async {
+  Future<ExportSubmitResult> submitClassicExport(String localTripId) =>
+      submitExport(localTripId, ExportTemplate.classic);
+
+  /// 6B: submits with the user-selected template.
+  @override
+  Future<ExportSubmitResult> submitExport(
+      String localTripId, ExportTemplate template) async {
     final latestPrecheck = await evaluatePreSubmitGuards(localTripId);
     if (!latestPrecheck.canExport) {
       throw ExportRepositoryException(
@@ -92,19 +111,15 @@ class ExportRepository implements ExportRepositoryContract {
       );
     }
 
-    final token = await _getToken();
-    if (token == null || token.isEmpty) {
-      throw const ExportRepositoryException(
-        'Session expired. Sign in again and retry export.',
-      );
-    }
-    final authorization = 'Bearer $token';
+    final authorization = await _bearerToken();
 
     try {
       final response = await _exportsApi.createExportApiV1TripsTripIdExportPost(
         tripId: serverTripId,
         authorization: authorization,
-        exportCreateRequest: ExportCreateRequest(),
+        exportCreateRequest: ExportCreateRequest(
+          (b) => b..template = template,
+        ),
       );
 
       final jobId = response.data?.jobId ?? '';
@@ -114,10 +129,7 @@ class ExportRepository implements ExportRepositoryContract {
         );
       }
 
-      return ExportSubmitResult(
-        jobId: jobId,
-        deduplicated: false,
-      );
+      return ExportSubmitResult(jobId: jobId, deduplicated: false);
     } on DioException catch (error) {
       final statusCode = error.response?.statusCode;
       final errorPayload = _extractErrorPayload(error.response?.data);
@@ -126,10 +138,7 @@ class ExportRepository implements ExportRepositoryContract {
           _readString(errorPayload, 'error') == 'duplicate_job') {
         final existingJobId = _readString(errorPayload, 'existing_job_id');
         if (existingJobId != null && existingJobId.isNotEmpty) {
-          return ExportSubmitResult(
-            jobId: existingJobId,
-            deduplicated: true,
-          );
+          return ExportSubmitResult(jobId: existingJobId, deduplicated: true);
         }
       }
 
@@ -142,6 +151,139 @@ class ExportRepository implements ExportRepositoryContract {
     }
   }
 
+  @override
+  Future<ExportJob> getJobStatus(String jobId) async {
+    final authorization = await _bearerToken();
+    try {
+      final response =
+          await _exportsApi.getExportStatusApiV1ExportsJobIdGet(
+        jobId: jobId,
+        authorization: authorization,
+      );
+      final data = response.data;
+      if (data == null) {
+        throw const ExportRepositoryException('Empty response from export status endpoint.');
+      }
+      return _mapStatusResponse(data);
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 404) {
+        throw const ExportRepositoryException('Export job not found.');
+      }
+      if (statusCode == 401) {
+        throw const ExportRepositoryException(
+            'Session expired. Sign in again.');
+      }
+      throw ExportRepositoryException(
+          error.message ?? 'Failed to fetch export status.');
+    }
+  }
+
+  @override
+  Future<void> cancelJob(String jobId) async {
+    final authorization = await _bearerToken();
+    try {
+      await _exportsApi.cancelExportApiV1ExportsJobIdCancelPost(
+        jobId: jobId,
+        authorization: authorization,
+      );
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 409) {
+        // Job already completed — not an error from the user's perspective.
+        return;
+      }
+      throw ExportRepositoryException(
+          error.message ?? 'Failed to cancel export job.');
+    }
+  }
+
+  @override
+  Future<String> getDownloadUrl(String jobId) async {
+    final authorization = await _bearerToken();
+    try {
+      final response =
+          await _exportsApi.getExportDownloadUrlApiV1ExportsJobIdDownloadUrlGet(
+        jobId: jobId,
+        authorization: authorization,
+      );
+      final url = response.data?.downloadUrl ?? '';
+      if (url.isEmpty) {
+        throw const ExportRepositoryException('Download URL was empty.');
+      }
+      return url;
+    } on DioException catch (error) {
+      throw ExportRepositoryException(
+          error.message ?? 'Failed to get download URL.');
+    }
+  }
+
+  @override
+  Future<String> getShareUrl(String jobId) async {
+    final authorization = await _bearerToken();
+    try {
+      final response =
+          await _exportsApi.getExportShareUrlApiV1ExportsJobIdShareGet(
+        jobId: jobId,
+        authorization: authorization,
+      );
+      final url = response.data?.shareUrl ?? '';
+      if (url.isEmpty) {
+        throw const ExportRepositoryException('Share URL was empty.');
+      }
+      return url;
+    } on DioException catch (error) {
+      throw ExportRepositoryException(
+          error.message ?? 'Failed to get share URL.');
+    }
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  Future<String> _bearerToken() async {
+    final token = await _getToken();
+    if (token == null || token.isEmpty) {
+      throw const ExportRepositoryException(
+          'Session expired. Sign in again and retry export.');
+    }
+    return 'Bearer $token';
+  }
+
+  ExportJob _mapStatusResponse(ExportStatusResponse data) {
+    return ExportJob(
+      jobId: data.jobId,
+      status: _mapStatus(data.status),
+      progress: data.progress.toDouble(),
+      stage: _mapStage(data.stage),
+      outputUrl: data.outputUrl,
+      thumbnailUrl: data.thumbnailUrl,
+      errorCode: data.errorCode,
+      errorMessage: data.errorMessage,
+    );
+  }
+
+  ExportJobStatus _mapStatus(ExportStatus s) {
+    if (s == ExportStatus.queued) return ExportJobStatus.queued;
+    if (s == ExportStatus.processing) return ExportJobStatus.processing;
+    if (s == ExportStatus.cancelRequested) return ExportJobStatus.cancelRequested;
+    if (s == ExportStatus.completed) return ExportJobStatus.completed;
+    if (s == ExportStatus.failed) return ExportJobStatus.failed;
+    if (s == ExportStatus.canceled) return ExportJobStatus.canceled;
+    if (s == ExportStatus.blocked) return ExportJobStatus.blocked;
+    return ExportJobStatus.failed;
+  }
+
+  ExportJobStage? _mapStage(ExportStage? s) {
+    if (s == null) return null;
+    if (s == ExportStage.snapshotting) return ExportJobStage.snapshotting;
+    if (s == ExportStage.assetFetch) return ExportJobStage.assetFetch;
+    if (s == ExportStage.rendering) return ExportJobStage.rendering;
+    if (s == ExportStage.encoding) return ExportJobStage.encoding;
+    if (s == ExportStage.uploading) return ExportJobStage.uploading;
+    if (s == ExportStage.finalizing) return ExportJobStage.finalizing;
+    return null;
+  }
+
   Future<int> _countBlockingSyncTasks(String tripId) async {
     final variables = <Variable<String>>[
       Variable<String>(tripId),
@@ -150,7 +292,7 @@ class ExportRepository implements ExportRepositoryContract {
       Variable<String>(tripId),
     ];
 
-    final query = '''
+    const query = '''
       SELECT COUNT(*) AS task_count
       FROM sync_tasks
       WHERE status IN ('queued', 'in_progress', 'failed', 'blocked')
@@ -179,7 +321,7 @@ class ExportRepository implements ExportRepositoryContract {
     ''';
 
     final row = await _db.customSelect(query, variables: variables).getSingle();
-    return row.read<int>('task_count') ?? 0;
+    return row.read<int>('task_count');
   }
 
   String _mapSubmitError({

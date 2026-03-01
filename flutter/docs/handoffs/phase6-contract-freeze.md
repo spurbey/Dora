@@ -217,6 +217,26 @@ Frozen requirements include:
 - `DELETE /api/v1/render/{render_id}`
 - `X-Renderer-Version: 1` header requirement
 
-## 11. Sign-Off
+## 11. 6C Addendum Freeze (Lambda Mode)
 
-Contract freeze completed and recorded for 6A gate on 2026-02-28.
+These clarifications are frozen before 6C execution:
+
+- Backend worker remains HTTP-only toward renderer (`LambdaRemotionRenderer` is an HTTP adapter).
+- Node renderer service owns `@remotion/lambda` SDK calls.
+- Remotion version policy: exact same patch version across `remotion` and all `@remotion/*` packages; no range specifiers.
+- Lambda output destination uses `outName: {bucketName, key}`.
+- `getRenderProgress` polling uses the `bucketName` returned by `renderMediaOnLambda`.
+- Cancel semantics follow current worker model:
+  - `cancel_requested -> completed` when render already completed (race accepted)
+  - otherwise worker settles `canceled` immediately after cancel path
+- IAM principal split:
+  - renderer runtime principal for Lambda invoke path
+  - backend runtime principal for presigned download path
+- Scope boundary:
+  - 6C includes download presigned URL path
+  - share-token revocation hardening and `pinned_at` lifecycle protection remain 6D work
+
+## 12. Sign-Off
+
+Contract freeze completed for 6A gate on 2026-02-28.  
+6C addendum freeze recorded on 2026-03-01.

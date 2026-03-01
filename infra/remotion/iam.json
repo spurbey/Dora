@@ -1,0 +1,63 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeRemotionRenderLambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:InvokeFunction"
+      ],
+      "Resource": "arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:remotion-render-*"
+    },
+    {
+      "Sid": "ExportsBucketObjectAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::dora-exports-${ENV}/*"
+    },
+    {
+      "Sid": "ExportsBucketMetaAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::dora-exports-${ENV}"
+    },
+    {
+      "Sid": "RemotionManagedBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:CreateBucket",
+        "s3:ListBucket",
+        "s3:ListAllMyBuckets",
+        "s3:PutBucketAcl",
+        "s3:GetBucketLocation",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:s3:::remotionlambda-*",
+        "arn:aws:s3:::remotionlambda-*/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogsForRenderFunctions",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:/aws/lambda/remotion-render-*"
+    }
+  ]
+}

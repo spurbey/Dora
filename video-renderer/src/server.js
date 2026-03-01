@@ -1,9 +1,14 @@
 /**
- * Dora video-renderer service — Phase 6B
+ * Dora video-renderer service.
  *
- * Starts an Express HTTP server that wraps Remotion's render pipeline.
- * bundle() is called once at startup; renderMedia() is called per render request.
- * The service returns 503 on incoming render requests until the bundle is ready.
+ * Exposes the frozen HTTP contract:
+ * - POST /api/v1/render
+ * - GET /api/v1/render/:renderId
+ * - DELETE /api/v1/render/:renderId
+ *
+ * Runtime backend is selected by RENDER_BACKEND:
+ * - local  -> in-process Remotion renderer
+ * - lambda -> @remotion/lambda-backed renderer
  */
 
 import crypto from 'crypto';
@@ -15,88 +20,55 @@ import express from 'express';
 import { bundle } from '@remotion/bundler';
 import { getCompositions, makeCancelSignal, renderMedia } from '@remotion/renderer';
 
+import { LambdaRenderBackend } from './lambda-renderer.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// ─── Configuration ─────────────────────────────────────────────────────────
 
 const RENDERER_VERSION = '1';
 const PORT = parseInt(process.env.PORT || '3100', 10);
 const OUTPUT_DIR = process.env.RENDER_OUTPUT_DIR || path.resolve(process.cwd(), 'render_artifacts');
 const CHROME_EXECUTABLE = process.env.REMOTION_CHROME_EXECUTABLE || undefined;
+const RENDER_BACKEND = (process.env.RENDER_BACKEND || 'local').trim().toLowerCase();
 
 const ALLOWED_TEMPLATES = new Set(['classic', 'cinematic']);
 const ALLOWED_ASPECT_RATIOS = new Set(['9:16', '1:1', '16:9']);
 const ALLOWED_QUALITIES = new Set(['480p', '720p', '1080p']);
 
-// Maps manifest template → Remotion composition ID.
+// Maps manifest template -> Remotion composition ID.
 // 'cinematic' falls back to Classic until Phase 6D implements it.
 const COMPOSITION_BY_TEMPLATE = {
   classic: 'Classic',
   cinematic: 'Classic',
 };
 
-// ─── Output dimensions ──────────────────────────────────────────────────────
-
-/**
- * Convert quality + aspect_ratio to pixel dimensions.
- *
- * Convention: "p" value anchors the portrait axis.
- *   9:16 720p → 720 × 1280  (portrait: width is the "p" axis)
- *   16:9 720p → 1280 × 720  (landscape: height is the "p" axis)
- *   1:1  720p → 720 × 720
- */
 function getDimensions(quality, aspectRatio) {
   const base = { '480p': 480, '720p': 720, '1080p': 1080 };
   const b = base[quality] ?? 720;
   if (aspectRatio === '9:16') return { width: b, height: Math.round((b * 16) / 9 / 2) * 2 };
   if (aspectRatio === '16:9') return { width: Math.round((b * 16) / 9 / 2) * 2, height: b };
   if (aspectRatio === '1:1') return { width: b, height: b };
-  return { width: 720, height: 1280 }; // safe fallback
+  return { width: 720, height: 1280 };
 }
-
-// ─── Express setup ─────────────────────────────────────────────────────────
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
 
-// ─── In-memory render state ─────────────────────────────────────────────────
-
-const renders = new Map(); // renderId → state
-const cancelFns = new Map(); // renderId → cancel()
+// Local runtime in-memory state.
+const renders = new Map(); // renderId -> state
+const cancelFns = new Map(); // renderId -> cancel()
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-
-// ─── Remotion bundle (initialised once at startup) ──────────────────────────
 
 let bundleLocation = null;
 let bundleCompositions = null;
 let bundleReady = false;
 let bundleErr = null;
+let lambdaBackend = null;
 
-async function initBundle() {
-  try {
-    const entryPoint = path.join(__dirname, 'remotion', 'index.jsx');
-    bundleLocation = await bundle({
-      entryPoint,
-      webpackOverride: (config) => config,
-    });
-    bundleCompositions = await getCompositions(bundleLocation, {
-      inputProps: {},
-      ...(CHROME_EXECUTABLE ? { overrideBrowserExecutable: CHROME_EXECUTABLE } : {}),
-      chromiumOptions: { gl: 'swangle' },
-    });
-    bundleReady = true;
-    console.log(
-      `[renderer] bundle ready — ${bundleCompositions.length} composition(s): ${bundleCompositions.map((c) => c.id).join(', ')}`,
-    );
-  } catch (err) {
-    bundleErr = err;
-    console.error('[renderer] bundle initialisation failed:', err);
-  }
+function isObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function badRequest(res, detail) {
   return res.status(422).json({ error: 'validation_error', detail });
@@ -109,17 +81,13 @@ function ensureVersion(req, res, next) {
   return next();
 }
 
-function isObject(v) {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
-}
-
 function hasBinaryPayload(snapshot) {
   const queue = [snapshot];
   while (queue.length) {
     const cur = queue.shift();
     if (typeof cur === 'string') {
       if (cur.startsWith('data:') || cur.startsWith('base64,')) return true;
-      if (cur.length > 32_768 && /^[A-Za-z0-9+/=\r\n]+$/.test(cur)) return true;
+      if (cur.length > 32768 && /^[A-Za-z0-9+/=\r\n]+$/.test(cur)) return true;
     } else if (Array.isArray(cur)) {
       queue.push(...cur);
     } else if (isObject(cur)) {
@@ -134,11 +102,13 @@ function validateManifest(body) {
   const { job_id, template, aspect_ratio, quality, duration_sec, fps, snapshot } = body;
   if (!job_id || typeof job_id !== 'string') return 'job_id must be a non-empty string';
   if (!ALLOWED_TEMPLATES.has(template)) return 'template must be one of: classic, cinematic';
-  if (!ALLOWED_ASPECT_RATIOS.has(aspect_ratio))
+  if (!ALLOWED_ASPECT_RATIOS.has(aspect_ratio)) {
     return 'aspect_ratio must be one of: 9:16, 1:1, 16:9';
+  }
   if (!ALLOWED_QUALITIES.has(quality)) return 'quality must be one of: 480p, 720p, 1080p';
-  if (!Number.isInteger(duration_sec) || duration_sec <= 0)
+  if (!Number.isInteger(duration_sec) || duration_sec <= 0) {
     return 'duration_sec must be a positive integer';
+  }
   if (!Number.isInteger(fps) || fps <= 0) return 'fps must be a positive integer';
   if (!isObject(snapshot)) return 'snapshot must be a JSON object';
   if (hasBinaryPayload(snapshot)) return 'snapshot must not contain binary/base64 payloads';
@@ -154,9 +124,52 @@ function getOutputPath(renderId) {
   return resolved;
 }
 
-// ─── Async render runner ────────────────────────────────────────────────────
+async function initLocalBundle() {
+  try {
+    const entryPoint = path.join(__dirname, 'remotion', 'index.jsx');
+    bundleLocation = await bundle({
+      entryPoint,
+      webpackOverride: (config) => config,
+    });
+    bundleCompositions = await getCompositions(bundleLocation, {
+      inputProps: {},
+      ...(CHROME_EXECUTABLE ? { overrideBrowserExecutable: CHROME_EXECUTABLE } : {}),
+      chromiumOptions: { gl: 'swangle' },
+    });
+    bundleReady = true;
+    console.log(
+      `[renderer] local backend ready - ${bundleCompositions.length} composition(s): ${bundleCompositions.map((c) => c.id).join(', ')}`,
+    );
+  } catch (err) {
+    bundleErr = err;
+    console.error('[renderer] local bundle initialization failed:', err);
+  }
+}
 
-async function runRender(renderId, manifest) {
+function initLambdaBackend() {
+  try {
+    lambdaBackend = new LambdaRenderBackend({
+      getDimensions,
+      compositionByTemplate: COMPOSITION_BY_TEMPLATE,
+    });
+    lambdaBackend.ensureConfigured();
+    bundleReady = true;
+    console.log('[renderer] lambda backend ready');
+  } catch (err) {
+    bundleErr = err;
+    console.error('[renderer] lambda backend initialization failed:', err);
+  }
+}
+
+function initRuntime() {
+  if (RENDER_BACKEND === 'lambda') {
+    initLambdaBackend();
+    return;
+  }
+  void initLocalBundle();
+}
+
+async function runLocalRender(renderId, manifest) {
   const state = renders.get(renderId);
   if (!state) return;
 
@@ -201,7 +214,6 @@ async function runRender(renderId, manifest) {
     });
 
     cancelFns.delete(renderId);
-
     if (state.canceled) {
       state.status = 'failed';
       state.progress = 1;
@@ -228,18 +240,11 @@ async function runRender(renderId, manifest) {
   }
 }
 
-// ─── Routes ─────────────────────────────────────────────────────────────────
-
-app.use('/api/v1/render', ensureVersion);
-
-app.post('/api/v1/render', (req, res) => {
-  if (!bundleReady) {
-    const detail = bundleErr ? `bundle_error:${bundleErr.message}` : 'bundle_initialising';
-    return res.status(503).json({ error: 'renderer_not_ready', detail });
+async function submitRender(manifest) {
+  if (RENDER_BACKEND === 'lambda') {
+    const renderId = await lambdaBackend.submit(manifest);
+    return { render_id: renderId, status: 'queued' };
   }
-
-  const validationErr = validateManifest(req.body);
-  if (validationErr) return badRequest(res, validationErr);
 
   const renderId = crypto.randomUUID();
   renders.set(renderId, {
@@ -253,38 +258,45 @@ app.post('/api/v1/render', (req, res) => {
     updatedAt: Date.now(),
   });
 
-  // Fire and forget — caller polls GET /api/v1/render/:id
-  runRender(renderId, req.body).catch((err) =>
-    console.error(`[renderer] unhandled error for ${renderId}:`, err),
+  void runLocalRender(renderId, manifest).catch((err) =>
+    console.error(`[renderer] unhandled local render error for ${renderId}:`, err),
   );
+  return { render_id: renderId, status: 'queued' };
+}
 
-  return res.status(202).json({ render_id: renderId, status: 'queued' });
-});
+async function getRenderStatus(renderId) {
+  if (RENDER_BACKEND === 'lambda') {
+    return lambdaBackend.getStatus(renderId);
+  }
 
-app.get('/api/v1/render/:renderId', (req, res) => {
-  const state = renders.get(req.params.renderId);
-  if (!state) return res.status(404).json({ error: 'not_found' });
-
-  return res.status(200).json({
+  const state = renders.get(renderId);
+  if (!state) {
+    return null;
+  }
+  return {
     render_id: state.renderId,
     status: state.status,
     progress: Math.max(0, Math.min(1, state.progress)),
     output_path: state.status === 'completed' ? state.outputPath : null,
     error: state.error,
-  });
-});
+  };
+}
 
-app.delete('/api/v1/render/:renderId', (req, res) => {
-  const state = renders.get(req.params.renderId);
-  if (!state) return res.status(404).json({ error: 'not_found' });
+async function cancelRender(renderId) {
+  if (RENDER_BACKEND === 'lambda') {
+    const found = await lambdaBackend.cancel(renderId);
+    return found;
+  }
+
+  const state = renders.get(renderId);
+  if (!state) {
+    return false;
+  }
 
   state.canceled = true;
-
-  // Signal Remotion to stop the render cooperatively
-  const cancelFn = cancelFns.get(req.params.renderId);
+  const cancelFn = cancelFns.get(renderId);
   if (cancelFn) cancelFn();
 
-  // Mark terminal state immediately so polling sees the cancellation
   if (state.status !== 'completed') {
     state.status = 'failed';
     state.progress = 1;
@@ -292,15 +304,62 @@ app.delete('/api/v1/render/:renderId', (req, res) => {
     state.error = 'canceled_by_user';
     state.updatedAt = Date.now();
   }
+  return true;
+}
 
-  return res.status(200).json({ canceled: true });
+app.use('/api/v1/render', ensureVersion);
+
+app.post('/api/v1/render', async (req, res) => {
+  if (!bundleReady) {
+    const detail = bundleErr ? `backend_error:${bundleErr.message}` : 'backend_initializing';
+    return res.status(503).json({ error: 'renderer_not_ready', detail });
+  }
+
+  const validationErr = validateManifest(req.body);
+  if (validationErr) return badRequest(res, validationErr);
+
+  try {
+    const payload = await submitRender(req.body);
+    return res.status(202).json(payload);
+  } catch (err) {
+    console.error('[renderer] submit failed:', err);
+    return res.status(500).json({
+      error: 'submit_failed',
+      detail: err?.message || 'submit_failed',
+    });
+  }
 });
 
-// ─── Start ──────────────────────────────────────────────────────────────────
+app.get('/api/v1/render/:renderId', async (req, res) => {
+  try {
+    const payload = await getRenderStatus(req.params.renderId);
+    if (!payload) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json(payload);
+  } catch (err) {
+    console.error('[renderer] status failed:', err);
+    return res.status(500).json({
+      error: 'status_failed',
+      detail: err?.message || 'status_failed',
+    });
+  }
+});
+
+app.delete('/api/v1/render/:renderId', async (req, res) => {
+  try {
+    const found = await cancelRender(req.params.renderId);
+    if (!found) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json({ canceled: true });
+  } catch (err) {
+    console.error('[renderer] cancel failed:', err);
+    return res.status(500).json({
+      error: 'cancel_failed',
+      detail: err?.message || 'cancel_failed',
+    });
+  }
+});
 
 app.listen(PORT, () => {
-  console.log(`[renderer] listening on :${PORT} (output_dir=${OUTPUT_DIR})`);
+  console.log(`[renderer] listening on :${PORT} (backend=${RENDER_BACKEND}, output_dir=${OUTPUT_DIR})`);
 });
 
-// Kick off bundle build in the background; server accepts connections immediately.
-initBundle();
+initRuntime();

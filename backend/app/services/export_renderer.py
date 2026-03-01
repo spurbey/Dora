@@ -57,14 +57,17 @@ class LocalRemotionRenderer(AbstractRemotionRenderer):
         self,
         base_url: Optional[str] = None,
         renderer_version: str = "1",
-        timeout_seconds: float = 10.0,
+        timeout_seconds: float | httpx.Timeout = 10.0,
         client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         self._base_url = (base_url or os.getenv("RENDERER_URL", "http://localhost:3100")).rstrip("/")
         self._renderer_version = renderer_version
+        timeout = timeout_seconds
+        if isinstance(timeout_seconds, (int, float)):
+            timeout = httpx.Timeout(float(timeout_seconds))
         self._client = client or httpx.AsyncClient(
             base_url=self._base_url,
-            timeout=httpx.Timeout(timeout_seconds),
+            timeout=timeout,
             headers={"X-Renderer-Version": self._renderer_version},
         )
 
@@ -187,6 +190,21 @@ class MockRemotionRenderer(AbstractRemotionRenderer):
         state["error"] = "canceled_by_user"
 
 
+class LambdaRemotionRenderer(LocalRemotionRenderer):
+    """
+    HTTP adapter for renderer service running in Lambda mode.
+
+    Uses longer timeouts to tolerate lambda cold starts and slower status polls.
+    """
+
+    def __init__(self, base_url: Optional[str] = None, renderer_version: str = "1") -> None:
+        super().__init__(
+            base_url=base_url,
+            renderer_version=renderer_version,
+            timeout_seconds=httpx.Timeout(connect=30.0, read=600.0, write=30.0, pool=5.0),
+        )
+
+
 def create_renderer_from_env() -> AbstractRemotionRenderer:
     """
     Build renderer implementation from environment.
@@ -194,8 +212,11 @@ def create_renderer_from_env() -> AbstractRemotionRenderer:
     Supported values:
     - mock (default): deterministic in-memory renderer
     - local: HTTP adapter to local video-renderer service
+    - lambda: HTTP adapter to renderer service running lambda backend
     """
     backend = os.getenv("RENDER_BACKEND", "mock").strip().lower()
     if backend == "local":
         return LocalRemotionRenderer()
+    if backend == "lambda":
+        return LambdaRemotionRenderer()
     return MockRemotionRenderer()

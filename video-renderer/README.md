@@ -1,6 +1,6 @@
-# Video Renderer Service (Phase 6B)
+# Video Renderer Service (Phase 6B/6C)
 
-This folder hosts the local renderer service used by the backend export worker.
+This folder hosts the renderer service used by the backend export worker in both local and Lambda modes.
 
 ## Contract
 
@@ -18,8 +18,9 @@ Required request header on all renderer routes:
 ## Runtime
 
 - Node + Express service (`src/server.js`)
-- Remotion render lifecycle (`queued -> rendering -> completed|failed`)
-- Artifacts written to `RENDER_OUTPUT_DIR`
+- Frozen HTTP contract (`renderer-api-contract.md`) for both modes
+- `RENDER_BACKEND=local`: in-process Remotion rendering, artifacts written to `RENDER_OUTPUT_DIR`
+- `RENDER_BACKEND=lambda`: `@remotion/lambda` orchestration, artifacts written to S3 (`s3://...`)
 
 ## Local Run
 
@@ -31,11 +32,26 @@ npm run dev
 
 Required env vars:
 - `PORT` (default `3100`)
+- `RENDER_BACKEND` (`local` or `lambda`, default `local`)
 - `RENDER_OUTPUT_DIR` (must be shared with backend worker in Docker)
+
+Additional env vars for Lambda mode:
+- `AWS_REGION`
+- `LAMBDA_FUNCTION_NAME`
+- `LAMBDA_SERVE_URL`
+- `LAMBDA_OUTPUT_BUCKET`
 
 Backend worker must use:
 - `RENDER_BACKEND=local`
 - `RENDERER_URL=http://renderer:3100` (or localhost URL outside Docker)
+
+Lambda deploy helpers:
+
+```bash
+cd video-renderer
+npm run deploy:function
+npm run deploy:site
+```
 
 Or use root orchestration:
 - `docker-compose.dev.yml`

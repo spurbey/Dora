@@ -1,0 +1,14 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-private-exports-after-30-days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "private/"
+      },
+      "Expiration": {
+        "Days": 30
+      }
+    }
+  ]
+}

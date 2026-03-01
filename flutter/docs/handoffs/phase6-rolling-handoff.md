@@ -13,6 +13,7 @@ Continuity log across Phase 6 subphases (6A, 6B, 6C, 6D). Keep this file current
 - PRD: `flutter/docs/phases/Phase-6-PRD.md`
 - Checklist: `flutter/docs/phases/Phase-6-Execution-Checklist.md`
 - 6A contract freeze: `flutter/docs/handoffs/phase6-contract-freeze.md`
+- 6C kickoff: `flutter/docs/handoffs/phase6c-kickoff-procedure.md`
 - Renderer contract: `video-renderer/docs/renderer-api-contract.md`
 
 ## 3. Subphase Status
@@ -82,7 +83,34 @@ Completed in 6B-3 (Flutter UX):
 
 ### 6C - AWS Lambda Scale
 
-Status: Not started
+Status: In progress (6C-1 renderer cloud path started)
+
+Entry constraints frozen for 6C:
+- Renderer remains HTTP-only from backend (`LambdaRemotionRenderer` is an HTTP adapter; Node renderer owns `@remotion/lambda` usage).
+- Exact Remotion version pinning is mandatory across all Remotion packages (no ranges).
+- Lambda output contract uses `outName: {bucketName, key}` and progress polling must use the `bucketName` returned by `renderMediaOnLambda`.
+- Cancel semantics are frozen to current worker behavior: `cancel_requested -> completed` race accepted; otherwise worker settles `canceled` immediately after cancel path.
+- IAM is split by runtime principal (renderer runtime for Lambda invoke path, backend runtime for presigned URL path).
+- Share-token revocation and `pinned_at` retention wiring are scoped to 6D hardening.
+
+Current 6C-1 implementation progress (local diff):
+- Added Lambda backend implementation: `video-renderer/src/lambda-renderer.js`
+- Refactored renderer runtime switch in `video-renderer/src/server.js` (`RENDER_BACKEND=local|lambda`)
+- Added deploy scripts:
+  - `video-renderer/scripts/deploy-function.js`
+  - `video-renderer/scripts/deploy-site.js`
+- Added renderer env template: `video-renderer/.env.example`
+- Updated `video-renderer/package.json` with exact Remotion version pinning and deploy scripts.
+- Added backend Lambda HTTP adapter: `backend/app/services/export_renderer.py` (`LambdaRemotionRenderer`)
+- Updated worker output URL normalization for non-file renderer outputs (supports `s3://...`): `backend/app/workers/export_worker.py`
+- Added 6C service guardrails and S3 download presign path: `backend/app/services/export_service.py`
+- Updated backend env/dependency templates for Lambda mode:
+  - `backend/.env.example`
+  - `backend/requirements.txt` (adds `boto3`)
+- Added 6C infra policy artifacts:
+  - `infra/remotion/iam.json`
+  - `infra/remotion/s3_lifecycle.json`
+  - `infra/remotion/README.md`
 
 ### 6D - Quality + Hardening
 
@@ -97,9 +125,13 @@ Validated in user dependency-ready environment (earlier 6A milestone):
 Current sandbox limitation:
 - Backend pytest execution is blocked here by missing dependency: `sqlalchemy`.
 - Latest 6B-2 worker tests are committed but not re-run in this sandbox.
+- `video-renderer/package-lock.json` refresh is blocked here (`npm install` fails with `ENOTCACHED`).
 
 ## 5. Commit Trail (latest first)
 
+- `4e6d687` chore(renderer): update README and add lockfile
+- `d041ca6` docs(phase6): sync 6B docs with latest 6B-3 commits
+- `25a8e05` docs(phase6b): write evidence report and close 6B gate
 - `a345901` fix(export): apply 5 post-review fixes to 6B-3 Flutter UX
 - `f30274d` feat(6b-3): Flutter export UX — TemplatePicker, polling, all status states, SharePreviewScreen
 - `5307a41` fix(6b-2): correct asset_fetch docstring and annotate thumbnail shortcut
@@ -116,6 +148,6 @@ Current sandbox limitation:
 
 ## 6. Next Actions
 
-1. Begin 6C kickoff: provision IAM role + S3 bucket, implement `LambdaRemotionRenderer`.
-2. Confirm render manifest schema is stable before 6C starts (no pending changes to renderer contract).
-3. Update this file after 6C milestones.
+1. Execute 6C-1 renderer cloud path: implement Lambda backend in `video-renderer` + deploy scripts + exact Remotion pinning.
+2. Execute 6C-2 backend path: `LambdaRemotionRenderer`, queue/tier guardrails, S3 output handling, presigned download URLs.
+3. Execute 6C-3 infra/evidence: IAM split docs, lifecycle rule, concurrency/load evidence, and 6C cloud-scale report.

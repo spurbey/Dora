@@ -9,6 +9,7 @@ import pytest
 
 from app.models.export_job import ExportJob
 from app.models.trip import Trip
+import app.services.export_service as export_service_module
 
 
 @pytest.fixture(autouse=True)
@@ -114,6 +115,81 @@ def test_create_export_duplicate_returns_409(client, db, test_user, auth_as):
     assert body["detail"]["existing_job_id"] == first.json()["job_id"]
 
 
+def test_create_export_rejects_when_user_active_limit_reached(client, db, test_user, auth_as, monkeypatch):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+
+    monkeypatch.setenv("EXPORT_MAX_CONCURRENT_PER_USER", "2")
+    _create_export_job(db, test_user.id, trip.id, status="queued")
+    _create_export_job(db, test_user.id, trip.id, status="processing")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 429
+
+
+def test_create_export_rejects_when_global_queue_cap_reached(client, db, test_user, auth_as, monkeypatch):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+
+    monkeypatch.setenv("EXPORT_GLOBAL_QUEUE_CAP", "1")
+    _create_export_job(db, test_user.id, trip.id, status="queued")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 503
+
+
+def test_create_export_rejects_1080p_for_free_tier(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "1080p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 403
+
+
+def test_create_export_rejects_duration_above_free_tier_limit(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 16,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 403
+
+
 def test_get_export_status_enforces_ownership(client, db, test_user, other_user, auth_as):
     trip = _create_trip(db, test_user.id)
     job = _create_export_job(db, test_user.id, trip.id)
@@ -182,3 +258,29 @@ def test_get_share_url_for_completed_job(client, db, test_user, auth_as):
     body = response.json()
     assert body["share_url"].startswith("https://api.dora.app/api/v1/shares/")
     assert body["ttl_seconds"] == 604800
+
+
+def test_get_download_url_for_s3_output_generates_presigned_url(
+    client, db, test_user, auth_as, monkeypatch
+):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    class _FakeS3Client:
+        def generate_presigned_url(self, operation_name, Params, ExpiresIn):
+            assert operation_name == "get_object"
+            assert Params["Bucket"] == "dora-exports-dev"
+            assert Params["Key"] == "private/user/job/output.mp4"
+            assert ExpiresIn == export_service_module.DOWNLOAD_TTL_SECONDS
+            return "https://signed.example.com/download.mp4"
+
+    monkeypatch.setattr(export_service_module.boto3, "client", lambda *args, **kwargs: _FakeS3Client())
+
+    response = client.get(f"/api/v1/exports/{job.id}/download-url")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["download_url"] == "https://signed.example.com/download.mp4"
+    assert body["ttl_seconds"] == export_service_module.DOWNLOAD_TTL_SECONDS

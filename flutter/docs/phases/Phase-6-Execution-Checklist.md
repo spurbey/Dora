@@ -9,7 +9,7 @@ Last Updated: 2026-03-01
 
 ## How To Use This Checklist
 
-- Execute in order: 6A → 6B → 6C → 6D.
+- Execute in order: 6A -> 6B -> 6C -> 6D.
 - Do not advance until current sub-phase exit criteria are fully met.
 - Attach evidence notes at each gate.
 - Follow all guardrails in `Phase-6-PRD.md`.
@@ -23,9 +23,11 @@ This checklist remains the canonical gate list. Current implementation state fro
 
 - 6A implementation: completed (control plane, worker skeleton, Flutter wiring, contract freeze docs, `dora_api` regeneration and provider migration).
 - 6B-1 implementation: completed (local renderer service plus real Remotion pipeline and backend local renderer adapter wiring).
-- 6B-2 implementation: completed in code with committed stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling); dependency-ready verification and evidence capture still pending.
-- 6B-3 implementation: completed in code (`f30274d`, `a345901`) with template picker, polling/status UX, cancel flow, completion/share surface, and post-review hardening fixes; dependency-ready verification still pending.
-- 6B final evidence/sign-off: pending (`phase6b-remotion-mvp-report.md`).
+- 6B-2 implementation: completed with stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling).
+- 6B-3 implementation: completed (`f30274d`, `a345901`) with template picker, polling/status UX, cancel flow, completion/share surface, and hardening fixes.
+- 6B final evidence/sign-off: completed (`phase6b-remotion-mvp-report.md`, `25a8e05`) with docs sync (`d041ca6`).
+- 6C-1 implementation: started in local diff (renderer Lambda backend, deploy scripts, exact Remotion pinning).
+- 6C-2 implementation: started in local diff (backend Lambda adapter, output URL normalization, queue/tier caps, presigned S3 download path).
 
 Use this snapshot for quick orientation, then drive execution by the checkbox gates below.
 
@@ -46,24 +48,24 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 ### Contract Freeze Tasks
 
-- [ ] Freeze status model and stage model for export jobs (see §6.4 in PRD).
-- [ ] Freeze API contract for create/status/cancel/download-url (see §6.3 in PRD).
+- [ ] Freeze status model and stage model for export jobs (see Section 6.4 in PRD).
+- [ ] Freeze API contract for create/status/cancel/download-url (see Section 6.3 in PRD).
 - [ ] Freeze storage privacy model:
   - [ ] private by default
   - [ ] in-app download URL is presigned with 1hr TTL
   - [ ] share URL is a revocable backend token (7-day token lifetime) that issues short-lived (60s) presigned redirects
 - [ ] Freeze quality/cost caps for MVP (720p free tier max, per-user concurrency=2, global cap=50).
-- [ ] Freeze pre-submit guard contract (trip.serverTripId, pending media, pending sync — all three required).
-- [ ] Document renderer HTTP API contract stub in `video-renderer/docs/renderer-api-contract.md` (even if renderer doesn't exist yet — the contract must be written before 6B starts).
+- [ ] Freeze pre-submit guard contract (trip.serverTripId, pending media, pending sync - all three required).
+- [ ] Document renderer HTTP API contract stub in `video-renderer/docs/renderer-api-contract.md` (even if renderer doesn't exist yet - the contract must be written before 6B starts).
 
 ### Exit Criteria
 
 - [ ] Written `flutter/docs/handoffs/phase6-contract-freeze.md` exists and contains:
-  - [ ] Export job status enum with all values and transition rules (copy from §6.4)
+  - [ ] Export job status enum with all values and transition rules (copy from Section 6.4)
   - [ ] Export job stage enum with all values
-  - [ ] Full API request/response contracts for all 5 endpoints (copy from §6.3)
+  - [ ] Full API request/response contracts for all 5 endpoints (copy from Section 6.3)
   - [ ] URL/token TTL values (1hr download presigned URL, 7-day share token lifetime, 60s share redirect presigned URL)
-  - [ ] Quality caps per tier (free: ≤720p/≤15s; paid: ≤1080p/≤60s)
+  - [ ] Quality caps per tier (free: <=720p/<=15s; paid: <=1080p/<=60s)
   - [ ] Per-user and global concurrency caps
   - [ ] Pre-submit guard conditions (all three)
   - [ ] `blocked` semantics statement: server-only, worker-set, never at creation
@@ -82,13 +84,13 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 ### Backend Tasks
 
 - [ ] Create export job DB migration:
-  - [ ] `export_jobs` table with all columns from §6.1 including `next_attempt_at` (nullable datetime)
+  - [ ] `export_jobs` table with all columns from Section 6.1 including `next_attempt_at` (nullable datetime)
   - [ ] indexes: `(user_id, status)`, `(status, next_attempt_at)`, `(trip_id)`, `(snapshot_hash)`
-  - [ ] check constraints for valid `status` values — must include `cancel_requested` as a valid transitional status
+  - [ ] check constraints for valid `status` values - must include `cancel_requested` as a valid transitional status
   - [ ] migration rollback notes in migration file header
 - [ ] Add model + schemas:
-  - [ ] `backend/app/models/export_job.py` — SQLAlchemy model
-  - [ ] `backend/app/schemas/export.py` — Pydantic request/response/status schemas
+  - [ ] `backend/app/models/export_job.py` - SQLAlchemy model
+  - [ ] `backend/app/schemas/export.py` - Pydantic request/response/status schemas
 - [ ] Add renderer abstraction:
   - [ ] `AbstractRemotionRenderer` interface in `backend/app/services/export_renderer.py`
   - [ ] `MockRemotionRenderer` stub that simulates 6 stage progressions for testing
@@ -97,14 +99,14 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] `backend/app/api/v1/exports.py` with all 5 endpoints
   - [ ] register router in `backend/app/main.py`
 - [ ] Implement endpoints:
-  - [ ] `POST /api/v1/trips/{trip_id}/export` — with 409 dedup and 422 precondition responses
-  - [ ] `GET /api/v1/exports/{job_id}` — ownership check required
-  - [ ] `POST /api/v1/exports/{job_id}/cancel` — ownership check required
-  - [ ] `GET /api/v1/exports/{job_id}/download-url` — stub allowed in 6A; ownership + status==completed check required
-  - [ ] `GET /api/v1/exports/{job_id}/share` — ownership check required; returns revocable share URL/token
+  - [ ] `POST /api/v1/trips/{trip_id}/export` - with 409 dedup and 422 precondition responses
+  - [ ] `GET /api/v1/exports/{job_id}` - ownership check required
+  - [ ] `POST /api/v1/exports/{job_id}/cancel` - ownership check required
+  - [ ] `GET /api/v1/exports/{job_id}/download-url` - stub allowed in 6A; ownership + status==completed check required
+  - [ ] `GET /api/v1/exports/{job_id}/share` - ownership check required; returns revocable share URL/token
 - [ ] Add worker skeleton:
   - [ ] separate process in `backend/app/workers/export_worker.py`
-  - [ ] claim loop using `.with_for_update(skip_locked=True)` — standard `.with_for_update()` is NOT allowed
+  - [ ] claim loop using `.with_for_update(skip_locked=True)` - standard `.with_for_update()` is NOT allowed
   - [ ] `worker_session_id` stamped on claim
   - [ ] status/stage progression through all 6 stages using `MockRemotionRenderer`
   - [ ] exponential backoff on retry (30s, 120s, 480s)
@@ -164,7 +166,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] User can submit export job from Flutter and observe all 6 stage progressions (mock renderer).
 - [ ] Cancel endpoint updates state correctly; Flutter reflects canceled state.
 - [ ] Worker restart-recovery: after kill + restart, queued jobs are re-claimed without getting stuck in `processing`. Evidence must be captured in test output (see mandatory tests below).
-- [ ] `status = blocked` is never set at job creation — verify in service unit tests.
+- [ ] `status = blocked` is never set at job creation - verify in service unit tests.
 - [ ] Pre-submit guard rejects local-only trip (`trip.serverTripId == null`) with correct 422 response.
 - [ ] No regression in media upload/sync queue flows.
 - [ ] Renderer HTTP API contract document exists and is signed off.
@@ -182,7 +184,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 ### Pre-Condition Gate
 
-- [ ] §5.2 renderer HTTP API contract is frozen (from 6A exit).
+- [ ] Section 5.2 renderer HTTP API contract is frozen (from 6A exit).
 - [ ] `video-renderer/docs/renderer-api-contract.md` exists and is not pending changes.
 - [ ] 6A exit criteria are fully met.
 
@@ -208,12 +210,12 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] polls renderer progress endpoint during `rendering` stage
   - [ ] calls cancel endpoint when job is canceled
 - [ ] Implement all 6 worker stages:
-  - [ ] `snapshotting` — build manifest, validate ≤500KB, compute `snapshot_hash`
-  - [ ] `asset_fetch` — HEAD request all media URLs; fail fast if all 404
-  - [ ] `rendering` — call `LocalRemotionRenderer.render(manifest)`, poll until complete
-  - [ ] `encoding` — no-op for local path (Remotion handles inline)
-  - [ ] `uploading` — upload MP4 to private storage path and set `thumbnail_url` from snapshot media URL (6B shortcut)
-  - [ ] `finalizing` — persist output_url, thumbnail_url, render_duration_ms, mark completed
+  - [ ] `snapshotting` - build manifest, validate <=500KB, compute `snapshot_hash`
+  - [ ] `asset_fetch` - HEAD request all media URLs; fail fast if all 404
+  - [ ] `rendering` - call `LocalRemotionRenderer.render(manifest)`, poll until complete
+  - [ ] `encoding` - no-op for local path (Remotion handles inline)
+  - [ ] `uploading` - upload MP4 to private storage path and set `thumbnail_url` from snapshot media URL (6B shortcut)
+  - [ ] `finalizing` - persist output_url, thumbnail_url, render_duration_ms, mark completed
 - [ ] Cancel check at entry of each stage: read `status` from DB before proceeding.
 - [ ] Persist artifact metadata in `export_jobs` on completion.
 
@@ -224,13 +226,13 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] `export_studio_screen.dart` (submit + progress states)
   - [ ] `share_preview_screen.dart` (completion + download + share)
 - [ ] Implement all status/stage display states:
-  - [ ] `queued` → "Waiting in queue..." (poll at 10s intervals)
-  - [ ] `processing` → stage label + progress bar (poll at 2s intervals)
-  - [ ] `completed` → completion screen with download and share actions
-  - [ ] `failed` → error screen with retry button
-  - [ ] `cancel_requested` → "Canceling..." spinner (transitional, polls at 2s until resolved)
-  - [ ] `canceled` → canceled screen with restart option
-  - [ ] `blocked` → error screen with user-facing copy from `export_error_strings.dart` + support link
+  - [ ] `queued` -> "Waiting in queue..." (poll at 10s intervals)
+  - [ ] `processing` -> stage label + progress bar (poll at 2s intervals)
+  - [ ] `completed` -> completion screen with download and share actions
+  - [ ] `failed` -> error screen with retry button
+  - [ ] `cancel_requested` -> "Canceling..." spinner (transitional, polls at 2s until resolved)
+  - [ ] `canceled` -> canceled screen with restart option
+  - [ ] `blocked` -> error screen with user-facing copy from `export_error_strings.dart` + support link
 - [ ] Cancel confirmation dialog before cancel API call.
 - [ ] Poll back-off: 2s during `processing`, 10s during `queued`.
 
@@ -245,7 +247,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] 15-second 720p export completes end-to-end from Flutter in local dev.
 - [ ] All 6 worker stages execute and progress is visible in Flutter UI.
 - [ ] All failure states show actionable user-facing messages.
-- [ ] p95 success rate ≥ 95% for smoke set of 5 test trips.
+- [ ] p95 success rate >= 95% for smoke set of 5 test trips.
 - [ ] No regression in media upload and entity sync behavior.
 
 ### 6B Evidence
@@ -264,28 +266,36 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] 6B render manifest schema is stable and signed off.
 - [ ] No manifest schema changes pending.
 - [ ] 6B exit criteria are fully met.
+- [ ] `flutter/docs/handoffs/phase6c-kickoff-procedure.md` exists and matches frozen 6C contract.
 
 ### IAM and Infrastructure Tasks (must complete before Lambda testing)
 
-- [ ] Provision IAM role with minimum permissions (see §7.3 in PRD for exact policy).
+- [ ] Provision runtime principals with minimum permissions (see §7.3 in PRD):
+  - [ ] renderer runtime principal (Lambda invoke + Remotion/S3 internals)
+  - [ ] backend runtime principal (S3 read for presigned download URL generation)
 - [ ] Create `dora-exports-{env}` S3 bucket with:
   - [ ] no public ACLs
   - [ ] versioning disabled (artifacts are immutable once written)
-  - [ ] S3 lifecycle rule: delete objects older than 30 days where `pinned_at` tag is not set
+  - [ ] S3 lifecycle rule: delete objects older than 30 days under `private/` prefix (unconditional in 6C)
 - [ ] Create IaC definitions in `infra/remotion/`:
-  - [ ] `iam.tf` or `iam.ts` — IAM role and policy
+  - [ ] `iam.json` and/or `iam.tf` or `iam.ts` — policy and role definitions
   - [ ] `s3_lifecycle.json` — lifecycle rule
-  - [ ] `README.md` — provisioning steps and role ARN documentation
-- [ ] Store `AWS_WORKER_ROLE_ARN` and `AWS_LAMBDA_REGION` in `backend/.env.production` template.
+  - [ ] `README.md` — provisioning steps and runtime principal mapping
+- [ ] Document env vars in both `backend/.env.example` and renderer env template.
 
 ### Cloud Rendering Tasks
 
 - [ ] Implement `LambdaRemotionRenderer` in `export_renderer.py`.
+- [ ] Implement Lambda backend in `video-renderer` using `@remotion/lambda`.
 - [ ] Configure Lambda via `@remotion/lambda` tooling:
   - [ ] memory: 2048MB (720p), 3008MB (1080p)
   - [ ] `framesPerLambda`: 8
   - [ ] timeout: 900s
   - [ ] `reservedConcurrentExecutions`: 20
+- [ ] Use exact matching Remotion package versions (no `^`, `~`, or `x` ranges) across `remotion` and all `@remotion/*` packages.
+- [ ] Use `renderMediaOnLambda` custom output with `outName: { bucketName, key }` (no `outBucket` field).
+- [ ] Use `forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight` when applying manifest output settings.
+- [ ] Ensure `getRenderProgress` uses the `bucketName` returned by `renderMediaOnLambda`.
 - [ ] Configure cloud output destination and persist artifact metadata.
 - [ ] Switch renderer based on `RENDER_BACKEND` env var (`local` vs `lambda`).
 
@@ -294,25 +304,22 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] Enforce per-user active job limit (default: 2) in `export_service.py`.
 - [ ] Enforce global queue cap (default: 50) in `export_service.py`.
 - [ ] Implement dedup by `snapshot_hash + quality + aspect_ratio` — return 409 with existing job_id.
-- [ ] Enforce quality caps by tier: free ≤720p/≤15s, paid ≤1080p/≤60s.
+- [ ] Enforce quality caps by tier: free <=720p/<=15s, paid <=1080p/<=60s.
 - [ ] Add retry policy: max 3 attempts, backoffs 30s/120s/480s.
-- [ ] Add `pinned_at` column support in `export_jobs` to protect shared artifacts from lifecycle cleanup.
+- [ ] Keep `pinned_at`/artifact-retention hardening deferred to 6D (no 6C lifecycle-tag coupling).
 
 ### Reliability Tasks
 
-- [ ] Implement stale job reaper:
-  - [ ] background task marks jobs stuck in `processing` for > `EXPORT_WORKER_TIMEOUT_MINUTES` as `failed`
-  - [ ] `error_code = worker_timeout`
+- [ ] Reuse existing stale recovery flow (`recover_orphaned_jobs`) and tune `EXPORT_WORKER_STALE_SECONDS` for Lambda durations.
+- [ ] Add/verify S3 output path handling in worker upload stage (`s3://` skips Supabase re-upload).
+- [ ] Preserve cancel race semantics in rendering loop (`cancel_requested -> completed` when renderer already completed).
 - [ ] Add retry for transient Lambda failures: `lambda_throttle`, `lambda_timeout`, `lambda_5xx`.
 
 ### Security Tasks
 
 - [ ] Ownership check on all status/cancel/download-url endpoints.
 - [ ] Download URL: S3 presigned URL, 1-hour TTL.
-- [ ] Share URL model:
-  - [ ] 7-day backend share token (revocable)
-  - [ ] each share request issues a 60s S3 presigned redirect URL
-- [ ] Share URL invalidation: hook into trip visibility update — revoke shared artifacts when trip becomes private.
+- [ ] Keep share token revocation hardening scoped to 6D (no regression in current share endpoint contract during 6C).
 - [ ] No public bucket ACLs at any time.
 
 ### Observability Tasks
@@ -334,9 +341,9 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 - [ ] Lambda render path handles 5 concurrent jobs without deadlocks or duplicate artifacts.
 - [ ] Cost and concurrency limits enforced and confirmed in API layer tests.
-- [ ] IAM role uses minimum permissions — confirmed via policy review.
-- [ ] URL flow validated (download URL expires, share token revocation works, share redirect URL expires in 60s).
-- [ ] Share URL invalidation works when trip privacy changes to private.
+- [ ] IAM policy split uses minimum permissions — confirmed via policy review.
+- [ ] URL flow validated (download URL expires with 1-hour TTL).
+- [ ] Lambda renderer contract validated (exact package pinning + `outName` + progress `bucketName` handling).
 - [ ] Observability logs visible and tagged correctly.
 
 ### 6C Evidence
@@ -346,9 +353,9 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] Cost estimation for 720p/15s export (Lambda + S3)
 - [ ] IAM policy review sign-off
 - [ ] Guardrail verification (concurrency cap, quality cap, dedup)
+- [ ] Contract verification note (Remotion version pinning, Lambda API fields, and cancel semantics)
 
 ---
-
 ## Phase 6D - Quality, Templates, and Hardening
 
 ### Product Quality Tasks
@@ -377,8 +384,13 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] persist export-owned `thumbnail_url` (not reused trip media URL)
 - [ ] Verify cancel works at every stage boundary (test each stage individually).
 - [ ] Verify stale job reaper fires correctly for stuck `processing` jobs.
+- [ ] Implement share-token revocation hardening:
+  - [ ] persist share-token records server-side
+  - [ ] enforce `revoked_at` + trip privacy checks on share access
+  - [ ] issue short-lived (60s) S3 redirect URLs per share request
 - [ ] Add `pinned_at` UI control: "Keep this video" option on completion screen sets `pinned_at`.
-- [ ] Storage lifecycle cleanup confirmed working (artifacts ≥30 days without `pinned_at` are deleted).
+- [ ] Wire `pinned_at` policy to storage retention behavior (tag/rule integration).
+- [ ] Storage lifecycle cleanup confirmed working (artifacts >=30 days without `pinned_at` are deleted).
 
 ### Regression Tasks
 
@@ -419,7 +431,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 - [ ] Add tests:
   - [ ] `backend/tests/test_export_endpoints.py`
-  - [ ] `backend/tests/test_export_worker.py` — must include restart-recovery test
+  - [ ] `backend/tests/test_export_worker.py` - must include restart-recovery test
 - [ ] Run:
   - [ ] `cd backend && pytest tests/test_export_endpoints.py -v`
   - [ ] `cd backend && pytest tests/test_export_worker.py -v`
@@ -450,7 +462,9 @@ If any of these occur, halt the phase immediately and publish a remediation plan
 - [ ] Job stuck in `processing` or `cancel_requested` with no retry/reaper/cancel path.
 - [ ] Private trip export becomes publicly accessible without explicit publish action.
 - [ ] Export implementation regresses Phase 5 media/sync baseline.
-- [ ] `snapshot_json` contains binary or base64 data (violates §4 Guardrail 11).
-- [ ] Job claim uses `.with_for_update()` without `skip_locked=True` (violates §4 Guardrail 4).
-- [ ] `status = blocked` is set at job creation time (violates §4 Guardrail 12).
+- [ ] `snapshot_json` contains binary or base64 data (violates Section 4 Guardrail 11).
+- [ ] Job claim uses `.with_for_update()` without `skip_locked=True` (violates Section 4 Guardrail 4).
+- [ ] `status = blocked` is set at job creation time (violates Section 4 Guardrail 12).
 - [ ] Ownership check missing on any export endpoint (security regression).
+
+

@@ -1,32 +1,35 @@
-# Current Phase: Phase 6B - Remotion MVP Renderer Kickoff
+# Current Phase: Phase 6C - AWS Lambda Scale (6C-1 In Progress)
 
-Phase: Flutter-Phase-6B | Status: Kickoff started, 6A delivered
+Phase: Flutter-Phase-6C | Status: 6C-1 complete in local diff, 6C-2 started
 
 ## Active Branch
 - `phase-6-video-export`
 
-## 6A Delivered (Control Plane + Flutter Wiring)
-- Backend export control plane and worker:
-  - `export_jobs` migration/model/schema/service/router/worker
-  - endpoint and worker test suites for submit/status/cancel/recovery/retry/race paths
-- Flutter export scaffolding:
-  - export feature module (`features/export/**`)
-  - export routing and feature-flag route guard
-  - submit-time precheck revalidation and hardened error parsing
-  - route delete dependency fix for sync-blocking detection
-- Contracts and orchestration docs:
-  - `phase6-contract-freeze.md`
-  - renderer contract (`video-renderer/docs/renderer-api-contract.md`)
-  - local runtime orchestration (`docker-compose.dev.yml`, `Procfile.dev`)
+## Completed Before 6C
+- 6A control plane and Flutter wiring delivered.
+- 6B local Remotion renderer and Flutter export UX delivered.
+- 6B evidence report completed.
+- Phase docs synced for 6C kickoff:
+  - `flutter/docs/phases/Phase-6-PRD.md`
+  - `flutter/docs/phases/Phase-6-Execution-Checklist.md`
+  - `flutter/docs/handoffs/phase6-contract-freeze.md` (6C addendum)
+  - `flutter/docs/handoffs/phase6-rolling-handoff.md`
+  - `flutter/docs/handoffs/phase6c-kickoff-procedure.md`
 
-## Validation Snapshot (2026-02-28)
-- Backend Phase 6A tests (dependency-ready local env): `17/17` passed.
-- Flutter Phase 6A export tests: passed in local env after latest guard/error-string alignment.
-- Current sandbox limitation: backend test rerun is blocked here by missing `sqlalchemy` dependency.
+## Frozen 6C Constraints
+1. Backend worker uses HTTP renderer adapters only.
+2. Node renderer owns `@remotion/lambda` calls.
+3. Exact Remotion version pinning is mandatory.
+4. Lambda output uses `outName: {bucketName, key}`.
+5. `getRenderProgress` uses bucket from `renderMediaOnLambda` response.
+6. Cancel semantics follow current worker race model.
+7. IAM responsibility is split between renderer runtime and backend runtime.
+8. Share-token revocation and `pinned_at` retention wiring are 6D scope.
 
-## Immediate 6B Procedure
-1. Verify 6B precondition gate from checklist (contract freeze + 6A evidence + no pending schema drift).
-2. Implement local `video-renderer/` Express + Remotion service against frozen HTTP contract.
-3. Integrate `LocalRemotionRenderer` in backend worker with stage-level progress/cancel flow.
-4. Upgrade Flutter Export Studio from 6A single-template submit to 6B template + progress/share UX.
-5. Capture 6B evidence report with artifact playability and full stage logs.
+## Immediate 6C Procedure
+1. 6C-1 (local diff complete): Renderer Lambda backend + deploy scripts + exact version pinning.
+2. 6C-2 (in progress): Backend integration (`LambdaRemotionRenderer`, caps, S3 output path, presigned download URLs).
+3. 6C-3: IAM/lifecycle docs + concurrency/cost evidence report.
+
+## Local Environment Notes
+- `npm install` for `video-renderer` is blocked in this sandbox (`ENOTCACHED`), so lockfile refresh must be run in a network-enabled environment.

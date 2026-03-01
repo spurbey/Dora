@@ -17,6 +17,7 @@ from app.workers.export_worker import (
     TerminalJobError,
     _extract_first_photo_url,
     _extract_media_urls,
+    _resolve_output_url,
     _stage_asset_fetch,
     _stage_uploading,
     _validate_snapshot_size,
@@ -355,6 +356,20 @@ def test_uploading_skips_when_output_url_is_none(db, test_user, monkeypatch):
     assert job.output_url is None
 
 
+def test_uploading_skips_when_output_url_is_s3(db, test_user, monkeypatch):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    asyncio.run(_stage_uploading(db, job))
+    assert job.output_url == "s3://dora-exports-dev/private/user/job/output.mp4"
+
+
 def test_uploading_raises_on_storage_error(db, test_user, monkeypatch, tmp_path):
     """When the upload POST returns a non-2xx, uploading should raise RuntimeError."""
     trip = _create_trip(db, test_user.id)
@@ -500,3 +515,14 @@ def test_extract_first_photo_url_returns_none_when_no_media():
 def test_extract_first_photo_url_returns_first_http_url():
     snapshot = {"timeline": [{"url": "https://cdn.test/a.jpg"}, {"url": "https://cdn.test/b.jpg"}]}
     assert _extract_first_photo_url(snapshot) == "https://cdn.test/a.jpg"
+
+
+def test_resolve_output_url_preserves_s3_scheme():
+    assert (
+        _resolve_output_url("s3://dora-exports-dev/private/u/j/output.mp4", render_id="rid-1")
+        == "s3://dora-exports-dev/private/u/j/output.mp4"
+    )
+
+
+def test_resolve_output_url_prefixes_plain_filesystem_path():
+    assert _resolve_output_url("/tmp/render.mp4", render_id="rid-1") == "file:///tmp/render.mp4"

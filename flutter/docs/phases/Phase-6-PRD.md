@@ -2,7 +2,7 @@
 
 Last Updated: 2026-03-01
 Owner: TBD
-Status: Active - 6B in progress (6A complete)
+Status: Active - 6C in progress (6A and 6B complete)
 
 ---
 
@@ -59,13 +59,15 @@ The bullet list above reflects the original pre-implementation baseline. Current
   - local renderer service scaffold
   - real Remotion render pipeline in `video-renderer` with `Classic` composition
   - backend local renderer adapter and renderer lifecycle fix for worker loop
-- 6B-2 completed in code:
+- 6B-2 completed:
   - worker stage helpers for snapshot-size defense, `asset_fetch`, and upload/finalize paths (`2737880`, `0f2762a`, `5307a41`)
-  - dependency-ready validation and evidence capture still pending
-- 6B-3 completed in code:
+- 6B-3 completed:
   - Flutter export UX implementation (`f30274d`) for template selection, polling/status matrix, cancel flow, and completion/share surface
   - post-review hardening fixes (`a345901`) for transport decoupling, completion navigation guard, cancel refresh behavior, and tracking tests
-- 6B sign-off evidence is still pending.
+- 6B sign-off evidence completed (`25a8e05`) with docs sync follow-up (`d041ca6`).
+- 6C started in local diff:
+  - renderer Lambda backend scaffold + deploy scripts + exact Remotion pinning
+  - backend `LambdaRemotionRenderer`, S3-aware output URL handling, queue/tier caps, and presigned download path
 
 ---
 
@@ -129,7 +131,7 @@ The bullet list above reflects the original pre-implementation baseline. Current
 - New worker process (separate runtime from API server):
   - Claim jobs using `FOR UPDATE SKIP LOCKED`.
   - Build snapshot.
-  - Trigger renderer via HTTP (local) or SDK (Lambda).
+  - Trigger renderer via HTTP in both local and Lambda modes.
   - Track progress/stage.
   - Persist output metadata and failure reasons.
 
@@ -171,7 +173,7 @@ All requests include `X-Renderer-Version: 1` header. Version mismatch returns 40
 
 ### Lambda Renderer (Production)
 
-`LambdaRemotionRenderer` uses `@remotion/lambda` Node SDK (invoked by the backend worker as a subprocess or via an internal HTTP trigger — implementation detail left to 6C, but the interface is the same `AbstractRemotionRenderer` class defined in 6A).
+`LambdaRemotionRenderer` is still an HTTP adapter on the Python side. The Node `video-renderer` service owns all `@remotion/lambda` SDK calls. Backend worker never calls AWS Lambda SDKs directly.
 
 The interface is:
 ```python
@@ -187,6 +189,13 @@ class AbstractRemotionRenderer(ABC):
 ```
 
 Both `LocalRemotionRenderer` and `LambdaRemotionRenderer` implement this interface. The worker never calls renderer-specific code directly.
+
+6C contract details for Lambda mode:
+- Remotion package versions must be exact and identical (`remotion`, `@remotion/bundler`, `@remotion/renderer`, `@remotion/lambda`) with no version ranges (`^` or `~`).
+- Custom output destination uses `outName: {bucketName, key}` in `renderMediaOnLambda`.
+- `getRenderProgress` must use the `bucketName` returned by `renderMediaOnLambda` for progress polling context.
+- Override manifest timing/dimensions with Lambda-supported force fields (`forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight`).
+- Renderer HTTP contract remains unchanged (`X-Renderer-Version: 1`, same request/response shape) regardless of local or Lambda execution.
 
 ### FFmpeg Usage
 
@@ -314,8 +323,8 @@ Minimum required columns:
 - `snapshot_hash` (idempotency/dedup key — SHA-256 of normalized snapshot + config)
 - `output_url`
 - `thumbnail_url`
-- `pinned_at` (nullable datetime — if set, storage lifecycle cleanup skips this artifact)
-- `revoked_at` (nullable datetime — stamped when user revokes sharing or trip visibility changes to private; causes share endpoint to return 403)
+- `pinned_at` (nullable datetime — reserved for lifecycle protection policy in 6D)
+- `revoked_at` (nullable datetime — reserved for share revocation policy in 6D)
 - `error_code`
 - `error_message`
 - `retry_count`
@@ -475,10 +484,10 @@ processing
   ├─→ failed              (render error; retry_count < max_retries → auto-requeue to queued)
   ├─→ blocked             (terminal non-retryable condition detected by worker post-claim)
   ├─→ cancel_requested    (user requests cancel while renderer is in-flight; see below)
-  └─→ canceled            (confirmed after renderer acknowledges cancel or timeout elapses)
+  -> canceled            (worker settles canceled after cancel signal path)
 
 cancel_requested
-  ├─→ canceled            (renderer confirmed cancel OR cancel_timeout elapsed with no active artifact)
+  -> canceled            (worker settles canceled immediately after cancel path)
   └─→ completed           (race: render completed before cancel was processed — accept the artifact)
 
 failed
@@ -489,21 +498,19 @@ blocked    → [terminal — requires user action or support intervention]
 canceled   → [terminal]
 ```
 
-**Cancel semantics for distributed in-flight renders:**
-
-Cancellation is not instantaneous when a render is already executing in a remote process (local renderer subprocess or Lambda). The following protocol applies:
+**Cancel semantics for distributed in-flight renders (frozen for 6C):**
 
 1. User calls `POST /api/v1/exports/{job_id}/cancel`.
 2. API service sets `status = cancel_requested` atomically. Returns `202 Accepted` immediately.
-3. Worker detects `cancel_requested` at the next stage boundary check (≤2s polling interval).
-4. Worker calls `renderer.cancel(render_id)` via the renderer adapter.
-5. **If renderer confirms cancel:** worker sets `status = canceled`. Cleanup any partial artifacts.
-6. **If renderer does not respond within `CANCEL_CONFIRM_TIMEOUT_SECONDS` (default: 30s):** worker sets `status = canceled` anyway and marks the render_id as abandoned. The renderer is expected to self-clean on restart.
-7. **Race condition — render completes before cancel is processed:** if the renderer returns `completed` while status is `cancel_requested`, the worker accepts the completed artifact and sets `status = completed`. The user's cancel was too late; the video is available for download.
+3. Worker checks for `cancel_requested` at stage boundaries and within rendering poll loop.
+4. If render status is already `completed` when cancel is observed, worker accepts artifact and settles `status = completed` (race won by completion).
+5. Otherwise worker calls `renderer.cancel(render_id)` and settles `status = canceled` immediately.
 
-Flutter handles `cancel_requested` as a transitional display state: "Canceling..." with a spinner. Poll interval stays at 2s until status resolves to `canceled` or `completed`.
+Lambda-specific note:
+- Lambda cancel is best-effort and may be implemented as a no-op in the renderer backend.
+- Even when worker settles `canceled`, underlying Lambda tasks may finish in AWS. These late artifacts are ignored by control plane state.
 
-Lambda-specific note: Lambda renders cannot be interrupted mid-execution. For Lambda, `cancel_requested` transitions to `canceled` only after the current Lambda invocation completes or times out. `CANCEL_CONFIRM_TIMEOUT_SECONDS` should be set to `≥ framesPerLambda / fps` (e.g., 8/30 ≈ 1s per invocation) × remaining invocations, capped at 60s.
+Flutter handles `cancel_requested` as a transitional display state ("Canceling...") until status resolves to `canceled` or `completed`.
 
 **`blocked` semantics (server-side only):**
 
@@ -653,70 +660,53 @@ Objective: Move production rendering to scalable cloud execution with enforced c
 
 **Lambda renderer deliverables:**
 
-- `LambdaRemotionRenderer` adapter implementing `AbstractRemotionRenderer`.
-- Lambda function deployment via `@remotion/lambda` CLI tooling.
-- Lambda runtime configuration:
+- `LambdaRemotionRenderer` adapter in backend (`export_renderer.py`) with extended HTTP timeouts only.
+- Lambda backend implementation inside `video-renderer` using `@remotion/lambda`.
+- Lambda function/site deployment scripts in `video-renderer/scripts/`.
+- Lambda runtime configuration (frozen in 6C):
   - Memory: `2048MB` for ≤720p, `3008MB` for 1080p.
   - Timeout: `900s` (Lambda max).
-  - `framesPerLambda`: `8` (30fps × 15s = 450 frames → ~57 function invocations; target ≤80 total).
-  - Region: configurable via `AWS_LAMBDA_REGION` env var.
+  - `framesPerLambda`: `8`.
+  - Region: configurable via `AWS_REGION`.
   - Output bucket: `dora-exports-{env}` S3 bucket.
+- Remotion package pinning rule:
+  - All `@remotion/*` plus `remotion` must use the same exact patch version (no `^`, `~`, or `x` ranges).
 
 **IAM requirements (must be provisioned before 6C testing):**
 
-Minimum required permissions for the backend worker's IAM role:
+Use principal split with least privilege:
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["lambda:InvokeFunction"],
-      "Resource": "arn:aws:lambda:{region}:{account}:function:remotion-render-*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::dora-exports-{env}/*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ],
-      "Resource": "arn:aws:logs:{region}:{account}:log-group:/aws/lambda/remotion-render-*"
-    }
-  ]
-}
-```
+- Renderer service principal (Node `video-renderer`) permissions:
+  - `lambda:InvokeFunction` on remotion render functions.
+  - S3 permissions required by Remotion Lambda internals and configured output bucket writes.
+  - CloudWatch logging permissions for render diagnostics.
+- Backend worker principal (Python API/worker) permissions:
+  - S3 read access on export bucket objects required to generate presigned download URLs.
+  - No direct Lambda invoke permission required for normal 6C flow.
 
-- IAM role must use minimum permissions — no wildcards on resources.
-- Role ARN stored in `AWS_WORKER_ROLE_ARN` env var.
-- IaC definitions in `infra/remotion/iam.tf` (Terraform) or `infra/remotion/iam.ts` (CDK).
-- Document role setup in `infra/remotion/README.md`.
+Implementation notes:
+- Roles must use minimum permissions and environment-specific resource ARNs.
+- Role wiring and provisioning steps documented in `infra/remotion/README.md`.
+- `AWS_WORKER_ROLE_ARN` remains the backend runtime role env var; renderer runtime role is documented separately.
 
 **Cost controls:**
 
 - Per-user active export limit: max 2 concurrent jobs (configurable via `EXPORT_MAX_CONCURRENT_PER_USER` env var).
-- Global queue cap: max 50 active jobs (configurable via `EXPORT_MAX_QUEUE_DEPTH` env var).
+- Global queue cap: max 50 active jobs (configurable via `EXPORT_GLOBAL_QUEUE_CAP` env var).
 - Dedup by `snapshot_hash + quality + aspect_ratio`: if identical job already `queued` or `processing`, return existing `job_id` with `409 Conflict`.
 - Retry policy: max 3 attempts, exponential backoff (30s, 120s, 480s).
 - Quality caps by tier:
   - Free tier: ≤720p, ≤15s duration.
   - Paid tier: ≤1080p, ≤60s duration.
   - Enforced in `export_service.py` at job creation.
-- S3 lifecycle rule: auto-delete artifacts older than 30 days unless `pinned_at IS NOT NULL`. Apply via `infra/remotion/s3_lifecycle.json`.
+- S3 lifecycle rule for 6C: unconditional auto-delete of export artifacts older than 30 days (`private/` prefix). `pinned_at` protection wiring is deferred to 6D.
 - Target cost: <$0.15 per 720p/15s export (Lambda compute + S3 storage + transfer).
 
 **Security deliverables:**
 
 - Ownership check on all status/cancel/download-url endpoints: `job.user_id == requesting_user_id`.
 - Download URL: S3 presigned URL with 1-hour TTL, generated fresh on each `GET /download-url` call.
-- Share preview URL: backend proxy endpoint (`GET /exports/{job_id}/share`) backed by a revocable 7-day share token. Checks `revoked_at`, token expiry, and trip privacy on every request before issuing a 60s presigned redirect. Never issue raw long-lived presigned URLs to clients - they cannot be revoked.
-- `revoked_at` column required in `export_jobs` schema (nullable datetime, stamped when trip becomes private or user explicitly revokes sharing).
+- Share URL contract remains unchanged in 6C; full revocable-token persistence and privacy-revocation enforcement are completed in 6D.
 - No public bucket ACLs — all S3 access via presigned URLs only.
 
 **Observability deliverables:**
@@ -769,6 +759,10 @@ Objective: Reach product-grade export quality and operational confidence.
 - Cancel behavior consistent across all stages: worker checks cancel flag at entry of each stage.
 - Stale job reaper: background task that marks jobs stuck in `processing` **or** `cancel_requested` for >30 minutes as `failed` with `error_code = worker_timeout`. Configurable via `EXPORT_WORKER_TIMEOUT_MINUTES` env var. (`cancel_requested` jobs are reaped with the same timeout to handle the case where the renderer never acknowledged the cancel or the worker crashed mid-cancel.)
 - Storage lifecycle cleanup: `pinned_at` column used to protect shared artifacts from auto-delete.
+- Share-token hardening:
+  - Persist revocable share token records server-side.
+  - Enforce `revoked_at` and trip privacy checks on every share request.
+  - Issue short-lived (60s) S3 redirect URLs from share endpoint; never return long-lived raw S3 links.
 - Replace 6B thumbnail shortcut with generated export thumbnail artifact:
   - Extend renderer API to emit thumbnail frame metadata.
   - Upload `thumbnail.jpg` under `exports/private/{user_id}/{job_id}/thumbnail.jpg`.
@@ -873,7 +867,8 @@ These rules are mandatory for any agent implementing this phase.
 **Quality floor:**
 
 - All artifacts must be playable MP4 (H.264, AAC) without corruption.
-- Thumbnail must be generated for every completed export.
+- 6C minimum: every completed export must have non-empty `thumbnail_url`.
+- 6D target: thumbnail must be a generated export artifact frame, not reused source media.
 - Route animation must complete within the specified `duration_sec` without truncation.
 
 ---
@@ -964,7 +959,7 @@ These rules are mandatory for any agent implementing this phase.
 - `video-renderer/` (new Remotion + Express service)
 - `video-renderer/docs/renderer-api-contract.md` (frozen HTTP API contract)
 - `video-renderer/README.md` (local dev setup instructions)
-- `infra/remotion/iam.tf` or `infra/remotion/iam.ts` (IAM role definition)
+- `infra/remotion/iam.json` and/or `infra/remotion/iam.tf|iam.ts` (IAM policy/role definition)
 - `infra/remotion/s3_lifecycle.json` (S3 lifecycle rule for artifact cleanup)
 - `infra/remotion/README.md` (Lambda deployment and IAM provisioning guide)
 - `docker-compose.dev.yml` (repo root — three-service local dev stack)
@@ -974,6 +969,7 @@ These rules are mandatory for any agent implementing this phase.
 
 - `flutter/docs/ops/export-runbook.md` (6D — operational runbook)
 - `flutter/docs/handoffs/phase6-contract-freeze.md` (required before 6A — see §6.4 and Checklist)
+- `flutter/docs/handoffs/phase6c-kickoff-procedure.md` (required before 6C implementation starts)
 
 ---
 
@@ -997,6 +993,11 @@ These rules are mandatory for any agent implementing this phase.
 
 - Remotion Lambda docs and SSR comparison:
   - https://www.remotion.dev/docs/lambda
+  - https://www.remotion.dev/docs/lambda/api
+  - https://www.remotion.dev/docs/lambda/rendermediaonlambda
+  - https://www.remotion.dev/docs/lambda/getrenderprogress
+  - https://www.remotion.dev/docs/lambda/deleterender
+  - https://www.remotion.dev/docs/lambda/custom-output
   - https://www.remotion.dev/docs/compare-ssr
   - https://www.remotion.dev/docs/lambda/concurrency
   - https://www.remotion.dev/docs/lambda/limits

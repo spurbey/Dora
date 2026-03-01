@@ -7,17 +7,20 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "deploy:function": "node scripts/deploy-function.js",
+    "deploy:site": "node scripts/deploy-site.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@remotion/bundler": "^4.0.0",
-    "@remotion/renderer": "^4.0.0",
+    "@remotion/bundler": "4.0.431",
+    "@remotion/lambda": "4.0.431",
+    "@remotion/renderer": "4.0.431",
     "express": "^4.21.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "remotion": "^4.0.0"
+    "remotion": "4.0.431"
   }
 }

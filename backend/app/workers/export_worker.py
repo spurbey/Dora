@@ -146,6 +146,20 @@ def _extract_first_photo_url(snapshot: dict) -> Optional[str]:
     return urls[0] if urls else None
 
 
+def _resolve_output_url(output_path: Optional[str], render_id: str) -> str:
+    """
+    Normalize renderer output path to persisted artifact URL format.
+
+    - s3://... and http(s)://... are persisted as-is
+    - file://... is preserved
+    - plain filesystem paths are prefixed with file://
+    """
+    resolved = output_path or f"/tmp/{render_id}.mp4"
+    if resolved.startswith(("s3://", "http://", "https://", "file://")):
+        return resolved
+    return f"file://{resolved}"
+
+
 async def _stage_uploading(
     db: Session,
     job: ExportJob,
@@ -441,8 +455,10 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     # Race: cancel arrived but renderer already completed — accept artifact.
                     if job.status == "cancel_requested":
                         if render_status.status == "completed":
-                            output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
-                            job.output_url = job.output_url or f"file://{output_path}"
+                            job.output_url = job.output_url or _resolve_output_url(
+                                render_status.output_path,
+                                render_id=render_id,
+                            )
                             job.status = "processing"
                             job.error_code = None
                             job.error_message = None
@@ -456,8 +472,10 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     db.commit()
 
                     if render_status.status == "completed":
-                        output_path = render_status.output_path or f"/tmp/{render_id}.mp4"
-                        job.output_url = job.output_url or f"file://{output_path}"
+                        job.output_url = job.output_url or _resolve_output_url(
+                            render_status.output_path,
+                            render_id=render_id,
+                        )
                         db.commit()
                         break
                     if render_status.status in {"failed", "canceled"}:

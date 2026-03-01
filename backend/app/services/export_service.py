@@ -8,9 +8,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import os
 from typing import Any, Optional
+from urllib.parse import urlparse
 from uuid import UUID
 
+import boto3
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,11 @@ from app.schemas.export import ExportCreateRequest
 SNAPSHOT_MAX_BYTES = 500 * 1024
 DOWNLOAD_TTL_SECONDS = 3600
 SHARE_TTL_SECONDS = 604800
+DEFAULT_MAX_CONCURRENT_PER_USER = 2
+DEFAULT_GLOBAL_QUEUE_CAP = 50
+DEFAULT_FREE_TIER_MAX_DURATION_SEC = 15
+DEFAULT_FREE_TIER_MAX_QUALITY = "720p"
+QUALITY_RANK = {"480p": 0, "720p": 1, "1080p": 2}
 
 
 @dataclass
@@ -42,6 +50,7 @@ class ExportService:
     ) -> ExportJob:
         trip = self._get_trip_for_owner(trip_id=trip_id, user_id=user_id)
         self._validate_preconditions(trip=trip, user_id=user_id)
+        self._validate_service_limits(user_id=user_id, request=request)
 
         snapshot = self._build_snapshot(trip=trip, request=request)
         snapshot_hash = self._compute_snapshot_hash(snapshot=snapshot)
@@ -150,7 +159,24 @@ class ExportService:
             )
 
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=DOWNLOAD_TTL_SECONDS)
-        download_url = job.output_url or f"https://downloads.dora.local/exports/{job.id}.mp4"
+        output_url = job.output_url or ""
+        if output_url.startswith("s3://"):
+            parsed = urlparse(output_url)
+            bucket = parsed.netloc
+            key = parsed.path.lstrip("/")
+            if not bucket or not key:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Invalid S3 output path for completed export",
+                )
+            s3 = boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
+            download_url = s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=DOWNLOAD_TTL_SECONDS,
+            )
+        else:
+            download_url = output_url or f"https://downloads.dora.local/exports/{job.id}.mp4"
         return {
             "download_url": download_url,
             "expires_at": expires_at,
@@ -199,6 +225,65 @@ class ExportService:
             self._raise_precondition_failed(
                 reason="pending_sync",
                 detail="Trip changes are still syncing.",
+            )
+
+    def _validate_service_limits(self, user_id: UUID, request: ExportCreateRequest) -> None:
+        max_concurrent_per_user = int(
+            os.getenv("EXPORT_MAX_CONCURRENT_PER_USER", str(DEFAULT_MAX_CONCURRENT_PER_USER))
+        )
+        global_queue_cap = int(
+            os.getenv("EXPORT_GLOBAL_QUEUE_CAP", str(DEFAULT_GLOBAL_QUEUE_CAP))
+        )
+        free_tier_max_duration_sec = int(
+            os.getenv(
+                "EXPORT_FREE_TIER_MAX_DURATION_SEC",
+                str(DEFAULT_FREE_TIER_MAX_DURATION_SEC),
+            )
+        )
+        free_tier_max_quality = os.getenv(
+            "EXPORT_FREE_TIER_MAX_QUALITY",
+            DEFAULT_FREE_TIER_MAX_QUALITY,
+        )
+
+        active_count = (
+            self.db.query(ExportJob)
+            .filter(ExportJob.user_id == user_id)
+            .filter(ExportJob.status.in_(["queued", "processing", "cancel_requested"]))
+            .count()
+        )
+        if active_count >= max_concurrent_per_user:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"You already have {max_concurrent_per_user} active exports. "
+                    "Wait for one to finish."
+                ),
+            )
+
+        global_queued = (
+            self.db.query(ExportJob)
+            .filter(ExportJob.status == "queued")
+            .count()
+        )
+        if global_queued >= global_queue_cap:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Export queue is at capacity. Please try again shortly.",
+            )
+
+        free_quality_rank = QUALITY_RANK.get(free_tier_max_quality, QUALITY_RANK["720p"])
+        requested_quality_rank = QUALITY_RANK.get(request.quality.value, QUALITY_RANK["1080p"])
+        if requested_quality_rank > free_quality_rank:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"{request.quality.value} exports require a paid plan.",
+            )
+        if request.duration_sec > free_tier_max_duration_sec:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Exports longer than {free_tier_max_duration_sec}s require a paid plan."
+                ),
             )
 
     def _raise_precondition_failed(self, reason: str, detail: str) -> None:

@@ -12,13 +12,13 @@ Implemented endpoints:
 - `GET /api/v1/render/{render_id}`
 - `DELETE /api/v1/render/{render_id}`
 
-All requests must include:
+Required request header on all renderer routes:
 - `X-Renderer-Version: 1`
 
 ## Runtime
 
 - Node + Express service (`src/server.js`)
-- In-memory render lifecycle (`queued -> rendering -> completed|failed`)
+- Remotion render lifecycle (`queued -> rendering -> completed|failed`)
 - Artifacts written to `RENDER_OUTPUT_DIR`
 
 ## Local Run
@@ -35,8 +35,101 @@ Required env vars:
 
 Backend worker must use:
 - `RENDER_BACKEND=local`
-- `RENDERER_URL=http://renderer:3100` (or local host URL outside Docker)
+- `RENDERER_URL=http://renderer:3100` (or localhost URL outside Docker)
 
 Or use root orchestration:
 - `docker-compose.dev.yml`
 - `Procfile.dev`
+
+## Smoke Test (Windows PowerShell)
+
+Run these in order. Keep terminal A running for server logs.
+
+### 1. Start server (terminal A)
+
+```powershell
+cd C:\Users\sumit\Downloads\Dora\video-renderer
+npm run dev
+```
+
+Wait for:
+
+`[renderer] bundle ready — 1 composition(s): Classic`
+
+If bundle init fails due browser discovery, set Chrome path and restart:
+
+```powershell
+$env:REMOTION_CHROME_EXECUTABLE='C:\Program Files\Google\Chrome\Application\chrome.exe'
+npm run dev
+```
+
+### 2. Submit render (terminal B)
+
+Use `curl.exe` (not PowerShell `curl` alias):
+
+```powershell
+$body = @'
+{
+  "job_id": "smoke-test-1",
+  "template": "classic",
+  "aspect_ratio": "9:16",
+  "quality": "720p",
+  "duration_sec": 5,
+  "fps": 30,
+  "snapshot": {
+    "trip": { "title": "Smoke Test Trip" },
+    "places": [],
+    "media": []
+  }
+}
+'@
+
+$resp = curl.exe -s -X POST http://localhost:3100/api/v1/render `
+  -H "Content-Type: application/json" `
+  -H "x-renderer-version: 1" `
+  -d $body
+
+$resp
+```
+
+Expected: JSON with `render_id` and `status: "queued"`.
+
+### 3. Poll status to completion
+
+Replace `<render_id>` with value from step 2.
+
+```powershell
+curl.exe -s http://localhost:3100/api/v1/render/<render_id> `
+  -H "x-renderer-version: 1"
+```
+
+Repeat until status is `completed` or `failed`.
+
+### 4. Verify output file
+
+```powershell
+Get-ChildItem C:\Users\sumit\Downloads\Dora\video-renderer\render_artifacts\*.mp4 |
+  Select-Object Name,Length,LastWriteTime
+```
+
+Pass criteria:
+- API status is `completed`
+- output `.mp4` exists
+- output size is non-zero
+- video opens in a player
+
+### 5. Cancel-path smoke (recommended)
+
+Submit a longer render (e.g., `duration_sec: 30`), then cancel while `rendering`:
+
+```powershell
+curl.exe -s -X DELETE http://localhost:3100/api/v1/render/<render_id> `
+  -H "x-renderer-version: 1"
+```
+
+Then poll again (with version header) and verify final canceled/failed-with-cancel state.
+
+### 6. Negative contract checks (recommended)
+
+- Missing version header should return `400 version_mismatch`
+- Invalid payload should return `422 validation_error`

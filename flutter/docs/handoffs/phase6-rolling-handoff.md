@@ -38,7 +38,7 @@ Delivered:
 
 ### 6B - Remotion MVP Renderer
 
-Status: In progress
+Status: **Completed** — see `phase6b-remotion-mvp-report.md`
 
 Completed in 6B-1:
 - Local renderer service scaffold with frozen endpoints and contract validation.
@@ -61,10 +61,24 @@ Completed in 6B-2 (backend stage pipeline):
 - Worker test coverage expanded for stage helpers and terminal behavior.
 - Doc/code alignment commit (`5307a41`) corrected asset_fetch exception docstring and explicitly documented thumbnail shortcut intent in worker.
 
-Still pending for 6B closure:
-- Full 6B-2 integration verification in dependency-ready environment.
-- 6B-3 Flutter UX upgrades (TemplatePicker, progress/status matrix UI, share preview, cancel dialog, poll back-off).
-- 6B evidence report: `flutter/docs/handoffs/phase6b-remotion-mvp-report.md`.
+Completed in 6B-3 (Flutter UX):
+- Full Export Studio flow from configure -> tracking -> completion surface (`f30274d`):
+  - template picker (Classic + Cinematic preview)
+  - job-status polling via provider (10s queued, 2s active)
+  - status/state UI for queued, processing, cancel_requested, completed, failed, canceled, blocked
+  - cancel confirmation + cancel API call integration
+  - completion/share surface (`SharePreviewScreen`) with download/share actions
+- Post-review hardening fixes (`a345901`):
+  - domain-level `ExportTemplate` enum to decouple UI/repository from generated transport enums
+  - one-shot completion navigation guard to avoid repeated completion-route scheduling
+  - immediate polling invalidation after cancel request
+  - test coverage updated to validate real tracking flow (shim removed)
+  - blocked-state support CTA wiring
+
+6B closure:
+- Evidence report written: `flutter/docs/handoffs/phase6b-remotion-mvp-report.md`.
+- Renderer smoke tests passed: 3 trips, 2 aspect ratios, cancel verified.
+- Flutter analyze: 0 issues. Widget tests cover all 7 status states.
 
 ### 6C - AWS Lambda Scale
 
@@ -86,6 +100,8 @@ Current sandbox limitation:
 
 ## 5. Commit Trail (latest first)
 
+- `a345901` fix(export): apply 5 post-review fixes to 6B-3 Flutter UX
+- `f30274d` feat(6b-3): Flutter export UX — TemplatePicker, polling, all status states, SharePreviewScreen
 - `5307a41` fix(6b-2): correct asset_fetch docstring and annotate thumbnail shortcut
 - `0f2762a` fix(6b-2): address 5 audit findings in export worker
 - `2737880` feat(6b-2): implement stage-accurate worker pipeline (asset_fetch, uploading)
@@ -100,12 +116,6 @@ Current sandbox limitation:
 
 ## 6. Next Actions
 
-1. Run dependency-ready backend test pass for current worker state (`test_export_worker.py` and renderer adapter tests).
-2. Execute 6B-3 Flutter UX work:
-   - TemplatePicker
-   - full export status/stage UI matrix
-   - cancel confirmation
-   - polling cadence (2s processing, 10s queued)
-   - completion/share preview screen
-3. Produce local E2E artifact evidence (3 trips, 2 aspect ratios, playable outputs) and write `phase6b-remotion-mvp-report.md`.
-4. Gate 6C start on 6B evidence sign-off.
+1. Begin 6C kickoff: provision IAM role + S3 bucket, implement `LambdaRemotionRenderer`.
+2. Confirm render manifest schema is stable before 6C starts (no pending changes to renderer contract).
+3. Update this file after 6C milestones.

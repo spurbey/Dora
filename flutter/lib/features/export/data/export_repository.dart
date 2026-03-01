@@ -1,11 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
-import 'package:dora_api/dora_api.dart';
+import 'package:dora_api/dora_api.dart' as api;
 
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/export/domain/export_error_strings.dart';
 import 'package:dora/features/export/domain/export_job.dart';
 import 'package:dora/features/export/domain/export_state.dart';
+import 'package:dora/features/export/domain/export_template.dart';
 
 /// Contract for export data operations used by providers/UI.
 abstract class ExportRepositoryContract {
@@ -29,7 +30,7 @@ class ExportRepository implements ExportRepositoryContract {
   ExportRepository(this._db, this._exportsApi, this._getToken);
 
   final AppDatabase _db;
-  final ExportsApi _exportsApi;
+  final api.ExportsApi _exportsApi;
 
   /// Returns the current auth bearer token, or null if the session has expired.
   final Future<String?> Function() _getToken;
@@ -117,8 +118,8 @@ class ExportRepository implements ExportRepositoryContract {
       final response = await _exportsApi.createExportApiV1TripsTripIdExportPost(
         tripId: serverTripId,
         authorization: authorization,
-        exportCreateRequest: ExportCreateRequest(
-          (b) => b..template = template,
+        exportCreateRequest: api.ExportCreateRequest(
+          (b) => b..template = _mapTemplate(template),
         ),
       );
 
@@ -249,7 +250,16 @@ class ExportRepository implements ExportRepositoryContract {
     return 'Bearer $token';
   }
 
-  ExportJob _mapStatusResponse(ExportStatusResponse data) {
+  api.ExportTemplate _mapTemplate(ExportTemplate template) {
+    switch (template) {
+      case ExportTemplate.classic:
+        return api.ExportTemplate.classic;
+      case ExportTemplate.cinematic:
+        return api.ExportTemplate.cinematic;
+    }
+  }
+
+  ExportJob _mapStatusResponse(api.ExportStatusResponse data) {
     return ExportJob(
       jobId: data.jobId,
       status: _mapStatus(data.status),
@@ -262,25 +272,27 @@ class ExportRepository implements ExportRepositoryContract {
     );
   }
 
-  ExportJobStatus _mapStatus(ExportStatus s) {
-    if (s == ExportStatus.queued) return ExportJobStatus.queued;
-    if (s == ExportStatus.processing) return ExportJobStatus.processing;
-    if (s == ExportStatus.cancelRequested) return ExportJobStatus.cancelRequested;
-    if (s == ExportStatus.completed) return ExportJobStatus.completed;
-    if (s == ExportStatus.failed) return ExportJobStatus.failed;
-    if (s == ExportStatus.canceled) return ExportJobStatus.canceled;
-    if (s == ExportStatus.blocked) return ExportJobStatus.blocked;
+  ExportJobStatus _mapStatus(api.ExportStatus s) {
+    if (s == api.ExportStatus.queued) return ExportJobStatus.queued;
+    if (s == api.ExportStatus.processing) return ExportJobStatus.processing;
+    if (s == api.ExportStatus.cancelRequested) {
+      return ExportJobStatus.cancelRequested;
+    }
+    if (s == api.ExportStatus.completed) return ExportJobStatus.completed;
+    if (s == api.ExportStatus.failed) return ExportJobStatus.failed;
+    if (s == api.ExportStatus.canceled) return ExportJobStatus.canceled;
+    if (s == api.ExportStatus.blocked) return ExportJobStatus.blocked;
     return ExportJobStatus.failed;
   }
 
-  ExportJobStage? _mapStage(ExportStage? s) {
+  ExportJobStage? _mapStage(api.ExportStage? s) {
     if (s == null) return null;
-    if (s == ExportStage.snapshotting) return ExportJobStage.snapshotting;
-    if (s == ExportStage.assetFetch) return ExportJobStage.assetFetch;
-    if (s == ExportStage.rendering) return ExportJobStage.rendering;
-    if (s == ExportStage.encoding) return ExportJobStage.encoding;
-    if (s == ExportStage.uploading) return ExportJobStage.uploading;
-    if (s == ExportStage.finalizing) return ExportJobStage.finalizing;
+    if (s == api.ExportStage.snapshotting) return ExportJobStage.snapshotting;
+    if (s == api.ExportStage.assetFetch) return ExportJobStage.assetFetch;
+    if (s == api.ExportStage.rendering) return ExportJobStage.rendering;
+    if (s == api.ExportStage.encoding) return ExportJobStage.encoding;
+    if (s == api.ExportStage.uploading) return ExportJobStage.uploading;
+    if (s == api.ExportStage.finalizing) return ExportJobStage.finalizing;
     return null;
   }
 
@@ -335,7 +347,7 @@ class ExportRepository implements ExportRepositoryContract {
         return 'Trip must be synced before exporting.';
       }
       if (reason == 'pending_media') {
-        return 'Finish media uploads before exporting.';
+        return 'Finish pending media uploads before exporting.';
       }
       if (reason == 'pending_sync') {
         return 'Wait for sync queue to finish before exporting.';

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dora_api/dora_api.dart';
-
 import 'package:dora/features/export/data/export_repository.dart';
 import 'package:dora/features/export/domain/export_job.dart';
 import 'package:dora/features/export/domain/export_state.dart';
+import 'package:dora/features/export/domain/export_template.dart';
 import 'package:dora/features/export/presentation/providers/export_provider.dart';
 import 'package:dora/features/export/presentation/screens/share_preview_screen.dart';
 
@@ -29,7 +28,7 @@ void main() {
 
     testWidgets('shows thumbnail placeholder when thumbnailUrl is null',
         (tester) async {
-      final job = ExportJob(
+      const job = ExportJob(
         jobId: 'job-1',
         status: ExportJobStatus.completed,
         progress: 1.0,

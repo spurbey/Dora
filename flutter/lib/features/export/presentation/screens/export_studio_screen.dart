@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dora_api/dora_api.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
@@ -10,6 +10,7 @@ import 'package:dora/features/export/data/export_repository.dart';
 import 'package:dora/features/export/domain/export_error_strings.dart';
 import 'package:dora/features/export/domain/export_job.dart';
 import 'package:dora/features/export/domain/export_state.dart';
+import 'package:dora/features/export/domain/export_template.dart';
 import 'package:dora/features/export/presentation/providers/export_provider.dart';
 import 'package:dora/features/export/presentation/screens/share_preview_screen.dart';
 
@@ -26,11 +27,14 @@ class ExportStudioScreen extends ConsumerStatefulWidget {
 }
 
 class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
+  static final Uri _supportUrl = Uri.parse('https://dora.app/support');
+
   _ExportPhase _phase = _ExportPhase.configure;
   ExportTemplate _selectedTemplate = ExportTemplate.classic;
   String? _activeJobId;
   bool _isSubmitting = false;
   bool _isCanceling = false;
+  bool _completionNavigationScheduled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +253,9 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
 
   Widget _buildTrackingContent(ExportJob job) {
     // Navigate to SharePreviewScreen post-frame when completed.
-    if (job.status == ExportJobStatus.completed) {
+    if (job.status == ExportJobStatus.completed &&
+        !_completionNavigationScheduled) {
+      _completionNavigationScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
@@ -259,6 +265,8 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
           ),
         );
       });
+    } else if (job.status != ExportJobStatus.completed) {
+      _completionNavigationScheduled = false;
     }
 
     return Center(
@@ -267,7 +275,11 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _StatusCard(job: job),
+            _StatusCard(
+              job: job,
+              onSupportTap:
+                  job.status == ExportJobStatus.blocked ? _openSupport : null,
+            ),
             if (_isCancelable(job.status)) ...[
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton(
@@ -352,6 +364,7 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
     setState(() => _isCanceling = true);
     try {
       await ref.read(exportRepositoryProvider).cancelJob(job.jobId);
+      ref.invalidate(exportJobPollingProvider(job.jobId));
     } on ExportRepositoryException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -361,14 +374,38 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
       if (mounted) setState(() => _isCanceling = false);
     }
   }
+
+  Future<void> _openSupport() async {
+    try {
+      final launched = await launchUrl(
+        _supportUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open support link.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open support link.')),
+        );
+      }
+    }
+  }
 }
 
 // ── Status card ──────────────────────────────────────────────────────────────
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.job});
+  const _StatusCard({
+    required this.job,
+    this.onSupportTap,
+  });
 
   final ExportJob job;
+  final VoidCallback? onSupportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -415,6 +452,14 @@ class _StatusCard extends StatelessWidget {
               style: AppTypography.body.copyWith(color: AppColors.error),
               textAlign: TextAlign.center,
             ),
+            if (onSupportTap != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              TextButton.icon(
+                onPressed: onSupportTap,
+                icon: const Icon(Icons.support_agent_outlined),
+                label: const Text('Contact support'),
+              ),
+            ],
           ],
           if (job.status == ExportJobStatus.failed &&
               (job.errorMessage ?? '').isNotEmpty) ...[

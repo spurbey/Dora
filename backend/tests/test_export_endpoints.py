@@ -156,6 +156,26 @@ def test_create_export_rejects_when_global_queue_cap_reached(client, db, test_us
     assert response.status_code == 503
 
 
+def test_create_export_global_cap_counts_processing_jobs(client, db, test_user, auth_as, monkeypatch):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+
+    monkeypatch.setenv("EXPORT_GLOBAL_QUEUE_CAP", "1")
+    _create_export_job(db, test_user.id, trip.id, status="processing")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 503
+
+
 def test_create_export_rejects_1080p_for_free_tier(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)

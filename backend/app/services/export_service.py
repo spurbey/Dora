@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 import os
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -30,6 +31,8 @@ DEFAULT_GLOBAL_QUEUE_CAP = 50
 DEFAULT_FREE_TIER_MAX_DURATION_SEC = 15
 DEFAULT_FREE_TIER_MAX_QUALITY = "720p"
 QUALITY_RANK = {"480p": 0, "720p": 1, "1080p": 2}
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -90,6 +93,14 @@ class ExportService:
         self.db.add(job)
         self.db.commit()
         self.db.refresh(job)
+        logger.info(
+            "[EXPORT_JOB] created job_id=%s user_id=%s quality=%s aspect_ratio=%s duration_sec=%s",
+            job.id,
+            user_id,
+            job.quality,
+            job.aspect_ratio,
+            job.duration_sec,
+        )
         return job
 
     def get_export_job(self, user_id: UUID, job_id: UUID) -> ExportJob:
@@ -260,12 +271,12 @@ class ExportService:
                 ),
             )
 
-        global_queued = (
+        global_active = (
             self.db.query(ExportJob)
-            .filter(ExportJob.status == "queued")
+            .filter(ExportJob.status.in_(["queued", "processing", "cancel_requested"]))
             .count()
         )
-        if global_queued >= global_queue_cap:
+        if global_active >= global_queue_cap:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Export queue is at capacity. Please try again shortly.",

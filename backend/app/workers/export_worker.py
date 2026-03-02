@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 import os
 import time
 from typing import Optional
@@ -43,6 +44,8 @@ EXPORTS_BUCKET = "exports"
 # 500 KB hard cap on snapshot payload (defence-in-depth; enforced at creation too).
 SNAPSHOT_MAX_BYTES = 500 * 1024
 
+logger = logging.getLogger(__name__)
+
 
 class TerminalJobError(Exception):
     """Raised by stage handlers for non-retryable terminal conditions.
@@ -65,6 +68,29 @@ def utcnow() -> datetime:
 def backoff_seconds(retry_count: int) -> int:
     index = max(0, min(retry_count - 1, len(RETRY_BACKOFF_SECONDS) - 1))
     return RETRY_BACKOFF_SECONDS[index]
+
+
+def _render_poll_seconds() -> float:
+    """
+    Resolve render poll interval with sane backend-specific defaults.
+
+    Local mode keeps the fast loop from 6B, while Lambda mode defaults to a
+    slower cadence to avoid excessive cloud polling and request cost.
+    """
+    configured = os.getenv("EXPORT_RENDER_POLL_SECONDS")
+    if configured:
+        try:
+            seconds = float(configured)
+            if seconds > 0:
+                return seconds
+        except ValueError:
+            logger.warning(
+                "[EXPORT_FAIL] invalid EXPORT_RENDER_POLL_SECONDS=%s; using backend default",
+                configured,
+            )
+
+    backend = os.getenv("RENDER_BACKEND", "mock").strip().lower()
+    return 3.0 if backend == "lambda" else 0.05
 
 
 # ─── Stage helpers ──────────────────────────────────────────────────────────
@@ -205,6 +231,11 @@ async def _stage_uploading(
     current_url = job.output_url or ""
     if not current_url.startswith("file://"):
         # Already a remote URL from a previous successful retry — nothing to do.
+        logger.info(
+            "[EXPORT_UPLOAD] skip job_id=%s reason=remote_output output_url=%s",
+            job.id,
+            current_url,
+        )
         return
 
     local_path = current_url[len("file://"):]
@@ -225,6 +256,12 @@ async def _stage_uploading(
         client_kwargs["transport"] = _transport
 
     async with httpx.AsyncClient(**client_kwargs) as client:
+        logger.info(
+            "[EXPORT_UPLOAD] uploading job_id=%s storage_path=%s source=%s",
+            job.id,
+            storage_path,
+            current_url,
+        )
         response = await client.post(
             upload_url,
             content=data,
@@ -244,6 +281,11 @@ async def _stage_uploading(
         f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
     )
     db.commit()
+    logger.info(
+        "[EXPORT_UPLOAD] uploaded job_id=%s output_url=%s",
+        job.id,
+        job.output_url,
+    )
 
 
 # ─── Recovery and claim ─────────────────────────────────────────────────────
@@ -331,6 +373,12 @@ def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
     job.error_message = None
     db.commit()
     db.refresh(job)
+    logger.info(
+        "[EXPORT_JOB] claimed job_id=%s worker_session=%s retry=%s",
+        job.id,
+        worker_session_id,
+        job.retry_count,
+    )
     return job
 
 
@@ -355,6 +403,15 @@ async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRen
 def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_message: str) -> None:
     now = utcnow()
     next_retry = job.retry_count + 1
+    will_retry = next_retry <= job.max_retries
+    logger.error(
+        "[EXPORT_FAIL] job_id=%s error_code=%s retry_count=%s will_retry=%s message=%s",
+        job.id,
+        error_code,
+        next_retry,
+        will_retry,
+        error_message,
+    )
     job.retry_count = next_retry
     job.error_code = error_code
     job.error_message = error_message
@@ -384,6 +441,13 @@ def _mark_terminal_blocked(
     db: Session, job: ExportJob, error_code: str, error_message: str
 ) -> None:
     """Set job to the terminal 'blocked' status (non-retryable, per PRD §5 taxonomy)."""
+    logger.error(
+        "[EXPORT_FAIL] job_id=%s error_code=%s retry_count=%s will_retry=false message=%s",
+        job.id,
+        error_code,
+        job.retry_count,
+        error_message,
+    )
     job.status = "blocked"
     job.stage = None
     job.progress = 0.0
@@ -427,6 +491,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
             job.stage = stage
             job.progress = round((index - 1) / stage_count, 3)
             db.commit()
+            logger.info("[EXPORT_RENDER] stage=%s job_id=%s", stage, job.id)
 
             if stage == "snapshotting":
                 _validate_snapshot_size(job.snapshot_json)
@@ -447,6 +512,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                 render_id = await renderer.render(manifest)
                 job.renderer_job_id = render_id
                 db.commit()
+                render_poll_seconds = _render_poll_seconds()
 
                 while True:
                     db.refresh(job)
@@ -481,7 +547,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     if render_status.status in {"failed", "canceled"}:
                         raise RuntimeError(render_status.error or "renderer_failed")
 
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(render_poll_seconds)
 
             elif stage == "encoding":
                 # No-op for local renderer: Remotion produces H.264 MP4 inline.
@@ -503,6 +569,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         job.error_code = None
         job.error_message = None
         db.commit()
+        logger.info("[EXPORT_COST] job_id=%s render_ms=%s", job.id, duration_ms)
         db.refresh(job)
         return job
 

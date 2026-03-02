@@ -77,9 +77,11 @@ export class LambdaRenderBackend {
       progressBucketName: response.bucketName || this._outputBucket,
       outputBucketName: this._outputBucket,
       outputKey,
-      canceled: false,
       done: false,
     });
+    console.log(
+      `[EXPORT_RENDER] lambda_submit job_id=${manifest.job_id} render_id=${renderId} lambda_render_id=${response.renderId}`,
+    );
 
     return renderId;
   }
@@ -112,6 +114,9 @@ export class LambdaRenderBackend {
         ? progress.errors[0]
         : null;
       const message = firstError?.message || 'lambda_render_failed';
+      console.error(
+        `[EXPORT_FAIL] lambda_render render_id=${renderId} lambda_render_id=${entry.lambdaRenderId} error=${message}`,
+      );
       return {
         render_id: renderId,
         status: 'failed',
@@ -123,6 +128,9 @@ export class LambdaRenderBackend {
 
     if (progress.done) {
       entry.done = true;
+      console.log(
+        `[EXPORT_RENDER] lambda_complete render_id=${renderId} output_path=s3://${entry.outputBucketName}/${entry.outputKey}`,
+      );
       return {
         render_id: renderId,
         status: 'completed',
@@ -148,7 +156,6 @@ export class LambdaRenderBackend {
     if (!entry) {
       return false;
     }
-    entry.canceled = true;
     console.log(
       `[lambda-renderer] cancel requested for ${renderId} (lambda_render_id=${entry.lambdaRenderId}) - no-op`,
     );

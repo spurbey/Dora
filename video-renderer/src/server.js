@@ -177,6 +177,9 @@ async function runLocalRender(renderId, manifest) {
     state.status = 'rendering';
     state.progress = 0.05;
     state.updatedAt = Date.now();
+    console.log(
+      `[EXPORT_RENDER] local_start render_id=${renderId} job_id=${manifest.job_id} template=${manifest.template}`,
+    );
 
     const compositionId = COMPOSITION_BY_TEMPLATE[manifest.template];
     const baseComp = bundleCompositions.find((c) => c.id === compositionId);
@@ -226,6 +229,9 @@ async function runLocalRender(renderId, manifest) {
       state.error = null;
     }
     state.updatedAt = Date.now();
+    console.log(
+      `[EXPORT_RENDER] local_terminal render_id=${renderId} status=${state.status} output_path=${state.outputPath ?? 'null'}`,
+    );
   } catch (err) {
     cancelFns.delete(renderId);
     const wasCanceled =
@@ -237,6 +243,9 @@ async function runLocalRender(renderId, manifest) {
     state.outputPath = null;
     state.error = wasCanceled ? 'canceled_by_user' : (err.message || 'render_failed');
     state.updatedAt = Date.now();
+    console.error(
+      `[EXPORT_FAIL] local_render render_id=${renderId} error=${state.error}`,
+    );
   }
 }
 
@@ -319,10 +328,13 @@ app.post('/api/v1/render', async (req, res) => {
   if (validationErr) return badRequest(res, validationErr);
 
   try {
+    console.log(
+      `[EXPORT_RENDER] submit job_id=${req.body.job_id} template=${req.body.template} backend=${RENDER_BACKEND}`,
+    );
     const payload = await submitRender(req.body);
     return res.status(202).json(payload);
   } catch (err) {
-    console.error('[renderer] submit failed:', err);
+    console.error(`[EXPORT_FAIL] submit job_id=${req.body?.job_id ?? 'unknown'} error=${err?.message || 'submit_failed'}`);
     return res.status(500).json({
       error: 'submit_failed',
       detail: err?.message || 'submit_failed',
@@ -336,7 +348,9 @@ app.get('/api/v1/render/:renderId', async (req, res) => {
     if (!payload) return res.status(404).json({ error: 'not_found' });
     return res.status(200).json(payload);
   } catch (err) {
-    console.error('[renderer] status failed:', err);
+    console.error(
+      `[EXPORT_FAIL] status render_id=${req.params.renderId} error=${err?.message || 'status_failed'}`,
+    );
     return res.status(500).json({
       error: 'status_failed',
       detail: err?.message || 'status_failed',
@@ -350,7 +364,9 @@ app.delete('/api/v1/render/:renderId', async (req, res) => {
     if (!found) return res.status(404).json({ error: 'not_found' });
     return res.status(200).json({ canceled: true });
   } catch (err) {
-    console.error('[renderer] cancel failed:', err);
+    console.error(
+      `[EXPORT_FAIL] cancel render_id=${req.params.renderId} error=${err?.message || 'cancel_failed'}`,
+    );
     return res.status(500).json({
       error: 'cancel_failed',
       detail: err?.message || 'cancel_failed',

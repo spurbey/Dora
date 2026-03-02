@@ -1,6 +1,6 @@
 # Phase 6 Rolling Handoff
 
-Last Updated: 2026-03-01
+Last Updated: 2026-03-02
 Branch: `phase-6-video-export`
 Owner: Codex
 
@@ -83,7 +83,7 @@ Completed in 6B-3 (Flutter UX):
 
 ### 6C - AWS Lambda Scale
 
-Status: In progress (6C-1 renderer cloud path started)
+Status: In progress (6C-1 and 6C-2 complete in local diff; 6C-3 evidence/sign-off pending)
 
 Entry constraints frozen for 6C:
 - Renderer remains HTTP-only from backend (`LambdaRemotionRenderer` is an HTTP adapter; Node renderer owns `@remotion/lambda` usage).
@@ -92,8 +92,9 @@ Entry constraints frozen for 6C:
 - Cancel semantics are frozen to current worker behavior: `cancel_requested -> completed` race accepted; otherwise worker settles `canceled` immediately after cancel path.
 - IAM is split by runtime principal (renderer runtime for Lambda invoke path, backend runtime for presigned URL path).
 - Share-token revocation and `pinned_at` retention wiring are scoped to 6D hardening.
+- Branch decision (2026-03-02): deferrals above are accepted for 6C execution on this branch.
 
-Current 6C-1 implementation progress (local diff):
+Current 6C implementation progress (local diff):
 - Added Lambda backend implementation: `video-renderer/src/lambda-renderer.js`
 - Refactored renderer runtime switch in `video-renderer/src/server.js` (`RENDER_BACKEND=local|lambda`)
 - Added deploy scripts:
@@ -104,6 +105,10 @@ Current 6C-1 implementation progress (local diff):
 - Added backend Lambda HTTP adapter: `backend/app/services/export_renderer.py` (`LambdaRemotionRenderer`)
 - Updated worker output URL normalization for non-file renderer outputs (supports `s3://...`): `backend/app/workers/export_worker.py`
 - Added 6C service guardrails and S3 download presign path: `backend/app/services/export_service.py`
+- Applied post-review hardening fixes:
+  - lambda-aware render polling defaults (`3.0s` lambda, `0.05s` local; env override supported)
+  - global cap uses active statuses (`queued|processing|cancel_requested`)
+  - structured `[EXPORT_JOB]/[EXPORT_RENDER]/[EXPORT_UPLOAD]/[EXPORT_FAIL]/[EXPORT_COST]` logs in backend + renderer
 - Updated backend env/dependency templates for Lambda mode:
   - `backend/.env.example`
   - `backend/requirements.txt` (adds `boto3`)
@@ -148,6 +153,6 @@ Current sandbox limitation:
 
 ## 6. Next Actions
 
-1. Execute 6C-1 renderer cloud path: implement Lambda backend in `video-renderer` + deploy scripts + exact Remotion pinning.
-2. Execute 6C-2 backend path: `LambdaRemotionRenderer`, queue/tier guardrails, S3 output handling, presigned download URLs.
-3. Execute 6C-3 infra/evidence: IAM split docs, lifecycle rule, concurrency/load evidence, and 6C cloud-scale report.
+1. Execute 6C-3 evidence gate: run backend tests in dependency-ready env, run AWS smoke/concurrency checks, publish `phase6c-cloud-scale-report.md`.
+2. Finalize 6C sign-off and update checklist gate outcomes.
+3. Begin 6D kickoff for paid entitlement branch, share-token revocation hardening, and `pinned_at` lifecycle protection wiring.

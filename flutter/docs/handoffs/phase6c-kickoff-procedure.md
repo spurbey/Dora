@@ -1,6 +1,6 @@
 # Phase 6C Kickoff Procedure
 
-Date: 2026-03-01  
+Date: 2026-03-02  
 Phase: 6C - AWS Lambda Scale and Cost Controls  
 Branch: `phase-6-video-export`
 
@@ -16,11 +16,15 @@ Move export rendering from local-only capacity to production-grade Lambda scale 
 - Lambda output destination uses `outName: {bucketName, key}`.
 - `getRenderProgress` must use the `bucketName` returned by `renderMediaOnLambda`.
 - Manifest output overrides use `forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight`.
+- Timeout split is explicit:
+  - Lambda function timeout (deploy-time): `900s`
+  - `renderMediaOnLambda.timeoutInMilliseconds`: `240000` (delayRender watchdog)
 - Cancel semantics stay aligned with current worker behavior:
   - accept `cancel_requested -> completed` race when render already completed
   - otherwise settle `canceled` immediately after cancel path
 - 6C lifecycle policy is unconditional 30-day cleanup under `private/`.
 - `pinned_at` retention wiring and share-token revocation hardening are 6D scope.
+- Paid entitlement branching is 6D scope; 6C enforces free-tier caps.
 
 ## 3. Runtime Responsibility Split
 
@@ -63,7 +67,7 @@ Deliverables:
 - Export guardrails:
   - per-user concurrent cap
   - global queue cap
-  - quality/duration tier caps
+  - free-tier quality/duration caps (paid branch deferred to 6D)
 - Worker upload stage recognizes `s3://` output and skips Supabase re-upload.
 - Download endpoint returns S3 presigned URL (1h TTL) for S3-backed artifacts.
 - Structured logs for job/render/upload/fail/cost tags.

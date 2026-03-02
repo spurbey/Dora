@@ -3,7 +3,7 @@
 Phase: Video Export Platform (Remotion + Durable Jobs)
 Duration Target: 4 sub-phases (6A, 6B, 6C, 6D)
 Owner: TBD
-Last Updated: 2026-03-01
+Last Updated: 2026-03-02
 
 ---
 
@@ -17,7 +17,7 @@ Last Updated: 2026-03-01
 
 ---
 
-## Implementation Progress Snapshot (2026-03-01)
+## Implementation Progress Snapshot (2026-03-02)
 
 This checklist remains the canonical gate list. Current implementation state from committed work:
 
@@ -26,8 +26,10 @@ This checklist remains the canonical gate list. Current implementation state fro
 - 6B-2 implementation: completed with stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling).
 - 6B-3 implementation: completed (`f30274d`, `a345901`) with template picker, polling/status UX, cancel flow, completion/share surface, and hardening fixes.
 - 6B final evidence/sign-off: completed (`phase6b-remotion-mvp-report.md`, `25a8e05`) with docs sync (`d041ca6`).
-- 6C-1 implementation: started in local diff (renderer Lambda backend, deploy scripts, exact Remotion pinning).
-- 6C-2 implementation: started in local diff (backend Lambda adapter, output URL normalization, queue/tier caps, presigned S3 download path).
+- 6C-1 implementation: completed in local diff (renderer Lambda backend, deploy scripts, exact Remotion pinning).
+- 6C-2 implementation: completed in local diff (backend Lambda adapter, output URL normalization, queue/tier caps, presigned S3 download path).
+- 6C hardening patch: completed in local diff (lambda-aware poll interval, active global cap, structured `[EXPORT_*]` logs).
+- 6C scope decision (branch execution): share-token revocation and `pinned_at` lifecycle wiring remain deferred to 6D.
 
 Use this snapshot for quick orientation, then drive execution by the checkbox gates below.
 
@@ -292,6 +294,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] `framesPerLambda`: 8
   - [ ] timeout: 900s
   - [ ] `reservedConcurrentExecutions`: 20
+- [ ] Keep renderer call watchdog explicit: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender timeout), separate from Lambda function timeout.
 - [ ] Use exact matching Remotion package versions (no `^`, `~`, or `x` ranges) across `remotion` and all `@remotion/*` packages.
 - [ ] Use `renderMediaOnLambda` custom output with `outName: { bucketName, key }` (no `outBucket` field).
 - [ ] Use `forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight` when applying manifest output settings.
@@ -304,7 +307,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [ ] Enforce per-user active job limit (default: 2) in `export_service.py`.
 - [ ] Enforce global queue cap (default: 50) in `export_service.py`.
 - [ ] Implement dedup by `snapshot_hash + quality + aspect_ratio` — return 409 with existing job_id.
-- [ ] Enforce quality caps by tier: free <=720p/<=15s, paid <=1080p/<=60s.
+- [ ] Enforce free-tier caps now (<=720p/<=15s) and track paid entitlement branching for 6D billing integration.
 - [ ] Add retry policy: max 3 attempts, backoffs 30s/120s/480s.
 - [ ] Keep `pinned_at`/artifact-retention hardening deferred to 6D (no 6C lifecycle-tag coupling).
 

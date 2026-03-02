@@ -1,6 +1,6 @@
 # PHASE 6 PRD: VIDEO EXPORT PLATFORM (REMOTION + DURABLE JOBS)
 
-Last Updated: 2026-03-01
+Last Updated: 2026-03-02
 Owner: TBD
 Status: Active - 6C in progress (6A and 6B complete)
 
@@ -658,6 +658,14 @@ Objective: Move production rendering to scalable cloud execution with enforced c
 
 **Pre-condition:** 6B render manifest schema must be stable. No manifest changes after 6C starts without explicit versioning.
 
+**Scope decision (2026-03-02, branch execution):**
+
+- 6C deferrals are explicitly accepted for this branch:
+  - share-token revocation hardening stays in 6D
+  - `pinned_at` lifecycle-protection wiring stays in 6D
+  - current cancel semantics remain immediate worker settlement with race-accept
+- These deferrals are tracked as 6D deliverables and are not considered 6C blockers for this branch.
+
 **Lambda renderer deliverables:**
 
 - `LambdaRemotionRenderer` adapter in backend (`export_renderer.py`) with extended HTTP timeouts only.
@@ -669,6 +677,7 @@ Objective: Move production rendering to scalable cloud execution with enforced c
   - `framesPerLambda`: `8`.
   - Region: configurable via `AWS_REGION`.
   - Output bucket: `dora-exports-{env}` S3 bucket.
+  - Renderer call timeout: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender watchdog), separate from Lambda function timeout.
 - Remotion package pinning rule:
   - All `@remotion/*` plus `remotion` must use the same exact patch version (no `^`, `~`, or `x` ranges).
 
@@ -698,7 +707,7 @@ Implementation notes:
 - Quality caps by tier:
   - Free tier: ≤720p, ≤15s duration.
   - Paid tier: ≤1080p, ≤60s duration.
-  - Enforced in `export_service.py` at job creation.
+  - 6C implementation enforces free-tier caps at job creation. Paid entitlement branching is deferred until billing/user-plan integration in 6D.
 - S3 lifecycle rule for 6C: unconditional auto-delete of export artifacts older than 30 days (`private/` prefix). `pinned_at` protection wiring is deferred to 6D.
 - Target cost: <$0.15 per 720p/15s export (Lambda compute + S3 storage + transfer).
 

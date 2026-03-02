@@ -235,6 +235,14 @@ These clarifications are frozen before 6C execution:
 - Scope boundary:
   - 6C includes download presigned URL path
   - share-token revocation hardening and `pinned_at` lifecycle protection remain 6D work
+- Runtime timeout split:
+  - Lambda function timeout remains `900s` (deploy-time setting)
+  - renderer call watchdog remains `timeoutInMilliseconds=240000` for delayRender resolution
+
+Decision log (2026-03-02):
+
+- Branch execution explicitly accepts the 6C scope boundary above.
+- 6C completion gate for this branch is implementation + evidence for cloud rendering, not 6D hardening items.
 
 ## 12. Sign-Off
 

@@ -1,4 +1,5 @@
-import { deployFunction, speculateFunctionName } from '@remotion/lambda';
+import { deployFunction } from '@remotion/lambda';
+import { speculateFunctionName } from '@remotion/lambda/client';
 
 async function main() {
   const region = process.env.AWS_REGION || 'us-east-1';

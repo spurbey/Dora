@@ -179,10 +179,10 @@ def test_create_trip_unauthorized(client, unauthorized):
 def test_create_trip_free_tier_limit(client, db, test_user, auth_as):
     auth_as(test_user)
 
-    for i in range(3):
+    for i in range(6):
         create_trip(db, test_user.id, title=f"Trip {i + 1}")
 
-    response = client.post("/api/v1/trips", json={"title": "Trip 4"})
+    response = client.post("/api/v1/trips", json={"title": "Trip 7"})
     assert response.status_code == 403
     assert "Free tier limit" in response.json()["detail"]
     assert "Upgrade to Premium" in response.json()["detail"]

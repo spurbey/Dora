@@ -84,7 +84,7 @@ class TripCreate(TripBase):
 
     Business Logic:
         - user_id is automatically set from authenticated user
-        - Free tier users: max 3 trips (enforced in service layer)
+        - Free tier users: max 6 trips (enforced in service layer)
         - Premium users: unlimited trips
     """
     pass

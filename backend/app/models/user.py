@@ -35,7 +35,7 @@ class User(Base):
     Business Rules:
         - Email must be unique
         - Username must be unique
-        - Free users: limited to 3 trips
+        - Free users: limited to 6 trips
         - Premium users: unlimited trips
     """
     

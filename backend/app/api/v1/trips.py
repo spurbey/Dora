@@ -69,11 +69,11 @@ async def create_trip(
     **Errors:**
     - 400: Invalid date range (end_date < start_date) or invalid visibility
     - 401: Not authenticated
-    - 403: Free tier limit reached (3 trips max)
+    - 403: Free tier limit reached (6 trips max)
 
     **Business Logic:**
     - user_id is automatically set from authenticated user
-    - Free tier users: max 3 trips
+    - Free tier users: max 6 trips
     - Premium users: unlimited trips
     - Default visibility is "private"
     - views_count and saves_count initialized to 0

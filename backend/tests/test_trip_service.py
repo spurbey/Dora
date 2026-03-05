@@ -9,7 +9,7 @@ This module validates the business logic of:
 - Date validation
 
 Focus Areas:
-- Free tier limit enforcement (3 trips)
+- Free tier limit enforcement (6 trips)
 - Ownership validation
 - Date validation (end >= start)
 - Pagination correctness
@@ -148,26 +148,26 @@ def test_create_trip_success(db, test_user):
 
 def test_create_trip_free_tier_limit(db, test_user):
     """
-    Test free tier limit enforcement (3 trips max).
+    Test free tier limit enforcement (6 trips max).
 
     Verifies that:
-    - Free user can create 3 trips
-    - 4th trip creation raises 403 error
+    - Free user can create 6 trips
+    - 7th trip creation raises 403 error
     - Error message mentions upgrade
     """
     service = TripService(db)
 
-    # Create 3 trips
-    for i in range(3):
+    # Create 6 trips
+    for i in range(6):
         trip_data = TripCreate(title=f"Trip {i+1}")
         service.create_trip(test_user.id, trip_data)
 
     # Verify count
     count = service.get_user_trip_count(test_user.id)
-    assert count == 3
+    assert count == 6
 
-    # Attempt to create 4th trip
-    trip_data = TripCreate(title="Trip 4")
+    # Attempt to create 7th trip
+    trip_data = TripCreate(title="Trip 7")
 
     with pytest.raises(HTTPException) as exc_info:
         service.create_trip(test_user.id, trip_data)

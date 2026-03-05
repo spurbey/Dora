@@ -32,7 +32,7 @@ class Trip(Base):
         updated_at: Last update timestamp
         
     Business Rules:
-        - Free users: max 3 trips
+        - Free users: max 6 trips
         - Premium users: unlimited trips
         - end_date must be >= start_date
         - Default visibility: private

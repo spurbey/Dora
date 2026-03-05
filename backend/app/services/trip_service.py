@@ -3,7 +3,7 @@ Trip service layer for business logic.
 
 Handles:
     - Trip CRUD operations
-    - Free tier limit enforcement (3 trips for non-premium users)
+    - Free tier limit enforcement (configurable, default 6 for non-premium users)
     - Ownership validation
     - Pagination
 """
@@ -18,6 +18,7 @@ from app.models.trip import Trip
 from app.models.user import User
 from app.models.place import TripPlace
 from app.schemas.trip import TripCreate, TripUpdate, TripListResponse, TripResponse
+from app.config import settings
 
 
 class TripService:
@@ -96,7 +97,7 @@ class TripService:
             HTTPException 403: If user has reached free tier limit
 
         Business Logic:
-            - Free users: max 3 trips
+            - Free users: max FREE_TIER_MAX_TRIPS trips
             - Premium users: unlimited trips
             - Check is_premium flag on User model
 
@@ -105,7 +106,7 @@ class TripService:
             2. If user not found, raise 404 (shouldn't happen if auth works)
             3. If user is premium, return immediately (no limit)
             4. If user is free, count existing trips
-            5. If count >= 3, raise 403 with upgrade message
+            5. If count >= FREE_TIER_MAX_TRIPS, raise 403 with upgrade message
         """
         user = self.db.query(User).filter(User.id == user_id).first()
 
@@ -119,13 +120,18 @@ class TripService:
         if user.is_premium:
             return
 
-        # Free users: max 3 trips
+        # Free users: configurable limit
+        max_free_trips = settings.FREE_TIER_MAX_TRIPS
         trip_count = self.get_user_trip_count(user_id)
 
-        if trip_count >= 3:
+        if trip_count >= max_free_trips:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Free tier limit reached. You can create up to 3 trips. Upgrade to Premium for unlimited trips."
+                detail=(
+                    "Free tier limit reached. "
+                    f"You can create up to {max_free_trips} trips. "
+                    "Upgrade to Premium for unlimited trips."
+                )
             )
 
     def _check_trip_ownership(self, trip: Trip, user_id: UUID) -> None:

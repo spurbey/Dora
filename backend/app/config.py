@@ -5,7 +5,7 @@ All settings loaded from .env file.
 Never commit .env file to git.
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -30,10 +30,17 @@ class Settings(BaseSettings):
         - No ALGORITHM config (hardcoded to ES256)
         - No ACCESS_TOKEN_EXPIRE_MINUTES (Supabase controls token expiry)
     """
-    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        # Allow unrelated keys in .env (Flutter/AWS/tooling) without crashing backend boot.
+        extra="ignore",
+    )
+
     # App
     APP_NAME: str = "Travel Memory Vault API"
     DEBUG: bool = True
+    FREE_TIER_MAX_TRIPS: int = 6
     
     # Supabase
     SUPABASE_URL: str
@@ -51,11 +58,27 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
-    
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+
+    # Export renderer (Phase 6)
+    RENDER_BACKEND: str = "mock"
+    RENDERER_URL: str = "http://localhost:3100"
+
+    # AWS / Lambda export settings
+    AWS_REGION: str = "us-east-1"
+    AWS_WORKER_ROLE_ARN: Optional[str] = None
+    LAMBDA_FUNCTION_NAME: Optional[str] = None
+    LAMBDA_SERVE_URL: Optional[str] = None
+    LAMBDA_OUTPUT_BUCKET: Optional[str] = None
+
+    # Export worker + guardrails
+    EXPORT_WORKER_POLL_SECONDS: float = 2.0
+    EXPORT_WORKER_STALE_SECONDS: int = 300
+    # Optional explicit poll interval override. Set <= 0 to use backend defaults.
+    EXPORT_RENDER_POLL_SECONDS: float = 0.0
+    EXPORT_MAX_CONCURRENT_PER_USER: int = 2
+    EXPORT_GLOBAL_QUEUE_CAP: int = 50
+    EXPORT_FREE_TIER_MAX_QUALITY: str = "720p"
+    EXPORT_FREE_TIER_MAX_DURATION_SEC: int = 15
 
 
 settings = Settings()

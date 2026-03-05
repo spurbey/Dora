@@ -6,10 +6,10 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
-    "deploy:function": "node scripts/deploy-function.js",
-    "deploy:site": "node scripts/deploy-site.js"
+    "dev": "node --env-file=.env src/server.js",
+    "start": "node --env-file=.env src/server.js",
+    "deploy:function": "node --env-file=.env scripts/deploy-function.js",
+    "deploy:site": "node --env-file=.env scripts/deploy-site.js"
   },
   "engines": {
     "node": ">=20"

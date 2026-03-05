@@ -18,6 +18,7 @@ import boto3
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.export_job import ExportJob
 from app.models.trip import Trip
 from app.schemas.export import ExportCreateRequest
@@ -26,13 +27,27 @@ from app.schemas.export import ExportCreateRequest
 SNAPSHOT_MAX_BYTES = 500 * 1024
 DOWNLOAD_TTL_SECONDS = 3600
 SHARE_TTL_SECONDS = 604800
-DEFAULT_MAX_CONCURRENT_PER_USER = 2
-DEFAULT_GLOBAL_QUEUE_CAP = 50
-DEFAULT_FREE_TIER_MAX_DURATION_SEC = 15
-DEFAULT_FREE_TIER_MAX_QUALITY = "720p"
 QUALITY_RANK = {"480p": 0, "720p": 1, "1080p": 2}
 
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("Invalid int for %s=%s; using default=%s", name, value, default)
+        return default
+
+
+def _env_str(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return value
 
 
 @dataclass
@@ -180,7 +195,10 @@ class ExportService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Invalid S3 output path for completed export",
                 )
-            s3 = boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
+            s3 = boto3.client(
+                "s3",
+                region_name=_env_str("AWS_REGION", settings.AWS_REGION),
+            )
             download_url = s3.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": key},
@@ -239,21 +257,21 @@ class ExportService:
             )
 
     def _validate_service_limits(self, user_id: UUID, request: ExportCreateRequest) -> None:
-        max_concurrent_per_user = int(
-            os.getenv("EXPORT_MAX_CONCURRENT_PER_USER", str(DEFAULT_MAX_CONCURRENT_PER_USER))
+        max_concurrent_per_user = _env_int(
+            "EXPORT_MAX_CONCURRENT_PER_USER",
+            settings.EXPORT_MAX_CONCURRENT_PER_USER,
         )
-        global_queue_cap = int(
-            os.getenv("EXPORT_GLOBAL_QUEUE_CAP", str(DEFAULT_GLOBAL_QUEUE_CAP))
+        global_queue_cap = _env_int(
+            "EXPORT_GLOBAL_QUEUE_CAP",
+            settings.EXPORT_GLOBAL_QUEUE_CAP,
         )
-        free_tier_max_duration_sec = int(
-            os.getenv(
-                "EXPORT_FREE_TIER_MAX_DURATION_SEC",
-                str(DEFAULT_FREE_TIER_MAX_DURATION_SEC),
-            )
+        free_tier_max_duration_sec = _env_int(
+            "EXPORT_FREE_TIER_MAX_DURATION_SEC",
+            settings.EXPORT_FREE_TIER_MAX_DURATION_SEC,
         )
-        free_tier_max_quality = os.getenv(
+        free_tier_max_quality = _env_str(
             "EXPORT_FREE_TIER_MAX_QUALITY",
-            DEFAULT_FREE_TIER_MAX_QUALITY,
+            settings.EXPORT_FREE_TIER_MAX_QUALITY,
         )
 
         active_count = (

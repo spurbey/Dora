@@ -19,6 +19,7 @@ import httpx
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import SessionLocal
 from app.models.export_job import ExportJob
 from app.services.export_renderer import (
@@ -45,6 +46,52 @@ EXPORTS_BUCKET = "exports"
 SNAPSHOT_MAX_BYTES = 500 * 1024
 
 logger = logging.getLogger(__name__)
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        logger.warning("[EXPORT_FAIL] invalid %s=%s; using default=%s", name, value, default)
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("[EXPORT_FAIL] invalid %s=%s; using default=%s", name, value, default)
+        return default
+
+
+def _bootstrap_runtime_env_defaults() -> None:
+    """
+    Seed process env from Settings for worker/runtime-only reads.
+
+    Export worker code still reads some values via os.getenv() and renderer
+    adapter selection is env-based by contract. This bridge keeps behavior
+    deterministic when launching the worker without manual `set` commands.
+    """
+    defaults = {
+        "RENDER_BACKEND": settings.RENDER_BACKEND,
+        "RENDERER_URL": settings.RENDERER_URL,
+        "SUPABASE_URL": settings.SUPABASE_URL,
+        "SUPABASE_SERVICE_ROLE_KEY": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "EXPORT_WORKER_POLL_SECONDS": str(settings.EXPORT_WORKER_POLL_SECONDS),
+        "EXPORT_WORKER_STALE_SECONDS": str(settings.EXPORT_WORKER_STALE_SECONDS),
+    }
+    if settings.EXPORT_RENDER_POLL_SECONDS > 0:
+        defaults["EXPORT_RENDER_POLL_SECONDS"] = str(settings.EXPORT_RENDER_POLL_SECONDS)
+
+    for key, value in defaults.items():
+        if value:
+            os.environ.setdefault(key, str(value))
 
 
 class TerminalJobError(Exception):
@@ -88,8 +135,10 @@ def _render_poll_seconds() -> float:
                 "[EXPORT_FAIL] invalid EXPORT_RENDER_POLL_SECONDS=%s; using backend default",
                 configured,
             )
+    elif settings.EXPORT_RENDER_POLL_SECONDS > 0:
+        return settings.EXPORT_RENDER_POLL_SECONDS
 
-    backend = os.getenv("RENDER_BACKEND", "mock").strip().lower()
+    backend = (os.getenv("RENDER_BACKEND") or settings.RENDER_BACKEND or "mock").strip().lower()
     return 3.0 if backend == "lambda" else 0.05
 
 
@@ -221,8 +270,8 @@ async def _stage_uploading(
             db.commit()
 
     # ── MP4 upload ────────────────────────────────────────────────────────────
-    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    supabase_url = (os.getenv("SUPABASE_URL") or settings.SUPABASE_URL or "").rstrip("/")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or settings.SUPABASE_SERVICE_ROLE_KEY or ""
 
     if not supabase_url or not service_role_key:
         # Supabase not configured — local dev without credentials; keep file:// path.
@@ -618,8 +667,9 @@ async def _run_job_once_managed(db: Session, job: ExportJob) -> ExportJob:
 
 def run_worker_forever() -> None:
     """Worker process entrypoint for `python -m app.workers.export_worker`."""
-    poll_seconds = float(os.getenv("EXPORT_WORKER_POLL_SECONDS", "2"))
-    stale_seconds = int(os.getenv("EXPORT_WORKER_STALE_SECONDS", "300"))
+    _bootstrap_runtime_env_defaults()
+    poll_seconds = _env_float("EXPORT_WORKER_POLL_SECONDS", settings.EXPORT_WORKER_POLL_SECONDS)
+    stale_seconds = _env_int("EXPORT_WORKER_STALE_SECONDS", settings.EXPORT_WORKER_STALE_SECONDS)
     worker_session_id = str(uuid4())
 
     while True:

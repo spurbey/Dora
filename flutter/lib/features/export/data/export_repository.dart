@@ -37,6 +37,7 @@ class ExportRepository implements ExportRepositoryContract {
 
   static const Set<String> _pendingMediaStatuses = {
     'queued',
+    'deferred',
     'compressing',
     'uploading',
   };
@@ -156,14 +157,14 @@ class ExportRepository implements ExportRepositoryContract {
   Future<ExportJob> getJobStatus(String jobId) async {
     final authorization = await _bearerToken();
     try {
-      final response =
-          await _exportsApi.getExportStatusApiV1ExportsJobIdGet(
+      final response = await _exportsApi.getExportStatusApiV1ExportsJobIdGet(
         jobId: jobId,
         authorization: authorization,
       );
       final data = response.data;
       if (data == null) {
-        throw const ExportRepositoryException('Empty response from export status endpoint.');
+        throw const ExportRepositoryException(
+            'Empty response from export status endpoint.');
       }
       return _mapStatusResponse(data);
     } on DioException catch (error) {

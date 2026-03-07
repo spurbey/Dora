@@ -40,7 +40,7 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
       ..where(
         media.placeId.equals(placeId) &
             media.uploadStatus
-                .isIn(const ['queued', 'compressing', 'uploading']),
+                .isIn(const ['queued', 'deferred', 'compressing', 'uploading']),
       );
     return query.watchSingle().map(
           (row) => row.read(countExpression) ?? 0,
@@ -65,7 +65,8 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
           ..where((m) =>
               m.workerSessionId.isNull() &
               (m.uploadStatus.equals('queued') |
-                  (m.uploadStatus.equals('failed') &
+                  ((m.uploadStatus.equals('failed') |
+                          m.uploadStatus.equals('deferred')) &
                       m.nextAttemptAt.isNotNull() &
                       m.nextAttemptAt.isSmallerOrEqualValue(currentTime))))
           ..orderBy([
@@ -99,7 +100,7 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
             local_updated_at = ?
           WHERE id = ?
             AND worker_session_id IS NULL
-            AND upload_status IN ('queued', 'failed')
+            AND upload_status IN ('queued', 'failed', 'deferred')
           ''',
           variables: [
             Variable<String>(workerSessionId),
@@ -195,9 +196,8 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
         localPath: Value(localPath),
         thumbnailPath: Value(thumbnailPath),
         mimeType: Value(mimeType),
-        fileSizeBytes: fileSizeBytes == null
-            ? const Value.absent()
-            : Value(fileSizeBytes),
+        fileSizeBytes:
+            fileSizeBytes == null ? const Value.absent() : Value(fileSizeBytes),
         width: width == null ? const Value.absent() : Value(width),
         height: height == null ? const Value.absent() : Value(height),
       ),
@@ -220,9 +220,8 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
         url: Value(url),
         thumbnailPath: Value(thumbnailPath),
         mimeType: Value(mimeType),
-        fileSizeBytes: fileSizeBytes == null
-            ? const Value.absent()
-            : Value(fileSizeBytes),
+        fileSizeBytes:
+            fileSizeBytes == null ? const Value.absent() : Value(fileSizeBytes),
         width: width == null ? const Value.absent() : Value(width),
         height: height == null ? const Value.absent() : Value(height),
         uploadStatus: const Value('uploaded'),
@@ -268,6 +267,22 @@ class MediaDao extends DatabaseAccessor<AppDatabase> with _$MediaDaoMixin {
         uploadProgress: const Value(0.0),
         retryCount: Value(retryCount),
         errorMessage: Value(errorMessage),
+        nextAttemptAt: Value(nextAttemptAt),
+        workerSessionId: const Value(null),
+      ),
+    );
+  }
+
+  Future<int> markDeferred({
+    required String mediaId,
+    required String message,
+    required DateTime nextAttemptAt,
+  }) {
+    return (update(media)..where((m) => m.id.equals(mediaId))).write(
+      MediaCompanion(
+        uploadStatus: const Value('deferred'),
+        uploadProgress: const Value(0.0),
+        errorMessage: Value(message),
         nextAttemptAt: Value(nextAttemptAt),
         workerSessionId: const Value(null),
       ),

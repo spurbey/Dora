@@ -42,6 +42,7 @@ class UploadQueueWorker {
   static const int _maxRetryAttempts = 3;
   static const Duration _firstRetryDelay = Duration(seconds: 10);
   static const Duration _secondRetryDelay = Duration(seconds: 30);
+  static const Duration _dependencyRetryDelay = Duration(seconds: 5);
 
   bool _isRunning = false;
 
@@ -135,7 +136,8 @@ class UploadQueueWorker {
       }
 
       await _ensureEntityDependenciesReady(task);
-      final remotePlaceId = await _placeRepository.ensureRemotePlaceId(task.placeId);
+      final remotePlaceId =
+          await _placeRepository.ensureRemotePlaceId(task.placeId);
       debugPrint(
           '[PLACE_ID_BIND] resolved local=${task.placeId} remote=$remotePlaceId');
 
@@ -161,7 +163,8 @@ class UploadQueueWorker {
         ),
       );
 
-      final latestBeforeFinalize = await _database.mediaDao.getMediaById(task.id);
+      final latestBeforeFinalize =
+          await _database.mediaDao.getMediaById(task.id);
       if (!_shouldFinalizeSuccess(
         latestBeforeFinalize,
         workerSessionId: workerSessionId,
@@ -199,8 +202,26 @@ class UploadQueueWorker {
       debugPrint('[MEDIA_UPLOAD] success mediaId=${task.id}');
 
       await _cleanupTemporaryFile(temporaryCompressedPath);
+    } on _DependencyDeferredException catch (error) {
+      debugPrint(
+        '[MEDIA_UPLOAD] deferred mediaId=${row.id} reason=${error.message}',
+      );
+      final latestBeforeDeferred =
+          await _database.mediaDao.getMediaById(row.id);
+      if (!_shouldPersistFailure(
+        latestBeforeDeferred,
+        workerSessionId: workerSessionId,
+      )) {
+        return;
+      }
+      await _database.mediaDao.markDeferred(
+        mediaId: row.id,
+        message: error.message,
+        nextAttemptAt: DateTime.now().add(_dependencyRetryDelay),
+      );
     } on PlaceIdentityException catch (error, stackTrace) {
-      debugPrint('[MEDIA_UPLOAD] blocked mediaId=${row.id} error=${error.message}');
+      debugPrint(
+          '[MEDIA_UPLOAD] blocked mediaId=${row.id} error=${error.message}');
       debugPrint('$stackTrace');
       final latestBeforeFailure = await _database.mediaDao.getMediaById(row.id);
       if (!_shouldPersistFailure(
@@ -245,7 +266,8 @@ class UploadQueueWorker {
         return;
       }
 
-      final currentRetryCount = latestBeforeFailure?.retryCount ?? row.retryCount;
+      final currentRetryCount =
+          latestBeforeFailure?.retryCount ?? row.retryCount;
       nextRetryCount = math.min(currentRetryCount + 1, _maxRetryAttempts);
       final canRetry =
           _isRetryable(error) && currentRetryCount < (_maxRetryAttempts - 1);
@@ -371,10 +393,8 @@ class UploadQueueWorker {
     }
 
     if (status == 'queued' || status == 'in_progress' || status == 'failed') {
-      throw PlaceIdentityException(
-        'Upload deferred: $dependencyLabel dependency is not ready yet '
-        '(status=$status, entityId=$dependencyEntityId).',
-        retryable: true,
+      throw _DependencyDeferredException(
+        'Waiting for $dependencyLabel sync (status=$status, entityId=$dependencyEntityId).',
       );
     }
 
@@ -453,4 +473,13 @@ class UploadQueueWorker {
       _ => 'image/jpeg',
     };
   }
+}
+
+class _DependencyDeferredException implements Exception {
+  const _DependencyDeferredException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

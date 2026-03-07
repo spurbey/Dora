@@ -39,13 +39,17 @@ class PhotoGridItem extends StatelessWidget {
               ),
             if (item.uploadStatus == 'uploading' ||
                 item.uploadStatus == 'compressing' ||
-                item.uploadStatus == 'queued')
+                item.uploadStatus == 'queued' ||
+                item.uploadStatus == 'deferred')
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: LinearProgressIndicator(
-                  value: item.uploadStatus == 'queued' ? null : item.uploadProgress,
+                  value: item.uploadStatus == 'queued' ||
+                          item.uploadStatus == 'deferred'
+                      ? null
+                      : item.uploadProgress,
                   minHeight: 3,
                   color: AppColors.accent,
                 ),

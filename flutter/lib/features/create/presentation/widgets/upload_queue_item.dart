@@ -23,7 +23,14 @@ class UploadQueueItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusText = _statusText(item);
-    final errorText = item.errorMessage;
+    final messageText = item.errorMessage;
+    final showErrorText =
+        (item.uploadStatus == 'failed' || item.uploadStatus == 'blocked') &&
+            messageText != null &&
+            messageText.isNotEmpty;
+    final showInfoText = item.uploadStatus == 'deferred' &&
+        messageText != null &&
+        messageText.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -49,14 +56,24 @@ class UploadQueueItem extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (errorText != null && errorText.isNotEmpty) ...[
+                if (showErrorText) ...[
                   const SizedBox(height: 4),
                   Text(
-                    errorText,
+                    messageText,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption.copyWith(
                       color: AppColors.error,
+                    ),
+                  ),
+                ] else if (showInfoText) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    messageText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -97,6 +114,7 @@ class UploadQueueItem extends StatelessWidget {
         ),
       );
     } else if (item.uploadStatus == 'queued' ||
+        item.uploadStatus == 'deferred' ||
         item.uploadStatus == 'compressing' ||
         item.uploadStatus == 'uploading') {
       actions.insert(
@@ -118,6 +136,7 @@ class UploadQueueItem extends StatelessWidget {
     }
     return switch (status) {
       'queued' => 'Queued',
+      'deferred' => 'Waiting for sync',
       'compressing' => 'Compressing',
       'failed' => 'Failed',
       'blocked' => 'Blocked',
@@ -132,7 +151,11 @@ class UploadQueueItem extends StatelessWidget {
       'uploaded' => AppColors.success,
       'failed' => AppColors.error,
       'blocked' => AppColors.warning,
-      'uploading' || 'compressing' || 'queued' => AppColors.accent,
+      'deferred' ||
+      'uploading' ||
+      'compressing' ||
+      'queued' =>
+        AppColors.accent,
       'canceled' => AppColors.textSecondary,
       _ => AppColors.textSecondary,
     };

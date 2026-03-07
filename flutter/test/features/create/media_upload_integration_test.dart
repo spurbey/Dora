@@ -370,7 +370,8 @@ void main() {
     setUp(() async {
       database = AppDatabase(NativeDatabase.memory());
       await _clearTables(database);
-      testSupportDir = await Directory.systemTemp.createTemp('dora-media-support');
+      testSupportDir =
+          await Directory.systemTemp.createTemp('dora-media-support');
 
       authService = _FakeAuthService();
       tripRepository = TripRepository(database, authService);
@@ -501,10 +502,10 @@ void main() {
       final rows = await database.mediaDao.getMediaForPlace(localPlaceId);
       expect(rows, hasLength(1));
       final row = rows.single;
-      expect(row.uploadStatus, 'failed');
-      expect(row.retryCount, 1);
+      expect(row.uploadStatus, 'deferred');
+      expect(row.retryCount, 0);
       expect(row.nextAttemptAt, isNotNull);
-      expect(row.errorMessage, contains('Upload deferred: trip dependency is not ready yet'));
+      expect(row.errorMessage, contains('Waiting for trip sync'));
       expect(uploader.uploadCalls, 0);
     });
 
@@ -600,8 +601,8 @@ void main() {
           tripId: const drift.Value(localTripWithServerId),
           name: const drift.Value('Needs Remote Place'),
           address: const drift.Value.absent(),
-          coordinates:
-              const drift.Value(AppLatLng(latitude: 51.5072, longitude: -0.1276)),
+          coordinates: const drift.Value(
+              AppLatLng(latitude: 51.5072, longitude: -0.1276)),
           notes: const drift.Value.absent(),
           visitTime: const drift.Value.absent(),
           dayNumber: const drift.Value.absent(),
@@ -655,8 +656,8 @@ void main() {
           tripId: const drift.Value(localTripWithStaleServerId),
           name: const drift.Value('Stale Trip Place'),
           address: const drift.Value.absent(),
-          coordinates:
-              const drift.Value(AppLatLng(latitude: 48.8566, longitude: 2.3522)),
+          coordinates: const drift.Value(
+              AppLatLng(latitude: 48.8566, longitude: 2.3522)),
           notes: const drift.Value.absent(),
           visitTime: const drift.Value.absent(),
           dayNumber: const drift.Value.absent(),

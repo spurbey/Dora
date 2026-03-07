@@ -63,6 +63,12 @@ class TripGridCard extends StatelessWidget {
                   left: AppSpacing.sm,
                   child: _StatusBadge(status: trip.status),
                 ),
+                if (trip.syncStatus != 'synced')
+                  Positioned(
+                    top: AppSpacing.sm,
+                    right: AppSpacing.sm,
+                    child: _SyncBadge(syncStatus: trip.syncStatus),
+                  ),
               ],
             ),
             Padding(
@@ -159,5 +165,52 @@ class _StatusBadge extends StatelessWidget {
       default:
         return AppColors.warning;
     }
+  }
+}
+
+class _SyncBadge extends StatelessWidget {
+  const _SyncBadge({required this.syncStatus});
+
+  final String syncStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: _color(syncStatus),
+        borderRadius: AppRadius.borderMd,
+      ),
+      child: Text(
+        _label(syncStatus),
+        style: AppTypography.caption.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  String _label(String value) {
+    if (value == 'failed') {
+      return 'Failed';
+    }
+    if (value == 'pending') {
+      return 'Pending';
+    }
+    return 'Sync';
+  }
+
+  Color _color(String value) {
+    if (value == 'failed') {
+      return AppColors.error;
+    }
+    if (value == 'pending') {
+      return AppColors.warning;
+    }
+    return AppColors.textSecondary;
   }
 }

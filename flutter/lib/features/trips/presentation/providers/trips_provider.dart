@@ -27,7 +27,8 @@ TripsApi userTripsApi(UserTripsApiRef ref) {
 TripsRepository tripsRepository(TripsRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
   final api = ref.watch(userTripsApiProvider);
-  return TripsRepository(db, api);
+  final authService = ref.watch(authServiceProvider);
+  return TripsRepository(db, api, authService);
 }
 
 @riverpod
@@ -39,9 +40,17 @@ class TripsController extends _$TripsController {
     ref.onDispose(() => _debounce?.cancel());
 
     final repository = ref.watch(tripsRepositoryProvider);
-    final trips = await repository.getUserTrips();
-    ref.invalidate(profileControllerProvider);
+    final cachedTrips = await repository.getCachedUserTrips();
+    if (cachedTrips.isNotEmpty) {
+      unawaited(refresh());
+      return TripsState(
+        allTrips: cachedTrips,
+        trips: _applyFilters(cachedTrips, TripsFilter.all, ''),
+      );
+    }
 
+    final trips = await repository.getUserTrips(forceRefresh: true);
+    ref.invalidate(profileControllerProvider);
     return TripsState(
       allTrips: trips,
       trips: _applyFilters(trips, TripsFilter.all, ''),
@@ -54,7 +63,8 @@ class TripsController extends _$TripsController {
       return;
     }
 
-    final filtered = _applyFilters(current.allTrips, filter, current.searchQuery);
+    final filtered =
+        _applyFilters(current.allTrips, filter, current.searchQuery);
     state = AsyncData(current.copyWith(
       currentFilter: filter,
       trips: filtered,
@@ -132,7 +142,8 @@ class TripsController extends _$TripsController {
       current.searchQuery,
     );
 
-    state = AsyncData(current.copyWith(allTrips: updatedAll, trips: updatedTrips));
+    state =
+        AsyncData(current.copyWith(allTrips: updatedAll, trips: updatedTrips));
 
     try {
       await ref.read(tripsRepositoryProvider).deleteTrip(id);
@@ -151,14 +162,16 @@ class TripsController extends _$TripsController {
     }
 
     try {
-      final duplicated = await ref.read(tripsRepositoryProvider).duplicateTrip(id);
+      final duplicated =
+          await ref.read(tripsRepositoryProvider).duplicateTrip(id);
       final updatedAll = [duplicated, ...current.allTrips];
       final updatedTrips = _applyFilters(
         updatedAll,
         current.currentFilter,
         current.searchQuery,
       );
-      state = AsyncData(current.copyWith(allTrips: updatedAll, trips: updatedTrips));
+      state = AsyncData(
+          current.copyWith(allTrips: updatedAll, trips: updatedTrips));
       ref.invalidate(profileControllerProvider);
       return true;
     } catch (_) {
@@ -192,11 +205,11 @@ class TripsController extends _$TripsController {
     ));
 
     try {
-      final updated =
-          await ref.read(tripsRepositoryProvider).updateVisibility(id, visibility);
-      final refreshedAll = optimisticAll
-          .map((trip) => trip.id == id ? updated : trip)
-          .toList();
+      final updated = await ref
+          .read(tripsRepositoryProvider)
+          .updateVisibility(id, visibility);
+      final refreshedAll =
+          optimisticAll.map((trip) => trip.id == id ? updated : trip).toList();
       state = AsyncData(current.copyWith(
         allTrips: refreshedAll,
         trips: _applyFilters(

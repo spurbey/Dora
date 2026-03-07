@@ -50,7 +50,16 @@ class ProfileRepository {
   }
 
   Future<TripStats> getStats() async {
-    final trips = await _db.userTripsDao.getTrips();
+    final user = _authService.currentUser;
+    if (user == null) {
+      return const TripStats(
+        totalTrips: 0,
+        totalPlaces: 0,
+        totalVideos: 0,
+        totalViews: 0,
+      );
+    }
+    final trips = await _db.userTripsDao.getTripsForUser(user.id);
     final totalPlaces = trips.fold<int>(
       0,
       (sum, trip) => sum + trip.placeCount,

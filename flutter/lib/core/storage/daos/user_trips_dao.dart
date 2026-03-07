@@ -11,11 +11,26 @@ class UserTripsDao extends DatabaseAccessor<AppDatabase>
     with _$UserTripsDaoMixin {
   UserTripsDao(AppDatabase db) : super(db);
 
+  Future<List<UserTrip>> getTripsForUser(String userId) async {
+    final rows = await (select(userTrips)
+          ..where((t) => t.userId.equals(userId))
+          ..orderBy([(t) => OrderingTerm.desc(t.localUpdatedAt)]))
+        .get();
+    return rows.map(_mapRow).toList();
+  }
+
   Future<List<UserTrip>> getTrips() async {
     final rows = await (select(userTrips)
           ..orderBy([(t) => OrderingTerm.desc(t.localUpdatedAt)]))
         .get();
     return rows.map(_mapRow).toList();
+  }
+
+  Future<UserTrip?> getTripByIdForUser(String id, String userId) async {
+    final row = await (select(userTrips)
+          ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
+        .getSingleOrNull();
+    return row == null ? null : _mapRow(row);
   }
 
   Future<UserTrip?> getTripById(String id) async {
@@ -41,6 +56,21 @@ class UserTripsDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> deleteTrip(String id) =>
       (delete(userTrips)..where((t) => t.id.equals(id))).go();
+
+  Future<int> clearAllForUser(String userId) =>
+      (delete(userTrips)..where((t) => t.userId.equals(userId))).go();
+
+  Future<int> deleteSyncedTripsNotInIdsForUser({
+    required String userId,
+    required List<String> ids,
+  }) {
+    final query = delete(userTrips)
+      ..where((t) => t.userId.equals(userId) & t.syncStatus.equals('synced'));
+    if (ids.isNotEmpty) {
+      query.where((t) => t.id.isNotIn(ids));
+    }
+    return query.go();
+  }
 
   Future<int> clearAll() => delete(userTrips).go();
 

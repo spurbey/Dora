@@ -69,6 +69,10 @@ class TripListCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (trip.syncStatus != 'synced') ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    _SyncStatusLabel(syncStatus: trip.syncStatus),
+                  ],
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     DateTimeUtils.formatTripMeta(
@@ -98,5 +102,52 @@ class TripListCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SyncStatusLabel extends StatelessWidget {
+  const _SyncStatusLabel({required this.syncStatus});
+
+  final String syncStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: _background(syncStatus),
+        borderRadius: AppRadius.borderMd,
+      ),
+      child: Text(
+        _label(syncStatus),
+        style: AppTypography.caption.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  String _label(String value) {
+    if (value == 'failed') {
+      return 'Sync Failed';
+    }
+    if (value == 'pending') {
+      return 'Sync Pending';
+    }
+    return 'Syncing';
+  }
+
+  Color _background(String value) {
+    if (value == 'failed') {
+      return AppColors.error;
+    }
+    if (value == 'pending') {
+      return AppColors.warning;
+    }
+    return AppColors.textSecondary;
   }
 }

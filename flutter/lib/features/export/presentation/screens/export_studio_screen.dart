@@ -338,7 +338,7 @@ class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
           style: AppTypography.h3.copyWith(color: AppColors.darkText),
         ),
         content: Text(
-          'The video will stop rendering.',
+          'We will cancel this export. If cloud rendering already started, it may finish in background.',
           style: AppTypography.body.copyWith(color: AppColors.darkMuted),
         ),
         actions: [

@@ -199,7 +199,29 @@ class _CancelThenCompleteRenderer(MockRemotionRenderer):
         )
 
 
-def test_cancel_requested_race_accepts_completed_artifact(db, test_user):
+class _CancelThenFailRenderer(MockRemotionRenderer):
+    def __init__(self, db, job):
+        super().__init__()
+        self._db = db
+        self._job = job
+
+    async def get_status(self, render_id: str) -> RenderStatus:
+        # Simulate race: cancel request arrives just before a renderer failure status.
+        self._job.status = "cancel_requested"
+        self._db.commit()
+        return RenderStatus(
+            render_id=render_id,
+            status="failed",
+            progress=1.0,
+            error="forced_failure_after_cancel",
+        )
+
+
+def test_cancel_requested_race_accepts_completed_artifact(db, test_user, monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_URL", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_SERVICE_ROLE_KEY", "")
     trip = _create_trip(db, test_user.id)
     _create_job(db, test_user.id, trip.id, status="queued")
     claimed = claim_next_job(db=db, worker_session_id="worker-race")
@@ -212,7 +234,26 @@ def test_cancel_requested_race_accepts_completed_artifact(db, test_user):
     assert result.output_url is not None
 
 
-def test_late_cancel_after_output_is_set_still_finalizes_completed(db, test_user):
+def test_cancel_requested_race_with_failed_status_settles_canceled(db, test_user):
+    trip = _create_trip(db, test_user.id)
+    _create_job(db, test_user.id, trip.id, status="queued")
+    claimed = claim_next_job(db=db, worker_session_id="worker-race-fail")
+    assert claimed is not None
+
+    renderer = _CancelThenFailRenderer(db, claimed)
+    result = asyncio.run(run_job_once(db=db, job=claimed, renderer=renderer))
+
+    assert result.status == "canceled"
+    assert result.error_code == "canceled_by_user"
+    assert result.retry_count == 0
+    assert result.next_attempt_at is None
+
+
+def test_late_cancel_after_output_is_set_still_finalizes_completed(db, test_user, monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_URL", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_SERVICE_ROLE_KEY", "")
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id, status="processing")
     job.output_url = "file:///tmp/already-rendered.mp4"

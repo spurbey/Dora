@@ -434,9 +434,7 @@ def claim_next_job(db: Session, worker_session_id: str) -> Optional[ExportJob]:
 # ─── Cancel / retry helpers ─────────────────────────────────────────────────
 
 
-async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> None:
-    if job.renderer_job_id:
-        await renderer.cancel(job.renderer_job_id)
+def _set_canceled_state(job: ExportJob, *, error_message: str) -> None:
     job.status = "canceled"
     job.stage = None
     job.progress = 0.0
@@ -445,11 +443,23 @@ async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRen
     job.renderer_job_id = None
     job.next_attempt_at = None
     job.error_code = "canceled_by_user"
-    job.error_message = "Export canceled by user request"
+    job.error_message = error_message
+
+
+async def _cancel_job(db: Session, job: ExportJob, renderer: AbstractRemotionRenderer) -> None:
+    if job.renderer_job_id:
+        await renderer.cancel(job.renderer_job_id)
+    _set_canceled_state(job, error_message="Export canceled by user request")
     db.commit()
 
 
 def _mark_retry_or_fail(db: Session, job: ExportJob, error_code: str, error_message: str) -> None:
+    db.refresh(job)
+    if job.status == "cancel_requested":
+        _set_canceled_state(job, error_message="Export canceled by user request")
+        db.commit()
+        return
+
     now = utcnow()
     next_retry = job.retry_count + 1
     will_retry = next_retry <= job.max_retries
@@ -594,6 +604,11 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                         db.commit()
                         break
                     if render_status.status in {"failed", "canceled"}:
+                        db.refresh(job)
+                        if job.status == "cancel_requested":
+                            await _cancel_job(db, job, renderer)
+                            db.refresh(job)
+                            return job
                         raise RuntimeError(render_status.error or "renderer_failed")
 
                     await asyncio.sleep(render_poll_seconds)
@@ -633,6 +648,11 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
         return job
 
     except Exception as exc:
+        db.refresh(job)
+        if job.status == "cancel_requested":
+            await _cancel_job(db, job, renderer)
+            db.refresh(job)
+            return job
         _mark_retry_or_fail(
             db=db,
             job=job,

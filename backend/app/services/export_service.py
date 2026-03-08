@@ -16,6 +16,7 @@ from uuid import UUID
 
 import boto3
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -337,6 +338,10 @@ class ExportService:
         return False
 
     def _build_snapshot(self, trip: Trip, request: ExportCreateRequest) -> dict[str, Any]:
+        max_snapshot_places = max(1, _env_int("EXPORT_SNAPSHOT_MAX_PLACES", 12))
+        max_media_per_place = max(1, _env_int("EXPORT_SNAPSHOT_MAX_MEDIA_PER_PLACE", 3))
+        max_snapshot_routes = max(0, _env_int("EXPORT_SNAPSHOT_MAX_ROUTES", 24))
+
         places = (
             self.db.query(TripPlace)
             .filter(TripPlace.trip_id == trip.id)
@@ -344,27 +349,32 @@ class ExportService:
             .order_by(TripPlace.order_in_trip.asc(), TripPlace.created_at.asc())
             .all()
         )
-        place_ids = [place.id for place in places]
+        selected_places = places[:max_snapshot_places]
+        place_ids = [place.id for place in selected_places]
+        selected_place_ids = set(place_ids)
 
-        media_rows: list[MediaFile] = []
+        media_rows_by_place: dict[UUID, list[MediaFile]] = {}
         if place_ids:
             media_rows = (
                 self.db.query(MediaFile)
                 .filter(MediaFile.user_id == trip.user_id)
                 .filter(MediaFile.trip_place_id.in_(place_ids))
-                .order_by(MediaFile.created_at.asc())
+                .order_by(MediaFile.trip_place_id.asc(), MediaFile.created_at.asc())
                 .all()
             )
+            for media in media_rows:
+                media_rows_by_place.setdefault(media.trip_place_id, []).append(media)
 
         media_by_place: dict[UUID, list[dict[str, Any]]] = {}
         flat_media: list[dict[str, Any]] = []
-        for media in media_rows:
-            media_payload = self._serialize_media(media)
-            media_by_place.setdefault(media.trip_place_id, []).append(media_payload)
-            flat_media.append(media_payload)
-
         places_payload: list[dict[str, Any]] = []
-        for place in places:
+        for place in selected_places:
+            ordered_media_rows = self._prioritize_media_rows(media_rows_by_place.get(place.id, []))
+            selected_media_rows = ordered_media_rows[:max_media_per_place]
+            selected_media_payload = [self._serialize_media(media) for media in selected_media_rows]
+            media_by_place[place.id] = selected_media_payload
+            flat_media.extend(selected_media_payload)
+
             external_data = place.external_data if isinstance(place.external_data, dict) else {}
             places_payload.append(
                 {
@@ -378,17 +388,32 @@ class ExportService:
                     "visit_date": place.visit_date.isoformat() if place.visit_date else None,
                     "order_in_trip": int(place.order_in_trip or 0),
                     "user_notes": place.user_notes,
-                    "media": media_by_place.get(place.id, []),
+                    "media": selected_media_payload,
                 }
             )
 
-        routes = (
+        routes_query = (
             self.db.query(Route)
             .filter(Route.trip_id == trip.id)
             .filter(Route.user_id == trip.user_id)
-            .order_by(Route.order_in_trip.asc(), Route.created_at.asc())
-            .all()
         )
+        if selected_place_ids:
+            routes_query = routes_query.filter(
+                or_(
+                    Route.start_place_id.is_(None),
+                    Route.end_place_id.is_(None),
+                    and_(
+                        Route.start_place_id.in_(place_ids),
+                        Route.end_place_id.in_(place_ids),
+                    ),
+                )
+            )
+        routes = routes_query.order_by(Route.order_in_trip.asc(), Route.created_at.asc()).all()
+        if max_snapshot_routes:
+            routes = routes[:max_snapshot_routes]
+        else:
+            routes = []
+
         routes_payload: list[dict[str, Any]] = []
         for route in routes:
             routes_payload.append(
@@ -433,6 +458,24 @@ class ExportService:
         }
         self._validate_snapshot_size(snapshot=snapshot)
         return snapshot
+
+    def _prioritize_media_rows(self, media_rows: list[MediaFile]) -> list[MediaFile]:
+        """Prefer image assets first so image-only templates do not pick video URLs."""
+        photos: list[MediaFile] = []
+        non_photos: list[MediaFile] = []
+        for media in media_rows:
+            if self._is_photo_media(media):
+                photos.append(media)
+            else:
+                non_photos.append(media)
+        return photos + non_photos
+
+    def _is_photo_media(self, media: MediaFile) -> bool:
+        file_type = (media.file_type or "").lower()
+        if file_type == "photo":
+            return True
+        mime_type = (media.mime_type or "").lower()
+        return mime_type.startswith("image/")
 
     def _serialize_media(self, media: MediaFile) -> dict[str, Any]:
         return {

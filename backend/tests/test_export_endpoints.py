@@ -49,17 +49,26 @@ def _create_place(db, user_id, trip_id, *, order_in_trip=0):
     return place
 
 
-def _create_media(db, user_id, place_id):
+def _create_media(
+    db,
+    user_id,
+    place_id,
+    *,
+    file_url="https://cdn.example.com/trip/photo-1.jpg",
+    file_type="photo",
+    mime_type="image/jpeg",
+    thumbnail_url="https://cdn.example.com/trip/photo-1-thumb.jpg",
+):
     media = MediaFile(
         user_id=user_id,
         trip_place_id=place_id,
-        file_url="https://cdn.example.com/trip/photo-1.jpg",
-        file_type="photo",
+        file_url=file_url,
+        file_type=file_type,
         file_size_bytes=123456,
-        mime_type="image/jpeg",
+        mime_type=mime_type,
         width=1080,
         height=1920,
-        thumbnail_url="https://cdn.example.com/trip/photo-1-thumb.jpg",
+        thumbnail_url=thumbnail_url,
     )
     db.add(media)
     db.commit()
@@ -213,6 +222,124 @@ def test_create_export_snapshot_contains_trip_content(client, db, test_user, aut
     assert snapshot["places"][0]["media"][0]["url"] == "https://cdn.example.com/trip/photo-1.jpg"
     assert any(item["component_type"] == "place" for item in snapshot["timeline"])
     assert any(item["component_type"] == "route" for item in snapshot["timeline"])
+
+
+def test_create_export_snapshot_caps_places_media_and_routes(
+    client, db, test_user, auth_as, monkeypatch
+):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    place_one = _create_place(db, test_user.id, trip.id, order_in_trip=0)
+    place_two = _create_place(db, test_user.id, trip.id, order_in_trip=1)
+
+    _create_media(
+        db,
+        test_user.id,
+        place_one.id,
+        file_url="https://cdn.example.com/trip/p1-photo-1.jpg",
+    )
+    _create_media(
+        db,
+        test_user.id,
+        place_one.id,
+        file_url="https://cdn.example.com/trip/p1-photo-2.jpg",
+    )
+    _create_media(
+        db,
+        test_user.id,
+        place_two.id,
+        file_url="https://cdn.example.com/trip/p2-photo-1.jpg",
+    )
+
+    first_route = _create_route(
+        db,
+        test_user.id,
+        trip.id,
+        start_place_id=place_one.id,
+        end_place_id=place_one.id,
+        order_in_trip=1,
+    )
+    _create_route(
+        db,
+        test_user.id,
+        trip.id,
+        start_place_id=place_one.id,
+        end_place_id=place_one.id,
+        order_in_trip=2,
+    )
+
+    monkeypatch.setenv("EXPORT_SNAPSHOT_MAX_PLACES", "1")
+    monkeypatch.setenv("EXPORT_SNAPSHOT_MAX_MEDIA_PER_PLACE", "1")
+    monkeypatch.setenv("EXPORT_SNAPSHOT_MAX_ROUTES", "1")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 202
+    job_id = UUID(response.json()["job_id"])
+    job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+    assert job is not None
+
+    snapshot = job.snapshot_json
+    assert len(snapshot["places"]) == 1
+    assert snapshot["places"][0]["id"] == str(place_one.id)
+    assert len(snapshot["places"][0]["media"]) == 1
+    assert len(snapshot["media"]) == 1
+    assert len(snapshot["routes"]) == 1
+    assert snapshot["routes"][0]["id"] == str(first_route.id)
+    assert [item["id"] for item in snapshot["timeline"] if item["component_type"] == "place"] == [
+        str(place_one.id)
+    ]
+
+
+def test_create_export_snapshot_prioritizes_photo_media(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    place = _create_place(db, test_user.id, trip.id, order_in_trip=0)
+
+    _create_media(
+        db,
+        test_user.id,
+        place.id,
+        file_url="https://cdn.example.com/trip/video-1.mp4",
+        file_type="video",
+        mime_type="video/mp4",
+        thumbnail_url="https://cdn.example.com/trip/video-1-thumb.jpg",
+    )
+    _create_media(
+        db,
+        test_user.id,
+        place.id,
+        file_url="https://cdn.example.com/trip/photo-priority.jpg",
+        file_type="photo",
+        mime_type="image/jpeg",
+    )
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 202
+    job_id = UUID(response.json()["job_id"])
+    job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+    assert job is not None
+
+    place_media = job.snapshot_json["places"][0]["media"]
+    assert place_media[0]["file_type"] == "photo"
+    assert place_media[0]["url"] == "https://cdn.example.com/trip/photo-priority.jpg"
 
 
 def test_create_export_rejects_when_user_active_limit_reached(client, db, test_user, auth_as, monkeypatch):

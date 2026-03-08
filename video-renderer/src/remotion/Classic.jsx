@@ -95,7 +95,7 @@ function PlaceSlide({ place, fps, totalFrames }) {
     extrapolateRight: 'clamp',
   });
 
-  const photoUrl = place.media?.[0]?.url ?? null;
+  const photoUrl = getPlaceImageUrl(place);
 
   // Deterministic hue from the place name for the fallback background
   const nameSeed = (place.name || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -170,6 +170,28 @@ function PlaceSlide({ place, fps, totalFrames }) {
       </AbsoluteFill>
     </AbsoluteFill>
   );
+}
+
+function isImageMedia(media) {
+  if (!media) {
+    return false;
+  }
+  const fileType = (media.file_type || '').toLowerCase();
+  if (fileType === 'photo' || fileType === 'image') {
+    return true;
+  }
+  const mimeType = (media.mime_type || '').toLowerCase();
+  return mimeType.startsWith('image/');
+}
+
+function getPlaceImageUrl(place) {
+  const media = Array.isArray(place?.media) ? place.media : [];
+  const imageMedia = media.find(isImageMedia);
+  if (imageMedia?.url) {
+    return imageMedia.url;
+  }
+  const thumbFallback = media.find((item) => typeof item?.thumbnail_url === 'string' && item.thumbnail_url.length > 0);
+  return thumbFallback?.thumbnail_url ?? null;
 }
 
 // ─── End Card ────────────────────────────────────────────────────────────────

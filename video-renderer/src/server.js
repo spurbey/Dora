@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 
 import express from 'express';
 import { bundle } from '@remotion/bundler';
-import { getCompositions, makeCancelSignal, renderMedia } from '@remotion/renderer';
+import { getCompositions, makeCancelSignal, renderMedia, renderStill } from '@remotion/renderer';
 
 import { LambdaRenderBackend } from './lambda-renderer.js';
 
@@ -123,6 +123,15 @@ function getOutputPath(renderId) {
   return resolved;
 }
 
+function getThumbnailPath(renderId) {
+  const resolved = path.resolve(path.join(OUTPUT_DIR, `${renderId}.jpg`));
+  const root = path.resolve(OUTPUT_DIR);
+  if (!resolved.startsWith(`${root}${path.sep}`) && resolved !== root) {
+    throw new Error('invalid_thumbnail_path');
+  }
+  return resolved;
+}
+
 async function initLocalBundle() {
   try {
     const entryPoint = path.join(__dirname, 'remotion', 'index.jsx');
@@ -194,6 +203,7 @@ async function runLocalRender(renderId, manifest) {
     };
 
     const outputPath = getOutputPath(renderId);
+    const thumbnailPath = getThumbnailPath(renderId);
     const { signal, cancel } = makeCancelSignal();
     cancelFns.set(renderId, cancel);
 
@@ -215,16 +225,29 @@ async function runLocalRender(renderId, manifest) {
       },
     });
 
+    await renderStill({
+      composition,
+      serveUrl: bundleLocation,
+      output: thumbnailPath,
+      frame: Math.max(0, Math.floor(composition.durationInFrames * 0.45)),
+      imageFormat: 'jpeg',
+      inputProps: { snapshot: manifest.snapshot },
+      ...(CHROME_EXECUTABLE ? { browserExecutable: CHROME_EXECUTABLE } : {}),
+      chromiumOptions: { gl: 'swangle' },
+    });
+
     cancelFns.delete(renderId);
     if (state.canceled) {
       state.status = 'failed';
       state.progress = 1;
       state.outputPath = null;
+      state.thumbnailPath = null;
       state.error = 'canceled_by_user';
     } else {
       state.status = 'completed';
       state.progress = 1;
       state.outputPath = outputPath;
+      state.thumbnailPath = thumbnailPath;
       state.error = null;
     }
     state.updatedAt = Date.now();
@@ -240,6 +263,7 @@ async function runLocalRender(renderId, manifest) {
     state.status = 'failed';
     state.progress = 1;
     state.outputPath = null;
+    state.thumbnailPath = null;
     state.error = wasCanceled ? 'canceled_by_user' : (err.message || 'render_failed');
     state.updatedAt = Date.now();
     console.error(
@@ -260,6 +284,7 @@ async function submitRender(manifest) {
     status: 'queued',
     progress: 0,
     outputPath: null,
+    thumbnailPath: null,
     error: null,
     canceled: false,
     createdAt: Date.now(),
@@ -286,6 +311,7 @@ async function getRenderStatus(renderId) {
     status: state.status,
     progress: Math.max(0, Math.min(1, state.progress)),
     output_path: state.status === 'completed' ? state.outputPath : null,
+    thumbnail_path: state.status === 'completed' ? state.thumbnailPath : null,
     error: state.error,
   };
 }
@@ -309,6 +335,7 @@ async function cancelRender(renderId) {
     state.status = 'failed';
     state.progress = 1;
     state.outputPath = null;
+    state.thumbnailPath = null;
     state.error = 'canceled_by_user';
     state.updatedAt = Date.now();
   }

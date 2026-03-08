@@ -3,6 +3,7 @@ Export control-plane API endpoints.
 """
 
 from fastapi import APIRouter, Depends, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -101,3 +102,13 @@ async def get_export_share_url(
     service = ExportService(db)
     payload = service.build_share_response(user_id=current_user.id, job_id=job_id)
     return ExportShareUrlResponse(**payload)
+
+
+@router.get("/shares/{token}", include_in_schema=False)
+async def access_share_token(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    service = ExportService(db)
+    redirect_url = service.resolve_share_redirect(token=token)
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)

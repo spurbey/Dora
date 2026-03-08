@@ -28,6 +28,7 @@ class RenderStatus(BaseModel):
     status: Literal["queued", "rendering", "completed", "failed", "canceled"]
     progress: float = Field(ge=0.0, le=1.0)
     output_path: Optional[str] = None
+    thumbnail_path: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -104,6 +105,8 @@ class LocalRemotionRenderer(AbstractRemotionRenderer):
 
         output_path_value = payload.get("output_path")
         output_path = str(output_path_value) if output_path_value else None
+        thumbnail_path_value = payload.get("thumbnail_path")
+        thumbnail_path = str(thumbnail_path_value) if thumbnail_path_value else None
         error_value = payload.get("error")
         error = str(error_value) if error_value else None
 
@@ -112,6 +115,7 @@ class LocalRemotionRenderer(AbstractRemotionRenderer):
             status=status_value,
             progress=float(payload.get("progress", 0.0)),
             output_path=output_path,
+            thumbnail_path=thumbnail_path,
             error=error,
         )
 
@@ -139,6 +143,7 @@ class MockRemotionRenderer(AbstractRemotionRenderer):
             "step": 0,
             "status": "queued",
             "output_path": None,
+            "thumbnail_path": None,
             "error": None,
         }
         return render_id
@@ -159,6 +164,7 @@ class MockRemotionRenderer(AbstractRemotionRenderer):
                 status=state["status"],
                 progress=1.0 if state["status"] == "completed" else 0.0,
                 output_path=state["output_path"],
+                thumbnail_path=state["thumbnail_path"],
                 error=state["error"],
             )
 
@@ -172,6 +178,7 @@ class MockRemotionRenderer(AbstractRemotionRenderer):
         else:
             state["status"] = "completed"
             state["output_path"] = f"/tmp/{render_id}.mp4"
+            state["thumbnail_path"] = f"/tmp/{render_id}.jpg"
             progress = 1.0
 
         return RenderStatus(
@@ -179,6 +186,7 @@ class MockRemotionRenderer(AbstractRemotionRenderer):
             status=state["status"],
             progress=progress,
             output_path=state["output_path"],
+            thumbnail_path=state["thumbnail_path"],
             error=state["error"],
         )
 

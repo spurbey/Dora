@@ -215,24 +215,20 @@ async def _stage_asset_fetch(
         )
 
 
-def _extract_first_photo_url(snapshot: dict) -> Optional[str]:
-    """Return the first HTTP(S) media URL from the snapshot for use as thumbnail."""
-    urls = _extract_media_urls(snapshot)
-    return urls[0] if urls else None
-
-
-def _resolve_output_url(output_path: Optional[str], render_id: str) -> str:
-    """
-    Normalize renderer output path to persisted artifact URL format.
-
-    - s3://... and http(s)://... are persisted as-is
-    - file://... is preserved
-    - plain filesystem paths are prefixed with file://
-    """
-    resolved = output_path or f"/tmp/{render_id}.mp4"
+def _resolve_artifact_url(path_value: Optional[str], default_path: str) -> str:
+    """Normalize renderer artifact path to persisted URL format."""
+    resolved = path_value or default_path
     if resolved.startswith(("s3://", "http://", "https://", "file://")):
         return resolved
     return f"file://{resolved}"
+
+
+def _resolve_output_url(output_path: Optional[str], render_id: str) -> str:
+    return _resolve_artifact_url(output_path, default_path=f"/tmp/{render_id}.mp4")
+
+
+def _resolve_thumbnail_url(thumbnail_path: Optional[str], render_id: str) -> str:
+    return _resolve_artifact_url(thumbnail_path, default_path=f"/tmp/{render_id}.jpg")
 
 
 async def _stage_uploading(
@@ -240,104 +236,106 @@ async def _stage_uploading(
     job: ExportJob,
     _transport: Optional[httpx.AsyncTransport] = None,
 ) -> None:
-    """Upload the rendered MP4 to Supabase Storage and persist artifact metadata.
+    """Persist completed video and thumbnail artifacts.
 
-    Storage path (PRD §5.3): exports/private/{user_id}/{job_id}/output.mp4
-
-    Thumbnail is set from the first photo URL in the snapshot (no upload needed —
-    the photo is already stored in Supabase).  This is independent of the MP4
-    upload so it works even in local dev without Supabase credentials.
-
-    MP4 upload is skipped when SUPABASE_URL/SERVICE_ROLE_KEY are absent (local
-    dev without credentials), leaving output_url as the local file:// path.
-
-    When Supabase IS configured but the local artifact is missing from disk, a
-    RuntimeError is raised so the job retries rather than completing with an
-    unusable file:// URL.
-
-    The optional _transport parameter is for test injection only.
+    6D contract:
+    - Worker expects renderer to provide both output and thumbnail artifacts.
+    - Local mode stores file:// paths and uploads them to Supabase when configured.
+    - Lambda mode already writes to S3; worker preserves s3:// paths as-is.
     """
-    # ── Thumbnail (independent of upload) ────────────────────────────────────
-    # 6B shortcut: reuse the first trip photo URL as thumbnail_url rather than
-    # uploading a video-frame JPEG to private storage.  The photo is already a
-    # valid Supabase Storage URL so no upload is needed.
-    # TODO(6D): extend the renderer API to emit a JPEG thumbnail frame and
-    #           upload it to exports/private/{user_id}/{job_id}/thumbnail.jpg.
-    if not job.thumbnail_url:
-        first_photo = _extract_first_photo_url(job.snapshot_json)
-        if first_photo:
-            job.thumbnail_url = first_photo
-            db.commit()
+    output_url = job.output_url or ""
+    thumbnail_url = job.thumbnail_url or ""
+    if not output_url:
+        raise RuntimeError("upload_missing_output_url")
+    if not thumbnail_url:
+        raise RuntimeError("upload_missing_thumbnail_url")
 
-    # ── MP4 upload ────────────────────────────────────────────────────────────
     supabase_url = (os.getenv("SUPABASE_URL") or settings.SUPABASE_URL or "").rstrip("/")
     service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or settings.SUPABASE_SERVICE_ROLE_KEY or ""
 
     if not supabase_url or not service_role_key:
-        # Supabase not configured — local dev without credentials; keep file:// path.
+        # Local dev without credentials: keep renderer-provided paths.
         return
 
-    current_url = job.output_url or ""
-    if not current_url.startswith("file://"):
-        # Already a remote URL from a previous successful retry — nothing to do.
+    output_is_file = output_url.startswith("file://")
+    thumb_is_file = thumbnail_url.startswith("file://")
+
+    if not output_is_file and not thumb_is_file:
         logger.info(
-            "[EXPORT_UPLOAD] skip job_id=%s reason=remote_output output_url=%s",
+            "[EXPORT_UPLOAD] skip job_id=%s reason=remote_artifacts output_url=%s thumbnail_url=%s",
             job.id,
-            current_url,
+            output_url,
+            thumbnail_url,
         )
         return
 
-    local_path = current_url[len("file://"):]
-    if not os.path.isfile(local_path):
-        # Supabase IS configured but the render artifact is absent from disk.
-        # This indicates a worker crash or storage issue — mark retriable.
-        raise RuntimeError(f"upload_artifact_missing:{local_path}")
+    async def _upload_local_file(
+        *,
+        local_path: str,
+        storage_path: str,
+        content_type: str,
+    ) -> str:
+        if not os.path.isfile(local_path):
+            raise RuntimeError(f"upload_artifact_missing:{local_path}")
 
-    # PRD §5.3 private path: exports/private/{user_id}/{job_id}/output.mp4
-    storage_path = f"private/{job.user_id}/{job.id}/output.mp4"
-    upload_url = f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
+        upload_url = f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
+        with open(local_path, "rb") as fh:
+            data = fh.read()
 
-    with open(local_path, "rb") as fh:
-        data = fh.read()
+        client_kwargs: dict = {"timeout": httpx.Timeout(120.0)}
+        if _transport is not None:
+            client_kwargs["transport"] = _transport
 
-    client_kwargs: dict = {"timeout": httpx.Timeout(120.0)}
-    if _transport is not None:
-        client_kwargs["transport"] = _transport
+        async with httpx.AsyncClient(**client_kwargs) as client:
+            response = await client.post(
+                upload_url,
+                content=data,
+                headers={
+                    "Authorization": f"Bearer {service_role_key}",
+                    "Content-Type": content_type,
+                    "x-upsert": "false",
+                },
+            )
+        if response.status_code not in (200, 201):
+            raise RuntimeError(f"upload_failed:{response.status_code}:{response.text[:200]}")
+        return f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
 
-    async with httpx.AsyncClient(**client_kwargs) as client:
+    if output_is_file:
+        output_local_path = output_url[len("file://"):]
         logger.info(
-            "[EXPORT_UPLOAD] uploading job_id=%s storage_path=%s source=%s",
+            "[EXPORT_UPLOAD] uploading_video job_id=%s source=%s",
             job.id,
-            storage_path,
-            current_url,
+            output_url,
         )
-        response = await client.post(
-            upload_url,
-            content=data,
-            headers={
-                "Authorization": f"Bearer {service_role_key}",
-                "Content-Type": "video/mp4",
-                "x-upsert": "false",
-            },
+        job.output_url = await _upload_local_file(
+            local_path=output_local_path,
+            storage_path=f"private/{job.user_id}/{job.id}/output.mp4",
+            content_type="video/mp4",
         )
 
-    if response.status_code not in (200, 201):
-        raise RuntimeError(
-            f"upload_failed:{response.status_code}:{response.text[:200]}"
+    if thumb_is_file:
+        thumbnail_local_path = thumbnail_url[len("file://"):]
+        logger.info(
+            "[EXPORT_UPLOAD] uploading_thumbnail job_id=%s source=%s",
+            job.id,
+            thumbnail_url,
+        )
+        job.thumbnail_url = await _upload_local_file(
+            local_path=thumbnail_local_path,
+            storage_path=f"private/{job.user_id}/{job.id}/thumbnail.jpg",
+            content_type="image/jpeg",
         )
 
-    job.output_url = (
-        f"{supabase_url}/storage/v1/object/{EXPORTS_BUCKET}/{storage_path}"
-    )
     db.commit()
     logger.info(
-        "[EXPORT_UPLOAD] uploaded job_id=%s output_url=%s",
+        "[EXPORT_UPLOAD] uploaded job_id=%s output_url=%s thumbnail_url=%s",
         job.id,
         job.output_url,
+        job.thumbnail_url,
     )
 
 
-# ─── Recovery and claim ─────────────────────────────────────────────────────
+# --- Recovery and claim ─────────────────────────────────────────────────────
 
 
 def recover_orphaned_jobs(db: Session, stale_after_seconds: int = 300) -> int:
@@ -532,7 +530,7 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
             db.refresh(job)
             if job.status == "cancel_requested":
                 # If output already exists, render completion won the race; finalize.
-                if job.output_url:
+                if job.output_url and job.thumbnail_url:
                     job.status = "processing"
                     job.error_code = None
                     job.error_message = None
@@ -580,8 +578,16 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     # Race: cancel arrived but renderer already completed — accept artifact.
                     if job.status == "cancel_requested":
                         if render_status.status == "completed":
+                            if not render_status.output_path:
+                                raise RuntimeError("renderer_missing_output_artifact")
+                            if not render_status.thumbnail_path:
+                                raise RuntimeError("renderer_missing_thumbnail_artifact")
                             job.output_url = job.output_url or _resolve_output_url(
                                 render_status.output_path,
+                                render_id=render_id,
+                            )
+                            job.thumbnail_url = job.thumbnail_url or _resolve_thumbnail_url(
+                                render_status.thumbnail_path,
                                 render_id=render_id,
                             )
                             job.status = "processing"
@@ -597,8 +603,16 @@ async def run_job_once(db: Session, job: ExportJob, renderer: AbstractRemotionRe
                     db.commit()
 
                     if render_status.status == "completed":
+                        if not render_status.output_path:
+                            raise RuntimeError("renderer_missing_output_artifact")
+                        if not render_status.thumbnail_path:
+                            raise RuntimeError("renderer_missing_thumbnail_artifact")
                         job.output_url = job.output_url or _resolve_output_url(
                             render_status.output_path,
+                            render_id=render_id,
+                        )
+                        job.thumbnail_url = job.thumbnail_url or _resolve_thumbnail_url(
+                            render_status.thumbnail_path,
                             render_id=render_id,
                         )
                         db.commit()
@@ -707,3 +721,5 @@ def run_worker_forever() -> None:
 
 if __name__ == "__main__":
     run_worker_forever()
+
+

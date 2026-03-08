@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 from typing import Any, Optional
 from urllib.parse import urlparse
 from uuid import UUID
@@ -21,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.export_job import ExportJob
+from app.models.export_share_token import ExportShareToken
 from app.models.media import MediaFile
 from app.models.place import TripPlace
 from app.models.route import Route
@@ -31,6 +33,7 @@ from app.schemas.export import ExportCreateRequest
 SNAPSHOT_MAX_BYTES = 500 * 1024
 DOWNLOAD_TTL_SECONDS = 3600
 SHARE_TTL_SECONDS = 604800
+SHARE_REDIRECT_TTL_SECONDS = 60
 QUALITY_RANK = {"480p": 0, "720p": 1, "1080p": 2}
 
 logger = logging.getLogger(__name__)
@@ -224,13 +227,107 @@ class ExportService:
                 detail="Share URL is only available for completed exports",
             )
 
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=SHARE_TTL_SECONDS)
-        share_token = hashlib.sha256(f"{job.id}:{job.user_id}:{expires_at.isoformat()}".encode("utf-8")).hexdigest()[:24]
+        now = datetime.now(timezone.utc)
+        active_token = (
+            self.db.query(ExportShareToken)
+            .filter(ExportShareToken.job_id == job.id)
+            .filter(ExportShareToken.user_id == user_id)
+            .filter(ExportShareToken.revoked_at.is_(None))
+            .filter(ExportShareToken.expires_at > now)
+            .order_by(ExportShareToken.created_at.desc())
+            .first()
+        )
+        if active_token:
+            token_row = active_token
+        else:
+            expires_at = now + timedelta(seconds=SHARE_TTL_SECONDS)
+            token_row = ExportShareToken(
+                token=self._generate_unique_share_token(),
+                user_id=user_id,
+                trip_id=job.trip_id,
+                job_id=job.id,
+                expires_at=expires_at,
+            )
+            self.db.add(token_row)
+            self.db.commit()
+            self.db.refresh(token_row)
+
+        base_url = _env_str("EXPORT_SHARE_BASE_URL", "https://api.dora.app").rstrip("/")
         return {
-            "share_url": f"https://api.dora.app/api/v1/shares/{share_token}",
-            "expires_at": expires_at,
+            "share_url": f"{base_url}/api/v1/shares/{token_row.token}",
+            "expires_at": token_row.expires_at,
             "ttl_seconds": SHARE_TTL_SECONDS,
         }
+
+    def resolve_share_redirect(self, token: str) -> str:
+        now = datetime.now(timezone.utc)
+        token_row = (
+            self.db.query(ExportShareToken)
+            .filter(ExportShareToken.token == token)
+            .first()
+        )
+        if not token_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Share link not found",
+            )
+        if token_row.revoked_at is not None or token_row.expires_at <= now:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Share link is expired or revoked",
+            )
+
+        job = self.db.query(ExportJob).filter(ExportJob.id == token_row.job_id).first()
+        if not job or job.status != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Shared export is unavailable",
+            )
+        if job.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Share link is expired or revoked",
+            )
+
+        trip = self.db.query(Trip).filter(Trip.id == token_row.trip_id).first()
+        if not trip or trip.visibility == "private":
+            revoke_time = now
+            token_row.revoked_at = revoke_time
+            if job.revoked_at is None:
+                job.revoked_at = revoke_time
+            self.db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sharing is disabled for this trip",
+            )
+
+        output_url = job.output_url or ""
+        if output_url.startswith("s3://"):
+            parsed = urlparse(output_url)
+            bucket = parsed.netloc
+            key = parsed.path.lstrip("/")
+            if not bucket or not key:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Invalid S3 output path for completed export",
+                )
+            s3 = boto3.client(
+                "s3",
+                region_name=_env_str("AWS_REGION", settings.AWS_REGION),
+            )
+            return s3.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=SHARE_REDIRECT_TTL_SECONDS,
+            )
+
+        if output_url.startswith(("http://", "https://")):
+            return output_url
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Shared export artifact is not publicly accessible",
+        )
 
     def _get_trip_for_owner(self, trip_id: UUID, user_id: UUID) -> Trip:
         trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
@@ -571,6 +668,17 @@ class ExportService:
 
     def _normalize_snapshot(self, snapshot: dict[str, Any]) -> str:
         return json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
+
+    def _generate_unique_share_token(self) -> str:
+        while True:
+            token = secrets.token_urlsafe(36)
+            exists = (
+                self.db.query(ExportShareToken.id)
+                .filter(ExportShareToken.token == token)
+                .first()
+            )
+            if not exists:
+                return token
 
     def _compute_snapshot_hash(self, snapshot: dict[str, Any]) -> str:
         normalized = self._normalize_snapshot(snapshot=snapshot)

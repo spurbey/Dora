@@ -30,5 +30,6 @@ from app.models.route import Route
 from app.models.waypoint import Waypoint
 from app.models.route_metadata import RouteMetadata
 from app.models.export_job import ExportJob
+from app.models.export_share_token import ExportShareToken
 
-__all__ = ["User", "Trip", "TripPlace", "MediaFile", "SearchEvent", "PlaceView", "PlaceSave", "TripMetadata", "PlaceMetadata", "Route", "Waypoint", "RouteMetadata", "ExportJob"]
+__all__ = ["User", "Trip", "TripPlace", "MediaFile", "SearchEvent", "PlaceView", "PlaceSave", "TripMetadata", "PlaceMetadata", "Route", "Waypoint", "RouteMetadata", "ExportJob", "ExportShareToken"]

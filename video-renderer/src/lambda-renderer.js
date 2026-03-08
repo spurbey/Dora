@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 
-import { getRenderProgress, renderMediaOnLambda } from '@remotion/lambda/client';
+import {
+  getRenderProgress,
+  renderMediaOnLambda,
+  renderStillOnLambda,
+} from '@remotion/lambda/client';
 
 function clampProgress(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -50,6 +54,7 @@ export class LambdaRenderBackend {
     const userId = manifest?.snapshot?.trip?.user_id || 'unknown';
     const renderId = crypto.randomUUID();
     const outputKey = `private/${userId}/${manifest.job_id}/output.mp4`;
+    const thumbnailKey = `private/${userId}/${manifest.job_id}/thumbnail.jpg`;
 
     const response = await renderMediaOnLambda({
       region: this._region,
@@ -59,7 +64,8 @@ export class LambdaRenderBackend {
       inputProps: { snapshot: manifest.snapshot },
       codec: 'h264',
       imageFormat: 'jpeg',
-      framesPerLambda: 8,
+      framesPerLambda: 200,
+      privacy: 'no-acl',
       forceWidth: dims.width,
       forceHeight: dims.height,
       forceFps: manifest.fps,
@@ -72,11 +78,34 @@ export class LambdaRenderBackend {
       maxRetries: 1,
     });
 
+    const stillResponse = await renderStillOnLambda({
+      region: this._region,
+      functionName: this._functionName,
+      serveUrl: this._serveUrl,
+      composition,
+      inputProps: { snapshot: manifest.snapshot },
+      imageFormat: 'jpeg',
+      privacy: 'no-acl',
+      frame: Math.max(0, Math.floor(manifest.duration_sec * manifest.fps * 0.45)),
+      forceWidth: dims.width,
+      forceHeight: dims.height,
+      forceFps: manifest.fps,
+      forceDurationInFrames: manifest.duration_sec * manifest.fps,
+      outName: {
+        bucketName: this._outputBucket,
+        key: thumbnailKey,
+      },
+      timeoutInMilliseconds: 240000,
+      maxRetries: 1,
+    });
+
     this._renders.set(renderId, {
       lambdaRenderId: response.renderId,
       progressBucketName: response.bucketName || this._outputBucket,
       outputBucketName: this._outputBucket,
       outputKey,
+      thumbnailBucketName: stillResponse.bucketName || this._outputBucket,
+      thumbnailKey: stillResponse.outKey || thumbnailKey,
       done: false,
     });
     console.log(
@@ -98,6 +127,7 @@ export class LambdaRenderBackend {
         status: 'completed',
         progress: 1,
         output_path: `s3://${entry.outputBucketName}/${entry.outputKey}`,
+        thumbnail_path: `s3://${entry.thumbnailBucketName}/${entry.thumbnailKey}`,
         error: null,
       };
     }
@@ -136,6 +166,7 @@ export class LambdaRenderBackend {
         status: 'completed',
         progress: 1,
         output_path: `s3://${entry.outputBucketName}/${entry.outputKey}`,
+        thumbnail_path: `s3://${entry.thumbnailBucketName}/${entry.thumbnailKey}`,
         error: null,
       };
     }
@@ -147,6 +178,7 @@ export class LambdaRenderBackend {
       status,
       progress: normalizedProgress,
       output_path: null,
+      thumbnail_path: null,
       error: null,
     };
   }

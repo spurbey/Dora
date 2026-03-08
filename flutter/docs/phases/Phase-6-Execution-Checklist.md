@@ -3,7 +3,7 @@
 Phase: Video Export Platform (Remotion + Durable Jobs)
 Duration Target: 4 sub-phases (6A, 6B, 6C, 6D)
 Owner: TBD
-Last Updated: 2026-03-02
+Last Updated: 2026-03-08
 
 ---
 
@@ -17,7 +17,7 @@ Last Updated: 2026-03-02
 
 ---
 
-## Implementation Progress Snapshot (2026-03-02)
+## Implementation Progress Snapshot (2026-03-08)
 
 This checklist remains the canonical gate list. Current implementation state from committed work:
 
@@ -26,10 +26,17 @@ This checklist remains the canonical gate list. Current implementation state fro
 - 6B-2 implementation: completed with stage helpers and worker updates (`asset_fetch`, upload/finalize logic, terminal blocked handling).
 - 6B-3 implementation: completed (`f30274d`, `a345901`) with template picker, polling/status UX, cancel flow, completion/share surface, and hardening fixes.
 - 6B final evidence/sign-off: completed (`phase6b-remotion-mvp-report.md`, `25a8e05`) with docs sync (`d041ca6`).
-- 6C-1 implementation: completed in local diff (renderer Lambda backend, deploy scripts, exact Remotion pinning).
-- 6C-2 implementation: completed in local diff (backend Lambda adapter, output URL normalization, queue/tier caps, presigned S3 download path).
-- 6C hardening patch: completed in local diff (lambda-aware poll interval, active global cap, structured `[EXPORT_*]` logs).
-- 6C scope decision (branch execution): share-token revocation and `pinned_at` lifecycle wiring remain deferred to 6D.
+- 6C-1 implementation: committed (renderer Lambda backend, deploy scripts, exact Remotion pinning).
+- 6C-2 implementation: committed (backend Lambda adapter, output URL normalization, queue/tier caps, presigned S3 download path).
+- 6C hardening patch: committed (lambda-aware poll interval, active global cap, structured `[EXPORT_*]` logs).
+- 6C scope decision (branch execution): share-token revocation and pinned_at lifecycle wiring remain deferred to 6D.
+- 6C cloud bring-up and validation: completed.
+- 6C final evidence/sign-off: completed (`phase6c-cloud-scale-report.md`).
+- 6D kickoff doc is now the active execution entrypoint: `flutter/docs/handoffs/phase6d-kickoff-procedure.md`.
+
+Active execution mode:
+- Treat 6A, 6B, and 6C as closed phases (historical checklist content kept for traceability).
+- Execute only 6D checkboxes for forward progress from this point.
 
 Use this snapshot for quick orientation, then drive execution by the checkbox gates below.
 
@@ -265,101 +272,107 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 ### Pre-Condition Gate
 
-- [ ] 6B render manifest schema is stable and signed off.
-- [ ] No manifest schema changes pending.
-- [ ] 6B exit criteria are fully met.
-- [ ] `flutter/docs/handoffs/phase6c-kickoff-procedure.md` exists and matches frozen 6C contract.
+- [x] 6B render manifest schema is stable and signed off.
+- [x] No manifest schema changes pending.
+- [x] 6B exit criteria are fully met.
+- [x] `flutter/docs/handoffs/phase6c-kickoff-procedure.md` exists and matches frozen 6C contract.
 
 ### IAM and Infrastructure Tasks (must complete before Lambda testing)
 
-- [ ] Provision runtime principals with minimum permissions (see §7.3 in PRD):
-  - [ ] renderer runtime principal (Lambda invoke + Remotion/S3 internals)
-  - [ ] backend runtime principal (S3 read for presigned download URL generation)
-- [ ] Create `dora-exports-{env}` S3 bucket with:
-  - [ ] no public ACLs
-  - [ ] versioning disabled (artifacts are immutable once written)
-  - [ ] S3 lifecycle rule: delete objects older than 30 days under `private/` prefix (unconditional in 6C)
-- [ ] Create IaC definitions in `infra/remotion/`:
-  - [ ] `iam.json` and/or `iam.tf` or `iam.ts` — policy and role definitions
-  - [ ] `s3_lifecycle.json` — lifecycle rule
-  - [ ] `README.md` — provisioning steps and runtime principal mapping
-- [ ] Document env vars in both `backend/.env.example` and renderer env template.
+- [x] Provision runtime principals with minimum permissions (see §7.3 in PRD):
+  - [x] renderer runtime principal (Lambda invoke + Remotion/S3 internals)
+  - [x] backend runtime principal (S3 read for presigned download URL generation)
+- [x] Create `dora-exports-{env}` S3 bucket with:
+  - [x] no public ACLs
+  - [x] versioning disabled (artifacts are immutable once written)
+  - [x] S3 lifecycle rule: delete objects older than 30 days under `private/` prefix (unconditional in 6C)
+- [x] Create IaC definitions in `infra/remotion/`:
+  - [x] `iam.json` and/or `iam.tf` or `iam.ts` — policy and role definitions
+  - [x] `s3_lifecycle.json` — lifecycle rule
+  - [x] `README.md` — provisioning steps and runtime principal mapping
+- [x] Document env vars in both `backend/.env.example` and renderer env template.
 
 ### Cloud Rendering Tasks
 
-- [ ] Implement `LambdaRemotionRenderer` in `export_renderer.py`.
-- [ ] Implement Lambda backend in `video-renderer` using `@remotion/lambda`.
-- [ ] Configure Lambda via `@remotion/lambda` tooling:
-  - [ ] memory: 2048MB (720p), 3008MB (1080p)
-  - [ ] `framesPerLambda`: 8
-  - [ ] timeout: 900s
-  - [ ] `reservedConcurrentExecutions`: 20
-- [ ] Keep renderer call watchdog explicit: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender timeout), separate from Lambda function timeout.
-- [ ] Use exact matching Remotion package versions (no `^`, `~`, or `x` ranges) across `remotion` and all `@remotion/*` packages.
-- [ ] Use `renderMediaOnLambda` custom output with `outName: { bucketName, key }` (no `outBucket` field).
-- [ ] Use `forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight` when applying manifest output settings.
-- [ ] Ensure `getRenderProgress` uses the `bucketName` returned by `renderMediaOnLambda`.
-- [ ] Configure cloud output destination and persist artifact metadata.
-- [ ] Switch renderer based on `RENDER_BACKEND` env var (`local` vs `lambda`).
+- [x] Implement `LambdaRemotionRenderer` in `export_renderer.py`.
+- [x] Implement Lambda backend in `video-renderer` using `@remotion/lambda`.
+- [x] Configure Lambda via `@remotion/lambda` tooling:
+  - [x] memory: 2048MB (720p), 3008MB (1080p)
+  - [x] `framesPerLambda`: 8
+  - [x] timeout: 900s
+  - [x] `reservedConcurrentExecutions`: 20
+- [x] Keep renderer call watchdog explicit: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender timeout), separate from Lambda function timeout.
+- [x] Use exact matching Remotion package versions (no `^`, `~`, or `x` ranges) across `remotion` and all `@remotion/*` packages.
+- [x] Use `renderMediaOnLambda` custom output with `outName: { bucketName, key }` (no `outBucket` field).
+- [x] Use `forceFps`, `forceDurationInFrames`, `forceWidth`, `forceHeight` when applying manifest output settings.
+- [x] Ensure `getRenderProgress` uses the `bucketName` returned by `renderMediaOnLambda`.
+- [x] Configure cloud output destination and persist artifact metadata.
+- [x] Switch renderer based on `RENDER_BACKEND` env var (`local` vs `lambda`).
 
 ### Cost Control Tasks
 
-- [ ] Enforce per-user active job limit (default: 2) in `export_service.py`.
-- [ ] Enforce global queue cap (default: 50) in `export_service.py`.
-- [ ] Implement dedup by `snapshot_hash + quality + aspect_ratio` — return 409 with existing job_id.
-- [ ] Enforce free-tier caps now (<=720p/<=15s) and track paid entitlement branching for 6D billing integration.
-- [ ] Add retry policy: max 3 attempts, backoffs 30s/120s/480s.
-- [ ] Keep `pinned_at`/artifact-retention hardening deferred to 6D (no 6C lifecycle-tag coupling).
+- [x] Enforce per-user active job limit (default: 2) in `export_service.py`.
+- [x] Enforce global queue cap (default: 50) in `export_service.py`.
+- [x] Implement dedup by `snapshot_hash + quality + aspect_ratio` — return 409 with existing job_id.
+- [x] Enforce free-tier caps now (<=720p/<=15s) and track paid entitlement branching for 6D billing integration.
+- [x] Add retry policy: max 3 attempts, backoffs 30s/120s/480s.
+- [x] Keep `pinned_at`/artifact-retention hardening deferred to 6D (no 6C lifecycle-tag coupling).
 
 ### Reliability Tasks
 
-- [ ] Reuse existing stale recovery flow (`recover_orphaned_jobs`) and tune `EXPORT_WORKER_STALE_SECONDS` for Lambda durations.
-- [ ] Add/verify S3 output path handling in worker upload stage (`s3://` skips Supabase re-upload).
-- [ ] Preserve cancel race semantics in rendering loop (`cancel_requested -> completed` when renderer already completed).
-- [ ] Add retry for transient Lambda failures: `lambda_throttle`, `lambda_timeout`, `lambda_5xx`.
+- [x] Reuse existing stale recovery flow (`recover_orphaned_jobs`) and tune `EXPORT_WORKER_STALE_SECONDS` for Lambda durations.
+- [x] Add/verify S3 output path handling in worker upload stage (`s3://` skips Supabase re-upload).
+- [x] Preserve cancel race semantics in rendering loop (`cancel_requested -> completed` when renderer already completed).
+- [x] Add retry for transient Lambda failures: `lambda_throttle`, `lambda_timeout`, `lambda_5xx`.
 
 ### Security Tasks
 
-- [ ] Ownership check on all status/cancel/download-url endpoints.
-- [ ] Download URL: S3 presigned URL, 1-hour TTL.
-- [ ] Keep share token revocation hardening scoped to 6D (no regression in current share endpoint contract during 6C).
-- [ ] No public bucket ACLs at any time.
+- [x] Ownership check on all status/cancel/download-url endpoints.
+- [x] Download URL: S3 presigned URL, 1-hour TTL.
+- [x] Keep share token revocation hardening scoped to 6D (no regression in current share endpoint contract during 6C).
+- [x] No public bucket ACLs at any time.
 
 ### Observability Tasks
 
-- [ ] Add structured log tags to all relevant log lines:
-  - [ ] `[EXPORT_JOB]`
-  - [ ] `[EXPORT_RENDER]`
-  - [ ] `[EXPORT_UPLOAD]`
-  - [ ] `[EXPORT_FAIL]`
-  - [ ] `[EXPORT_COST]` (Lambda invocation count + duration per job)
-- [ ] Track minimum metrics:
-  - [ ] queue wait time
-  - [ ] render duration per stage
-  - [ ] job success/failure/cancellation rate
-  - [ ] Lambda invocation count per export
-  - [ ] artifact size distribution
+- [x] Add structured log tags to all relevant log lines:
+  - [x] `[EXPORT_JOB]`
+  - [x] `[EXPORT_RENDER]`
+  - [x] `[EXPORT_UPLOAD]`
+  - [x] `[EXPORT_FAIL]`
+  - [x] `[EXPORT_COST]` (Lambda invocation count + duration per job)
+- [x] Track minimum metrics:
+  - [x] queue wait time
+  - [x] render duration per stage
+  - [x] job success/failure/cancellation rate
+  - [x] Lambda invocation count per export
+  - [x] artifact size distribution
 
 ### 6C Exit Criteria
 
-- [ ] Lambda render path handles 5 concurrent jobs without deadlocks or duplicate artifacts.
-- [ ] Cost and concurrency limits enforced and confirmed in API layer tests.
-- [ ] IAM policy split uses minimum permissions — confirmed via policy review.
-- [ ] URL flow validated (download URL expires with 1-hour TTL).
-- [ ] Lambda renderer contract validated (exact package pinning + `outName` + progress `bucketName` handling).
-- [ ] Observability logs visible and tagged correctly.
+- [x] Lambda render path handles 5 concurrent jobs without deadlocks or duplicate artifacts.
+- [x] Cost and concurrency limits enforced and confirmed in API layer tests.
+- [x] IAM policy split uses minimum permissions — confirmed via policy review.
+- [x] URL flow validated (download URL expires with 1-hour TTL).
+- [x] Lambda renderer contract validated (exact package pinning + `outName` + progress `bucketName` handling).
+- [x] Observability logs visible and tagged correctly.
 
 ### 6C Evidence
 
-- [ ] `flutter/docs/handoffs/phase6c-cloud-scale-report.md`
-- [ ] Load test notes (5 concurrent jobs)
-- [ ] Cost estimation for 720p/15s export (Lambda + S3)
-- [ ] IAM policy review sign-off
-- [ ] Guardrail verification (concurrency cap, quality cap, dedup)
-- [ ] Contract verification note (Remotion version pinning, Lambda API fields, and cancel semantics)
+- [x] `flutter/docs/handoffs/phase6c-cloud-scale-report.md`
+- [x] Load test notes (5 concurrent jobs)
+- [x] Cost estimation for 720p/15s export (Lambda + S3)
+- [x] IAM policy review sign-off
+- [x] Guardrail verification (concurrency cap, quality cap, dedup)
+- [x] Contract verification note (Remotion version pinning, Lambda API fields, and cancel semantics)
 
 ---
 ## Phase 6D - Quality, Templates, and Hardening
+
+### 6D Start Gate
+
+- [x] 6C sign-off is complete (`flutter/docs/handoffs/phase6c-cloud-scale-report.md`).
+- [x] Rolling handoff is synced to 6D-ready status.
+- [x] 6D execution blueprint exists: `flutter/docs/handoffs/phase6d-kickoff-procedure.md`.
 
 ### Product Quality Tasks
 
@@ -469,5 +482,6 @@ If any of these occur, halt the phase immediately and publish a remediation plan
 - [ ] Job claim uses `.with_for_update()` without `skip_locked=True` (violates Section 4 Guardrail 4).
 - [ ] `status = blocked` is set at job creation time (violates Section 4 Guardrail 12).
 - [ ] Ownership check missing on any export endpoint (security regression).
+
 
 

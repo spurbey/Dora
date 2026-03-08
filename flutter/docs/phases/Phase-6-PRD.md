@@ -1,8 +1,8 @@
 # PHASE 6 PRD: VIDEO EXPORT PLATFORM (REMOTION + DURABLE JOBS)
 
-Last Updated: 2026-03-02
+Last Updated: 2026-03-08
 Owner: TBD
-Status: Active - 6C in progress (6A and 6B complete)
+Status: Active - 6C complete, 6D kickoff ready
 
 ---
 
@@ -46,7 +46,7 @@ This PRD is anchored to what is currently implemented:
   - `flutter/docs/architecture.md` (export abstractions, dark export studio concept)
 - There is no Remotion service or FFmpeg export worker currently in repo.
 
-### 2.1 Implementation Addendum (2026-03-01)
+### 2.1 Implementation Addendum (2026-03-08)
 
 The bullet list above reflects the original pre-implementation baseline. Current committed state now includes:
 
@@ -65,9 +65,16 @@ The bullet list above reflects the original pre-implementation baseline. Current
   - Flutter export UX implementation (`f30274d`) for template selection, polling/status matrix, cancel flow, and completion/share surface
   - post-review hardening fixes (`a345901`) for transport decoupling, completion navigation guard, cancel refresh behavior, and tracking tests
 - 6B sign-off evidence completed (`25a8e05`) with docs sync follow-up (`d041ca6`).
-- 6C started in local diff:
-  - renderer Lambda backend scaffold + deploy scripts + exact Remotion pinning
-  - backend `LambdaRemotionRenderer`, S3-aware output URL handling, queue/tier caps, and presigned download path
+- 6C implementation committed:
+  - renderer Lambda backend, deploy scripts, and exact Remotion version pinning (`f459926`, `891655c`, `1818f39`)
+  - backend Lambda adapter, S3-aware output handling, queue/tier caps, presigned download path, and runtime hardening (`f459926`, `024209d`, `d75e637`)
+  - infra IAM/trust/policy assets for Remotion cloud bring-up (`e412f51`, `e190047`, `3602bc0`)
+- 6C runtime validation completed:
+  - end-to-end submit -> poll -> render path validated in Lambda mode
+  - AWS quota/IAM/ACL issues resolved during bring-up and revalidated
+  - scale evidence, signed-download verification, and trip-rich output baseline are complete
+- 6C sign-off is closed in `flutter/docs/handoffs/phase6c-cloud-scale-report.md` and reflected in `phase6-rolling-handoff.md`.
+- 6D execution begins from `flutter/docs/handoffs/phase6d-kickoff-procedure.md` with visual scope and hardening gates.
 
 ---
 
@@ -655,6 +662,7 @@ Objective: Render first real video template with deterministic quality.
 ## 7.3 Phase 6C - AWS Lambda Scale and Cost Controls
 
 Objective: Move production rendering to scalable cloud execution with enforced cost limits.
+Status (2026-03-08): Completed. Implementation and evidence are captured in `phase6c-cloud-scale-report.md`.
 
 **Pre-condition:** 6B render manifest schema must be stable. No manifest changes after 6C starts without explicit versioning.
 
@@ -746,6 +754,7 @@ Minimum metrics to track:
 ## 7.4 Phase 6D - Quality, Templates, and Hardening
 
 Objective: Reach product-grade export quality and operational confidence.
+Status (2026-03-08): Ready to start. Use `flutter/docs/handoffs/phase6d-kickoff-procedure.md` as execution blueprint.
 
 **Product quality deliverables:**
 
@@ -979,6 +988,7 @@ These rules are mandatory for any agent implementing this phase.
 - `flutter/docs/ops/export-runbook.md` (6D — operational runbook)
 - `flutter/docs/handoffs/phase6-contract-freeze.md` (required before 6A — see §6.4 and Checklist)
 - `flutter/docs/handoffs/phase6c-kickoff-procedure.md` (required before 6C implementation starts)
+- `flutter/docs/handoffs/phase6d-kickoff-procedure.md` (required before 6D implementation starts)
 
 ---
 
@@ -1013,5 +1023,3 @@ These rules are mandatory for any agent implementing this phase.
 - SQLAlchemy `with_for_update`: https://docs.sqlalchemy.org/en/20/orm/queryguide/select.html#sqlalchemy.orm.Query.with_for_update
 - httpx async HTTP client (for LocalRemotionRenderer calls): https://www.python-httpx.org/async/
 - AWS Presigned URLs: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
-
-

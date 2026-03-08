@@ -1,6 +1,6 @@
 # Phase 6 Rolling Handoff
 
-Last Updated: 2026-03-02
+Last Updated: 2026-03-08
 Branch: `phase-6-video-export`
 Owner: Codex
 
@@ -13,7 +13,9 @@ Continuity log across Phase 6 subphases (6A, 6B, 6C, 6D). Keep this file current
 - PRD: `flutter/docs/phases/Phase-6-PRD.md`
 - Checklist: `flutter/docs/phases/Phase-6-Execution-Checklist.md`
 - 6A contract freeze: `flutter/docs/handoffs/phase6-contract-freeze.md`
+- 6C evidence report: `flutter/docs/handoffs/phase6c-cloud-scale-report.md`
 - 6C kickoff: `flutter/docs/handoffs/phase6c-kickoff-procedure.md`
+- 6D kickoff: `flutter/docs/handoffs/phase6d-kickoff-procedure.md`
 - Renderer contract: `video-renderer/docs/renderer-api-contract.md`
 
 ## 3. Subphase Status
@@ -83,7 +85,7 @@ Completed in 6B-3 (Flutter UX):
 
 ### 6C - AWS Lambda Scale
 
-Status: In progress (6C-1 and 6C-2 complete in local diff; 6C-3 evidence/sign-off pending)
+Status: Completed (implementation + evidence + sign-off complete)
 
 Entry constraints frozen for 6C:
 - Renderer remains HTTP-only from backend (`LambdaRemotionRenderer` is an HTTP adapter; Node renderer owns `@remotion/lambda` usage).
@@ -94,7 +96,7 @@ Entry constraints frozen for 6C:
 - Share-token revocation and `pinned_at` retention wiring are scoped to 6D hardening.
 - Branch decision (2026-03-02): deferrals above are accepted for 6C execution on this branch.
 
-Current 6C implementation progress (local diff):
+Current 6C implementation progress (committed):
 - Added Lambda backend implementation: `video-renderer/src/lambda-renderer.js`
 - Refactored renderer runtime switch in `video-renderer/src/server.js` (`RENDER_BACKEND=local|lambda`)
 - Added deploy scripts:
@@ -116,10 +118,20 @@ Current 6C implementation progress (local diff):
   - `infra/remotion/iam.json`
   - `infra/remotion/s3_lifecycle.json`
   - `infra/remotion/README.md`
+  - `infra/remotion/iam.dev.json`
+  - `infra/remotion/remotion-lambda-role-policy.json`
+  - `infra/remotion/remotion-lambda-trust-policy.json`
+- Added env/runtime config hardening commit for backend + renderer (`d75e637`).
+- Closed 6C evidence/sign-off:
+  - Lambda completion validations passed
+  - 5-concurrency validation passed
+  - signed download URL validation passed
+  - trip-rich output baseline validation passed
+  - report finalized in `flutter/docs/handoffs/phase6c-cloud-scale-report.md`
 
 ### 6D - Quality + Hardening
 
-Status: Not started
+Status: Ready to start (kickoff procedure prepared)
 
 ## 4. Verification Log
 
@@ -153,6 +165,8 @@ Current sandbox limitation:
 
 ## 6. Next Actions
 
-1. Execute 6C-3 evidence gate: run backend tests in dependency-ready env, run AWS smoke/concurrency checks, publish `phase6c-cloud-scale-report.md`.
-2. Finalize 6C sign-off and update checklist gate outcomes.
-3. Begin 6D kickoff for paid entitlement branch, share-token revocation hardening, and `pinned_at` lifecycle protection wiring.
+1. Begin 6D visual scope execution using `flutter/docs/handoffs/phase6d-kickoff-procedure.md`.
+2. Implement cinematic template visuals (letterbox, Ken Burns, route fly-over).
+3. Polish classic route/map transitions and complete 6D evidence/runbook deliverables.
+
+

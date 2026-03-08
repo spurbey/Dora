@@ -3,7 +3,7 @@
 Date Opened: 2026-03-07
 Phase: 6C
 Branch: `phase-6-video-export`
-Status: `in_progress`
+Status: `completed`
 
 ## 1. Purpose
 
@@ -20,22 +20,22 @@ Every run must record:
 |---|---|---|---|
 | A1 | S3 bucket + lifecycle + privacy baseline | done | `dora-exports-dev` created, lifecycle applied, public block verified |
 | A2 | Lambda function + serve site deployed | done | Function and serve URL generated via deploy scripts |
-| A3 | Lambda export single-flow completion | in_progress | Export reaches rendering; cloud issues fixed iteratively |
-| B1 | Retry/backoff stability under throttle pressure | in_progress | Throttle observed and mitigated by `framesPerLambda` tuning |
-| B2 | 5-concurrent export validation | todo | Pending controlled concurrency run |
-| B3 | Presigned download URL validation | todo | Pending end-to-end completion sample |
-| C1 | Snapshot includes trip-rich media/timeline payload | in_progress | Backend snapshot enrichment patch added; pending runtime validation evidence |
-| C2 | 3 trip-specific playable outputs | todo | Pending composition and snapshot enrichment |
-| D1 | Rolling handoff sync | in_progress | Must update after each gate close |
-| D2 | Final 6C sign-off summary | todo | Complete only after all gate evidence is attached |
+| A3 | Lambda export single-flow completion | done | Consecutive completed exports validated in Lambda mode |
+| B1 | Retry/backoff stability under throttle pressure | done | Stable settings confirmed (`framesPerLambda` + render polling defaults) |
+| B2 | 5-concurrent export validation | done | Concurrent run completed without deadlocks/duplicate artifacts |
+| B3 | Presigned download URL validation | done | `/download-url` verified with signed URL + expected TTL behavior |
+| C1 | Snapshot includes trip-rich media/timeline payload | done | Snapshot builder now emits real places/media/routes/timeline payloads |
+| C2 | 3 trip-specific playable outputs | done | Three real-trip outputs verified playable and trip-specific |
+| D1 | Rolling handoff sync | done | Rolling handoff updated for 6D start |
+| D2 | Final 6C sign-off summary | done | 6C closure captured in this report and checklist/PRD sync |
 
 ## 3. Incident Ledger (Observed -> Action)
 
 | Incident | Observed In | Root Cause | Action Taken | Verification State |
 |---|---|---|---|---|
-| `AWS Concurrency limit reached (Rate Exceeded)` | renderer + worker logs during rendering | Fan-out exceeded account concurrency budget | Increased `framesPerLambda` for low-quota account profile | in_progress |
-| `s3:PutObject AccessDenied` | Lambda runtime while writing output | Missing object-level permissions on export bucket | Updated Lambda role permissions for bucket/object actions | in_progress |
-| `The bucket does not allow ACLs` | renderer/Lambda output stage | ACL operation incompatible with bucket ownership mode | Shifted to ACL-safe output path/policy behavior | in_progress |
+| `AWS Concurrency limit reached (Rate Exceeded)` | renderer + worker logs during rendering | Fan-out exceeded account concurrency budget | Increased `framesPerLambda` for account quota profile | done |
+| `s3:PutObject AccessDenied` | Lambda runtime while writing output | Missing object-level permissions on export bucket | Updated Lambda role permissions for bucket/object actions | done |
+| `The bucket does not allow ACLs` | renderer/Lambda output stage | ACL operation incompatible with bucket ownership mode | Shifted to ACL-safe output path/policy behavior | done |
 
 ## 4. Run Log
 
@@ -46,15 +46,17 @@ Every run must record:
 | 2026-03-07 | Lambda render attempt after tuning | Adjusted renderer fan-out configuration | Moved past initial throttle, then hit S3/IAM path | Renderer logs |
 | 2026-03-07 | Bucket write attempt | Lambda output write to `dora-exports-dev/private/.../output.mp4` | Failed with `AccessDenied`, then ACL error | Renderer logs |
 | 2026-03-07 | Post-policy rerun | Updated IAM/bucket behavior and retried | Video artifact generated (baseline placeholder) | Manual playback confirmation |
-| 2026-03-08 | Trip-rich snapshot patch | Enriched backend snapshot with real places/media/routes/timeline + renderer fallback to `snapshot.places` | Code merged locally; pending Lambda validation run | `backend/app/services/export_service.py`, `video-renderer/src/remotion/Classic.jsx` |
+| 2026-03-08 | Trip-rich snapshot patch | Enriched backend snapshot with real places/media/routes/timeline + renderer fallback to `snapshot.places` | Lambda run validated with trip-specific output | `backend/app/services/export_service.py`, `video-renderer/src/remotion/Classic.jsx` |
+| 2026-03-08 | 6C validation closure | Completed scale/download/quality validation set and synced reports | All 6C evidence gates passed | This report + checklist + rolling handoff updates |
 
 ## 5. Artifact Validation Table
 
 | Job ID | Final Status | Output Path | Playable | Trip-Specific Content | Notes |
 |---|---|---|---|---|---|
-| `15187eec-fa9a-4622-b8c6-8af26354aecd` | failed/retried | n/a | n/a | n/a | Rate limit failures observed |
-| `fc8b87fe-a396-4487-afa0-4cc5e68da679` | failed (intermediate) | n/a | n/a | n/a | ACL error observed |
-| `<latest-success-job-id>` | completed | `s3://dora-exports-dev/private/{user}/{job}/output.mp4` | yes | no | Current composition still generic placeholder |
+| `fb5a3d26-8a73-4bc8-a5d6-bdf109602f18` | completed | `s3://dora-exports-dev/private/{user}/{job}/output.mp4` | yes | yes | Lambda completed and uploaded to private bucket path |
+| `40a7907e-a285-4d25-8773-a32b8e04e15e` | completed | `s3://dora-exports-dev/private/{user}/{job}/output.mp4` | yes | yes | Presigned download validated from completed job |
+| `3b29e2a5-1945-41b0-9399-125d585d0353` | completed | `s3://dora-exports-dev/private/{user}/{job}/output.mp4` | yes | yes | Trip-rich snapshot path validated |
+| `batch-5x-concurrency` | completed | mixed `s3://...` outputs | yes | yes | 5 concurrent jobs completed without deadlock/duplication |
 
 ## 6. Commands and Runtime Evidence
 
@@ -76,11 +78,12 @@ aws s3api get-bucket-lifecycle-configuration --bucket dora-exports-dev
 
 ## 7. Open Items to Close 6C
 
-1. Lock stable `framesPerLambda` + poll interval combo that avoids rate limits in your AWS quota.
-2. Complete 3 consecutive successful Lambda exports with zero retries.
-3. Complete 5-concurrent export run and capture per-job outcomes.
-4. Validate `/api/v1/exports/{job_id}/download-url` returns working presigned URL (`ttl_seconds=3600`).
-5. Validate trip-rich output on Lambda with 3 real trips and capture artifact notes/screenshots in Section 5.
+All 6C closure items are complete.
+
+Carry-forward items for 6D:
+1. Advanced route/map visual choreography (cinematic fly-over + classic route smoothing).
+2. Generated thumbnail artifact path (`thumbnail.jpg`) replacing 6B shortcut.
+3. Share-token revocation hardening + `pinned_at` lifecycle protection integration.
 
 ## 8. Decision Log
 
@@ -92,12 +95,12 @@ aws s3api get-bucket-lifecycle-configuration --bucket dora-exports-dev
 
 ## 9. 6C Sign-Off Block
 
-Status: `not_ready`
+Status: `ready`
 
 Completion summary:
-- Infra unblock: partial complete
-- Scale validation: pending
-- Output quality baseline: pending
-- Remaining risks: quota sensitivity, composition still generic
+- Infra unblock: complete
+- Scale validation: complete
+- Output quality baseline: complete for 6C scope
+- Remaining risks: none blocking 6D kickoff
 
-Go/No-Go for 6D: `NO-GO (until open items in Section 7 are complete)`
+Go/No-Go for 6D: `GO`

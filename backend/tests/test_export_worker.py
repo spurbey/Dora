@@ -15,9 +15,9 @@ from app.services.export_renderer import MockRemotionRenderer, RenderStatus
 import app.workers.export_worker as export_worker_module
 from app.workers.export_worker import (
     TerminalJobError,
-    _extract_first_photo_url,
     _extract_media_urls,
     _resolve_output_url,
+    _resolve_thumbnail_url,
     _stage_asset_fetch,
     _stage_uploading,
     _validate_snapshot_size,
@@ -83,7 +83,11 @@ def test_claim_next_job_sets_processing_and_session(db, test_user):
     assert claimed.renderer_job_id is None
 
 
-def test_run_job_once_completes_with_mock_renderer(db, test_user):
+def test_run_job_once_completes_with_mock_renderer(db, test_user, monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_URL", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_SERVICE_ROLE_KEY", "")
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id, status="queued")
     claimed = claim_next_job(db=db, worker_session_id="worker-1")
@@ -93,6 +97,7 @@ def test_run_job_once_completes_with_mock_renderer(db, test_user):
     assert result.status == "completed"
     assert result.progress == 1.0
     assert result.output_url is not None
+    assert result.thumbnail_url is not None
     assert result.completed_at is not None
 
 
@@ -196,6 +201,7 @@ class _CancelThenCompleteRenderer(MockRemotionRenderer):
             status="completed",
             progress=1.0,
             output_path=f"/tmp/{render_id}.mp4",
+            thumbnail_path=f"/tmp/{render_id}.jpg",
         )
 
 
@@ -232,6 +238,7 @@ def test_cancel_requested_race_accepts_completed_artifact(db, test_user, monkeyp
 
     assert result.status == "completed"
     assert result.output_url is not None
+    assert result.thumbnail_url is not None
 
 
 def test_cancel_requested_race_with_failed_status_settles_canceled(db, test_user):
@@ -257,6 +264,7 @@ def test_late_cancel_after_output_is_set_still_finalizes_completed(db, test_user
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id, status="processing")
     job.output_url = "file:///tmp/already-rendered.mp4"
+    job.thumbnail_url = "file:///tmp/already-rendered.jpg"
     job.status = "cancel_requested"
     db.commit()
     db.refresh(job)
@@ -357,14 +365,18 @@ def test_uploading_skips_when_supabase_not_configured(db, test_user, monkeypatch
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
     job.output_url = "file:///tmp/fake-render.mp4"
+    job.thumbnail_url = "file:///tmp/fake-render.jpg"
     db.commit()
     db.refresh(job)
 
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_URL", "")
+    monkeypatch.setattr(export_worker_module.settings, "SUPABASE_SERVICE_ROLE_KEY", "")
 
     asyncio.run(_stage_uploading(db, job))
     assert job.output_url == "file:///tmp/fake-render.mp4"
+    assert job.thumbnail_url == "file:///tmp/fake-render.jpg"
 
 
 def test_uploading_raises_when_supabase_configured_and_artifact_missing(db, test_user, monkeypatch):
@@ -373,6 +385,7 @@ def test_uploading_raises_when_supabase_configured_and_artifact_missing(db, test
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
     job.output_url = "file:///nonexistent/path/render.mp4"
+    job.thumbnail_url = "s3://dora-exports-dev/private/user/job/thumbnail.jpg"
     db.commit()
     db.refresh(job)
 
@@ -383,24 +396,41 @@ def test_uploading_raises_when_supabase_configured_and_artifact_missing(db, test
         asyncio.run(_stage_uploading(db, job))
 
 
-def test_uploading_skips_when_output_url_is_none(db, test_user, monkeypatch):
+def test_uploading_raises_when_output_url_is_none(db, test_user, monkeypatch):
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
     job.output_url = None
+    job.thumbnail_url = "file:///tmp/fake-render.jpg"
     db.commit()
     db.refresh(job)
 
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
 
-    asyncio.run(_stage_uploading(db, job))
-    assert job.output_url is None
+    with pytest.raises(RuntimeError, match="upload_missing_output_url"):
+        asyncio.run(_stage_uploading(db, job))
 
 
-def test_uploading_skips_when_output_url_is_s3(db, test_user, monkeypatch):
+def test_uploading_raises_when_thumbnail_url_is_none(db, test_user, monkeypatch):
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+    job.output_url = "file:///tmp/fake-render.mp4"
+    job.thumbnail_url = None
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    with pytest.raises(RuntimeError, match="upload_missing_thumbnail_url"):
+        asyncio.run(_stage_uploading(db, job))
+
+
+def test_uploading_skips_when_artifacts_are_remote(db, test_user, monkeypatch):
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
     job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    job.thumbnail_url = "s3://dora-exports-dev/private/user/job/thumbnail.jpg"
     db.commit()
     db.refresh(job)
 
@@ -409,6 +439,7 @@ def test_uploading_skips_when_output_url_is_s3(db, test_user, monkeypatch):
 
     asyncio.run(_stage_uploading(db, job))
     assert job.output_url == "s3://dora-exports-dev/private/user/job/output.mp4"
+    assert job.thumbnail_url == "s3://dora-exports-dev/private/user/job/thumbnail.jpg"
 
 
 def test_uploading_raises_on_storage_error(db, test_user, monkeypatch, tmp_path):
@@ -419,6 +450,7 @@ def test_uploading_raises_on_storage_error(db, test_user, monkeypatch, tmp_path)
     artifact = tmp_path / "render.mp4"
     artifact.write_bytes(b"fake-mp4-content")
     job.output_url = f"file://{artifact}"
+    job.thumbnail_url = "s3://dora-exports-dev/private/user/job/thumbnail.jpg"
     db.commit()
     db.refresh(job)
 
@@ -486,13 +518,16 @@ def test_asset_all_404_marks_job_blocked_via_run_job_once(db, test_user, monkeyp
 
 
 def test_uploading_rewrites_output_url_on_success(db, test_user, monkeypatch, tmp_path):
-    """Successful upload must rewrite output_url to the canonical Supabase storage URL."""
+    """Successful upload must rewrite output and thumbnail URLs to Supabase storage paths."""
     trip = _create_trip(db, test_user.id)
     job = _create_job(db, test_user.id, trip.id)
 
-    artifact = tmp_path / "render.mp4"
-    artifact.write_bytes(b"fake-mp4-content")
-    job.output_url = f"file://{artifact}"
+    video_artifact = tmp_path / "render.mp4"
+    thumb_artifact = tmp_path / "thumb.jpg"
+    video_artifact.write_bytes(b"fake-mp4-content")
+    thumb_artifact.write_bytes(b"fake-jpeg-content")
+    job.output_url = f"file://{video_artifact}"
+    job.thumbnail_url = f"file://{thumb_artifact}"
     db.commit()
     db.refresh(job)
 
@@ -506,56 +541,31 @@ def test_uploading_rewrites_output_url_on_success(db, test_user, monkeypatch, tm
     asyncio.run(_stage_uploading(db, job, _transport=transport))
 
     assert job.output_url.startswith("https://example.supabase.co/storage/v1/object/exports/")
+    assert job.thumbnail_url.startswith("https://example.supabase.co/storage/v1/object/exports/")
     assert f"private/{job.user_id}/{job.id}/output.mp4" in job.output_url
+    assert f"private/{job.user_id}/{job.id}/thumbnail.jpg" in job.thumbnail_url
 
 
-def test_uploading_sets_thumbnail_url_from_snapshot(db, test_user, monkeypatch):
-    """thumbnail_url must be set from the first photo URL in the snapshot."""
+def test_uploading_raises_when_thumbnail_artifact_missing(db, test_user, monkeypatch, tmp_path):
+    """When thumbnail file is missing, stage should raise so worker can retry."""
     trip = _create_trip(db, test_user.id)
-    job = ExportJob(
-        user_id=test_user.id,
-        trip_id=trip.id,
-        status="processing",
-        stage="uploading",
-        progress=0.833,
-        template="classic",
-        aspect_ratio="9:16",
-        duration_sec=15,
-        quality="720p",
-        fps=30,
-        snapshot_json={
-            "trip": {"id": str(trip.id)},
-            "timeline": [
-                {"url": "https://cdn.test/photo1.jpg"},
-                {"url": "https://cdn.test/photo2.jpg"},
-            ],
-        },
-        snapshot_hash=f"snapshot-{uuid4().hex}",
-        retry_count=0,
-        max_retries=3,
-        next_attempt_at=None,
-        output_url=None,
-    )
-    db.add(job)
+    job = _create_job(db, test_user.id, trip.id)
+    video_artifact = tmp_path / "render.mp4"
+    video_artifact.write_bytes(b"fake-mp4-content")
+    job.output_url = f"file://{video_artifact}"
+    job.thumbnail_url = "file:///nonexistent/path/thumb.jpg"
     db.commit()
     db.refresh(job)
 
-    # No Supabase configured — upload is skipped but thumbnail must still be set.
-    monkeypatch.setenv("SUPABASE_URL", "")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
 
-    asyncio.run(_stage_uploading(db, job))
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"Key": str(request.url.path)})
 
-    assert job.thumbnail_url == "https://cdn.test/photo1.jpg"
-
-
-def test_extract_first_photo_url_returns_none_when_no_media():
-    assert _extract_first_photo_url({"trip": {"id": "t1"}, "timeline": []}) is None
-
-
-def test_extract_first_photo_url_returns_first_http_url():
-    snapshot = {"timeline": [{"url": "https://cdn.test/a.jpg"}, {"url": "https://cdn.test/b.jpg"}]}
-    assert _extract_first_photo_url(snapshot) == "https://cdn.test/a.jpg"
+    transport = httpx.MockTransport(handler)
+    with pytest.raises(RuntimeError, match="upload_artifact_missing"):
+        asyncio.run(_stage_uploading(db, job, _transport=transport))
 
 
 def test_resolve_output_url_preserves_s3_scheme():
@@ -567,3 +577,7 @@ def test_resolve_output_url_preserves_s3_scheme():
 
 def test_resolve_output_url_prefixes_plain_filesystem_path():
     assert _resolve_output_url("/tmp/render.mp4", render_id="rid-1") == "file:///tmp/render.mp4"
+
+
+def test_resolve_thumbnail_url_prefixes_plain_filesystem_path():
+    assert _resolve_thumbnail_url("/tmp/render.jpg", render_id="rid-1") == "file:///tmp/render.jpg"

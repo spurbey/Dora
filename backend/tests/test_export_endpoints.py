@@ -2,12 +2,13 @@
 Tests for export control-plane API endpoints.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
 
 from app.models.export_job import ExportJob
+from app.models.export_share_token import ExportShareToken
 from app.models.media import MediaFile
 from app.models.place import TripPlace
 from app.models.route import Route
@@ -18,6 +19,7 @@ import app.services.export_service as export_service_module
 @pytest.fixture(autouse=True)
 def ensure_export_jobs_table(db):
     ExportJob.__table__.create(bind=db.bind, checkfirst=True)
+    ExportShareToken.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def _create_trip(db, user_id):
@@ -505,6 +507,104 @@ def test_get_share_url_for_completed_job(client, db, test_user, auth_as):
     body = response.json()
     assert body["share_url"].startswith("https://api.dora.app/api/v1/shares/")
     assert body["ttl_seconds"] == 604800
+
+
+def test_get_share_url_reuses_active_token(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    first = client.get(f"/api/v1/exports/{job.id}/share")
+    second = client.get(f"/api/v1/exports/{job.id}/share")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["share_url"] == second.json()["share_url"]
+    persisted = db.query(ExportShareToken).filter(ExportShareToken.job_id == job.id).all()
+    assert len(persisted) == 1
+
+
+def test_share_token_redirect_generates_presigned_url(
+    client, db, test_user, auth_as, monkeypatch
+):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    share = client.get(f"/api/v1/exports/{job.id}/share")
+    assert share.status_code == 200
+    token = share.json()["share_url"].rstrip("/").split("/")[-1]
+
+    class _FakeS3Client:
+        def generate_presigned_url(self, operation_name, Params, ExpiresIn):
+            assert operation_name == "get_object"
+            assert Params["Bucket"] == "dora-exports-dev"
+            assert Params["Key"] == "private/user/job/output.mp4"
+            assert ExpiresIn == export_service_module.SHARE_REDIRECT_TTL_SECONDS
+            return "https://signed.example.com/share-output.mp4"
+
+    monkeypatch.setattr(export_service_module.boto3, "client", lambda *args, **kwargs: _FakeS3Client())
+
+    redirected = client.get(f"/api/v1/shares/{token}", follow_redirects=False)
+    assert redirected.status_code == 307
+    assert redirected.headers["location"] == "https://signed.example.com/share-output.mp4"
+
+
+def test_share_token_redirect_rejects_private_trip(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)  # private by default
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    share = client.get(f"/api/v1/exports/{job.id}/share")
+    assert share.status_code == 200
+    token = share.json()["share_url"].rstrip("/").split("/")[-1]
+
+    denied = client.get(f"/api/v1/shares/{token}", follow_redirects=False)
+    assert denied.status_code == 403
+
+    token_row = (
+        db.query(ExportShareToken)
+        .filter(ExportShareToken.token == token)
+        .first()
+    )
+    assert token_row is not None
+    assert token_row.revoked_at is not None
+    db.refresh(job)
+    assert job.revoked_at is not None
+
+
+def test_share_token_redirect_rejects_expired_token(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    share = client.get(f"/api/v1/exports/{job.id}/share")
+    assert share.status_code == 200
+    token = share.json()["share_url"].rstrip("/").split("/")[-1]
+
+    token_row = (
+        db.query(ExportShareToken)
+        .filter(ExportShareToken.token == token)
+        .first()
+    )
+    assert token_row is not None
+    token_row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+
+    denied = client.get(f"/api/v1/shares/{token}", follow_redirects=False)
+    assert denied.status_code == 403
 
 
 def test_get_download_url_for_s3_output_generates_presigned_url(

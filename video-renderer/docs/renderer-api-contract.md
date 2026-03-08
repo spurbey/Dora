@@ -97,6 +97,7 @@ Success:
   "status": "queued|rendering|completed|failed",
   "progress": 0.0,
   "output_path": "/render_artifacts/{render_id}.mp4",
+  "thumbnail_path": "/render_artifacts/{render_id}.jpg",
   "error": null
 }
 ```
@@ -105,7 +106,9 @@ Rules:
 
 - `progress` is in `0.0..1.0`.
 - `output_path` is `null` unless `status == completed`.
+- `thumbnail_path` is `null` unless `status == completed`.
 - `output_path` must resolve inside renderer `RENDER_OUTPUT_DIR`.
+- `thumbnail_path` must resolve inside renderer `RENDER_OUTPUT_DIR`.
 
 Not found:
 

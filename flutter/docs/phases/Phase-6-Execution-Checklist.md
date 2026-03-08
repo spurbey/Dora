@@ -394,16 +394,16 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [ ] retryable codes: `network_timeout`, `render_crash`, `upload_timeout`, `lambda_throttle`
   - [ ] terminal (blocked) codes: `trip_deleted`, `auth_revoked`, `quota_exceeded`, `asset_all_404`, `worker_timeout`
   - [ ] user-facing copy for each code
-- [ ] Replace 6B thumbnail shortcut with generated thumbnail artifact pipeline:
-  - [ ] renderer emits thumbnail frame metadata
-  - [ ] upload `thumbnail.jpg` to `exports/private/{user_id}/{job_id}/thumbnail.jpg`
-  - [ ] persist export-owned `thumbnail_url` (not reused trip media URL)
+- [x] Replace 6B thumbnail shortcut with generated thumbnail artifact pipeline:
+  - [x] renderer emits thumbnail frame metadata
+  - [x] upload `thumbnail.jpg` to `exports/private/{user_id}/{job_id}/thumbnail.jpg`
+  - [x] persist export-owned `thumbnail_url` (not reused trip media URL)
 - [ ] Verify cancel works at every stage boundary (test each stage individually).
 - [ ] Verify stale job reaper fires correctly for stuck `processing` jobs.
-- [ ] Implement share-token revocation hardening:
-  - [ ] persist share-token records server-side
-  - [ ] enforce `revoked_at` + trip privacy checks on share access
-  - [ ] issue short-lived (60s) S3 redirect URLs per share request
+- [x] Implement share-token revocation hardening:
+  - [x] persist share-token records server-side
+  - [x] enforce `revoked_at` + trip privacy checks on share access
+  - [x] issue short-lived (60s) S3 redirect URLs per share request
 - [ ] Add `pinned_at` UI control: "Keep this video" option on completion screen sets `pinned_at`.
 - [ ] Wire `pinned_at` policy to storage retention behavior (tag/rule integration).
 - [ ] Storage lifecycle cleanup confirmed working (artifacts >=30 days without `pinned_at` are deleted).

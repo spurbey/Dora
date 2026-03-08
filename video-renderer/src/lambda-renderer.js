@@ -27,6 +27,10 @@ export class LambdaRenderBackend {
     this._functionName = process.env.LAMBDA_FUNCTION_NAME || '';
     this._serveUrl = process.env.LAMBDA_SERVE_URL || '';
     this._outputBucket = process.env.LAMBDA_OUTPUT_BUCKET || '';
+    this._framesPerLambda = Math.max(
+      1,
+      parseInt(process.env.LAMBDA_FRAMES_PER_LAMBDA || '200', 10) || 200,
+    );
     this._renders = new Map();
   }
 
@@ -64,7 +68,7 @@ export class LambdaRenderBackend {
       inputProps: { snapshot: manifest.snapshot },
       codec: 'h264',
       imageFormat: 'jpeg',
-      framesPerLambda: 200,
+      framesPerLambda: this._framesPerLambda,
       privacy: 'no-acl',
       forceWidth: dims.width,
       forceHeight: dims.height,

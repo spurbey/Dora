@@ -279,7 +279,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 ### IAM and Infrastructure Tasks (must complete before Lambda testing)
 
-- [x] Provision runtime principals with minimum permissions (see §7.3 in PRD):
+- [x] Provision runtime principals with minimum permissions (see Section 7.3 in PRD):
   - [x] renderer runtime principal (Lambda invoke + Remotion/S3 internals)
   - [x] backend runtime principal (S3 read for presigned download URL generation)
 - [x] Create `dora-exports-{env}` S3 bucket with:
@@ -287,9 +287,9 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
   - [x] versioning disabled (artifacts are immutable once written)
   - [x] S3 lifecycle rule: delete objects older than 30 days under `private/` prefix (unconditional in 6C)
 - [x] Create IaC definitions in `infra/remotion/`:
-  - [x] `iam.json` and/or `iam.tf` or `iam.ts` — policy and role definitions
-  - [x] `s3_lifecycle.json` — lifecycle rule
-  - [x] `README.md` — provisioning steps and runtime principal mapping
+  - [x] `iam.json` and/or `iam.tf` or `iam.ts` - policy and role definitions
+  - [x] `s3_lifecycle.json` - lifecycle rule
+  - [x] `README.md` - provisioning steps and runtime principal mapping
 - [x] Document env vars in both `backend/.env.example` and renderer env template.
 
 ### Cloud Rendering Tasks
@@ -298,7 +298,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 - [x] Implement Lambda backend in `video-renderer` using `@remotion/lambda`.
 - [x] Configure Lambda via `@remotion/lambda` tooling:
   - [x] memory: 2048MB (720p), 3008MB (1080p)
-  - [x] `framesPerLambda`: 8
+  - [x] `framesPerLambda`: 200 (configurable via `LAMBDA_FRAMES_PER_LAMBDA`)
   - [x] timeout: 900s
   - [x] `reservedConcurrentExecutions`: 20
 - [x] Keep renderer call watchdog explicit: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender timeout), separate from Lambda function timeout.
@@ -313,7 +313,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 - [x] Enforce per-user active job limit (default: 2) in `export_service.py`.
 - [x] Enforce global queue cap (default: 50) in `export_service.py`.
-- [x] Implement dedup by `snapshot_hash + quality + aspect_ratio` — return 409 with existing job_id.
+- [x] Implement dedup by `snapshot_hash + quality + aspect_ratio` - return 409 with existing job_id.
 - [x] Enforce free-tier caps now (<=720p/<=15s) and track paid entitlement branching for 6D billing integration.
 - [x] Add retry policy: max 3 attempts, backoffs 30s/120s/480s.
 - [x] Keep `pinned_at`/artifact-retention hardening deferred to 6D (no 6C lifecycle-tag coupling).
@@ -351,7 +351,7 @@ Use this snapshot for quick orientation, then drive execution by the checkbox ga
 
 - [x] Lambda render path handles 5 concurrent jobs without deadlocks or duplicate artifacts.
 - [x] Cost and concurrency limits enforced and confirmed in API layer tests.
-- [x] IAM policy split uses minimum permissions — confirmed via policy review.
+- [x] IAM policy split uses minimum permissions - confirmed via policy review.
 - [x] URL flow validated (download URL expires with 1-hour TTL).
 - [x] Lambda renderer contract validated (exact package pinning + `outName` + progress `bucketName` handling).
 - [x] Observability logs visible and tagged correctly.

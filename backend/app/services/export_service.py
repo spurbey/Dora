@@ -226,6 +226,17 @@ class ExportService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Share URL is only available for completed exports",
             )
+        trip = self.db.query(Trip).filter(Trip.id == job.trip_id).first()
+        if not trip or trip.visibility == "private":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sharing is disabled for this trip",
+            )
+        if not (job.output_url or "").startswith("s3://"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Share URL is only available for cloud-backed exports",
+            )
 
         now = datetime.now(timezone.utc)
         active_token = (
@@ -283,18 +294,16 @@ class ExportService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Shared export is unavailable",
             )
-        if job.revoked_at is not None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Share link is expired or revoked",
-            )
 
         trip = self.db.query(Trip).filter(Trip.id == token_row.trip_id).first()
         if not trip or trip.visibility == "private":
             revoke_time = now
-            token_row.revoked_at = revoke_time
-            if job.revoked_at is None:
-                job.revoked_at = revoke_time
+            (
+                self.db.query(ExportShareToken)
+                .filter(ExportShareToken.job_id == token_row.job_id)
+                .filter(ExportShareToken.revoked_at.is_(None))
+                .update({"revoked_at": revoke_time}, synchronize_session=False)
+            )
             self.db.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -321,12 +330,9 @@ class ExportService:
                 ExpiresIn=SHARE_REDIRECT_TTL_SECONDS,
             )
 
-        if output_url.startswith(("http://", "https://")):
-            return output_url
-
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Shared export artifact is not publicly accessible",
+            detail="Shared export artifact is not cloud-backed",
         )
 
     def _get_trip_for_owner(self, trip_id: UUID, user_id: UUID) -> Trip:

@@ -312,6 +312,9 @@ async def _stage_uploading(
             storage_path=f"private/{job.user_id}/{job.id}/output.mp4",
             content_type="video/mp4",
         )
+        # Persist video upload immediately so retries don't re-upload it.
+        db.commit()
+        db.refresh(job)
 
     if thumb_is_file:
         thumbnail_local_path = thumbnail_url[len("file://"):]
@@ -325,8 +328,9 @@ async def _stage_uploading(
             storage_path=f"private/{job.user_id}/{job.id}/thumbnail.jpg",
             content_type="image/jpeg",
         )
-
-    db.commit()
+        # Persist thumbnail upload immediately so partial success is retry-safe.
+        db.commit()
+        db.refresh(job)
     logger.info(
         "[EXPORT_UPLOAD] uploaded job_id=%s output_url=%s thumbnail_url=%s",
         job.id,

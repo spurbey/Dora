@@ -581,3 +581,43 @@ def test_resolve_output_url_prefixes_plain_filesystem_path():
 
 def test_resolve_thumbnail_url_prefixes_plain_filesystem_path():
     assert _resolve_thumbnail_url("/tmp/render.jpg", render_id="rid-1") == "file:///tmp/render.jpg"
+
+
+def test_uploading_retry_skips_video_after_partial_success(db, test_user, monkeypatch, tmp_path):
+    """If video upload succeeds but thumbnail fails, retry must not re-upload video."""
+    trip = _create_trip(db, test_user.id)
+    job = _create_job(db, test_user.id, trip.id)
+
+    video_artifact = tmp_path / "render.mp4"
+    thumb_artifact = tmp_path / "thumb.jpg"
+    video_artifact.write_bytes(b"fake-mp4-content")
+    thumb_artifact.write_bytes(b"fake-jpeg-content")
+    job.output_url = f"file://{video_artifact}"
+    job.thumbnail_url = f"file://{thumb_artifact}"
+    db.commit()
+    db.refresh(job)
+
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "fake-service-key")
+
+    def first_handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/output.mp4"):
+            return httpx.Response(200, json={"Key": str(request.url.path)})
+        return httpx.Response(500, text="thumbnail_upload_failed")
+
+    with pytest.raises(RuntimeError, match="upload_failed:500"):
+        asyncio.run(_stage_uploading(db, job, _transport=httpx.MockTransport(first_handler)))
+
+    db.refresh(job)
+    assert job.output_url.startswith("https://example.supabase.co/storage/v1/object/exports/")
+    assert job.thumbnail_url.startswith("file://")
+
+    second_calls: list[str] = []
+
+    def second_handler(request: httpx.Request) -> httpx.Response:
+        second_calls.append(str(request.url.path))
+        return httpx.Response(200, json={"Key": str(request.url.path)})
+
+    asyncio.run(_stage_uploading(db, job, _transport=httpx.MockTransport(second_handler)))
+    assert any(path.endswith("/thumbnail.jpg") for path in second_calls)
+    assert not any(path.endswith("/output.mp4") for path in second_calls)

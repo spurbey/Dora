@@ -108,7 +108,7 @@ The bullet list above reflects the original pre-implementation baseline. Current
 2. `FastAPI BackgroundTasks` is not allowed for durable export rendering.
 3. Export jobs must be persisted before any rendering starts.
 4. Job claiming must be atomic and collision-safe using `SELECT ... FOR UPDATE SKIP LOCKED`.
-   - SQLAlchemy implementation: `.with_for_update(skip_locked=True)` — standard `.with_for_update()` without `skip_locked=True` is NOT sufficient and will cause worker contention.
+   - SQLAlchemy implementation: `.with_for_update(skip_locked=True)` - standard `.with_for_update()` without `skip_locked=True` is NOT sufficient and will cause worker contention.
    - Raw SQL equivalent: `SELECT ... FOR UPDATE SKIP LOCKED`.
 5. Export input must be snapshot-based (immutable payload per job attempt).
 6. Export must be blocked when blocking sync/media work exists for that trip **and** when the trip has no backend server identity (`serverTripId` must be non-null before submission is allowed).
@@ -119,8 +119,8 @@ The bullet list above reflects the original pre-implementation baseline. Current
    - Existing queue workers (`UploadQueueWorker`, `EntitySyncWorker`) must not regress.
 10. Maintain current design language for export screens (dark studio mode from Screen 10/11/12 spec).
 11. `snapshot_json` must use URL references for media assets, never base64 or binary data. Maximum snapshot payload size is 500KB. Enforce this in `export_service.py` before job insertion.
-12. `blocked` is a server-side terminal status set only by the worker post-claim for non-retryable conditions. It is never set at job creation time. The Flutter pre-submit guard is a separate client-side check that prevents submission entirely — it does not create a `blocked` row.
-13. The `video-renderer/` service communicates with the backend worker exclusively over HTTP REST. The protocol contract is defined in §5.2 and must be frozen before 6B implementation starts.
+12. `blocked` is a server-side terminal status set only by the worker post-claim for non-retryable conditions. It is never set at job creation time. The Flutter pre-submit guard is a separate client-side check that prevents submission entirely - it does not create a `blocked` row.
+13. The `video-renderer/` service communicates with the backend worker exclusively over HTTP REST. The protocol contract is defined in Section 5.2 and must be frozen before 6B implementation starts.
 
 ---
 
@@ -142,7 +142,7 @@ The bullet list above reflects the original pre-implementation baseline. Current
   - Track progress/stage.
   - Persist output metadata and failure reasons.
 
-## 5.2 Render Plane (Remotion) — Protocol Definition
+## 5.2 Render Plane (Remotion) - Protocol Definition
 
 The backend worker communicates with the renderer through a typed HTTP REST contract. This contract must be frozen before 6B starts.
 
@@ -156,7 +156,7 @@ The backend `LocalRemotionRenderer` calls it via `httpx` (Python async HTTP clie
 
 ```
 POST /api/v1/render
-  Body: RenderManifest (see §6.2)
+  Body: RenderManifest (see Section 6.2)
   Response 202: { "render_id": "uuid", "status": "queued" }
   Response 422: { "error": "validation_error", "detail": "..." }
 
@@ -227,7 +227,7 @@ FFmpeg is used only as an optional post-processing step inside Remotion's pipeli
 - Polling + cancellation + completion UX follows `screen6-12.md`.
 - Export flow reuses existing app bootstrap style and provider conventions.
 - Pre-submit guard order (all must pass before submission):
-  1. `trip.serverTripId != null` — trip must have backend identity. Local-only trips cannot export.
+  1. `trip.serverTripId != null` - trip must have backend identity. Local-only trips cannot export.
   2. No pending or failed media queue items for this trip.
   3. No blocking sync tasks for this trip.
 - In Phase 6A: template is hardcoded to `classic`. No template picker is shown.
@@ -243,7 +243,7 @@ Basic export status/history can be added in web app after mobile MVP:
 
 Phase 6 requires three concurrently running processes in development. These must be documented and scripted before 6A closes.
 
-**Option A — docker-compose (recommended):**
+**Option A - docker-compose (recommended):**
 
 `docker-compose.dev.yml` at repo root:
 
@@ -292,7 +292,7 @@ volumes:
   render_artifacts:   # shared between worker and renderer for artifact handoff
 ```
 
-**Option B — Procfile (lightweight, no Docker):**
+**Option B - Procfile (lightweight, no Docker):**
 
 `Procfile.dev` at repo root:
 ```
@@ -318,7 +318,7 @@ Minimum required columns:
 - `id` (UUID PK)
 - `user_id` (UUID, indexed)
 - `trip_id` (UUID, indexed)
-- `status` — see §6.4 for valid values and transition rules
+- `status` - see Section 6.4 for valid values and transition rules
 - `stage` (`snapshotting|asset_fetch|rendering|encoding|uploading|finalizing`)
 - `progress` (`0.0..1.0`)
 - `template` (e.g., `classic`, `cinematic`)
@@ -326,25 +326,25 @@ Minimum required columns:
 - `duration_sec`
 - `quality` (`480p|720p|1080p`)
 - `fps`
-- `snapshot_json` (JSONB) — max 500KB; stores URL references only, never binary data; validated by `export_service.py` before insert
-- `snapshot_hash` (idempotency/dedup key — SHA-256 of normalized snapshot + config)
+- `snapshot_json` (JSONB) - max 500KB; stores URL references only, never binary data; validated by `export_service.py` before insert
+- `snapshot_hash` (idempotency/dedup key - SHA-256 of normalized snapshot + config)
 - `output_url`
 - `thumbnail_url`
-- `pinned_at` (nullable datetime — reserved for lifecycle protection policy in 6D)
-- `revoked_at` (nullable datetime — reserved for share revocation policy in 6D)
+- `pinned_at` (nullable datetime - reserved for lifecycle protection policy in 6D)
+- `revoked_at` (nullable datetime - reserved for share revocation policy in 6D)
 - `error_code`
 - `error_message`
 - `retry_count`
 - `max_retries` (default: 3)
-- `next_attempt_at` (nullable datetime — when the job is eligible for retry claiming; NULL means immediately claimable)
+- `next_attempt_at` (nullable datetime - when the job is eligible for retry claiming; NULL means immediately claimable)
 - `worker_session_id`
 - `created_at`, `updated_at`, `started_at`, `completed_at`, `render_duration_ms`
 
 **Indexes required:**
-- `(user_id, status)` — for per-user concurrency checks
-- `(status, next_attempt_at)` — for worker claim query
-- `(trip_id)` — for pre-submit guard queries
-- `(snapshot_hash)` — for dedup lookup
+- `(user_id, status)` - for per-user concurrency checks
+- `(status, next_attempt_at)` - for worker claim query
+- `(trip_id)` - for pre-submit guard queries
+- `(snapshot_hash)` - for dedup lookup
 
 ## 6.2 Snapshot Contract
 
@@ -352,9 +352,9 @@ Snapshot must include immutable render inputs:
 
 - trip metadata (title, visibility, dates)
 - ordered timeline components
-- route geometry (`route_geojson` — pre-simplified to max 500 coordinate points per route)
+- route geometry (`route_geojson` - pre-simplified to max 500 coordinate points per route)
 - place coordinates and order
-- media references as objects: `{id, url, thumbnail_url, width, height, mime_type, file_size_bytes}` — never embed base64 or full file bytes
+- media references as objects: `{id, url, thumbnail_url, width, height, mime_type, file_size_bytes}` - never embed base64 or full file bytes
 - export config (template, aspect ratio, quality, duration, fps)
 
 Snapshot must not depend on mutable in-memory state after job starts.
@@ -495,13 +495,13 @@ processing
 
 cancel_requested
   -> canceled            (worker settles canceled immediately after cancel path)
-  └─→ completed           (race: render completed before cancel was processed — accept the artifact)
+  └─→ completed           (race: render completed before cancel was processed - accept the artifact)
 
 failed
   └─→ queued              (automatic retry; worker sets next_attempt_at with backoff)
 
 completed  → [terminal]
-blocked    → [terminal — requires user action or support intervention]
+blocked    → [terminal - requires user action or support intervention]
 canceled   → [terminal]
 ```
 
@@ -527,7 +527,7 @@ The worker sets `status = blocked` when it encounters a non-retryable terminal c
 - Trip media references are all broken (all asset_fetch failures are 404).
 - Quota exceeded at a tier that cannot be retried.
 
-`blocked` is **never** set at job creation time. The Flutter pre-submit guard is a client-side check that prevents submission if preconditions are not met — it results in a `422` response, not a `blocked` row.
+`blocked` is **never** set at job creation time. The Flutter pre-submit guard is a client-side check that prevents submission if preconditions are not met - it results in a `422` response, not a `blocked` row.
 
 ---
 
@@ -565,14 +565,14 @@ Objective: Establish durable export job lifecycle with no rendering dependency r
   - `my_trips_screen.dart` export action navigates to `ExportStudioScreen`.
   - `editor_screen.dart` export action navigates to `ExportStudioScreen`.
 - Pre-submit guard (enforced in `export_provider.dart` before API call):
-  1. `trip.serverTripId != null` — if null, show error: "Trip must be synced before exporting."
-  2. No pending/failed media queue items for this trip — if present, show error: "Upload all media before exporting."
-  3. No blocking sync tasks for this trip — if present, show error: "Trip changes are still syncing."
+  1. `trip.serverTripId != null` - if null, show error: "Trip must be synced before exporting."
+  2. No pending/failed media queue items for this trip - if present, show error: "Upload all media before exporting."
+  3. No blocking sync tasks for this trip - if present, show error: "Trip changes are still syncing."
 - 6A Export Studio screen: single-state "Preparing your video..." with hardcoded `classic` template. No template picker. A "Start Export" button submits the job with defaults.
 
 **Renderer contract deliverable (6A freeze):**
 
-- `video-renderer/` HTTP API contract frozen and documented (see §5.2).
+- `video-renderer/` HTTP API contract frozen and documented (see Section 5.2).
 - Contract document: `video-renderer/docs/renderer-api-contract.md`.
 - Contract includes: endpoint specs, request/response schemas, version header, error codes.
 - Backend `AbstractRemotionRenderer` interface implemented with a `MockRemotionRenderer` stub that simulates stage progression for 6A testing.
@@ -585,14 +585,14 @@ Objective: Establish durable export job lifecycle with no rendering dependency r
 
 **Local dev orchestration:**
 
-- Add `docker-compose.dev.yml` and `Procfile.dev` at repo root (see §5.6).
+- Add `docker-compose.dev.yml` and `Procfile.dev` at repo root (see Section 5.6).
 - Document startup procedure in `video-renderer/README.md`.
 
 **Exit criteria:**
 
 - User can submit export job from Flutter and observe status progression through mock stages.
 - Cancel endpoint updates state correctly.
-- Worker recovers queued jobs after restart (see §11 for required test).
+- Worker recovers queued jobs after restart (see Section 11 for required test).
 - No regression in media upload/sync queue flows.
 
 ---
@@ -601,7 +601,7 @@ Objective: Establish durable export job lifecycle with no rendering dependency r
 
 Objective: Render first real video template with deterministic quality.
 
-**Pre-condition:** §5.2 renderer HTTP API contract must be frozen and signed off before any 6B work starts.
+**Pre-condition:** Section 5.2 renderer HTTP API contract must be frozen and signed off before any 6B work starts.
 
 **Renderer deliverables:**
 
@@ -621,8 +621,8 @@ Objective: Render first real video template with deterministic quality.
 - `LocalRemotionRenderer` implementation calling the `video-renderer/` HTTP API.
 - Snapshot-to-`RenderManifest` mapping in `export_service.py`.
   - Route GeoJSON simplified to max 500 points.
-  - Media list capped per §6.2 rules.
-  - Snapshot size validated ≤ 500KB before insertion.
+  - Media list capped per Section 6.2 rules.
+  - Snapshot size validated <= 500KB before insertion.
 - Worker stage implementation:
   - `snapshotting`: build and validate snapshot, compute `snapshot_hash`.
   - `asset_fetch`: pre-fetch and verify all media URLs are reachable (HEAD requests).
@@ -630,7 +630,7 @@ Objective: Render first real video template with deterministic quality.
   - `encoding`: no-op for local path (Remotion handles encoding inline).
   - `uploading`: upload MP4 to private storage path; set `thumbnail_url` from first snapshot media URL (6B shortcut, no thumbnail artifact upload).
   - `finalizing`: persist `output_url`, `thumbnail_url`, `render_duration_ms`, mark `completed`.
-- Cancellation check: worker reads current `status` from DB before entering each stage. If `status == cancel_requested`, the worker initiates renderer cancellation and exits the stage loop. The worker never checks for `canceled` directly as the trigger — `canceled` is the outcome, not the signal.
+- Cancellation check: worker reads current `status` from DB before entering each stage. If `status == cancel_requested`, the worker initiates renderer cancellation and exits the stage loop. The worker never checks for `canceled` directly as the trigger - `canceled` is the outcome, not the signal.
 
 **Flutter UX deliverables:**
 
@@ -680,9 +680,9 @@ Status (2026-03-08): Completed. Implementation and evidence are captured in `pha
 - Lambda backend implementation inside `video-renderer` using `@remotion/lambda`.
 - Lambda function/site deployment scripts in `video-renderer/scripts/`.
 - Lambda runtime configuration (frozen in 6C):
-  - Memory: `2048MB` for ≤720p, `3008MB` for 1080p.
+  - Memory: `2048MB` for <=720p, `3008MB` for 1080p.
   - Timeout: `900s` (Lambda max).
-  - `framesPerLambda`: `8`.
+  - `framesPerLambda`: `200` (configurable via `LAMBDA_FRAMES_PER_LAMBDA`).
   - Region: configurable via `AWS_REGION`.
   - Output bucket: `dora-exports-{env}` S3 bucket.
   - Renderer call timeout: `renderMediaOnLambda.timeoutInMilliseconds = 240000` (delayRender watchdog), separate from Lambda function timeout.
@@ -713,8 +713,8 @@ Implementation notes:
 - Dedup by `snapshot_hash + quality + aspect_ratio`: if identical job already `queued` or `processing`, return existing `job_id` with `409 Conflict`.
 - Retry policy: max 3 attempts, exponential backoff (30s, 120s, 480s).
 - Quality caps by tier:
-  - Free tier: ≤720p, ≤15s duration.
-  - Paid tier: ≤1080p, ≤60s duration.
+  - Free tier: <=720p, <=15s duration.
+  - Paid tier: <=1080p, <=60s duration.
   - 6C implementation enforces free-tier caps at job creation. Paid entitlement branching is deferred until billing/user-plan integration in 6D.
 - S3 lifecycle rule for 6C: unconditional auto-delete of export artifacts older than 30 days (`private/` prefix). `pinned_at` protection wiring is deferred to 6D.
 - Target cost: <$0.15 per 720p/15s export (Lambda compute + S3 storage + transfer).
@@ -724,16 +724,16 @@ Implementation notes:
 - Ownership check on all status/cancel/download-url endpoints: `job.user_id == requesting_user_id`.
 - Download URL: S3 presigned URL with 1-hour TTL, generated fresh on each `GET /download-url` call.
 - Share URL contract remains unchanged in 6C; full revocable-token persistence and privacy-revocation enforcement are completed in 6D.
-- No public bucket ACLs — all S3 access via presigned URLs only.
+- No public bucket ACLs - all S3 access via presigned URLs only.
 
 **Observability deliverables:**
 
 Structured log tags (use in every relevant log line):
-- `[EXPORT_JOB]` — lifecycle events (created, claimed, completed, failed, blocked, canceled)
-- `[EXPORT_RENDER]` — renderer calls, stage timing
-- `[EXPORT_UPLOAD]` — artifact upload start/complete/fail
-- `[EXPORT_FAIL]` — any error with error_code and retry context
-- `[EXPORT_COST]` — Lambda invocation count, memory, duration per job
+- `[EXPORT_JOB]` - lifecycle events (created, claimed, completed, failed, blocked, canceled)
+- `[EXPORT_RENDER]` - renderer calls, stage timing
+- `[EXPORT_UPLOAD]` - artifact upload start/complete/fail
+- `[EXPORT_FAIL]` - any error with error_code and retry context
+- `[EXPORT_COST]` - Lambda invocation count, memory, duration per job
 
 Minimum metrics to track:
 - Queue wait time (claimed_at - created_at)
@@ -841,11 +841,11 @@ These rules are mandatory for any agent implementing this phase.
 
 - No direct renderer vendor SDK calls from Flutter widgets.
 - No export rendering in API request thread.
-- No undocumented status transitions (follow §6.4 exactly).
+- No undocumented status transitions (follow Section 6.4 exactly).
 - No public artifact URL for private trips.
 - No merging without migration + tests + rollback notes.
 - No `.with_for_update()` without `skip_locked=True` for job claiming.
-- No `snapshot_json` exceeding 500KB — validate before insert.
+- No `snapshot_json` exceeding 500KB - validate before insert.
 - Do not set `status = blocked` at job creation. It is a worker-set terminal state only.
 
 ### 9.3 Stop-the-Line Conditions
@@ -863,16 +863,16 @@ These rules are mandatory for any agent implementing this phase.
 
 **Performance targets:**
 
-- 15s 720p export: p95 total completion time ≤ 120s (local path), ≤ 90s (Lambda path after cold start).
-- 30s 1080p export: p95 total completion time ≤ 240s (Lambda path).
-- Lambda cold start: acceptable at ≤ 5s. Provisioned concurrency not required at MVP.
-- Worker claim-to-render-start latency: ≤ 5s.
+- 15s 720p export: p95 total completion time <= 120s (local path), <= 90s (Lambda path after cold start).
+- 30s 1080p export: p95 total completion time <= 240s (Lambda path).
+- Lambda cold start: acceptable at <= 5s. Provisioned concurrency not required at MVP.
+- Worker claim-to-render-start latency: <= 5s.
 - Export success rate: ≥ 98% excluding user-canceled jobs.
 
 **Cost targets:**
 
-- 720p / 15s export: target ≤ $0.15 (Lambda compute + S3 storage + egress).
-- Lambda invocations per 720p/15s export: target ≤ 80 function calls (at `framesPerLambda=8`).
+- 720p / 15s export: target <= $0.15 (Lambda compute + S3 storage + egress).
+- Lambda invocations per 720p/15s export: target <= 80 function calls (at `framesPerLambda=8`).
 - S3 storage: artifacts auto-deleted after 30 days unless pinned. Monthly storage cost capped by lifecycle rule.
 - Deduplication prevents re-rendering identical `(snapshot_hash + quality + aspect_ratio)` exports.
 
@@ -896,7 +896,7 @@ These rules are mandatory for any agent implementing this phase.
 **Backend:**
 
 - Unit tests:
-  - State transition validation (all paths in §6.4).
+  - State transition validation (all paths in Section 6.4).
   - Dedup logic (`snapshot_hash` collision returns existing job).
   - Permission checks (ownership, tier quality caps).
   - Snapshot size validation (rejects >500KB payloads).
@@ -933,7 +933,7 @@ These rules are mandatory for any agent implementing this phase.
 - Happy path export from My Trips and Editor.
 - Offline/online interruption during processing.
 - Cancel-in-progress (cancel each stage: snapshotting, rendering, uploading).
-- Failure/retry behavior — confirm retry with backoff.
+- Failure/retry behavior - confirm retry with backoff.
 - Signed URL access validation (expired URL, wrong user).
 - Local-only trip export shows correct precondition error (`trip_not_synced`) in Flutter.
 
@@ -946,13 +946,13 @@ These rules are mandatory for any agent implementing this phase.
 - `backend/app/models/export_job.py` (new)
 - `backend/app/schemas/export.py` (new)
 - `backend/app/services/export_service.py` (new)
-- `backend/app/services/export_renderer.py` (new — abstract interface + local/lambda adapters)
+- `backend/app/services/export_renderer.py` (new - abstract interface + local/lambda adapters)
 - `backend/app/api/v1/exports.py` (new)
 - `backend/app/main.py` (update router registration)
 - `backend/app/workers/export_worker.py` (new)
 - `backend/alembic/versions/*_create_export_jobs.py` (new)
 - `backend/tests/test_export_endpoints.py` (new)
-- `backend/tests/test_export_worker.py` (new — includes restart-recovery test)
+- `backend/tests/test_export_worker.py` (new - includes restart-recovery test)
 
 **Flutter (new/updated):**
 
@@ -960,9 +960,9 @@ These rules are mandatory for any agent implementing this phase.
 - `flutter/lib/features/export/domain/export_job.dart` (new)
 - `flutter/lib/features/export/domain/video_template.dart` (new)
 - `flutter/lib/features/export/domain/export_state.dart` (new)
-- `flutter/lib/features/export/domain/export_error_strings.dart` (new — user-facing copy for all error codes)
+- `flutter/lib/features/export/domain/export_error_strings.dart` (new - user-facing copy for all error codes)
 - `flutter/lib/features/export/presentation/screens/export_studio_screen.dart` (new)
-- `flutter/lib/features/export/presentation/screens/template_picker_screen.dart` (new — 6B)
+- `flutter/lib/features/export/presentation/screens/template_picker_screen.dart` (new - 6B)
 - `flutter/lib/features/export/presentation/screens/share_preview_screen.dart` (new)
 - `flutter/lib/features/export/presentation/providers/export_provider.dart` (new)
 - `flutter/lib/core/navigation/routes.dart` (update)
@@ -980,13 +980,13 @@ These rules are mandatory for any agent implementing this phase.
 - `infra/remotion/iam.json` and/or `infra/remotion/iam.tf|iam.ts` (IAM policy/role definition)
 - `infra/remotion/s3_lifecycle.json` (S3 lifecycle rule for artifact cleanup)
 - `infra/remotion/README.md` (Lambda deployment and IAM provisioning guide)
-- `docker-compose.dev.yml` (repo root — three-service local dev stack)
-- `Procfile.dev` (repo root — lightweight alternative to docker-compose)
+- `docker-compose.dev.yml` (repo root - three-service local dev stack)
+- `Procfile.dev` (repo root - lightweight alternative to docker-compose)
 
 **Ops (new):**
 
-- `flutter/docs/ops/export-runbook.md` (6D — operational runbook)
-- `flutter/docs/handoffs/phase6-contract-freeze.md` (required before 6A — see §6.4 and Checklist)
+- `flutter/docs/ops/export-runbook.md` (6D - operational runbook)
+- `flutter/docs/handoffs/phase6-contract-freeze.md` (required before 6A - see Section 6.4 and Checklist)
 - `flutter/docs/handoffs/phase6c-kickoff-procedure.md` (required before 6C implementation starts)
 - `flutter/docs/handoffs/phase6d-kickoff-procedure.md` (required before 6D implementation starts)
 

@@ -498,8 +498,10 @@ def test_get_download_url_requires_completed(client, db, test_user, auth_as):
 def test_get_share_url_for_completed_job(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
     job = _create_export_job(db, test_user.id, trip.id, status="completed")
-    job.output_url = "https://storage.example.com/private/output.mp4"
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
     db.commit()
 
     response = client.get(f"/api/v1/exports/{job.id}/share")
@@ -512,6 +514,8 @@ def test_get_share_url_for_completed_job(client, db, test_user, auth_as):
 def test_get_share_url_reuses_active_token(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
     job = _create_export_job(db, test_user.id, trip.id, status="completed")
     job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
     db.commit()
@@ -556,7 +560,7 @@ def test_share_token_redirect_generates_presigned_url(
     assert redirected.headers["location"] == "https://signed.example.com/share-output.mp4"
 
 
-def test_share_token_redirect_rejects_private_trip(client, db, test_user, auth_as):
+def test_get_share_url_rejects_private_trip(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)  # private by default
     job = _create_export_job(db, test_user.id, trip.id, status="completed")
@@ -564,21 +568,20 @@ def test_share_token_redirect_rejects_private_trip(client, db, test_user, auth_a
     db.commit()
 
     share = client.get(f"/api/v1/exports/{job.id}/share")
-    assert share.status_code == 200
-    token = share.json()["share_url"].rstrip("/").split("/")[-1]
+    assert share.status_code == 403
 
-    denied = client.get(f"/api/v1/shares/{token}", follow_redirects=False)
-    assert denied.status_code == 403
 
-    token_row = (
-        db.query(ExportShareToken)
-        .filter(ExportShareToken.token == token)
-        .first()
-    )
-    assert token_row is not None
-    assert token_row.revoked_at is not None
-    db.refresh(job)
-    assert job.revoked_at is not None
+def test_get_share_url_rejects_non_s3_artifacts(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "https://storage.example.com/private/output.mp4"
+    db.commit()
+
+    share = client.get(f"/api/v1/exports/{job.id}/share")
+    assert share.status_code == 409
 
 
 def test_share_token_redirect_rejects_expired_token(client, db, test_user, auth_as):
@@ -605,6 +608,36 @@ def test_share_token_redirect_rejects_expired_token(client, db, test_user, auth_
 
     denied = client.get(f"/api/v1/shares/{token}", follow_redirects=False)
     assert denied.status_code == 403
+
+
+def test_share_token_revocation_not_sticky_after_trip_republic(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    trip.visibility = "public"
+    db.commit()
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "s3://dora-exports-dev/private/user/job/output.mp4"
+    db.commit()
+
+    share = client.get(f"/api/v1/exports/{job.id}/share")
+    assert share.status_code == 200
+    old_token = share.json()["share_url"].rstrip("/").split("/")[-1]
+
+    trip.visibility = "private"
+    db.commit()
+    denied = client.get(f"/api/v1/shares/{old_token}", follow_redirects=False)
+    assert denied.status_code == 403
+
+    revoked_row = db.query(ExportShareToken).filter(ExportShareToken.token == old_token).first()
+    assert revoked_row is not None
+    assert revoked_row.revoked_at is not None
+
+    trip.visibility = "public"
+    db.commit()
+    reshared = client.get(f"/api/v1/exports/{job.id}/share")
+    assert reshared.status_code == 200
+    new_token = reshared.json()["share_url"].rstrip("/").split("/")[-1]
+    assert new_token != old_token
 
 
 def test_get_download_url_for_s3_output_generates_presigned_url(

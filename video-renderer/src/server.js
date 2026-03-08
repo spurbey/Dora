@@ -36,10 +36,9 @@ const ALLOWED_ASPECT_RATIOS = new Set(['9:16', '1:1', '16:9']);
 const ALLOWED_QUALITIES = new Set(['480p', '720p', '1080p']);
 
 // Maps manifest template -> Remotion composition ID.
-// 'cinematic' falls back to Classic until Phase 6D implements it.
 const COMPOSITION_BY_TEMPLATE = {
   classic: 'Classic',
-  cinematic: 'Classic',
+  cinematic: 'Cinematic',
 };
 
 function getDimensions(quality, aspectRatio) {

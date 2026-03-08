@@ -6,15 +6,14 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import { getPlaceImageUrl, resolveTimelinePlaces } from './render-data.js';
 
 // Fixed segment durations (seconds). Place slides fill the remaining time.
 const TITLE_SEC = 2;
 const END_SEC = 1;
 const MIN_PLACE_SEC = 2;
 
-// ─── Title Card ──────────────────────────────────────────────────────────────
-
-function TitleCard({ trip, fps, totalFrames }) {
+function TitleCard({ trip, fps }) {
   const frame = useCurrentFrame();
   const fadeEnd = Math.floor(fps * 0.5);
 
@@ -79,31 +78,28 @@ function TitleCard({ trip, fps, totalFrames }) {
   );
 }
 
-// ─── Place Slide (Ken Burns photo + text overlay) ────────────────────────────
-
 function PlaceSlide({ place, fps, totalFrames }) {
   const frame = useCurrentFrame();
   const progress = totalFrames > 1 ? frame / (totalFrames - 1) : 0;
   const fadeEnd = Math.floor(fps * 0.4);
 
-  // Ken Burns: gentle zoom + horizontal pan
+  // Ken Burns: gentle zoom + horizontal pan.
   const scale = interpolate(progress, [0, 1], [1.05, 1.13]);
   const translateX = interpolate(progress, [0, 1], [0, -10]);
 
-  // Text fades in over the first 0.4 s
+  // Text fades in over the first 0.4 s.
   const textOpacity = interpolate(frame, [0, fadeEnd], [0, 1], {
     extrapolateRight: 'clamp',
   });
 
   const photoUrl = getPlaceImageUrl(place);
 
-  // Deterministic hue from the place name for the fallback background
+  // Deterministic hue from place name for fallback background.
   const nameSeed = (place.name || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const fallbackHue = nameSeed % 360;
 
   return (
     <AbsoluteFill>
-      {/* Background: photo with Ken Burns or solid colour fallback */}
       {photoUrl ? (
         <AbsoluteFill style={{ overflow: 'hidden' }}>
           <Img
@@ -125,15 +121,12 @@ function PlaceSlide({ place, fps, totalFrames }) {
         />
       )}
 
-      {/* Gradient scrim at the bottom for text legibility */}
       <AbsoluteFill
         style={{
-          background:
-            'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0) 55%)',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0) 55%)',
         }}
       />
 
-      {/* Place name + optional sub-label */}
       <AbsoluteFill
         style={{
           justifyContent: 'flex-end',
@@ -172,31 +165,7 @@ function PlaceSlide({ place, fps, totalFrames }) {
   );
 }
 
-function isImageMedia(media) {
-  if (!media) {
-    return false;
-  }
-  const fileType = (media.file_type || '').toLowerCase();
-  if (fileType === 'photo' || fileType === 'image') {
-    return true;
-  }
-  const mimeType = (media.mime_type || '').toLowerCase();
-  return mimeType.startsWith('image/');
-}
-
-function getPlaceImageUrl(place) {
-  const media = Array.isArray(place?.media) ? place.media : [];
-  const imageMedia = media.find(isImageMedia);
-  if (imageMedia?.url) {
-    return imageMedia.url;
-  }
-  const thumbFallback = media.find((item) => typeof item?.thumbnail_url === 'string' && item.thumbnail_url.length > 0);
-  return thumbFallback?.thumbnail_url ?? null;
-}
-
-// ─── End Card ────────────────────────────────────────────────────────────────
-
-function EndCard({ trip, fps, totalFrames }) {
+function EndCard({ trip, fps }) {
   const frame = useCurrentFrame();
   const fadeEnd = Math.floor(fps * 0.4);
 
@@ -241,30 +210,16 @@ function EndCard({ trip, fps, totalFrames }) {
   );
 }
 
-// ─── Classic root composition ────────────────────────────────────────────────
-
 export function Classic({ snapshot = {} }) {
   const { fps, durationInFrames } = useVideoConfig();
 
   const trip = snapshot.trip || {};
-  const timeline = Array.isArray(snapshot.timeline) ? snapshot.timeline : [];
-  const directPlaces = Array.isArray(snapshot.places) ? snapshot.places : [];
-
-  // Prefer place-like timeline items, but fall back to snapshot.places when
-  // timeline is sparse so exports remain trip-specific.
-  const timelinePlaces = timeline
-    .filter((item) => item && item.component_type !== 'route' && item.name)
-    .map((item) => ({
-      ...item,
-      media: Array.isArray(item.media) ? item.media : [],
-    }));
-  const places = timelinePlaces.length > 0 ? timelinePlaces : directPlaces;
+  const places = resolveTimelinePlaces(snapshot);
 
   const titleFrames = TITLE_SEC * fps;
   const endFrames = END_SEC * fps;
   const availableFrames = Math.max(0, durationInFrames - titleFrames - endFrames);
 
-  // Distribute available time evenly across places; never shorter than MIN_PLACE_SEC
   const placeSegments =
     places.length > 0
       ? places.map((place, i) => {
@@ -278,21 +233,18 @@ export function Classic({ snapshot = {} }) {
 
   return (
     <AbsoluteFill style={{ background: '#0f0f0f' }}>
-      {/* Title card */}
       <Sequence from={0} durationInFrames={titleFrames}>
-        <TitleCard trip={trip} fps={fps} totalFrames={titleFrames} />
+        <TitleCard trip={trip} fps={fps} />
       </Sequence>
 
-      {/* One slide per place */}
       {placeSegments.map(({ place, from, frames }, i) => (
         <Sequence key={place.id || i} from={from} durationInFrames={frames}>
           <PlaceSlide place={place} fps={fps} totalFrames={frames} />
         </Sequence>
       ))}
 
-      {/* End card */}
       <Sequence from={durationInFrames - endFrames} durationInFrames={endFrames}>
-        <EndCard trip={trip} fps={fps} totalFrames={endFrames} />
+        <EndCard trip={trip} fps={fps} />
       </Sequence>
     </AbsoluteFill>
   );

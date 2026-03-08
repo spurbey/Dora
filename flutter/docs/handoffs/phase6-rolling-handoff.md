@@ -16,7 +16,11 @@ Continuity log across Phase 6 subphases (6A, 6B, 6C, 6D). Keep this file current
 - 6C evidence report: `flutter/docs/handoffs/phase6c-cloud-scale-report.md`
 - 6C kickoff: `flutter/docs/handoffs/phase6c-kickoff-procedure.md`
 - 6D kickoff: `flutter/docs/handoffs/phase6d-kickoff-procedure.md`
+- 6D motion spec: `flutter/docs/handoffs/phase6d-template-motion-spec.md`
+- 6D quality ledger: `flutter/docs/handoffs/phase6d-quality-hardening-report.md`
+- Export ops runbook: `flutter/docs/ops/export-runbook.md`
 - Renderer contract: `video-renderer/docs/renderer-api-contract.md`
+- Renderer contract v2 draft: `video-renderer/docs/renderer-api-contract-v2-draft.md`
 
 ## 3. Subphase Status
 
@@ -131,7 +135,26 @@ Current 6C implementation progress (committed):
 
 ### 6D - Quality + Hardening
 
-Status: Ready to start (kickoff procedure prepared)
+Status: In progress (D1 complete, D2 in progress)
+
+Delivered in current 6D window:
+- 6D execution docs initialized and linked:
+  - `phase6d-template-motion-spec.md`
+  - `phase6d-quality-hardening-report.md`
+  - `export-runbook.md`
+  - `renderer-api-contract-v2-draft.md`
+- Renderer template implementation started:
+  - Added `Cinematic` composition scaffold (`video-renderer/src/remotion/Cinematic.jsx`)
+  - Added shared remotion data helpers (`video-renderer/src/remotion/render-data.js`)
+  - Registered both `Classic` and `Cinematic` compositions (`Root.jsx`)
+  - Updated template mapping to route `cinematic` -> `Cinematic` (`server.js`)
+  - Refactored `Classic.jsx` to reuse shared data helpers and reduce duplication
+
+Open for 6D closure:
+- artifact-backed cinematic validation matrix (3 trips x target ratios)
+- export-owned thumbnail artifact pipeline (`thumbnail.jpg`)
+- share-token persistence/revocation enforcement and `pinned_at` lifecycle wiring
+- full regression run and final 6D report sign-off
 
 ## 4. Verification Log
 
@@ -165,8 +188,8 @@ Current sandbox limitation:
 
 ## 6. Next Actions
 
-1. Begin 6D visual scope execution using `flutter/docs/handoffs/phase6d-kickoff-procedure.md`.
-2. Implement cinematic template visuals (letterbox, Ken Burns, route fly-over).
-3. Polish classic route/map transitions and complete 6D evidence/runbook deliverables.
+1. Complete D2 validation by capturing cinematic artifacts and filling the 6D quality matrix.
+2. Implement D3 hardening: thumbnail artifact generation, share-token revoke path, and `pinned_at` retention wiring.
+3. Run D4 regression and finalize `phase6d-quality-hardening-report.md` for go/no-go.
 
 

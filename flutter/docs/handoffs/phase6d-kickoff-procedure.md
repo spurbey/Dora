@@ -70,6 +70,9 @@ Exit:
 - Visual spec frozen and linked in this document.
 - No unresolved data contract gaps.
 
+Reference:
+- `flutter/docs/handoffs/phase6d-template-motion-spec.md`
+
 ### Gate D2 - Template Implementation
 
 Tasks:
@@ -106,6 +109,9 @@ Exit:
 ## 6. Required Evidence Artifacts
 
 - `flutter/docs/handoffs/phase6d-quality-hardening-report.md`
+- `flutter/docs/handoffs/phase6d-template-motion-spec.md`
+- `video-renderer/docs/renderer-api-contract-v2-draft.md` (until v2 is finalized and merged into the canonical contract)
+- `flutter/docs/ops/export-runbook.md`
 - Template validation set (classic + cinematic, at least 3 trips each)
 - Thumbnail artifact verification notes
 - Share-token revoke verification notes

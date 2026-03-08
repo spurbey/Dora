@@ -226,9 +226,17 @@ export function Classic({ snapshot = {} }) {
 
   const trip = snapshot.trip || {};
   const timeline = Array.isArray(snapshot.timeline) ? snapshot.timeline : [];
+  const directPlaces = Array.isArray(snapshot.places) ? snapshot.places : [];
 
-  // Accept any timeline item that has a name (places, waypoints, etc.)
-  const places = timeline.filter((item) => item && item.name);
+  // Prefer place-like timeline items, but fall back to snapshot.places when
+  // timeline is sparse so exports remain trip-specific.
+  const timelinePlaces = timeline
+    .filter((item) => item && item.component_type !== 'route' && item.name)
+    .map((item) => ({
+      ...item,
+      media: Array.isArray(item.media) ? item.media : [],
+    }));
+  const places = timelinePlaces.length > 0 ? timelinePlaces : directPlaces;
 
   const titleFrames = TITLE_SEC * fps;
   const endFrames = END_SEC * fps;

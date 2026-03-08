@@ -20,6 +20,9 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.export_job import ExportJob
+from app.models.media import MediaFile
+from app.models.place import TripPlace
+from app.models.route import Route
 from app.models.trip import Trip
 from app.schemas.export import ExportCreateRequest
 
@@ -334,19 +337,92 @@ class ExportService:
         return False
 
     def _build_snapshot(self, trip: Trip, request: ExportCreateRequest) -> dict[str, Any]:
+        places = (
+            self.db.query(TripPlace)
+            .filter(TripPlace.trip_id == trip.id)
+            .filter(TripPlace.user_id == trip.user_id)
+            .order_by(TripPlace.order_in_trip.asc(), TripPlace.created_at.asc())
+            .all()
+        )
+        place_ids = [place.id for place in places]
+
+        media_rows: list[MediaFile] = []
+        if place_ids:
+            media_rows = (
+                self.db.query(MediaFile)
+                .filter(MediaFile.user_id == trip.user_id)
+                .filter(MediaFile.trip_place_id.in_(place_ids))
+                .order_by(MediaFile.created_at.asc())
+                .all()
+            )
+
+        media_by_place: dict[UUID, list[dict[str, Any]]] = {}
+        flat_media: list[dict[str, Any]] = []
+        for media in media_rows:
+            media_payload = self._serialize_media(media)
+            media_by_place.setdefault(media.trip_place_id, []).append(media_payload)
+            flat_media.append(media_payload)
+
+        places_payload: list[dict[str, Any]] = []
+        for place in places:
+            external_data = place.external_data if isinstance(place.external_data, dict) else {}
+            places_payload.append(
+                {
+                    "id": str(place.id),
+                    "name": place.name,
+                    "place_type": place.place_type,
+                    "lat": place.lat,
+                    "lng": place.lng,
+                    "destination": external_data.get("formatted_address"),
+                    "city": external_data.get("city") or external_data.get("locality"),
+                    "visit_date": place.visit_date.isoformat() if place.visit_date else None,
+                    "order_in_trip": int(place.order_in_trip or 0),
+                    "user_notes": place.user_notes,
+                    "media": media_by_place.get(place.id, []),
+                }
+            )
+
+        routes = (
+            self.db.query(Route)
+            .filter(Route.trip_id == trip.id)
+            .filter(Route.user_id == trip.user_id)
+            .order_by(Route.order_in_trip.asc(), Route.created_at.asc())
+            .all()
+        )
+        routes_payload: list[dict[str, Any]] = []
+        for route in routes:
+            routes_payload.append(
+                {
+                    "id": str(route.id),
+                    "name": route.name or "Route",
+                    "transport_mode": route.transport_mode,
+                    "route_category": route.route_category,
+                    "start_place_id": str(route.start_place_id) if route.start_place_id else None,
+                    "end_place_id": str(route.end_place_id) if route.end_place_id else None,
+                    "distance_km": route.distance_km,
+                    "duration_mins": route.duration_mins,
+                    "order_in_trip": int(route.order_in_trip or 0),
+                    "route_geojson": self._simplify_route_geojson(route.route_geojson),
+                }
+            )
+
+        timeline = self._build_timeline(places=places_payload, routes=routes_payload)
+
         snapshot = {
             "trip": {
                 "id": str(trip.id),
                 "user_id": str(trip.user_id),
                 "title": trip.title,
+                "description": trip.description,
+                "cover_photo_url": trip.cover_photo_url,
                 "visibility": trip.visibility,
                 "start_date": trip.start_date.isoformat() if trip.start_date else None,
                 "end_date": trip.end_date.isoformat() if trip.end_date else None,
             },
-            "timeline": [],
-            "routes": [],
-            "places": [],
-            "media": [],
+            "timeline": timeline,
+            "routes": routes_payload,
+            "places": places_payload,
+            "media": flat_media,
             "config": {
                 "template": request.template.value,
                 "aspect_ratio": request.aspect_ratio.value,
@@ -357,6 +433,89 @@ class ExportService:
         }
         self._validate_snapshot_size(snapshot=snapshot)
         return snapshot
+
+    def _serialize_media(self, media: MediaFile) -> dict[str, Any]:
+        return {
+            "id": str(media.id),
+            "trip_place_id": str(media.trip_place_id),
+            "url": media.file_url,
+            "thumbnail_url": media.thumbnail_url,
+            "width": media.width,
+            "height": media.height,
+            "mime_type": media.mime_type,
+            "file_size_bytes": media.file_size_bytes,
+            "file_type": media.file_type,
+            "caption": media.caption,
+            "taken_at": media.taken_at.isoformat() if media.taken_at else None,
+        }
+
+    def _build_timeline(
+        self,
+        *,
+        places: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        timeline: list[dict[str, Any]] = []
+        for place in places:
+            timeline.append(
+                {
+                    "component_type": "place",
+                    "id": place["id"],
+                    "name": place["name"],
+                    "order_in_trip": int(place.get("order_in_trip") or 0),
+                    "lat": place.get("lat"),
+                    "lng": place.get("lng"),
+                    "destination": place.get("destination"),
+                    "city": place.get("city"),
+                    "media": place.get("media", []),
+                }
+            )
+        for route in routes:
+            timeline.append(
+                {
+                    "component_type": "route",
+                    "id": route["id"],
+                    "name": route["name"],
+                    "order_in_trip": int(route.get("order_in_trip") or 0),
+                    "transport_mode": route.get("transport_mode"),
+                    "route_category": route.get("route_category"),
+                    "route_geojson": route.get("route_geojson"),
+                }
+            )
+
+        timeline.sort(
+            key=lambda item: (
+                int(item.get("order_in_trip") or 0),
+                0 if item.get("component_type") == "place" else 1,
+            )
+        )
+        return timeline
+
+    def _simplify_route_geojson(
+        self,
+        route_geojson: Any,
+        *,
+        max_points: int = 500,
+    ) -> Any:
+        if not isinstance(route_geojson, dict):
+            return route_geojson
+        if route_geojson.get("type") != "LineString":
+            return route_geojson
+
+        coordinates = route_geojson.get("coordinates")
+        if not isinstance(coordinates, list) or len(coordinates) <= max_points:
+            return route_geojson
+
+        step = max(1, (len(coordinates) - 1) // (max_points - 1))
+        sampled = [coordinates[index] for index in range(0, len(coordinates), step)]
+        if sampled[-1] != coordinates[-1]:
+            sampled.append(coordinates[-1])
+        if len(sampled) > max_points:
+            sampled = sampled[: max_points - 1] + [coordinates[-1]]
+
+        simplified = dict(route_geojson)
+        simplified["coordinates"] = sampled
+        return simplified
 
     def _validate_snapshot_size(self, snapshot: dict[str, Any]) -> None:
         serialized = self._normalize_snapshot(snapshot=snapshot)

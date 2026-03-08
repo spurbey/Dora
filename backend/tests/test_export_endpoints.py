@@ -8,6 +8,9 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.models.export_job import ExportJob
+from app.models.media import MediaFile
+from app.models.place import TripPlace
+from app.models.route import Route
 from app.models.trip import Trip
 import app.services.export_service as export_service_module
 
@@ -27,6 +30,65 @@ def _create_trip(db, user_id):
     db.commit()
     db.refresh(trip)
     return trip
+
+
+def _create_place(db, user_id, trip_id, *, order_in_trip=0):
+    place = TripPlace(
+        trip_id=trip_id,
+        user_id=user_id,
+        name="Eiffel Tower",
+        place_type="attraction",
+        location="SRID=4326;POINT(2.2945 48.8584)",
+        lat=48.8584,
+        lng=2.2945,
+        order_in_trip=order_in_trip,
+    )
+    db.add(place)
+    db.commit()
+    db.refresh(place)
+    return place
+
+
+def _create_media(db, user_id, place_id):
+    media = MediaFile(
+        user_id=user_id,
+        trip_place_id=place_id,
+        file_url="https://cdn.example.com/trip/photo-1.jpg",
+        file_type="photo",
+        file_size_bytes=123456,
+        mime_type="image/jpeg",
+        width=1080,
+        height=1920,
+        thumbnail_url="https://cdn.example.com/trip/photo-1-thumb.jpg",
+    )
+    db.add(media)
+    db.commit()
+    db.refresh(media)
+    return media
+
+
+def _create_route(db, user_id, trip_id, *, start_place_id, end_place_id, order_in_trip=1):
+    route = Route(
+        trip_id=trip_id,
+        user_id=user_id,
+        route_geojson={
+            "type": "LineString",
+            "coordinates": [
+                [2.2945, 48.8584],
+                [2.3333, 48.8600],
+            ],
+        },
+        start_place_id=start_place_id,
+        end_place_id=end_place_id,
+        transport_mode="foot",
+        route_category="ground",
+        order_in_trip=order_in_trip,
+        name="Walk",
+    )
+    db.add(route)
+    db.commit()
+    db.refresh(route)
+    return route
 
 
 def _create_export_job(
@@ -113,6 +175,44 @@ def test_create_export_duplicate_returns_409(client, db, test_user, auth_as):
     body = duplicate.json()
     assert body["detail"]["error"] == "duplicate_job"
     assert body["detail"]["existing_job_id"] == first.json()["job_id"]
+
+
+def test_create_export_snapshot_contains_trip_content(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    place = _create_place(db, test_user.id, trip.id, order_in_trip=0)
+    _create_media(db, test_user.id, place.id)
+    _create_route(
+        db,
+        test_user.id,
+        trip.id,
+        start_place_id=place.id,
+        end_place_id=place.id,
+        order_in_trip=1,
+    )
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/export",
+        json={
+            "template": "classic",
+            "aspect_ratio": "9:16",
+            "duration_sec": 15,
+            "quality": "720p",
+            "fps": 30,
+        },
+    )
+    assert response.status_code == 202
+    job_id = UUID(response.json()["job_id"])
+    job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+    assert job is not None
+
+    snapshot = job.snapshot_json
+    assert len(snapshot["places"]) == 1
+    assert len(snapshot["media"]) == 1
+    assert len(snapshot["routes"]) == 1
+    assert snapshot["places"][0]["media"][0]["url"] == "https://cdn.example.com/trip/photo-1.jpg"
+    assert any(item["component_type"] == "place" for item in snapshot["timeline"])
+    assert any(item["component_type"] == "route" for item in snapshot["timeline"])
 
 
 def test_create_export_rejects_when_user_active_limit_reached(client, db, test_user, auth_as, monkeypatch):
@@ -304,3 +404,21 @@ def test_get_download_url_for_s3_output_generates_presigned_url(
     body = response.json()
     assert body["download_url"] == "https://signed.example.com/download.mp4"
     assert body["ttl_seconds"] == export_service_module.DOWNLOAD_TTL_SECONDS
+
+
+def test_get_download_url_includes_future_expiry(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    job = _create_export_job(db, test_user.id, trip.id, status="completed")
+    job.output_url = "https://storage.example.com/private/output.mp4"
+    db.commit()
+
+    response = client.get(f"/api/v1/exports/{job.id}/download-url")
+    assert response.status_code == 200
+    body = response.json()
+    expires_at = datetime.fromisoformat(body["expires_at"].replace("Z", "+00:00"))
+    remaining = (expires_at - datetime.now(timezone.utc)).total_seconds()
+
+    assert body["ttl_seconds"] == export_service_module.DOWNLOAD_TTL_SECONDS
+    assert body["download_url"] == "https://storage.example.com/private/output.mp4"
+    assert export_service_module.DOWNLOAD_TTL_SECONDS - 20 <= remaining <= export_service_module.DOWNLOAD_TTL_SECONDS + 5

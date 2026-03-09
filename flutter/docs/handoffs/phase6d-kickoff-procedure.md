@@ -143,3 +143,49 @@ After each 6D gate:
 2. update `phase6-rolling-handoff.md` with current gate status,
 3. append concrete evidence in `phase6d-quality-hardening-report.md`,
 4. record carry-forward only if explicitly out of 6D scope.
+
+## 10. Execution Memory (2026-03-09)
+
+### 10.1 Planned in this execution window
+
+- Implement scene-level map context generation for cinematic scenes using a single static map URL per scene.
+- Project route geometry into frame coordinates and animate route draw over map context.
+- Keep cloud-safe behavior by avoiding per-frame tile fetching.
+- Preserve renderer contract by injecting renderer config (`mapbox_token`, `map_style`) through `inputProps`, not backend snapshot schema changes.
+- Record plan and completion evidence in this kickoff doc and `phase6d-quality-hardening-report.md`.
+
+### 10.2 Completed in this execution window
+
+- Added map/projection helpers in `video-renderer/src/remotion/render-data.js`:
+  - viewport fitting from route/place coordinates,
+  - map URL generation for Mapbox Static API,
+  - projected route path helpers for animation.
+- Upgraded `video-renderer/src/remotion/Cinematic.jsx` to:
+  - render map-backed scenes,
+  - animate route draw and marker over projected coordinates,
+  - keep robust image/dark fallbacks when map context is unavailable.
+- Updated renderer runtime input-prop wiring in:
+  - `video-renderer/src/server.js` (local backend),
+  - `video-renderer/src/lambda-renderer.js` (lambda backend),
+  so both backends pass `renderer_config.mapbox_token` and `renderer_config.map_style`.
+- Added env template entries in `video-renderer/.env.example`:
+  - `RENDERER_MAPBOX_TOKEN`,
+  - `RENDERER_MAP_STYLE`.
+
+### 10.3 Planned in current enhancement window
+
+- Improve cinematic quality without WebGL:
+  - keyframed map camera motion (focus and target tracks),
+  - smoother route geometry and route-head marker pulse,
+  - stronger transition continuity and legibility overlays.
+
+### 10.4 Completed in current enhancement window
+
+- Added route smoothing helper in `video-renderer/src/remotion/render-data.js` (`smoothPolyline` with bounded point count).
+- Upgraded cinematic map camera in `video-renderer/src/remotion/Cinematic.jsx`:
+  - multi-keyframe focus/target camera plan per scene,
+  - eased zoom/translation tracks for fly-over feel.
+- Upgraded route visual treatment in `video-renderer/src/remotion/Cinematic.jsx`:
+  - layered trail + glow path,
+  - animated head pulse marker,
+  - improved vignette/text transition continuity.

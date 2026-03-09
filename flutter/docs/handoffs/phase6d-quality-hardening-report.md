@@ -21,7 +21,7 @@ Every validation run must record:
 | Gate | Description | Status (`todo/in_progress/done`) | Notes |
 |---|---|---|---|
 | D1 | Visual foundation frozen (classic + cinematic motion contract) | done | Motion contract drafted in `phase6d-template-motion-spec.md` and linked in kickoff |
-| D2 | Template implementation complete (classic polish + cinematic) | in_progress | Cinematic composition scaffold + template routing wired; validation artifacts pending |
+| D2 | Template implementation complete (classic polish + cinematic) | in_progress | Cinematic now uses map-backed route scenes; validation artifact set still pending |
 | D3 | Hardening complete (thumbnail pipeline, share revoke, pinned retention) | todo | Includes cancel and stale-reaper validation |
 | D4 | Regression and release readiness complete | todo | Includes runbook and final go/no-go |
 
@@ -93,13 +93,55 @@ Completed in this window:
 Validation currently pending:
 - end-to-end renderer smoke artifacts for cinematic template across target ratios.
 
-### 7.1 Artifact Table
+### 7.1 Map Context Upgrade Snapshot (2026-03-09)
+
+Planned in this window:
+- replace cinematic dark fallback route scenes with map-backed context,
+- keep one map fetch per scene (not per frame),
+- maintain local/lambda parity through shared renderer input props.
+
+Completed:
+- `video-renderer/src/remotion/render-data.js`
+  - added viewport fitting and Mercator projection helpers,
+  - added scene map URL builder (Mapbox Static API),
+  - added reusable route path/progress helpers.
+- `video-renderer/src/remotion/Cinematic.jsx`
+  - map-backed cinematic scene rendering,
+  - projected route animation and progress marker,
+  - safe fallback behavior for missing token/data.
+- `video-renderer/src/server.js` + `video-renderer/src/lambda-renderer.js`
+  - inject `renderer_config.mapbox_token` + `renderer_config.map_style` into render `inputProps`.
+- `video-renderer/.env.example`
+  - added `RENDERER_MAPBOX_TOKEN` and `RENDERER_MAP_STYLE`.
+
+Validation pending:
+- collect 3 cinematic artifacts and confirm map visibility/readability on 9:16, 1:1, 16:9.
+
+### 7.2 Cinematic Motion Enhancement Snapshot (2026-03-09)
+
+Planned:
+- raise cinematic quality bar on static-map mode before any WebGL migration,
+- add smoother route geometry and camera-keyframe fly-over motion.
+
+Completed:
+- `video-renderer/src/remotion/render-data.js`
+  - added bounded polyline smoothing (`smoothPolyline`) for route overlays.
+- `video-renderer/src/remotion/Cinematic.jsx`
+  - added scene camera-keyframe planning (focus/target/scale tracks),
+  - added eased multi-stage camera transform,
+  - upgraded route overlay with glow/trail and animated route-head pulse,
+  - tuned label and vignette transitions for continuity.
+
+Validation pending:
+- export 3 cinematic artifacts and verify that route progression remains synchronized with timeline order after smoothing.
+
+### 7.3 Artifact Table
 
 | Job ID | Template | Ratio | Quality | Final Status | Output URL | Thumbnail URL | Playable |
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-### 7.2 Logs and Screens
+### 7.4 Logs and Screens
 
 - Worker log excerpt:
 - Renderer log excerpt:

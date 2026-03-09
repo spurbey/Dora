@@ -31,6 +31,8 @@ export class LambdaRenderBackend {
       1,
       parseInt(process.env.LAMBDA_FRAMES_PER_LAMBDA || '200', 10) || 200,
     );
+    this._mapboxToken = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
+    this._mapStyle = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
     this._renders = new Map();
   }
 
@@ -46,6 +48,30 @@ export class LambdaRenderBackend {
     }
   }
 
+  _buildInputProps(snapshot) {
+    const sourceSnapshot =
+      snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) ? snapshot : {};
+    const existingRendererConfig =
+      sourceSnapshot.renderer_config &&
+      typeof sourceSnapshot.renderer_config === 'object' &&
+      !Array.isArray(sourceSnapshot.renderer_config)
+        ? sourceSnapshot.renderer_config
+        : {};
+    const rendererConfig = {
+      ...existingRendererConfig,
+      map_style: existingRendererConfig.map_style || this._mapStyle,
+    };
+    if (this._mapboxToken) {
+      rendererConfig.mapbox_token = this._mapboxToken;
+    }
+    return {
+      snapshot: {
+        ...sourceSnapshot,
+        renderer_config: rendererConfig,
+      },
+    };
+  }
+
   async submit(manifest) {
     this.ensureConfigured();
 
@@ -59,13 +85,14 @@ export class LambdaRenderBackend {
     const renderId = crypto.randomUUID();
     const outputKey = `private/${userId}/${manifest.job_id}/output.mp4`;
     const thumbnailKey = `private/${userId}/${manifest.job_id}/thumbnail.jpg`;
+    const inputProps = this._buildInputProps(manifest.snapshot);
 
     const response = await renderMediaOnLambda({
       region: this._region,
       functionName: this._functionName,
       serveUrl: this._serveUrl,
       composition,
-      inputProps: { snapshot: manifest.snapshot },
+      inputProps,
       codec: 'h264',
       imageFormat: 'jpeg',
       framesPerLambda: this._framesPerLambda,
@@ -87,7 +114,7 @@ export class LambdaRenderBackend {
       functionName: this._functionName,
       serveUrl: this._serveUrl,
       composition,
-      inputProps: { snapshot: manifest.snapshot },
+      inputProps,
       imageFormat: 'jpeg',
       privacy: 'no-acl',
       frame: Math.max(0, Math.floor(manifest.duration_sec * manifest.fps * 0.45)),

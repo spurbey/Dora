@@ -1,13 +1,18 @@
 import {
   AbsoluteFill,
+  Easing,
   Img,
   Sequence,
   interpolate,
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import { useMemo } from 'react';
 import {
+  buildSceneMapContext,
   getPlaceImageUrl,
+  pointAtProgress,
+  pointsToPath,
   resolveTimelinePlaces,
   resolveTimelineRoutes,
 } from './render-data.js';
@@ -21,113 +26,57 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getRouteCoordinates(route) {
-  const geo = route?.route_geojson;
-  if (!geo || geo.type !== 'LineString' || !Array.isArray(geo.coordinates)) {
-    return [];
-  }
-  return geo.coordinates.filter(
-    (c) => Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]),
-  );
+function lerpPoint(a, b, t) {
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+  };
 }
 
-function normalizeCoordinates(coords, width = 100, height = 42) {
-  if (coords.length < 2) {
-    return [];
-  }
-  let minLng = Infinity;
-  let maxLng = -Infinity;
-  let minLat = Infinity;
-  let maxLat = -Infinity;
+function buildCameraPlan(mapContext, width, height, sceneIndex) {
+  const points = mapContext?.routePoints || [];
+  const placePoint = mapContext?.placePoint || null;
+  const center = { x: width / 2, y: height / 2 };
+  const start = points[0] || placePoint || center;
+  const end = points[points.length - 1] || placePoint || center;
+  const emphasis = placePoint || pointAtProgress(points, 0.64) || center;
+  const sceneBias = sceneIndex % 2 === 0 ? 1 : -1;
 
-  coords.forEach(([lng, lat]) => {
-    minLng = Math.min(minLng, lng);
-    maxLng = Math.max(maxLng, lng);
-    minLat = Math.min(minLat, lat);
-    maxLat = Math.max(maxLat, lat);
-  });
-
-  const lngSpan = maxLng - minLng || 1;
-  const latSpan = maxLat - minLat || 1;
-
-  return coords.map(([lng, lat]) => {
-    const x = ((lng - minLng) / lngSpan) * width;
-    // Invert Y so higher latitude is visually higher on screen.
-    const y = height - ((lat - minLat) / latSpan) * height;
-    return { x, y };
-  });
+  return {
+    focusA: lerpPoint(start, emphasis, 0.32),
+    focusB: emphasis,
+    focusC: lerpPoint(emphasis, end, 0.58),
+    targetA: { x: width * (0.56 + sceneBias * 0.03), y: height * 0.62 },
+    targetB: { x: width * (0.47 - sceneBias * 0.02), y: height * 0.6 },
+    targetC: { x: width * (0.52 + sceneBias * 0.015), y: height * 0.57 },
+    scaleA: 1.05,
+    scaleB: 1.16,
+    scaleC: 1.11,
+  };
 }
 
-function polylineLength(points) {
-  if (points.length < 2) {
-    return 0;
-  }
-  let total = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    const dx = points[i].x - points[i - 1].x;
-    const dy = points[i].y - points[i - 1].y;
-    total += Math.hypot(dx, dy);
-  }
-  return total;
-}
-
-function pointAtProgress(points, progress) {
-  if (points.length === 0) {
-    return { x: 50, y: 21 };
-  }
-  if (points.length === 1) {
-    return points[0];
-  }
-  const target = polylineLength(points) * clamp(progress, 0, 1);
-  let walked = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    const a = points[i - 1];
-    const b = points[i];
-    const seg = Math.hypot(b.x - a.x, b.y - a.y);
-    if (walked + seg >= target) {
-      const t = seg === 0 ? 0 : (target - walked) / seg;
-      return {
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t,
-      };
-    }
-    walked += seg;
-  }
-  return points[points.length - 1];
-}
-
-function pointsToPath(points) {
-  if (points.length < 2) {
-    return '';
-  }
-  return points
-    .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-    .join(' ');
-}
-
-function RouteOverlay({ route, progress }) {
-  const coords = getRouteCoordinates(route);
-  const points = normalizeCoordinates(coords);
+function RouteOverlay({ width, height, points, placePoint, progress, frame }) {
   const path = pointsToPath(points);
   if (!path) {
     return null;
   }
 
   const marker = pointAtProgress(points, progress);
+  const pulse = 0.72 + 0.28 * Math.sin(frame * 0.28);
+  const trailProgress = clamp(progress, 0.02, 1);
+  const glowProgress = clamp(progress + 0.06, 0.03, 1);
 
   return (
-    <AbsoluteFill
-      style={{
-        justifyContent: 'flex-end',
-        padding: '0 28px 26%',
-      }}
-    >
-      <svg viewBox="0 0 100 42" style={{ width: '52%', opacity: 0.95 }}>
+    <AbsoluteFill pointerEvents="none">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ width: '100%', height: '100%', opacity: 0.94 }}
+      >
         <path
           d={path}
           fill="none"
-          stroke="rgba(255,255,255,0.25)"
-          strokeWidth="1.4"
+          stroke="rgba(255,255,255,0.2)"
+          strokeWidth="2.1"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -135,13 +84,38 @@ function RouteOverlay({ route, progress }) {
           d={path}
           pathLength="1"
           fill="none"
-          stroke="#f9d37a"
-          strokeWidth="2.1"
+          stroke="rgba(249,211,122,0.42)"
+          strokeWidth="7.4"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={`${clamp(progress, 0.01, 1)} 1`}
+          strokeDasharray={`${glowProgress} 1`}
         />
-        <circle cx={marker.x} cy={marker.y} r="2.1" fill="#ffffff" />
+        <path
+          d={path}
+          pathLength="1"
+          fill="none"
+          stroke="#f9d37a"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={`${trailProgress} 1`}
+        />
+        {placePoint && (
+          <>
+            <circle
+              cx={placePoint.x}
+              cy={placePoint.y}
+              r="8"
+              fill="rgba(255,255,255,0.2)"
+              stroke="rgba(255,255,255,0.55)"
+              strokeWidth="1.2"
+            />
+            <circle cx={placePoint.x} cy={placePoint.y} r="3.5" fill="#ffffff" />
+          </>
+        )}
+        <circle cx={marker.x} cy={marker.y} r={7.2 * pulse} fill="rgba(249,211,122,0.28)" />
+        <circle cx={marker.x} cy={marker.y} r="5" fill="rgba(249,211,122,0.24)" />
+        <circle cx={marker.x} cy={marker.y} r="3.1" fill="#ffffff" />
       </svg>
     </AbsoluteFill>
   );
@@ -205,9 +179,14 @@ function CinematicIntro({ trip, fps }) {
   );
 }
 
-function CinematicScene({ place, route, sceneIndex, fps, totalFrames }) {
+function CinematicScene({ snapshot, place, route, sceneIndex, fps, totalFrames, width, height }) {
   const frame = useCurrentFrame();
   const progress = totalFrames > 1 ? frame / (totalFrames - 1) : 0;
+  const easedProgress = interpolate(progress, [0, 1], [0, 1], {
+    easing: Easing.inOut(Easing.cubic),
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
   const fadeFrames = Math.max(2, Math.floor(Math.min(totalFrames * 0.28, fps * 0.45)));
 
   const sceneOpacity = interpolate(
@@ -221,15 +200,98 @@ function CinematicScene({ place, route, sceneIndex, fps, totalFrames }) {
   );
 
   const panDirection = sceneIndex % 2 === 0 ? -1 : 1;
-  const scale = interpolate(progress, [0, 1], [1.02, 1.1]);
-  const translateX = interpolate(progress, [0, 1], [0, panDirection * 32]);
   const imageUrl = getPlaceImageUrl(place);
   const nameSeed = (place?.name || 'Cinematic').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const fallbackHue = nameSeed % 360;
+  const mapContext = useMemo(
+    () =>
+      buildSceneMapContext({
+        snapshot,
+        route,
+        place,
+        width,
+        height,
+      }),
+    [snapshot, route, place, width, height],
+  );
+
+  const routePoints = mapContext?.routePoints || [];
+  const placePoint = mapContext?.placePoint || null;
+  const routeVector = mapContext?.routeVector || { x: 0, y: 0 };
+  const hasMap = Boolean(mapContext?.mapUrl);
+  const cameraPlan = useMemo(
+    () => buildCameraPlan(mapContext, width, height, sceneIndex),
+    [mapContext, width, height, sceneIndex],
+  );
+  const maxMapDrift = 42;
+  const routeDriftX = clamp(-routeVector.x * 0.12, -maxMapDrift, maxMapDrift);
+  const routeDriftY = clamp(-routeVector.y * 0.12, -maxMapDrift, maxMapDrift);
+
+  const focusX = interpolate(
+    easedProgress,
+    [0, 0.58, 1],
+    [cameraPlan.focusA.x, cameraPlan.focusB.x, cameraPlan.focusC.x],
+    { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+  const focusY = interpolate(
+    easedProgress,
+    [0, 0.58, 1],
+    [cameraPlan.focusA.y, cameraPlan.focusB.y, cameraPlan.focusC.y],
+    { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+  const targetX = interpolate(
+    easedProgress,
+    [0, 0.58, 1],
+    [cameraPlan.targetA.x, cameraPlan.targetB.x, cameraPlan.targetC.x],
+    { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+  const targetY = interpolate(
+    easedProgress,
+    [0, 0.58, 1],
+    [cameraPlan.targetA.y, cameraPlan.targetB.y, cameraPlan.targetC.y],
+    { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+  const mapScale = interpolate(
+    easedProgress,
+    [0, 0.58, 1],
+    [cameraPlan.scaleA, cameraPlan.scaleB, cameraPlan.scaleC],
+    { easing: Easing.inOut(Easing.cubic), extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+  const mapTranslateX = clamp(targetX - focusX + routeDriftX * 0.35, -width * 0.24, width * 0.24);
+  const mapTranslateY = clamp(targetY - focusY + routeDriftY * 0.35, -height * 0.2, height * 0.2);
+  const photoScale = interpolate(easedProgress, [0, 1], [1.02, 1.1]);
+  const photoTranslateX = interpolate(easedProgress, [0, 1], [0, panDirection * 30]);
+  const routeProgress = interpolate(easedProgress, [0, 1], [0.02, 1], {
+    easing: Easing.out(Easing.cubic),
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const labelOpacity = interpolate(easedProgress, [0, 0.18, 0.9, 1], [0.35, 1, 1, 0.72], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const labelLift = interpolate(easedProgress, [0, 1], [10, -2], {
+    easing: Easing.inOut(Easing.quad),
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
 
   return (
     <AbsoluteFill style={{ opacity: sceneOpacity }}>
-      {imageUrl ? (
+      {hasMap ? (
+        <AbsoluteFill style={{ overflow: 'hidden' }}>
+          <Img
+            src={mapContext.mapUrl}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: `scale(${mapScale}) translate(${mapTranslateX}px, ${mapTranslateY}px)`,
+              transformOrigin: 'center center',
+            }}
+          />
+        </AbsoluteFill>
+      ) : imageUrl ? (
         <AbsoluteFill style={{ overflow: 'hidden' }}>
           <Img
             src={imageUrl}
@@ -237,13 +299,28 @@ function CinematicScene({ place, route, sceneIndex, fps, totalFrames }) {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transform: `scale(${scale}) translateX(${translateX}px)`,
+              transform: `scale(${photoScale}) translateX(${photoTranslateX}px)`,
               transformOrigin: 'center center',
             }}
           />
         </AbsoluteFill>
       ) : (
         <AbsoluteFill style={{ background: `hsl(${fallbackHue}, 26%, 14%)` }} />
+      )}
+
+      {hasMap && imageUrl && (
+        <AbsoluteFill style={{ overflow: 'hidden', opacity: 0.28 }}>
+          <Img
+            src={imageUrl}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: `scale(${photoScale}) translateX(${photoTranslateX}px)`,
+              transformOrigin: 'center center',
+            }}
+          />
+        </AbsoluteFill>
       )}
 
       <AbsoluteFill
@@ -253,7 +330,27 @@ function CinematicScene({ place, route, sceneIndex, fps, totalFrames }) {
         }}
       />
 
-      <RouteOverlay route={route} progress={progress} />
+      <AbsoluteFill
+        style={{
+          background:
+            'linear-gradient(to right, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.28) 100%)',
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          background:
+            'radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.34) 100%)',
+        }}
+      />
+
+      <RouteOverlay
+        width={width}
+        height={height}
+        points={routePoints}
+        placePoint={placePoint}
+        progress={routeProgress}
+        frame={frame}
+      />
 
       <AbsoluteFill pointerEvents="none">
         <div style={{ height: LETTERBOX_HEIGHT, background: '#000000' }} />
@@ -265,6 +362,8 @@ function CinematicScene({ place, route, sceneIndex, fps, totalFrames }) {
         style={{
           justifyContent: 'flex-end',
           padding: '0 32px 10%',
+          transform: `translateY(${labelLift}px)`,
+          opacity: labelOpacity,
           fontFamily: 'sans-serif',
         }}
       >
@@ -336,7 +435,7 @@ function CinematicOutro({ fps }) {
 }
 
 export function Cinematic({ snapshot = {} }) {
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
   const trip = snapshot.trip || {};
   const places = resolveTimelinePlaces(snapshot);
   const routes = resolveTimelineRoutes(snapshot);
@@ -371,11 +470,14 @@ export function Cinematic({ snapshot = {} }) {
       {sceneSegments.map((segment) => (
         <Sequence key={segment.place?.id || segment.index} from={segment.from} durationInFrames={segment.frames}>
           <CinematicScene
+            snapshot={snapshot}
             place={segment.place}
             route={segment.route}
             sceneIndex={segment.index}
             fps={fps}
             totalFrames={segment.frames}
+            width={width}
+            height={height}
           />
         </Sequence>
       ))}

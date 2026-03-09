@@ -30,6 +30,8 @@ const PORT = parseInt(process.env.PORT || '3100', 10);
 const OUTPUT_DIR = process.env.RENDER_OUTPUT_DIR || path.resolve(process.cwd(), 'render_artifacts');
 const CHROME_EXECUTABLE = process.env.REMOTION_CHROME_EXECUTABLE || undefined;
 const RENDER_BACKEND = (process.env.RENDER_BACKEND || 'local').trim().toLowerCase();
+const RENDERER_MAPBOX_TOKEN = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
+const RENDERER_MAP_STYLE = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
 
 const ALLOWED_TEMPLATES = new Set(['classic', 'cinematic']);
 const ALLOWED_ASPECT_RATIOS = new Set(['9:16', '1:1', '16:9']);
@@ -112,6 +114,26 @@ function validateManifest(body) {
   if (!isObject(snapshot)) return 'snapshot must be a JSON object';
   if (hasBinaryPayload(snapshot)) return 'snapshot must not contain binary/base64 payloads';
   return null;
+}
+
+function buildRendererInputProps(snapshot) {
+  const sourceSnapshot = isObject(snapshot) ? snapshot : {};
+  const existingRendererConfig = isObject(sourceSnapshot.renderer_config)
+    ? sourceSnapshot.renderer_config
+    : {};
+  const rendererConfig = {
+    ...existingRendererConfig,
+    map_style: existingRendererConfig.map_style || RENDERER_MAP_STYLE,
+  };
+  if (RENDERER_MAPBOX_TOKEN) {
+    rendererConfig.mapbox_token = RENDERER_MAPBOX_TOKEN;
+  }
+  return {
+    snapshot: {
+      ...sourceSnapshot,
+      renderer_config: rendererConfig,
+    },
+  };
 }
 
 function getOutputPath(renderId) {
@@ -204,6 +226,7 @@ async function runLocalRender(renderId, manifest) {
 
     const outputPath = getOutputPath(renderId);
     const thumbnailPath = getThumbnailPath(renderId);
+    const inputProps = buildRendererInputProps(manifest.snapshot);
     const { signal, cancel } = makeCancelSignal();
     cancelFns.set(renderId, cancel);
 
@@ -212,7 +235,7 @@ async function runLocalRender(renderId, manifest) {
       serveUrl: bundleLocation,
       codec: 'h264',
       outputLocation: outputPath,
-      inputProps: { snapshot: manifest.snapshot },
+      inputProps,
       cancelSignal: signal,
       ...(CHROME_EXECUTABLE ? { overrideBrowserExecutable: CHROME_EXECUTABLE } : {}),
       chromiumOptions: { gl: 'swangle' },
@@ -231,7 +254,7 @@ async function runLocalRender(renderId, manifest) {
       output: thumbnailPath,
       frame: Math.max(0, Math.floor(composition.durationInFrames * 0.45)),
       imageFormat: 'jpeg',
-      inputProps: { snapshot: manifest.snapshot },
+      inputProps,
       ...(CHROME_EXECUTABLE ? { browserExecutable: CHROME_EXECUTABLE } : {}),
       chromiumOptions: { gl: 'swangle' },
     });

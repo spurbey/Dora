@@ -60,29 +60,56 @@ Implementation note:
 
 ## 5.1 Visual Language
 
-- Letterbox mood supported across ratios
-- Lower text density than classic
-- Longer scene breath with stronger transition continuity
+- Continuous map journey: one Mapbox static map as the canvas for the full trip.
+- Camera follows the vehicle marker along routes — no scene cuts.
+- Letterbox framing and vignette across all ratios.
+- Photo cards pop at geographic locations (not full-screen backgrounds).
+- Lower text density than classic; place name labels at bottom with scrim.
 
 ## 5.2 Beat Plan
 
-1. Opening (title + destination tone)
-2. Journey progression (alternating place emphasis and route motion)
-3. Closing summary (trip completion beat)
+1. **Intro** (1.5s): trip title + destination over semi-transparent overlay, map visible behind.
+2. **Journey** (bulk of duration): alternating arrive/travel segments.
+   - Arrive: camera zooms to place (5.0×), photo cards spring in, place name fades in.
+   - Travel: camera follows vehicle along route (ground 4.0×, air 2.0×), route draws progressively.
+3. **Outro** (1.0s): branded "Story Captured — Dora" closer.
 
-## 5.3 Camera and Transition Rules
+## 5.3 Camera Rules
 
-- Zoom range per place: `1.02 -> 1.10`
-- Cross-dissolve or masked wipe transitions only
-- Transition duration: 0.35s-0.75s
-- Route fly-over interpolation must remain smooth at 30fps
+- Camera focus = vehicle marker position (exact tracking, no drift).
+- Only camera scale transitions between segments (20% ease window, `easeInOutSine`).
+- Mode-dependent zoom:
+  - Ground routes (car/bus/foot/bike/train): `CAMERA_SCALE_GROUND = 4.0`
+  - Air routes: `CAMERA_SCALE_AIR = 2.0`
+  - Arrive at place: `CAMERA_SCALE_ARRIVE = 5.0`
+- Edge clamping prevents map boundaries from becoming visible.
+
+## 5.4 Vehicle Marker Rules
+
+- Rendered in screen-space (fixed 64px, unaffected by camera zoom).
+- Route-colored circle background with white transport-mode icon.
+- 24×24 top-down SVG icons: plane, car, walking person, bicycle, bus, train.
+- Whole marker rotates to face direction of travel.
+- Mode-specific animations: plane vertical bob, car/bus rumble, train sway.
+- At place: 52px marker with location pin icon.
+
+## 5.5 Route Visual Rules
+
+- Vivid per-mode colors: gold (car), bright green (foot), mint (bike), cyan (air), orange (bus), purple (train).
+- Stroke widths: 4–5px in map-pixel space.
+- Progressive draw via `pathLength="1"` + `strokeDasharray`.
+- Glow layer (opacity 0.2) behind main trail.
+- Air routes: full dashed arc at 50% opacity + progressive solid glow.
+- Completed segments remain fully drawn.
 
 ## 6. Map and Route Strategy
 
-- Do not fetch external map tiles per frame
-- Reuse scene-level map background when possible
-- Animate camera over route geometry inside composition
-- Route ordering comes from snapshot timeline and must not be re-sorted by name
+- Single Mapbox Static API fetch per composition (one map for entire trip).
+- OVERSIZE factor 2.5 with paddingRatio 0.06 — maximizes auto-fit zoom for city-level detail.
+- @2x image provides 2× pixel density at the geographic coordinate dimensions.
+- Camera CSS `translate + scale` handles panning/zooming over the static image.
+- All coordinate projection uses geographic (pre-@2x) dimensions.
+- Route ordering comes from snapshot timeline and must not be re-sorted by name.
 
 ## 7. Text and Legibility Rules
 

@@ -21,7 +21,7 @@ Every validation run must record:
 | Gate | Description | Status (`todo/in_progress/done`) | Notes |
 |---|---|---|---|
 | D1 | Visual foundation frozen (classic + cinematic motion contract) | done | Motion contract drafted in `phase6d-template-motion-spec.md` and linked in kickoff |
-| D2 | Template implementation complete (classic polish + cinematic) | in_progress | Cinematic now uses map-backed route scenes; validation artifact set still pending |
+| D2 | Template implementation complete (classic polish + cinematic) | in_progress | Cinematic rewritten as continuous map journey with camera-follows-marker; validation artifacts pending |
 | D3 | Hardening complete (thumbnail pipeline, share revoke, pinned retention) | todo | Includes cancel and stale-reaper validation |
 | D4 | Regression and release readiness complete | todo | Includes runbook and final go/no-go |
 
@@ -135,13 +135,75 @@ Completed:
 Validation pending:
 - export 3 cinematic artifacts and verify that route progression remains synchronized with timeline order after smoothing.
 
-### 7.3 Artifact Table
+### 7.3 Continuous Map Journey Rewrite (2026-03-10)
+
+Architecture change: replaced isolated scene-per-place cinematic slideshow with a
+continuous map journey composition where a single Mapbox static map serves as the
+canvas for the entire trip.
+
+Completed — `video-renderer/src/remotion/render-data.js`:
+- `buildGlobalMapContext`: collects all coordinates, fits one viewport, projects
+  all places and routes into a single map-pixel coordinate space.
+  - Fixed critical Mapbox @2x projection mismatch (geographic vs pixel dimensions)
+    that caused all coordinates to render in the Indian Ocean.
+  - OVERSIZE factor raised to 2.5 (from 1.7) and paddingRatio lowered to 0.06 for
+    higher auto-fit Mapbox zoom — more city-level detail.
+- `buildJourneyTimeline`: allocates arrive/travel segments proportionally across
+  the available journey frames.
+- `pointOnArc`: quadratic bezier interpolation for air route arcs — marker and
+  camera follow the actual arc curve, not a straight line.
+- `ROUTE_STYLES`: vivid per-mode colors (gold car, green foot, cyan air, orange
+  bus, purple train) and thicker widths (4–5px).
+- `TRAVEL_MODE_ICONS`: 24×24 top-down SVG paths for plane, car, walking person,
+  bicycle, bus, and train — oriented facing right for heading rotation.
+- `getPlaceImageUrls`, `cardScreenPosition`, `airArcPath`, `getHeadingAtProgress`:
+  supporting helpers for photo cards, arc paths, and heading computation.
+
+Completed — `video-renderer/src/remotion/Cinematic.jsx` (full rewrite):
+- **MapJourney** (continuous composition spanning full duration):
+  - Single static map `<Img>` rendered at geographic dimensions (CSS) with @2x
+    pixel density.
+  - Camera focus = marker position directly (zero drift). Only the camera scale
+    transitions between segments.
+  - Mode-dependent camera zoom: ground 4.0×, air 2.0×, arrive 5.0× (with smooth
+    cross-ease at segment boundaries).
+  - `RouteTrail`: SVG progressive route drawing via `pathLength="1"` +
+    `strokeDasharray`. Air routes show full dashed arc with progressive glow.
+  - `PlaceDots`: small white dots at visited places.
+- **TravelMarker** (screen-space, fixed 64px):
+  - Route-colored circle with white transport-mode icon inside.
+  - Whole marker rotates to face direction of travel.
+  - Mode-specific micro-animations: plane vertical bob, car/bus rumble, train sway.
+- **PlacePhotoCards** (screen-space):
+  - Up to 3 photo cards per place with spring-enter and fade-exit.
+  - Cards positioned at geographic location with edge avoidance.
+  - Fan rotation for multi-card layout.
+- **CinematicIntro / CinematicOutro**: semi-transparent overlays with trip title
+  and branded closer.
+- **Vignette + Letterbox**: consistent across all aspect ratios.
+
+Bugs fixed in this window:
+- @2x projection mismatch: `fitViewportToCoordinates` was called with pixel
+  dimensions (geoWidth×2) instead of geographic dimensions — all coordinates
+  projected 2× too far from center, placing everything in the Indian Ocean.
+- Camera drift: camera independently interpolated along the route with different
+  easing than the marker, causing desynchronization. Fixed by making camera focus
+  track the marker position directly.
+- Route dashed-style masking: dark-colored SVG path overlay was visible against
+  the map background. Removed in favor of clean progressive draw for all routes.
+
+Validation pending:
+- export 3 cinematic artifacts across 9:16, 1:1, 16:9 and confirm that camera
+  follows the route, vehicle markers are visible, and photo cards appear at
+  correct geographic positions.
+
+### 7.4 Artifact Table
 
 | Job ID | Template | Ratio | Quality | Final Status | Output URL | Thumbnail URL | Playable |
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-### 7.4 Logs and Screens
+### 7.5 Logs and Screens
 
 - Worker log excerpt:
 - Renderer log excerpt:

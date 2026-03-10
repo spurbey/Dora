@@ -189,3 +189,28 @@ After each 6D gate:
   - layered trail + glow path,
   - animated head pulse marker,
   - improved vignette/text transition continuity.
+
+### 10.5 Continuous map journey rewrite (2026-03-10)
+
+Replaced the per-scene cinematic model with a single continuous map journey:
+
+- **Architecture**: one Mapbox static map for the entire trip; camera pans and
+  zooms over it following the vehicle marker along routes.
+- **Camera follows marker**: camera focus = marker position directly (no separate
+  interpolation). Only zoom level transitions between segments.
+- **Mode-dependent zoom**: ground routes 4.0× (city-visible), air 2.0× (arc
+  visible), arrive at place 5.0× (zoomed close).
+- **Bigger map**: OVERSIZE raised to 2.5, paddingRatio lowered to 0.06 — gives
+  higher auto-fit Mapbox zoom for more geographic detail.
+- **Fixed @2x projection bug**: viewport fitting and coordinate projection now
+  use geographic dimensions (pre-@2x), not pixel dimensions.
+- **Vehicle markers**: 64px screen-space markers with route-colored background,
+  24×24 top-down transport icons (plane/car/foot/bike/bus/train), heading
+  rotation, and mode-specific animations (plane bob, car rumble, train sway).
+- **Route visuals**: vivid per-mode colors, progressive SVG drawing, air arcs
+  with dashed flight path + progressive glow.
+- **Photo cards**: spring-animated cards at geographic location with edge avoidance.
+
+Files changed:
+- `video-renderer/src/remotion/render-data.js` (added ~230 lines of helpers)
+- `video-renderer/src/remotion/Cinematic.jsx` (full rewrite, ~840 lines)

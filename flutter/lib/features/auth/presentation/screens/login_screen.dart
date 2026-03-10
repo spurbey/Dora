@@ -64,6 +64,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: authState.isLoading
+                        ? null
+                        : () => ref
+                            .read(authControllerProvider.notifier)
+                            .signInWithGoogle(),
+                    icon: const Icon(Icons.g_mobiledata, size: 24),
+                    label: const Text('Continue with Google'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
                 TextButton(
                   onPressed: () => context.go(Routes.signup),
                   child: const Text('New here? Create account'),

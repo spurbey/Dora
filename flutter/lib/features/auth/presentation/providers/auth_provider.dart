@@ -36,6 +36,12 @@ class AuthController extends _$AuthController {
     });
   }
 
+  Future<void> signInWithGoogle() async {
+    final service = ref.read(authServiceProvider);
+    await service.signInWithGoogle();
+    // Auth state updates automatically via the authStateChanges stream
+  }
+
   Future<void> signOut() async {
     final service = ref.read(authServiceProvider);
     await service.signOut();

@@ -169,13 +169,15 @@ class FeedApi {
   }
 
   TripRoute _mapRoute(RouteResponse route) {
+    final coordinates = _extractRouteCoordinates(route);
     return TripRoute(
       id: route.id,
+      coordinates: coordinates,
       transportMode: route.transportMode.name,
       distance: route.distanceKm?.toDouble(),
       duration: route.durationMins,
       polyline: route.polylineEncoded,
-      dayNumber: null,
+      dayNumber: route.orderInTrip,
     );
   }
 
@@ -208,6 +210,110 @@ class FeedApi {
       photoUrl: null,
     );
   }
+
+  List<TripLatLng> _extractRouteCoordinates(RouteResponse route) {
+    final raw = route.routeGeojson.value;
+    final map = raw is Map ? raw : null;
+    final type = map?['type'];
+    final coordinates = map?['coordinates'];
+
+    if (type == 'LineString' && coordinates is List) {
+      final parsed = <TripLatLng>[];
+      for (final point in coordinates) {
+        if (point is! List || point.length < 2) {
+          continue;
+        }
+        final lng = _toDouble(point[0]);
+        final lat = _toDouble(point[1]);
+        if (lat == null || lng == null) {
+          continue;
+        }
+        parsed.add(TripLatLng(latitude: lat, longitude: lng));
+      }
+      if (parsed.length >= 2) {
+        return parsed;
+      }
+    }
+
+    final polyline = route.polylineEncoded;
+    if (polyline != null && polyline.isNotEmpty) {
+      final decoded = _decodePolyline(polyline);
+      if (decoded.length >= 2) {
+        return decoded;
+      }
+    }
+
+    return const <TripLatLng>[];
+  }
+
+  List<TripLatLng> _decodePolyline(String encoded) {
+    final points = <TripLatLng>[];
+    var index = 0;
+    var lat = 0;
+    var lng = 0;
+
+    while (index < encoded.length) {
+      final latResult = _decodePolylineChunk(encoded, index);
+      lat += latResult.value;
+      index = latResult.nextIndex;
+
+      if (index >= encoded.length) {
+        break;
+      }
+
+      final lngResult = _decodePolylineChunk(encoded, index);
+      lng += lngResult.value;
+      index = lngResult.nextIndex;
+
+      points.add(
+        TripLatLng(
+          latitude: lat / 1e5,
+          longitude: lng / 1e5,
+        ),
+      );
+    }
+
+    return points;
+  }
+
+  _PolylineChunk _decodePolylineChunk(String encoded, int startIndex) {
+    var result = 0;
+    var shift = 0;
+    var index = startIndex;
+
+    while (index < encoded.length) {
+      final codeUnit = encoded.codeUnitAt(index) - 63;
+      index += 1;
+      result |= (codeUnit & 0x1f) << shift;
+      shift += 5;
+      if (codeUnit < 0x20) {
+        break;
+      }
+    }
+
+    final value = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+    return _PolylineChunk(value: value, nextIndex: index);
+  }
+
+  double? _toDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+}
+
+class _PolylineChunk {
+  const _PolylineChunk({
+    required this.value,
+    required this.nextIndex,
+  });
+
+  final int value;
+  final int nextIndex;
 }
 
 class FeedApiException implements Exception {

@@ -21,7 +21,9 @@ class TimelineRouteItem extends StatelessWidget {
     switch (route.transportMode) {
       case 'bike':
         return Icons.directions_bike;
+      case 'foot':
       case 'walk':
+      case 'walking':
         return Icons.directions_walk;
       case 'air':
         return Icons.flight;
@@ -68,7 +70,7 @@ class TimelineRouteItem extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onCopy,
               style: OutlinedButton.styleFrom(
-                minimumSize: Size(
+                minimumSize: const Size(
                   AppSpacing.xxl +
                       AppSpacing.xl +
                       AppSpacing.lg +

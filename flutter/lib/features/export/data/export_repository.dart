@@ -51,18 +51,7 @@ class ExportRepository implements ExportRepositoryContract {
   @override
   Future<ExportPrecheckResult> evaluatePreSubmitGuards(String tripId) async {
     final trip = await _db.tripDao.getTripById(tripId);
-    if (trip == null) {
-      return ExportPrecheckResult(
-        tripId: tripId,
-        tripExists: false,
-        hasServerTripId: false,
-        pendingMediaCount: 0,
-        failedMediaCount: 0,
-        blockingSyncTaskCount: 0,
-      );
-    }
-
-    final hasServerTripId = (trip.serverTripId ?? '').trim().isNotEmpty;
+    final userTrip = await _db.userTripsDao.getTripById(tripId);
     final mediaItems = await _db.mediaDao.getMediaForTrip(tripId);
     final pendingMediaCount = mediaItems
         .where((item) => _pendingMediaStatuses.contains(item.uploadStatus))
@@ -70,6 +59,20 @@ class ExportRepository implements ExportRepositoryContract {
     final failedMediaCount = mediaItems
         .where((item) => _failedMediaStatuses.contains(item.uploadStatus))
         .length;
+
+    if (trip == null) {
+      final isRemoteBacked = userTrip != null && userTrip.syncStatus == 'synced';
+      return ExportPrecheckResult(
+        tripId: tripId,
+        tripExists: userTrip != null,
+        hasServerTripId: isRemoteBacked,
+        pendingMediaCount: pendingMediaCount,
+        failedMediaCount: failedMediaCount,
+        blockingSyncTaskCount: 0,
+      );
+    }
+
+    final hasServerTripId = (trip.serverTripId ?? '').trim().isNotEmpty;
 
     final blockingSyncTaskCount = await _countBlockingSyncTasks(tripId);
 
@@ -100,13 +103,18 @@ class ExportRepository implements ExportRepositoryContract {
     }
 
     final trip = await _db.tripDao.getTripById(localTripId);
-    if (trip == null) {
-      throw const ExportRepositoryException(
-        'Trip was not found. Refresh and try again.',
-      );
+    final userTrip = await _db.userTripsDao.getTripById(localTripId);
+
+    var serverTripId = (trip?.serverTripId ?? '').trim();
+    if (serverTripId.isEmpty &&
+        trip == null &&
+        userTrip != null &&
+        userTrip.syncStatus == 'synced') {
+      // Remote-backed trip listed from backend, but local editor row is absent.
+      // In this shape, localTripId is already the backend trip UUID.
+      serverTripId = localTripId;
     }
 
-    final serverTripId = (trip.serverTripId ?? '').trim();
     if (serverTripId.isEmpty) {
       throw const ExportRepositoryException(
         'Trip must be synced before exporting.',

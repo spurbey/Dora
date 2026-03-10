@@ -213,7 +213,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
           onLongPress: () => _showTripMenu(trip),
           child: TripGridCard(
             trip: trip,
-            onTap: () => context.push(Routes.editorPath(trip.id)),
+            onTap: () => _openTrip(trip),
           ),
         );
       },
@@ -228,7 +228,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
             onLongPress: () => _showTripMenu(trip),
             child: TripListCard(
               trip: trip,
-              onTap: () => context.push(Routes.editorPath(trip.id)),
+              onTap: () => _openTrip(trip),
               onMenuTap: () => _showTripMenu(trip),
             ),
           ),
@@ -298,7 +298,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
       ),
       builder: (_) => TripContextMenu(
         trip: trip,
-        onEdit: () => context.push(Routes.editorPath(trip.id)),
+        onEdit: () => _openTrip(trip),
         onDuplicate: () => _handleDuplicate(controller, trip.id),
         onShare: () => _handleShare(controller, trip),
         onExport: () => _handleExport(trip),
@@ -336,6 +336,15 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
       return;
     }
     context.push(Routes.exportStudioPath(trip.id));
+  }
+
+  void _openTrip(UserTrip trip) {
+    final shouldOpenEditor = trip.status == 'editing' || trip.syncStatus != 'synced';
+    if (shouldOpenEditor) {
+      context.push(Routes.editorPath(trip.id));
+      return;
+    }
+    context.push(Routes.tripDetailPath(trip.id));
   }
 
   Future<void> _confirmDelete(TripsController controller, UserTrip trip) async {

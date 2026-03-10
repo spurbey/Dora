@@ -20,6 +20,9 @@ class TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final coverUrl = trip.coverPhotoUrl?.trim();
+    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -38,19 +41,61 @@ class TripCard extends StatelessWidget {
               ),
               child: AspectRatio(
                 aspectRatio: 5 / 3,
-                child: CachedNetworkImage(
-                  imageUrl: trip.coverPhotoUrl ?? '',
-                  fit: BoxFit.cover,
-                  placeholder: (context, _) => Container(
-                    color: AppColors.divider,
-                  ),
-                  errorWidget: (context, _, __) => Container(
-                    color: AppColors.divider,
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      color: AppColors.textSecondary,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasCover)
+                      CachedNetworkImage(
+                        imageUrl: coverUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, _) => Container(
+                          color: AppColors.divider,
+                        ),
+                        errorWidget: (context, _, __) => _FallbackCover(trip: trip),
+                      )
+                    else
+                      _FallbackCover(trip: trip),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.52),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      left: AppSpacing.md,
+                      right: AppSpacing.md,
+                      bottom: AppSpacing.md,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.place, color: Colors.white, size: 18),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              '${trip.placeCount} places',
+                              style: AppTypography.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (trip.duration != null)
+                            Text(
+                              '${trip.duration} days',
+                              style: AppTypography.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -59,18 +104,15 @@ class TripCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(trip.name, style: AppTypography.h3),
-                  const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '📸 ${trip.placeCount} places'
-                    '${trip.duration != null ? ' · ${trip.duration} days' : ''}',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    trip.name,
+                    style: AppTypography.h3,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'by @${trip.username}',
+                    '@${trip.username}',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.accent,
                     ),
@@ -79,6 +121,37 @@ class TripCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FallbackCover extends StatelessWidget {
+  const _FallbackCover({required this.trip});
+
+  final PublicTrip trip;
+
+  @override
+  Widget build(BuildContext context) {
+    final seed = trip.name.runes.fold<int>(0, (sum, rune) => sum + rune);
+    final hue = seed % 360;
+    final primary = HSLColor.fromAHSL(1, hue.toDouble(), 0.55, 0.42).toColor();
+    final secondary = HSLColor.fromAHSL(1, (hue + 32).toDouble() % 360, 0.45, 0.34).toColor();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [primary, secondary],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.landscape,
+          size: 40,
+          color: Colors.white.withValues(alpha: 0.8),
         ),
       ),
     );

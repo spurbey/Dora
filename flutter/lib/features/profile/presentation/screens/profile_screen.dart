@@ -168,7 +168,7 @@ class _TripsTab extends ConsumerWidget {
                     final trip = trips[index];
                     return TripGridCard(
                       trip: trip,
-                      onTap: () => context.push(Routes.editorPath(trip.id)),
+                      onTap: () => _openTrip(context, trip),
                     );
                   },
                 ),
@@ -185,6 +185,15 @@ class _TripsTab extends ConsumerWidget {
       default:
         return trips;
     }
+  }
+
+  void _openTrip(BuildContext context, UserTrip trip) {
+    final shouldOpenEditor = trip.status == 'editing' || trip.syncStatus != 'synced';
+    if (shouldOpenEditor) {
+      context.push(Routes.editorPath(trip.id));
+      return;
+    }
+    context.push(Routes.tripDetailPath(trip.id));
   }
 
   Widget _buildLoadingGrid() {

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/map/app_map_view.dart';
+import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/map/models/app_marker.dart';
+import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_shadows.dart';
@@ -61,6 +65,14 @@ class TripDetailScreen extends ConsumerWidget {
                       CachedNetworkImage(
                         imageUrl: state.data.trip.coverPhotoUrl ?? '',
                         fit: BoxFit.cover,
+                        errorWidget: (context, _, __) => Container(
+                          color: AppColors.divider,
+                          child: const Icon(
+                            Icons.landscape,
+                            size: 44,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                       DecoratedBox(
                         decoration: BoxDecoration(
@@ -69,7 +81,7 @@ class TripDetailScreen extends ConsumerWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              AppColors.textPrimary.withOpacity(0.3),
+                              AppColors.textPrimary.withValues(alpha: 0.35),
                             ],
                           ),
                         ),
@@ -128,8 +140,8 @@ class TripDetailScreen extends ConsumerWidget {
             body: TabBarView(
               children: [
                 _buildTimeline(context, ref, state),
-                _buildPlaceholder('Map view coming soon'),
-                _buildPlaceholder('Photos coming soon'),
+                _buildMapTab(state),
+                _buildPhotosTab(state),
               ],
             ),
           ),
@@ -182,7 +194,7 @@ class TripDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '📸 ${trip.placeCount} places${trip.duration != null ? " · ${trip.duration} days" : ""}',
+            '${trip.placeCount} places${trip.duration != null ? " · ${trip.duration} days" : ""}',
             style: AppTypography.caption.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -196,8 +208,7 @@ class TripDetailScreen extends ConsumerWidget {
                     (tag) => Chip(
                       label: Text(tag),
                       backgroundColor: AppColors.accentSoft,
-                      labelStyle:
-                          const TextStyle(color: AppColors.accent),
+                      labelStyle: const TextStyle(color: AppColors.accent),
                     ),
                   )
                   .toList(),
@@ -217,7 +228,7 @@ class TripDetailScreen extends ConsumerWidget {
 
     return ListView.builder(
       padding: AppSpacing.horizontalMd.add(
-        EdgeInsets.only(bottom: AppSpacing.xxl + AppSpacing.xl),
+        const EdgeInsets.only(bottom: AppSpacing.xxl + AppSpacing.xl),
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -254,16 +265,25 @@ class TripDetailScreen extends ConsumerWidget {
     List<TripPlace> places,
     List<TripRoute> routes,
   ) {
+    final sortedPlaces = [...places]
+      ..sort(
+        (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
+      );
+    final sortedRoutes = [...routes]
+      ..sort(
+        (a, b) => (a.dayNumber ?? 1 << 20).compareTo(b.dayNumber ?? 1 << 20),
+      );
+
     final items = <_TimelineItem>[
-      ...places.map(
+      ...sortedPlaces.map(
         (place) => _TimelineItem(
-          sortKey: _sortKey(place.dayNumber, place.orderIndex),
+          sortKey: _placeSortKey(place.orderIndex),
           place: place,
         ),
       ),
-      ...routes.map(
+      ...sortedRoutes.map(
         (route) => _TimelineItem(
-          sortKey: _sortKey(route.dayNumber, 50),
+          sortKey: _routeSortKey(route.dayNumber),
           route: route,
         ),
       ),
@@ -273,10 +293,217 @@ class TripDetailScreen extends ConsumerWidget {
     return items;
   }
 
-  double _sortKey(int? dayNumber, int? orderIndex) {
-    final day = (dayNumber ?? 0) * 100;
-    final order = orderIndex ?? 0;
-    return day + order / 100;
+  double _placeSortKey(int? orderIndex) {
+    final order = (orderIndex ?? 1 << 20).toDouble();
+    return order * 2;
+  }
+
+  double _routeSortKey(int? orderInTrip) {
+    final order = (orderInTrip ?? 1 << 20).toDouble();
+    return order * 2 + 1;
+  }
+
+  Widget _buildMapTab(TripDetailState state) {
+    final markers = _buildMapMarkers(state.data.places);
+    final routes = _buildMapRoutes(state.data.places, state.data.routes);
+    final initialCenter = _resolveInitialCenter(state.data.places, routes);
+
+    if (markers.isEmpty && routes.isEmpty) {
+      return _buildPlaceholder('No route data available for this trip.');
+    }
+
+    return Padding(
+      padding: AppSpacing.horizontalMd,
+      child: ClipRRect(
+        borderRadius: AppRadius.borderMd,
+        child: AppMapView(
+          initialCenter: initialCenter,
+          initialZoom: 11,
+          markers: markers,
+          routes: routes,
+          showUserLocation: false,
+        ),
+      ),
+    );
+  }
+
+  List<AppMarker> _buildMapMarkers(List<TripPlace> places) {
+    if (places.isEmpty) {
+      return const <AppMarker>[];
+    }
+
+    final sorted = [...places]
+      ..sort(
+        (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
+      );
+
+    var placeCounter = 0;
+    return sorted.map((place) {
+      placeCounter += 1;
+      return AppMarker(
+        id: place.id,
+        position: AppLatLng(latitude: place.latitude, longitude: place.longitude),
+        title: place.name,
+        markerType: 'place',
+        label: '$placeCounter',
+        color: AppColors.accent,
+      );
+    }).toList();
+  }
+
+  List<AppRoute> _buildMapRoutes(List<TripPlace> places, List<TripRoute> routes) {
+    final mappedRoutes = <AppRoute>[];
+    for (final route in routes) {
+      if (route.coordinates.length < 2) {
+        continue;
+      }
+      mappedRoutes.add(
+        AppRoute(
+          id: route.id,
+          coordinates: route.coordinates
+              .map(
+                (point) => AppLatLng(
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                ),
+              )
+              .toList(),
+          color: _routeColor(route.transportMode),
+          width: route.transportMode == 'air' ? 2.5 : 4,
+          dashed: route.transportMode == 'air',
+        ),
+      );
+    }
+
+    if (mappedRoutes.isNotEmpty) {
+      return mappedRoutes;
+    }
+
+    // Fallback connector lines when backend has no route geometries.
+    final sortedPlaces = [...places]
+      ..sort(
+        (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
+      );
+
+    for (var i = 0; i < sortedPlaces.length - 1; i += 1) {
+      final start = sortedPlaces[i];
+      final end = sortedPlaces[i + 1];
+      mappedRoutes.add(
+        AppRoute(
+          id: 'connector_${start.id}_${end.id}',
+          coordinates: [
+            AppLatLng(latitude: start.latitude, longitude: start.longitude),
+            AppLatLng(latitude: end.latitude, longitude: end.longitude),
+          ],
+          color: const Color(0xFFCCCCCC),
+          width: 2,
+          dashed: true,
+        ),
+      );
+    }
+    return mappedRoutes;
+  }
+
+  Color _routeColor(String? transportMode) {
+    switch (transportMode) {
+      case 'bike':
+        return const Color(0xFF1D9A6C);
+      case 'foot':
+      case 'walk':
+      case 'walking':
+        return const Color(0xFFB96B2B);
+      case 'air':
+        return const Color(0xFF4F46E5);
+      default:
+        return AppColors.accent;
+    }
+  }
+
+  AppLatLng _resolveInitialCenter(List<TripPlace> places, List<AppRoute> routes) {
+    if (places.isNotEmpty) {
+      final sorted = [...places]
+        ..sort(
+          (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
+        );
+      final first = sorted.first;
+      return AppLatLng(latitude: first.latitude, longitude: first.longitude);
+    }
+    if (routes.isNotEmpty && routes.first.coordinates.isNotEmpty) {
+      return routes.first.coordinates.first;
+    }
+    return const AppLatLng(latitude: 0, longitude: 0);
+  }
+
+  Widget _buildPhotosTab(TripDetailState state) {
+    final photoItems = <_PhotoItem>[
+      for (final place in state.data.places)
+        for (final photoUrl in place.photoUrls)
+          _PhotoItem(url: photoUrl, placeName: place.name),
+    ];
+
+    if (photoItems.isEmpty) {
+      return _buildPlaceholder('No photos uploaded for this trip yet.');
+    }
+
+    return GridView.builder(
+      padding: AppSpacing.horizontalMd.add(
+        const EdgeInsets.only(bottom: AppSpacing.xl),
+      ),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+      ),
+      itemCount: photoItems.length,
+      itemBuilder: (context, index) {
+        final item = photoItems[index];
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: AppRadius.borderSm,
+              child: CachedNetworkImage(
+                imageUrl: item.url,
+                fit: BoxFit.cover,
+                placeholder: (context, _) => Container(
+                  color: AppColors.divider,
+                ),
+                errorWidget: (context, _, __) => Container(
+                  color: AppColors.divider,
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 4,
+              right: 4,
+              bottom: 4,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: AppRadius.borderSm,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  child: Text(
+                    item.placeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildPlaceholder(String text) {
@@ -299,9 +526,9 @@ class TripDetailScreen extends ConsumerWidget {
         title: Text('Copy "${state.data.trip.name}"?'),
         content: Text(
           'This will create a new trip with:\n'
-          '• All ${state.data.places.length} places\n'
-          '• All ${state.data.routes.length} routes\n'
-          '• Original photos and notes',
+          '- All ${state.data.places.length} places\n'
+          '- All ${state.data.routes.length} routes\n'
+          '- Original photos and notes',
         ),
         actions: [
           TextButton(
@@ -333,6 +560,16 @@ class _TimelineItem {
   final double sortKey;
   final TripPlace? place;
   final TripRoute? route;
+}
+
+class _PhotoItem {
+  const _PhotoItem({
+    required this.url,
+    required this.placeName,
+  });
+
+  final String url;
+  final String placeName;
 }
 
 class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {

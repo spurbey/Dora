@@ -55,6 +55,21 @@ function getDimensions(quality, aspectRatio) {
 const app = express();
 app.use(express.json({ limit: '512kb' }));
 
+// Health check — must NOT require x-renderer-version header.
+// Returns 503 until the render backend is ready, so Railway/Docker won't
+// route traffic before the service can actually process render requests.
+app.get('/health', (_req, res) => {
+  if (!bundleReady) {
+    return res.status(503).json({
+      status: 'initializing',
+      backend: RENDER_BACKEND,
+      bundle_ready: false,
+      error: bundleErr ? bundleErr.message : null,
+    });
+  }
+  res.status(200).json({ status: 'ok', backend: RENDER_BACKEND, bundle_ready: true });
+});
+
 // Local runtime in-memory state.
 const renders = new Map(); // renderId -> state
 const cancelFns = new Map(); // renderId -> cancel()

@@ -5,6 +5,9 @@ All settings loaded from .env file.
 Never commit .env file to git.
 """
 
+import os
+import sys
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -40,7 +43,11 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "Travel Memory Vault API"
     DEBUG: bool = True
+    ENVIRONMENT: str = "development"
     FREE_TIER_MAX_TRIPS: int = 6
+
+    # Observability
+    SENTRY_DSN: Optional[str] = None
     
     # Supabase
     SUPABASE_URL: str
@@ -82,3 +89,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# --- Production startup guards ---
+
+if not settings.DEBUG and settings.SECRET_KEY == "your-secret-key-change-this":
+    print("FATAL: SECRET_KEY must be changed from default in production", file=sys.stderr)
+    sys.exit(1)
+
+if settings.ENVIRONMENT == "production" and settings.DEBUG:
+    print("FATAL: DEBUG=True is not allowed when ENVIRONMENT=production", file=sys.stderr)
+    sys.exit(1)
+
+if settings.ENVIRONMENT == "production" and settings.RENDER_BACKEND == "lambda":
+    # API needs AWS creds for S3 presigned download URLs.
+    # LAMBDA_OUTPUT_BUCKET is NOT checked here — API parses bucket from the
+    # s3:// URL stored in the DB by the worker. The worker/renderer own that config.
+    _missing = [v for v in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+                if not os.getenv(v)]
+    if _missing:
+        print(f"FATAL: Lambda mode requires: {', '.join(_missing)}", file=sys.stderr)
+        sys.exit(1)

@@ -214,13 +214,17 @@ export class LambdaRenderBackend {
     };
   }
 
+  /** Cancel is intentionally a no-op for Lambda renders.
+   *  Once renderMediaOnLambda() is invoked, no Remotion API exists to abort it.
+   *  Lambda runs to completion and bills regardless. The worker marks the job
+   *  canceled in DB so the artifact is never surfaced to users. */
   async cancel(renderId) {
     const entry = this._renders.get(renderId);
     if (!entry) {
       return false;
     }
-    console.log(
-      `[lambda-renderer] cancel requested for ${renderId} (lambda_render_id=${entry.lambdaRenderId}) - no-op`,
+    console.warn(
+      `[lambda-renderer] cancel requested for ${renderId} — no-op: Lambda continues billing`,
     );
     return true;
   }

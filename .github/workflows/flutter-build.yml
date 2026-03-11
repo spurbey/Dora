@@ -1,0 +1,104 @@
+name: Flutter Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform'
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+      use_shorebird:
+        description: 'Build with Shorebird (OTA-capable release)'
+        required: false
+        type: boolean
+        default: false
+      patch:
+        description: 'Push Shorebird patch (instead of new release)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ${{ inputs.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+
+    defaults:
+      run:
+        working-directory: flutter
+
+    env:
+      DART_DEFINES: >-
+        --dart-define=ENVIRONMENT=production
+        --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+        --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+        --dart-define=MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}
+        --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+        --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN_FLUTTER }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Shorebird
+        if: inputs.use_shorebird
+        uses: shorebirdtech/setup@v1
+        with:
+          token: ${{ secrets.SHOREBIRD_TOKEN }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # --- Android ---
+      - name: Decode keystore
+        if: inputs.platform == 'android'
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+
+      - name: Build Android AAB (Flutter)
+        if: inputs.platform == 'android' && !inputs.use_shorebird
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build appbundle ${{ env.DART_DEFINES }}
+
+      - name: Shorebird release Android
+        if: inputs.platform == 'android' && inputs.use_shorebird && !inputs.patch
+        run: shorebird release android ${{ env.DART_DEFINES }}
+
+      - name: Shorebird patch Android
+        if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
+        run: shorebird patch android ${{ env.DART_DEFINES }}
+
+      # --- iOS ---
+      - name: Build iOS (Flutter)
+        if: inputs.platform == 'ios' && !inputs.use_shorebird
+        run: flutter build ipa ${{ env.DART_DEFINES }} --no-codesign
+
+      - name: Shorebird release iOS
+        if: inputs.platform == 'ios' && inputs.use_shorebird && !inputs.patch
+        run: shorebird release ios ${{ env.DART_DEFINES }}
+
+      - name: Shorebird patch iOS
+        if: inputs.platform == 'ios' && inputs.use_shorebird && inputs.patch
+        run: shorebird patch ios ${{ env.DART_DEFINES }}
+
+      # --- Upload artifact ---
+      - name: Upload build artifact
+        if: "!inputs.patch"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.platform }}-build
+          path: |
+            flutter/build/app/outputs/bundle/release/*.aab
+            flutter/build/ios/ipa/*.ipa
+          retention-days: 14

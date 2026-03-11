@@ -14,4 +14,7 @@ class Env {
 
   static bool get isProduction =>
       const String.fromEnvironment('ENVIRONMENT') == 'production';
+  static bool get isStaging =>
+      const String.fromEnvironment('ENVIRONMENT') == 'staging';
+  static bool get isDevelopment => !isProduction && !isStaging;
 }

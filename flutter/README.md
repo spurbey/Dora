@@ -1,16 +1,37 @@
-# dora
+# Dora Flutter App
 
-A new Flutter project.
+## Environment Setup
 
-## Getting Started
+Runtime config is injected via Dart defines (read by `String.fromEnvironment` in `lib/core/config/env_config.dart`).
 
-This project is a starting point for a Flutter application.
+Use the checked-in local env file for development:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter run --dart-define-from-file=.env
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+`.env.example` documents required keys:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `MAPBOX_TOKEN`
+- `API_BASE_URL`
+- `SENTRY_DSN`
+- `ENVIRONMENT`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Production Build
+
+For production builds, pass production values explicitly:
+
+```bash
+flutter build appbundle \
+  --dart-define=ENVIRONMENT=production \
+  --dart-define=API_BASE_URL=https://api.dora.app \
+  --dart-define=SENTRY_DSN=<your-production-sentry-dsn> \
+  --dart-define=SUPABASE_URL=<your-production-supabase-url> \
+  --dart-define=SUPABASE_ANON_KEY=<your-production-supabase-anon-key> \
+  --dart-define=MAPBOX_TOKEN=<your-production-mapbox-token>
+```
+
+## Sentry Verification
+
+Sentry is initialized in `lib/main.dart`. After a production build, trigger one intentional exception on a test device and verify the event appears in Sentry.

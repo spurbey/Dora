@@ -73,11 +73,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _sectionHeader('ABOUT'),
             SettingsListItem(
               title: 'Privacy Policy',
-              onTap: () => _openUrl('https://dora.app/privacy'),
+              onTap: () =>
+                  _openUrl('https://doraapp.netlify.app/privacy_policy.html'),
             ),
             SettingsListItem(
               title: 'Terms of Service',
-              onTap: () => _openUrl('https://dora.app/terms'),
+              onTap: () => _openUrl(
+                'https://doraapp.netlify.app/terms_conditions.html',
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(

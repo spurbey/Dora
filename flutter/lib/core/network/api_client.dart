@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/network/auth_interceptor.dart';
@@ -13,7 +14,7 @@ class ApiClient {
     _dio.interceptors.addAll([
       AuthInterceptor(authService),
       RetryInterceptor(_dio),
-      LogInterceptor(requestBody: true, responseBody: true),
+      if (kDebugMode) LogInterceptor(requestBody: true, responseBody: true),
     ]);
   }
 

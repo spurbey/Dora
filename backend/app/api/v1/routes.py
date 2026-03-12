@@ -7,6 +7,8 @@ Implements 10 endpoints:
 - 1 generate endpoint (Mapbox integration)
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -334,9 +336,10 @@ async def generate_route(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
+        logging.getLogger(__name__).error(f"Mapbox API error: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Mapbox API error: {str(e)}"
+            detail="Route generation failed. Please try again later."
         )
 
 

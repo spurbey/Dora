@@ -28,10 +28,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.dora.auth</string>
+			<string>com.dora.travel.auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.example.dora</string>
+				<string>com.dora.travel</string>
 			</array>
 		</dict>
 	</array>

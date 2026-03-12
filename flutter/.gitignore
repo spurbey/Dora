@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase config — project-specific, injected per environment
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+
+# Release signing keystore
+/android/app/upload-keystore.jks

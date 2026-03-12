@@ -1,4 +1,4 @@
-package com.example.dora
+package com.dora.travel
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -36,7 +36,7 @@ class AuthService {
   Future<void> signInWithGoogle() async {
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.example.dora://login-callback/',
+      redirectTo: 'com.dora.travel://login-callback/',
     );
   }
 }

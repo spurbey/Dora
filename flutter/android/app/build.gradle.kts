@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.dora"
+    namespace = "com.dora.travel"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -19,9 +19,7 @@ android {
     // Kotlin compiler options are configured in the root build.gradle.kts.
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.dora"
-        // You can update the following values to match your application needs.
+        applicationId = "com.dora.travel"
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
@@ -29,11 +27,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val ksFile = file("upload-keystore.jks")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+        debug {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        release {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

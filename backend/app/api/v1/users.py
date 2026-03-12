@@ -5,19 +5,58 @@ Endpoints:
     - GET /users/me: Get current user profile
     - PATCH /users/me: Update current user profile
     - GET /users/me/stats: Get detailed user statistics
+    - DELETE /users/me: Permanently delete current user account
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import UUID
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.config import settings
 from app.schemas.user import UserResponse, UserUpdate, UserStats, UserProfileResponse
 from app.services.user_service import UserService
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+
+async def _delete_supabase_auth_user(user_id: UUID) -> None:
+    """
+    Delete the Supabase Auth identity for a user via Admin API.
+
+    Treats HTTP 404 as already-deleted and therefore successful.
+    """
+    endpoint = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.delete(
+                endpoint,
+                headers=headers,
+                params={"should_soft_delete": "false"},
+            )
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to reach auth provider during account deletion",
+        )
+
+    if response.status_code in (200, 204, 404):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="Auth provider rejected account deletion request",
+    )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -200,3 +239,23 @@ async def get_current_user_complete_profile(
         user=UserResponse.model_validate(current_user),
         stats=stats
     )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_current_user_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Permanently delete current user account and owned data.
+
+    Deletion sequence:
+    1. Remove auth identity from Supabase Auth.
+    2. Remove backend user row (DB cascades remove related rows).
+    """
+    await _delete_supabase_auth_user(current_user.id)
+
+    service = UserService(db)
+    service.delete_user_account(current_user.id)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

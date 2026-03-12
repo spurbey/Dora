@@ -24,6 +24,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _defaultPrivacy = 'Private';
+  bool _isDeletingAccount = false;
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +108,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 onPressed: _confirmSignOut,
                 child: const Text('Sign Out'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Padding(
+              padding: AppSpacing.horizontalMd,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                ),
+                onPressed: _isDeletingAccount ? null : _confirmDeleteAccount,
+                child: Text(
+                  _isDeletingAccount ? 'Deleting account...' : 'Delete Account',
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -202,6 +217,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => ConfirmationDialog(
+        title: 'Delete account?',
+        message:
+            'This permanently deletes your account and all associated trip data. '
+            'This action cannot be undone.',
+        confirmText: 'Delete Account',
+        cancelText: 'Cancel',
+        isDestructive: true,
+        onConfirm: () async {
+          await _deleteAccount();
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount) {
+      return;
+    }
+
+    setState(() {
+      _isDeletingAccount = true;
+    });
+
+    try {
+      await ref.read(profileControllerProvider.notifier).deleteAccount();
+      if (mounted) {
+        context.go(Routes.login);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showToast('Failed to delete account. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeletingAccount = false;
+        });
+      }
+    }
   }
 
   void _showToast(String message) {

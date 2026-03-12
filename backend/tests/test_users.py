@@ -20,6 +20,8 @@ and mocked authentication.
 
 from uuid import uuid4
 
+from fastapi import HTTPException
+
 from app.models.user import User
 from app.dependencies import get_current_user
 
@@ -216,5 +218,55 @@ def test_get_user_stats(client, test_user, fastapi_app):
     assert "place_count" in data
     assert data["trip_count"] == 0
     assert data["place_count"] == 0
+
+    fastapi_app.dependency_overrides.clear()
+
+
+def test_delete_current_user_account(client, test_user, db, fastapi_app, monkeypatch):
+    """
+    Test DELETE /users/me permanently deletes the current user.
+    """
+    from app.api.v1 import users as users_api
+
+    async def _noop_delete_auth_user(_user_id):
+        return None
+
+    monkeypatch.setattr(users_api, "_delete_supabase_auth_user", _noop_delete_auth_user)
+    fastapi_app.dependency_overrides[get_current_user] = (
+        override_current_user(test_user)
+    )
+
+    response = client.delete("/api/v1/users/me")
+
+    assert response.status_code == 204
+    assert db.query(User).filter(User.id == test_user.id).first() is None
+
+    fastapi_app.dependency_overrides.clear()
+
+
+def test_delete_current_user_account_auth_delete_failure(
+    client,
+    test_user,
+    db,
+    fastapi_app,
+    monkeypatch
+):
+    """
+    Test DELETE /users/me returns 502 if auth provider deletion fails.
+    """
+    from app.api.v1 import users as users_api
+
+    async def _fail_delete_auth_user(_user_id):
+        raise HTTPException(status_code=502, detail="auth provider failure")
+
+    monkeypatch.setattr(users_api, "_delete_supabase_auth_user", _fail_delete_auth_user)
+    fastapi_app.dependency_overrides[get_current_user] = (
+        override_current_user(test_user)
+    )
+
+    response = client.delete("/api/v1/users/me")
+
+    assert response.status_code == 502
+    assert db.query(User).filter(User.id == test_user.id).first() is not None
 
     fastapi_app.dependency_overrides.clear()

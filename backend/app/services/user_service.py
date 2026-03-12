@@ -17,7 +17,9 @@ from uuid import UUID
 from app.models.user import User
 from app.models.trip import Trip
 from app.models.place import TripPlace
+from app.models.media import MediaFile
 from app.schemas.user import UserUpdate, UserStats
+from app.services.storage_service import StorageService
 
 
 class UserService:
@@ -154,6 +156,69 @@ class UserService:
         self.db.refresh(user)
         
         return user
+
+    def delete_user_account(self, user_id: UUID) -> None:
+        """
+        Permanently delete a user account and all relational data.
+
+        Args:
+            user_id: User ID to delete
+
+        Raises:
+            HTTPException 404: User not found
+
+        Notes:
+            - DB rows are removed via ON DELETE CASCADE from users.id.
+            - Media object cleanup in storage is best-effort and non-blocking.
+        """
+        user = self.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        self._best_effort_delete_media_assets(user_id)
+
+        self.db.delete(user)
+        self.db.commit()
+
+    def _best_effort_delete_media_assets(self, user_id: UUID) -> None:
+        """
+        Best-effort cleanup of uploaded media files from Supabase Storage.
+
+        This method intentionally never raises; account deletion should continue
+        even if an object delete call fails for one or more files.
+        """
+        media_urls = self.db.query(MediaFile.file_url).filter(
+            MediaFile.user_id == user_id
+        ).all()
+        if not media_urls:
+            return
+
+        try:
+            storage = StorageService()
+        except Exception as exc:
+            print(f"[ACCOUNT_DELETE] storage_init_failed user_id={user_id} error={exc}")
+            return
+
+        marker = "/storage/v1/object/public/photos/"
+        for row in media_urls:
+            file_url = row[0]
+            if not file_url or marker not in file_url:
+                continue
+
+            file_path = file_url.split(marker, 1)[1].split("?")[0]
+            if not file_path:
+                continue
+
+            try:
+                storage.delete_file("photos", file_path)
+            except Exception as exc:
+                print(
+                    f"[ACCOUNT_DELETE] media_delete_failed user_id={user_id} "
+                    f"path={file_path} error={exc}"
+                )
     
     def get_user_stats(self, user_id: UUID) -> UserStats:
         """

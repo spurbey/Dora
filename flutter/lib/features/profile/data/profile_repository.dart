@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
+import 'package:dora/core/network/api_client.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/profile/data/models/user_profile.dart';
 import 'package:dora/features/trips/data/models/trip_stats.dart';
@@ -11,11 +13,14 @@ class ProfileRepository {
     this._db,
     this._authService, {
     openapi.UsersApi? usersApi,
-  }) : _usersApi = usersApi;
+    ApiClient? apiClient,
+  }) : _usersApi = usersApi,
+       _apiClient = apiClient;
 
   final AppDatabase _db;
   final AuthService _authService;
   final openapi.UsersApi? _usersApi;
+  final ApiClient? _apiClient;
 
   Future<UserProfile> getProfile() async {
     final user = _authService.currentUser;
@@ -88,6 +93,28 @@ class ProfileRepository {
     });
   }
 
+  Future<void> deleteAccount() async {
+    final user = _authService.currentUser;
+    if (user == null) {
+      throw ProfileRepositoryException('No authenticated user');
+    }
+
+    final apiClient = _apiClient;
+    if (apiClient == null) {
+      throw ProfileRepositoryException('API client is not configured');
+    }
+
+    try {
+      await apiClient.dio.delete('/api/v1/users/me');
+      await clearCache();
+    } on DioException catch (e) {
+      final detail = _extractErrorMessage(e);
+      throw ProfileRepositoryException(
+        detail ?? 'Failed to delete account. Please try again.',
+      );
+    }
+  }
+
   String _fallbackUsername(User user) {
     final email = user.email;
     if (email == null || !email.contains('@')) {
@@ -126,6 +153,17 @@ class ProfileRepository {
         totalViews: stats.totalViews ?? 0,
       ),
     );
+  }
+
+  String? _extractErrorMessage(DioException error) {
+    final data = error.response?.data;
+    if (data is Map<String, dynamic>) {
+      final detail = data['detail'];
+      if (detail is String && detail.isNotEmpty) {
+        return detail;
+      }
+    }
+    return null;
   }
 }
 

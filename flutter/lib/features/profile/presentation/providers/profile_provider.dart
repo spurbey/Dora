@@ -12,11 +12,13 @@ part 'profile_provider.g.dart';
 ProfileRepository profileRepository(ProfileRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
   final authService = ref.watch(authServiceProvider);
+  final apiClient = ref.watch(apiClientProvider);
   final usersApi = ref.watch(usersApiProvider);
   return ProfileRepository(
     db,
     authService,
     usersApi: usersApi,
+    apiClient: apiClient,
   );
 }
 
@@ -43,6 +45,14 @@ class ProfileController extends _$ProfileController {
   }
 
   Future<void> signOut() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.signOut();
+  }
+
+  Future<void> deleteAccount() async {
+    final repository = ref.read(profileRepositoryProvider);
+    await repository.deleteAccount();
+
     final authService = ref.read(authServiceProvider);
     await authService.signOut();
   }

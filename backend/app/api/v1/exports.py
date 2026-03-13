@@ -2,7 +2,8 @@
 Export control-plane API endpoints.
 """
 
-from fastapi import APIRouter, Depends, Response, status
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -15,7 +16,9 @@ from app.schemas.export import (
     ExportCreateRequest,
     ExportCreateResponse,
     ExportDownloadUrlResponse,
+    ExportJobListResponse,
     ExportShareUrlResponse,
+    ExportStatus,
     ExportStatusResponse,
 )
 from app.services.export_service import ExportService
@@ -67,6 +70,30 @@ async def get_export_status(
         started_at=job.started_at,
         completed_at=job.completed_at,
     )
+
+
+@router.get("/exports", response_model=ExportJobListResponse)
+async def list_exports(
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status_filter: Optional[ExportStatus] = Query(
+        None,
+        alias="status",
+        description="Optional status filter",
+    ),
+    trip_id: Optional[UUID] = Query(None, description="Optional trip filter"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = ExportService(db)
+    payload = service.list_export_jobs(
+        user_id=current_user.id,
+        page=page,
+        page_size=page_size,
+        status_filter=status_filter.value if status_filter else None,
+        trip_id=trip_id,
+    )
+    return ExportJobListResponse(**payload)
 
 
 @router.post("/exports/{job_id}/cancel", response_model=ExportCancelResponse)

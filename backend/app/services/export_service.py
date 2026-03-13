@@ -139,6 +139,49 @@ class ExportService:
             )
         return job
 
+    def list_export_jobs(
+        self,
+        user_id: UUID,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        status_filter: Optional[str] = None,
+        trip_id: Optional[UUID] = None,
+    ) -> dict[str, Any]:
+        query = (
+            self.db.query(ExportJob, Trip.title.label("trip_title"))
+            .join(Trip, Trip.id == ExportJob.trip_id)
+            .filter(ExportJob.user_id == user_id)
+        )
+
+        if status_filter:
+            query = query.filter(ExportJob.status == status_filter)
+        if trip_id:
+            query = query.filter(ExportJob.trip_id == trip_id)
+
+        total = query.count()
+        offset = (page - 1) * page_size
+        rows = (
+            query.order_by(ExportJob.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+
+        exports = [
+            self._to_export_summary(job=row[0], trip_title=row[1])
+            for row in rows
+        ]
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+
+        return {
+            "exports": exports,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
+
     def cancel_export_job(self, user_id: UUID, job_id: UUID) -> CancelJobResult:
         job = self.get_export_job(user_id=user_id, job_id=job_id)
         now = datetime.now(timezone.utc)
@@ -689,6 +732,23 @@ class ExportService:
     def _compute_snapshot_hash(self, snapshot: dict[str, Any]) -> str:
         normalized = self._normalize_snapshot(snapshot=snapshot)
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def _to_export_summary(self, *, job: ExportJob, trip_title: Optional[str]) -> dict[str, Any]:
+        return {
+            "job_id": job.id,
+            "trip_id": job.trip_id,
+            "trip_title": trip_title,
+            "template": job.template,
+            "status": job.status,
+            "stage": job.stage,
+            "progress": job.progress,
+            "output_url": job.output_url,
+            "thumbnail_url": job.thumbnail_url,
+            "error_code": job.error_code,
+            "error_message": job.error_message,
+            "created_at": job.created_at,
+            "completed_at": job.completed_at,
+        }
 
     def _find_duplicate_job(
         self,

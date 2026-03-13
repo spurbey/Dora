@@ -10,9 +10,15 @@ import 'package:dora/features/export/domain/export_state.dart';
 /// Dependency provider for the export repository.
 final exportRepositoryProvider = Provider<ExportRepositoryContract>((ref) {
   final db = ref.watch(appDatabaseProvider);
+  final client = ref.watch(apiClientProvider);
   final exportsApi = ref.watch(exportsApiProvider);
   final authService = ref.watch(authServiceProvider);
-  return ExportRepository(db, exportsApi, authService.getAccessToken);
+  return ExportRepository(
+    db,
+    exportsApi,
+    client.dio,
+    authService.getAccessToken,
+  );
 });
 
 /// Loads local pre-submit guard state for a trip before export submission.

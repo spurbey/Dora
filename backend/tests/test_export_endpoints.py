@@ -460,6 +460,56 @@ def test_get_export_status_includes_render_duration_ms(client, db, test_user, au
     assert response.json()["render_duration_ms"] == 12345
 
 
+def test_list_exports_returns_only_current_user_jobs(client, db, test_user, other_user, auth_as):
+    auth_as(test_user)
+    trip_a = _create_trip(db, test_user.id)
+    trip_b = _create_trip(db, test_user.id)
+    other_trip = _create_trip(db, other_user.id)
+
+    older_job = _create_export_job(db, test_user.id, trip_a.id, status="completed")
+    newer_job = _create_export_job(db, test_user.id, trip_b.id, status="processing")
+    _create_export_job(db, other_user.id, other_trip.id, status="queued")
+
+    older_job.created_at = datetime(2026, 3, 1, tzinfo=timezone.utc)
+    newer_job.created_at = datetime(2026, 3, 2, tzinfo=timezone.utc)
+    db.commit()
+
+    response = client.get("/api/v1/exports?page=1&page_size=20")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["total"] == 2
+    assert body["page"] == 1
+    assert body["page_size"] == 20
+    assert body["total_pages"] == 1
+    assert len(body["exports"]) == 2
+
+    first = body["exports"][0]
+    second = body["exports"][1]
+    assert first["job_id"] == str(newer_job.id)
+    assert first["trip_id"] == str(trip_b.id)
+    assert first["trip_title"] == trip_b.title
+    assert second["job_id"] == str(older_job.id)
+    assert second["trip_id"] == str(trip_a.id)
+    assert second["trip_title"] == trip_a.title
+
+
+def test_list_exports_filters_by_status(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, test_user.id)
+    _create_export_job(db, test_user.id, trip.id, status="queued")
+    completed_job = _create_export_job(db, test_user.id, trip.id, status="completed")
+
+    response = client.get("/api/v1/exports?status=completed")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["total"] == 1
+    assert len(body["exports"]) == 1
+    assert body["exports"][0]["job_id"] == str(completed_job.id)
+    assert body["exports"][0]["status"] == "completed"
+
+
 def test_cancel_queued_export_returns_200(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = _create_trip(db, test_user.id)

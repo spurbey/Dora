@@ -18,6 +18,7 @@ import 'package:dora/features/feed/presentation/screens/feed_screen.dart';
 import 'package:dora/features/feed/presentation/screens/search_screen.dart';
 import 'package:dora/features/feed/presentation/screens/trip_detail_screen.dart';
 import 'package:dora/features/export/presentation/screens/export_studio_screen.dart';
+import 'package:dora/features/export/presentation/screens/my_trips_export_screen.dart';
 import 'package:dora/features/profile/presentation/screens/profile_screen.dart';
 import 'package:dora/features/profile/presentation/screens/settings_screen.dart';
 import 'package:dora/features/trips/presentation/screens/my_trips_screen.dart';
@@ -113,6 +114,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: Routes.trips,
             builder: (context, state) => const MyTripsScreen(),
+          ),
+          GoRoute(
+            path: Routes.tripsExports,
+            redirect: (_, __) => FeatureFlags.enableExport ? null : Routes.trips,
+            builder: (context, state) => const MyTripsExportScreen(),
           ),
           GoRoute(
             path: Routes.profile,

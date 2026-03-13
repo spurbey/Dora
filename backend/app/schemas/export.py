@@ -76,6 +76,30 @@ class ExportStatusResponse(BaseModel):
     completed_at: Optional[datetime] = None
 
 
+class ExportJobSummaryResponse(BaseModel):
+    job_id: UUID
+    trip_id: UUID
+    trip_title: Optional[str] = None
+    template: str
+    status: ExportStatus
+    stage: Optional[ExportStage] = None
+    progress: float = Field(ge=0.0, le=1.0)
+    output_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class ExportJobListResponse(BaseModel):
+    exports: list[ExportJobSummaryResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class ExportCancelResponse(BaseModel):
     status: ExportStatus
 

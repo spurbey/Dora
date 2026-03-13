@@ -241,6 +241,106 @@ class RouteRepository {
     );
   }
 
+  /// Hydrates routes from the backend into local Drift tables.
+  ///
+  /// [remotePlaceToLocalId] maps remote place IDs to local place IDs so that
+  /// route `startPlaceId`/`endPlaceId` references work with local data.
+  Future<List<Route>> hydrateRoutesFromBackend(
+    String remoteTripId,
+    String localTripId,
+    Map<String, String> remotePlaceToLocalId,
+  ) async {
+    final routesApi = _routesApi;
+    final authService = _authService;
+    if (routesApi == null || authService == null) {
+      return const <Route>[];
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return const <Route>[];
+    }
+
+    try {
+      final response = await routesApi.listTripRoutesApiV1TripsTripIdRoutesGet(
+        tripId: remoteTripId,
+        authorization: 'Bearer $token',
+      );
+      final remoteRoutes = response.data?.routes;
+      if (remoteRoutes == null || remoteRoutes.isEmpty) {
+        return const <Route>[];
+      }
+
+      final now = DateTime.now();
+      final routes = <Route>[];
+
+      for (final remote in remoteRoutes) {
+        final localId = const Uuid().v4();
+        final coordinates = _extractCoordinatesFromGeojson(remote.routeGeojson);
+        final localStartPlaceId = remote.startPlaceId != null
+            ? remotePlaceToLocalId[remote.startPlaceId]
+            : null;
+        final localEndPlaceId = remote.endPlaceId != null
+            ? remotePlaceToLocalId[remote.endPlaceId]
+            : null;
+
+        String? geojsonStr;
+        try {
+          geojsonStr = jsonEncode(remote.routeGeojson.value);
+        } catch (_) {}
+
+        routes.add(Route(
+          id: localId,
+          serverRouteId: remote.id,
+          tripId: localTripId,
+          coordinates: coordinates,
+          transportMode: remote.transportMode.name,
+          distance: remote.distanceKm?.toDouble(),
+          duration: remote.durationMins,
+          name: remote.name,
+          description: remote.description,
+          routeCategory: remote.routeCategory.name,
+          startPlaceId: localStartPlaceId,
+          endPlaceId: localEndPlaceId,
+          orderIndex: remote.orderInTrip ?? 0,
+          routeGeojson: geojsonStr,
+          localUpdatedAt: now,
+          serverUpdatedAt: remote.updatedAt,
+          syncStatus: 'synced',
+        ));
+      }
+
+      final companions = routes.map(_toCompanion).toList();
+      await _db.routeDao.insertRoutes(companions);
+
+      return routes;
+    } catch (_) {
+      return const <Route>[];
+    }
+  }
+
+  List<AppLatLng> _extractCoordinatesFromGeojson(JsonObject geojson) {
+    try {
+      final raw = geojson.value;
+      final map = raw is Map ? raw : null;
+      final type = map?['type'];
+      final coordinates = map?['coordinates'];
+
+      if (type == 'LineString' && coordinates is List) {
+        final parsed = <AppLatLng>[];
+        for (final point in coordinates) {
+          if (point is! List || point.length < 2) continue;
+          final lng = point[0] is num ? (point[0] as num).toDouble() : null;
+          final lat = point[1] is num ? (point[1] as num).toDouble() : null;
+          if (lat == null || lng == null) continue;
+          parsed.add(AppLatLng(latitude: lat, longitude: lng));
+        }
+        if (parsed.length >= 2) return parsed;
+      }
+    } catch (_) {}
+    return const <AppLatLng>[];
+  }
+
   Route _mapRow(RouteRow row) {
     return Route(
       id: row.id,

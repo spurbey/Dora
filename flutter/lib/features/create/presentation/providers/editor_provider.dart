@@ -81,13 +81,30 @@ class EditorController extends _$EditorController {
     final placeRepository = ref.watch(placeRepositoryProvider);
     final routeRepository = ref.watch(routeRepositoryProvider);
 
-    final trip = await tripRepository.getTrip(tripId);
-    if (trip == null) {
-      throw Exception('Trip not found');
-    }
+    var trip = await tripRepository.getTrip(tripId);
+    List<Place> places;
+    List<Route> routes;
 
-    final places = await placeRepository.getPlaces(tripId);
-    final routes = await routeRepository.getRoutes(tripId);
+    if (trip == null) {
+      // Trip exists in user_trips (synced from server) but not in the local
+      // editor workspace. Hydrate trip + places + routes from backend so the
+      // editor can open it seamlessly.
+      trip = await tripRepository.hydrateTripFromBackend(tripId);
+      if (trip == null) {
+        throw Exception('Trip not found');
+      }
+      final (hydratedPlaces, placeIdMapping) =
+          await placeRepository.hydratePlacesFromBackend(tripId, tripId);
+      routes = await routeRepository.hydrateRoutesFromBackend(
+        tripId,
+        tripId,
+        placeIdMapping,
+      );
+      places = hydratedPlaces;
+    } else {
+      places = await placeRepository.getPlaces(tripId);
+      routes = await routeRepository.getRoutes(tripId);
+    }
 
     return EditorState(
       trip: trip,

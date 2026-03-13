@@ -35,6 +35,11 @@ class _FakeAuthService implements AuthService {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> signInWithGoogle() {
+    throw UnimplementedError();
+  }
 }
 
 void main() {

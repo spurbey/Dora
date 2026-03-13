@@ -42,6 +42,11 @@ class _FakeAuthService implements AuthService {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> signInWithGoogle() {
+    throw UnimplementedError();
+  }
 }
 
 class _FakeRoutesApi extends openapi.RoutesApi {

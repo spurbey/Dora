@@ -392,15 +392,21 @@ class UploadQueueWorker {
       );
     }
 
-    if (status == 'queued' || status == 'in_progress' || status == 'failed') {
+    if (status == 'queued' ||
+        status == 'in_progress' ||
+        status == 'failed' ||
+        status == 'pending' ||
+        status == 'deferred') {
       throw _DependencyDeferredException(
         'Waiting for $dependencyLabel sync (status=$status, entityId=$dependencyEntityId).',
       );
     }
 
-    throw PlaceIdentityException(
-      'Upload blocked: $dependencyLabel dependency is in unsupported sync state '
-      '(status=$status, entityId=$dependencyEntityId). ${reason ?? ''}',
+    // Be forward/backward compatible with unexpected statuses.
+    // Treat unknown states as temporary so uploads can self-recover.
+    throw _DependencyDeferredException(
+      'Waiting for $dependencyLabel sync '
+      '(status=$status, entityId=$dependencyEntityId).',
     );
   }
 

@@ -444,6 +444,22 @@ class EditorController extends _$EditorController {
     } catch (_) {}
   }
 
+  Future<void> reorderWaypoints(
+      String routeId, int oldIndex, int newIndex) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      if (route.transportMode == 'air') return;
+      if (route.waypoints.length < 2) return;
+      final wps = [...route.waypoints];
+      final moved = wps.removeAt(oldIndex);
+      final target = newIndex > oldIndex ? newIndex - 1 : newIndex;
+      wps.insert(target, moved);
+      await _recalculateWithWaypoints(route, wps);
+    } catch (_) {}
+  }
+
   Future<void> removeWaypoint(String routeId, int index) async {
     final current = state.valueOrNull;
     if (current == null) return;

@@ -16,7 +16,9 @@ class RouteControlStrip extends StatelessWidget {
     this.distanceKm,
     this.durationMins,
     required this.isEditMode,
+    required this.waypointCount,
     required this.onToggleEdit,
+    required this.onOpenWaypoints,
     required this.onFlip,
     required this.onOpenDetails,
     required this.onDelete,
@@ -29,7 +31,9 @@ class RouteControlStrip extends StatelessWidget {
   final double? distanceKm;
   final int? durationMins;
   final bool isEditMode;
+  final int waypointCount;
   final VoidCallback onToggleEdit;
+  final VoidCallback onOpenWaypoints;
   final VoidCallback onFlip;
   final VoidCallback onOpenDetails;
   final VoidCallback onDelete;
@@ -138,6 +142,14 @@ class RouteControlStrip extends StatelessWidget {
             label: 'Edit',
             active: isEditMode,
             onTap: onToggleEdit,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ActionChip(
+            icon: Icons.add_location_alt,
+            label: waypointCount > 0
+                ? 'Waypoints ($waypointCount)'
+                : 'Waypoints',
+            onTap: onOpenWaypoints,
           ),
           const SizedBox(width: AppSpacing.sm),
           _ActionChip(

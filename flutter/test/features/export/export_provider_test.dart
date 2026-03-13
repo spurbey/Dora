@@ -27,7 +27,7 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           exportRepositoryProvider.overrideWith(
-            (ref) => ExportRepository(db, _FakeExportsApi(), () async => null),
+            (ref) => ExportRepository(db, _FakeExportsApi(), Dio(), () async => null),
           ),
         ],
       );

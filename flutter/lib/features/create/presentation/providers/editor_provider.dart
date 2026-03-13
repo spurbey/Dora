@@ -124,15 +124,48 @@ class EditorController extends _$EditorController {
   }
 
   void selectRoute(String id) {
+    enterRouteStudio(id);
+  }
+
+  void enterRouteStudio(String routeId) {
     final current = state.valueOrNull;
-    if (current == null) {
-      return;
-    }
+    if (current == null) return;
     state = AsyncData(current.copyWith(
-      selectedItemId: id,
+      selectedItemId: routeId,
       selectedItemType: 'route',
-      bottomPanelExpanded: true,
+      routeStudioActive: true,
+      bottomPanelExpanded: false,
       mode: EditorMode.editItem,
+    ));
+    // Fit camera to route bounds
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      if (route.coordinates.length >= 2) {
+        final coords = route.coordinates;
+        final minLat = coords.map((c) => c.latitude).reduce(min);
+        final maxLat = coords.map((c) => c.latitude).reduce(max);
+        final minLon = coords.map((c) => c.longitude).reduce(min);
+        final maxLon = coords.map((c) => c.longitude).reduce(max);
+        current.mapController?.fitBounds(
+          AppLatLngBounds(
+            southwest: AppLatLng(latitude: minLat, longitude: minLon),
+            northeast: AppLatLng(latitude: maxLat, longitude: maxLon),
+          ),
+          padding: const EdgeInsets.all(80),
+        );
+      }
+    } catch (_) {}
+  }
+
+  void exitRouteStudio() {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(
+      routeStudioActive: false,
+      selectedItemId: null,
+      selectedItemType: null,
+      bottomPanelExpanded: false,
+      mode: EditorMode.view,
     ));
   }
 
@@ -149,6 +182,7 @@ class EditorController extends _$EditorController {
       routeStartItemId: null,
       routeStartItemType: null,
       routeEndItemId: null,
+      routeStudioActive: false,
     ));
   }
 
@@ -305,7 +339,8 @@ class EditorController extends _$EditorController {
       routes: [...current.routes, route],
       selectedItemId: route.id,
       selectedItemType: 'route',
-      bottomPanelExpanded: true,
+      bottomPanelExpanded: false,
+      routeStudioActive: true,
       mode: EditorMode.editItem,
       routeStartItemId: null,
       routeStartItemType: null,
@@ -361,6 +396,7 @@ class EditorController extends _$EditorController {
       selectedItemType: wasSelected ? null : current.selectedItemType,
       bottomPanelExpanded: wasSelected ? false : current.bottomPanelExpanded,
       mode: wasSelected ? EditorMode.view : current.mode,
+      routeStudioActive: wasSelected ? false : current.routeStudioActive,
     ));
     _routeRecalcVersion.remove(id);
     Future(() => ref.read(routeRepositoryProvider).deleteRoute(id));
@@ -373,7 +409,10 @@ class EditorController extends _$EditorController {
     final newMode = current.mode == EditorMode.editRoute
         ? EditorMode.editItem
         : EditorMode.editRoute;
-    state = AsyncData(current.copyWith(mode: newMode));
+    state = AsyncData(current.copyWith(
+      mode: newMode,
+      routeStudioActive: true,
+    ));
   }
 
   Future<void> addWaypoint(String routeId, AppLatLng position) async {
@@ -383,6 +422,24 @@ class EditorController extends _$EditorController {
       final route = current.routes.firstWhere((r) => r.id == routeId);
       if (route.transportMode == 'air') return;
       final newWaypoints = [...route.waypoints, position];
+      await _recalculateWithWaypoints(route, newWaypoints);
+    } catch (_) {}
+  }
+
+  /// Insert a waypoint at a specific segment index (between logical nodes).
+  /// segmentIndex 0 = before first waypoint, segmentIndex N = after last waypoint.
+  Future<void> insertWaypointAtSegment(
+      String routeId, int segmentIndex, AppLatLng position) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    try {
+      final route = current.routes.firstWhere((r) => r.id == routeId);
+      if (route.transportMode == 'air') return;
+      // segmentIndex maps to insertion index in waypoints list:
+      // segment 0 = start→wp[0] gap → insert at index 0
+      // segment N = wp[N-1]→end gap → insert at index N (= waypoints.length)
+      final insertAt = segmentIndex.clamp(0, route.waypoints.length);
+      final newWaypoints = [...route.waypoints]..insert(insertAt, position);
       await _recalculateWithWaypoints(route, newWaypoints);
     } catch (_) {}
   }
@@ -727,7 +784,16 @@ class EditorController extends _$EditorController {
 
   void cancelRouteMode() {
     clearRouteDraft();
-    setMode(EditorMode.view);
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncData(current.copyWith(
+        mode: EditorMode.view,
+        routeStudioActive: false,
+        routeStartItemId: null,
+        routeStartItemType: null,
+        routeEndItemId: null,
+      ));
+    }
   }
 
   Future<void> handleMapTap(AppLatLng position) async {

@@ -25,6 +25,7 @@ class EditorState with _$EditorState {
     // UI state
     @Default(false) bool saving,
     @Default(false) bool bottomPanelExpanded,
+    @Default(false) bool routeStudioActive,
 
     // Map controller reference
     AppMapController? mapController,

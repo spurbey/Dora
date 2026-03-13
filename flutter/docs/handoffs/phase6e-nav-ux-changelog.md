@@ -35,6 +35,14 @@ Update this file after each completed work item.
 - Added missing method implementation in 4 fake auth services under `flutter/test/...`.
 - No runtime app behavior changed in this patch.
 
+### 2026-03-13 - Export Hub Planning Memory Added
+- Added dedicated planning/memory doc:
+  - `flutter/docs/handoffs/phase6e-export-hub-memory.md`
+- Captured:
+  - current export capabilities already shipped,
+  - missing global export-history capabilities,
+  - deterministic step plan for implementation.
+
 ## Pending Work Buckets
 - Design implementation: replace current Material `BottomNavigationBar` with custom tab component aligned to provided reference.
 - Behavior parity: preserve route switching behavior (`Feed`, `Create`, `My Trips`, `Profile`).

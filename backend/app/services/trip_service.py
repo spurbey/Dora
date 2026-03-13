@@ -181,9 +181,6 @@ class TripService:
             - Auto-generates UUID primary key
             - Auto-sets created_at, updated_at timestamps
         """
-        # Check free tier limit
-        self._check_free_tier_limit(user_id)
-
         # Create trip instance
         trip = Trip(
             user_id=user_id,

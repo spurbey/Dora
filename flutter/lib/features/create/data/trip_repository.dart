@@ -26,10 +26,32 @@ class TripRepository {
 
   Future<Trip?> getTrip(String id) async {
     final row = await _db.tripDao.getTripById(id);
-    if (row == null) {
+    if (row != null) {
+      return _mapRow(row);
+    }
+
+    // Fallback: trip exists in user_trips (synced from backend) but not in
+    // the editor's trips table. Create an entry so the editor can open it.
+    final userTrip = await _db.userTripsDao.getTripById(id);
+    if (userTrip == null) {
       return null;
     }
-    return _mapRow(row);
+    final trip = Trip(
+      id: userTrip.id,
+      serverTripId: userTrip.id,
+      userId: userTrip.userId,
+      name: userTrip.name,
+      description: userTrip.description,
+      startDate: userTrip.startDate,
+      endDate: userTrip.endDate,
+      tags: const [],
+      visibility: userTrip.visibility,
+      localUpdatedAt: userTrip.localUpdatedAt,
+      serverUpdatedAt: userTrip.serverUpdatedAt,
+      syncStatus: userTrip.syncStatus,
+    );
+    await _upsertTripRow(trip);
+    return trip;
   }
 
   Future<Trip> createTrip({

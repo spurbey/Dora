@@ -82,6 +82,9 @@ class FeedRepository {
         placeCount: places.length,
       );
 
+      // Update cached trip with real placeCount so feed cards reflect it.
+      _db.publicTripsDao.insertTrip(trip).catchError((_) {});
+
       return TripDetailData(
         trip: trip,
         places: places,

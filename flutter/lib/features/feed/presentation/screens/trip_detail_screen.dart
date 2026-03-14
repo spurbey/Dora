@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/map/app_map_controller.dart';
 import 'package:dora/core/map/app_map_view.dart';
+import 'package:dora/core/map/models/app_bounds.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
@@ -173,6 +175,14 @@ class TripDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildHeaderCard(PublicTrip trip) {
+    final metaParts = <String>[];
+    if (trip.placeCount > 0) {
+      metaParts.add('${trip.placeCount} places');
+    }
+    if (trip.duration != null && trip.duration! > 0) {
+      metaParts.add('${trip.duration} days');
+    }
+
     return Container(
       margin: AppSpacing.horizontalMd,
       padding: AppSpacing.allLg,
@@ -193,22 +203,58 @@ class TripDetailScreen extends ConsumerWidget {
             style: AppTypography.body.copyWith(color: AppColors.accent),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${trip.placeCount} places${trip.duration != null ? " · ${trip.duration} days" : ""}',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
+          Row(
+            children: [
+              if (metaParts.isNotEmpty) ...[
+                Icon(Icons.place, size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  metaParts.join(' · '),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+              if (metaParts.isNotEmpty && trip.viewCount > 0)
+                const SizedBox(width: AppSpacing.md),
+              if (trip.viewCount > 0) ...[
+                Icon(Icons.visibility_outlined,
+                    size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  _formatCount(trip.viewCount),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
           ),
+          if (trip.description != null &&
+              trip.description!.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              trip.description!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
           if (trip.tags.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
               children: trip.tags
                   .map(
                     (tag) => Chip(
                       label: Text(tag),
                       backgroundColor: AppColors.accentSoft,
                       labelStyle: const TextStyle(color: AppColors.accent),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
                     ),
                   )
                   .toList(),
@@ -217,6 +263,13 @@ class TripDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return '$count';
   }
 
   Widget _buildTimeline(
@@ -307,6 +360,7 @@ class TripDetailScreen extends ConsumerWidget {
     final markers = _buildMapMarkers(state.data.places);
     final routes = _buildMapRoutes(state.data.places, state.data.routes);
     final initialCenter = _resolveInitialCenter(state.data.places, routes);
+    final bounds = _computeBounds(state.data.places, routes);
 
     if (markers.isEmpty && routes.isEmpty) {
       return _buildPlaceholder('No route data available for this trip.');
@@ -318,12 +372,53 @@ class TripDetailScreen extends ConsumerWidget {
         borderRadius: AppRadius.borderMd,
         child: AppMapView(
           initialCenter: initialCenter,
-          initialZoom: 11,
+          initialZoom: bounds != null ? 3 : 11,
           markers: markers,
           routes: routes,
           showUserLocation: false,
+          onMapCreated: bounds != null
+              ? (AppMapController controller) {
+                  controller.fitBounds(
+                    bounds,
+                    padding: const EdgeInsets.all(60),
+                  );
+                }
+              : null,
         ),
       ),
+    );
+  }
+
+  AppLatLngBounds? _computeBounds(
+    List<TripPlace> places,
+    List<AppRoute> routes,
+  ) {
+    final allPoints = <AppLatLng>[];
+    for (final place in places) {
+      allPoints.add(
+        AppLatLng(latitude: place.latitude, longitude: place.longitude),
+      );
+    }
+    for (final route in routes) {
+      allPoints.addAll(route.coordinates);
+    }
+    if (allPoints.length < 2) return null;
+
+    var minLat = allPoints.first.latitude;
+    var maxLat = allPoints.first.latitude;
+    var minLng = allPoints.first.longitude;
+    var maxLng = allPoints.first.longitude;
+
+    for (final p in allPoints) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    return AppLatLngBounds(
+      southwest: AppLatLng(latitude: minLat, longitude: minLng),
+      northeast: AppLatLng(latitude: maxLat, longitude: maxLng),
     );
   }
 

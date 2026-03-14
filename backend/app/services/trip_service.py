@@ -64,6 +64,14 @@ class TripService:
         """
         return self.db.query(Trip).filter(Trip.id == trip_id).first()
 
+    def get_place_count(self, trip_id: UUID) -> int:
+        """Count places belonging to a trip."""
+        return (
+            self.db.query(func.count(TripPlace.id))
+            .filter(TripPlace.trip_id == trip_id)
+            .scalar() or 0
+        )
+
     def get_user_trip_count(self, user_id: UUID) -> int:
         """
         Count user's total trips.
@@ -245,8 +253,26 @@ class TripService:
         offset = (page - 1) * page_size
         trips = query.order_by(desc(Trip.created_at)).offset(offset).limit(page_size).all()
 
+        # Batch-fetch place counts for all trips on this page
+        trip_ids = [t.id for t in trips]
+        place_counts = {}
+        if trip_ids:
+            rows = (
+                self.db.query(TripPlace.trip_id, func.count(TripPlace.id))
+                .filter(TripPlace.trip_id.in_(trip_ids))
+                .group_by(TripPlace.trip_id)
+                .all()
+            )
+            place_counts = {row[0]: row[1] for row in rows}
+
+        trip_responses = []
+        for trip in trips:
+            resp = TripResponse.model_validate(trip)
+            resp.place_count = place_counts.get(trip.id, 0)
+            trip_responses.append(resp)
+
         return TripListResponse(
-            trips=[TripResponse.model_validate(trip) for trip in trips],
+            trips=trip_responses,
             total=total,
             page=page,
             page_size=page_size,

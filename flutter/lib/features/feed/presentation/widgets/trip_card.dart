@@ -18,6 +18,13 @@ class TripCard extends StatelessWidget {
   final PublicTrip trip;
   final VoidCallback onTap;
 
+  static String _formatCount(int count) {
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    }
+    return '$count';
+  }
+
   @override
   Widget build(BuildContext context) {
     final coverUrl = trip.coverPhotoUrl?.trim();
@@ -73,25 +80,45 @@ class TripCard extends StatelessWidget {
                       bottom: AppSpacing.md,
                       child: Row(
                         children: [
-                          const Icon(Icons.place, color: Colors.white, size: 18),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              '${trip.placeCount} places',
-                              style: AppTypography.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (trip.duration != null)
+                          if (trip.placeCount > 0) ...[
+                            const Icon(Icons.place,
+                                color: Colors.white, size: 16),
+                            const SizedBox(width: 3),
                             Text(
-                              '${trip.duration} days',
+                              '${trip.placeCount}',
                               style: AppTypography.caption.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                          if (trip.duration != null && trip.duration! > 0) ...[
+                            const Icon(Icons.calendar_today_outlined,
+                                color: Colors.white, size: 14),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${trip.duration}d',
+                              style: AppTypography.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                          const Spacer(),
+                          if (trip.viewCount > 0) ...[
+                            const Icon(Icons.visibility_outlined,
+                                color: Colors.white, size: 14),
+                            const SizedBox(width: 3),
+                            Text(
+                              _formatCount(trip.viewCount),
+                              style: AppTypography.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -117,6 +144,47 @@ class TripCard extends StatelessWidget {
                       color: AppColors.accent,
                     ),
                   ),
+                  if (trip.description != null &&
+                      trip.description!.trim().isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      trip.description!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (trip.tags.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: trip.tags
+                          .take(3)
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentSoft,
+                                borderRadius: AppRadius.borderSm,
+                              ),
+                              child: Text(
+                                tag,
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.accent,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),

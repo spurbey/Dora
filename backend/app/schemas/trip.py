@@ -157,6 +157,7 @@ class TripResponse(BaseModel):
     visibility: str
     views_count: int
     saves_count: int
+    place_count: int = 0
     created_at: datetime
     updated_at: datetime
 

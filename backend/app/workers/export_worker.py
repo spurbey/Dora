@@ -709,18 +709,41 @@ def run_worker_forever() -> None:
     poll_seconds = _env_float("EXPORT_WORKER_POLL_SECONDS", settings.EXPORT_WORKER_POLL_SECONDS)
     stale_seconds = _env_int("EXPORT_WORKER_STALE_SECONDS", settings.EXPORT_WORKER_STALE_SECONDS)
     worker_session_id = str(uuid4())
+    consecutive_db_failures = 0
+
+    logger.info(
+        "[EXPORT_WORKER] starting session=%s poll=%.1fs stale=%ds",
+        worker_session_id,
+        poll_seconds,
+        stale_seconds,
+    )
 
     while True:
-        with SessionLocal() as db:
-            recover_orphaned_jobs(db=db, stale_after_seconds=stale_seconds)
+        try:
+            with SessionLocal() as db:
+                recover_orphaned_jobs(db=db, stale_after_seconds=stale_seconds)
 
-        with SessionLocal() as db:
-            claimed = claim_next_job(db=db, worker_session_id=worker_session_id)
-            if not claimed:
-                time.sleep(poll_seconds)
-                continue
+            with SessionLocal() as db:
+                claimed = claim_next_job(db=db, worker_session_id=worker_session_id)
+                if not claimed:
+                    consecutive_db_failures = 0
+                    time.sleep(poll_seconds)
+                    continue
 
-            asyncio.run(_run_job_once_managed(db=db, job=claimed))
+                consecutive_db_failures = 0
+                asyncio.run(_run_job_once_managed(db=db, job=claimed))
+
+        except Exception as exc:
+            consecutive_db_failures += 1
+            # Exponential backoff: 5s, 10s, 20s, 40s … capped at 60s
+            backoff = min(60, 5 * (2 ** (consecutive_db_failures - 1)))
+            logger.error(
+                "[EXPORT_WORKER] loop error #%d (retry in %ds): %s",
+                consecutive_db_failures,
+                backoff,
+                exc,
+            )
+            time.sleep(backoff)
 
 
 if __name__ == "__main__":

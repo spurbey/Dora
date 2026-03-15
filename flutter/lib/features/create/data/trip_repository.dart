@@ -32,6 +32,67 @@ class TripRepository {
     return _mapRow(row);
   }
 
+  /// Hydrates a trip from the backend into the local editor `trips` table.
+  ///
+  /// Used when a trip exists in `user_trips` (synced from server) but not in
+  /// the editor workspace. For server-synced trips, `tripId` is the remote
+  /// UUID. Fetches full trip details from backend and persists locally so the
+  /// editor can open it.
+  Future<Trip?> hydrateTripFromBackend(String tripId) async {
+    final userTrip = await _db.userTripsDao.getTripById(tripId);
+    if (userTrip == null) {
+      return null;
+    }
+
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      return null;
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await tripsApi.getTripApiV1TripsTripIdGet(
+        tripId: tripId,
+        authorization: 'Bearer $token',
+      );
+      final data = response.data;
+      if (data == null) {
+        return null;
+      }
+
+      final now = DateTime.now();
+      final startDate = data.startDate;
+      final endDate = data.endDate;
+      final trip = Trip(
+        id: tripId,
+        serverTripId: tripId,
+        userId: userTrip.userId,
+        name: data.title,
+        description: data.description,
+        startDate: startDate != null
+            ? DateTime(startDate.year, startDate.month, startDate.day)
+            : null,
+        endDate: endDate != null
+            ? DateTime(endDate.year, endDate.month, endDate.day)
+            : null,
+        tags: const [],
+        visibility: data.visibility,
+        localUpdatedAt: now,
+        serverUpdatedAt: data.updatedAt,
+        syncStatus: 'synced',
+      );
+
+      await _upsertTripRow(trip);
+      return trip;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Trip> createTrip({
     required String name,
     String? description,

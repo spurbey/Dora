@@ -80,7 +80,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
       '''
       SELECT t.*
       FROM sync_tasks AS t
-      WHERE t.status IN ('queued', 'failed')
+      WHERE t.status IN ('queued', 'failed', 'pending')
         AND (t.next_attempt_at IS NULL OR t.next_attempt_at <= ?)
         AND (
           t.depends_on_entity_type IS NULL
@@ -127,7 +127,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
             worker_session_id = ?,
             updated_at = ?
           WHERE id = ?
-            AND status IN ('queued', 'failed')
+            AND status IN ('queued', 'failed', 'pending')
             AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
             AND (
               depends_on_entity_type IS NULL
@@ -250,6 +250,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
     return (select(syncTasks)
           ..where((t) => t.status.isIn(const [
                 'queued',
+                'pending',
                 'in_progress',
                 'blocked',
                 'failed',

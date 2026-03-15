@@ -67,7 +67,7 @@ class MediaResponse(BaseModel):
     id: UUID
     user_id: UUID
     trip_place_id: UUID
-    trip_id: UUID  # Added for frontend cache invalidation
+    trip_id: Optional[UUID] = None  # Added for frontend cache invalidation
     file_url: str
     file_type: str
     file_size_bytes: Optional[int] = None

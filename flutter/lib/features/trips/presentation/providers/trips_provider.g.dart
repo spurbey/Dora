@@ -6,7 +6,7 @@ part of 'trips_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$userTripsApiHash() => r'69ce23c58cae3f97ca1209161ecb225f2a5cac9e';
+String _$userTripsApiHash() => r'0a66d8073b01c6f3712e2dc7a92bcf311c57a72c';
 
 /// See also [userTripsApi].
 @ProviderFor(userTripsApi)
@@ -22,7 +22,7 @@ final userTripsApiProvider = AutoDisposeProvider<TripsApi>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef UserTripsApiRef = AutoDisposeProviderRef<TripsApi>;
-String _$tripsRepositoryHash() => r'eeb8086e9ea56cb8ce38356121667785a6cd5298';
+String _$tripsRepositoryHash() => r'844b06e1756a1017fd63ce0f26294bcceee49197';
 
 /// See also [tripsRepository].
 @ProviderFor(tripsRepository)
@@ -39,7 +39,7 @@ final tripsRepositoryProvider = AutoDisposeProvider<TripsRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef TripsRepositoryRef = AutoDisposeProviderRef<TripsRepository>;
-String _$tripsControllerHash() => r'9a9e2e2f44cf10005a90d8dda3de8a700e24c6c1';
+String _$tripsControllerHash() => r'f545b05808866dd4a62ad9f84ce2167775436e4c';
 
 /// See also [TripsController].
 @ProviderFor(TripsController)

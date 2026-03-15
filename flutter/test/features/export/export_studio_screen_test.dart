@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/features/export/data/export_repository.dart';
 import 'package:dora/features/export/domain/export_job.dart';
+import 'package:dora/features/export/domain/export_job_summary.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 import 'package:dora/features/export/domain/export_template.dart';
 import 'package:dora/features/export/presentation/providers/export_provider.dart';
@@ -384,6 +385,15 @@ class _FakeExportRepository implements ExportRepositoryContract {
   @override
   Future<String> getShareUrl(String jobId) async =>
       'https://dora.app/share/$jobId';
+
+  @override
+  Future<ExportJobListResult> listExportJobs({
+    int page = 1,
+    int pageSize = 50,
+    String? status,
+    String? tripId,
+  }) async =>
+      throw UnimplementedError();
 
   Future<void> dispose() async {}
 }

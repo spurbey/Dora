@@ -5,11 +5,19 @@ import 'package:dora_api/dora_api.dart' as api;
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/export/domain/export_error_strings.dart';
 import 'package:dora/features/export/domain/export_job.dart';
+import 'package:dora/features/export/domain/export_job_summary.dart';
 import 'package:dora/features/export/domain/export_state.dart';
 import 'package:dora/features/export/domain/export_template.dart';
 
 /// Contract for export data operations used by providers/UI.
 abstract class ExportRepositoryContract {
+  Future<ExportJobListResult> listExportJobs({
+    int page,
+    int pageSize,
+    String? status,
+    String? tripId,
+  });
+
   Future<ExportPrecheckResult> evaluatePreSubmitGuards(String tripId);
 
   /// 6A compat: submits with the default classic template.
@@ -27,10 +35,11 @@ abstract class ExportRepositoryContract {
 
 /// Export repository that owns local pre-submit guards and create-export calls.
 class ExportRepository implements ExportRepositoryContract {
-  ExportRepository(this._db, this._exportsApi, this._getToken);
+  ExportRepository(this._db, this._exportsApi, this._dio, this._getToken);
 
   final AppDatabase _db;
   final api.ExportsApi _exportsApi;
+  final Dio _dio;
 
   /// Returns the current auth bearer token, or null if the session has expired.
   final Future<String?> Function() _getToken;
@@ -46,6 +55,57 @@ class ExportRepository implements ExportRepositoryContract {
     'failed',
     'blocked',
   };
+
+  @override
+  Future<ExportJobListResult> listExportJobs({
+    int page = 1,
+    int pageSize = 50,
+    String? status,
+    String? tripId,
+  }) async {
+    final authorization = await _bearerToken();
+    try {
+      final response = await _dio.get<dynamic>(
+        '/api/v1/exports',
+        queryParameters: <String, dynamic>{
+          'page': page,
+          'page_size': pageSize,
+          if (status != null && status.isNotEmpty) 'status': status,
+          if (tripId != null && tripId.isNotEmpty) 'trip_id': tripId,
+        },
+        options: Options(
+          headers: <String, dynamic>{
+            'authorization': authorization,
+          },
+        ),
+      );
+
+      final payload = _toStringKeyMap(response.data);
+      final exportsRaw = payload['exports'];
+      final exportsList = exportsRaw is List ? exportsRaw : const <dynamic>[];
+      final exports = exportsList
+          .map((item) => _parseExportJobSummary(_toStringKeyMap(item)))
+          .toList();
+
+      return ExportJobListResult(
+        exports: exports,
+        total: _toInt(payload['total']) ?? exports.length,
+        page: _toInt(payload['page']) ?? page,
+        pageSize: _toInt(payload['page_size']) ?? pageSize,
+        totalPages: _toInt(payload['total_pages']) ?? 1,
+      );
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        throw const ExportRepositoryException(
+          'Session expired. Sign in again.',
+        );
+      }
+      throw ExportRepositoryException(
+        error.message ?? 'Failed to load export history.',
+      );
+    }
+  }
 
   /// Evaluates all frozen 6A pre-submit conditions from local DB state.
   @override
@@ -305,6 +365,64 @@ class ExportRepository implements ExportRepositoryContract {
     return null;
   }
 
+  ExportJobSummary _parseExportJobSummary(Map<String, dynamic> payload) {
+    final createdAt = _toDateTime(payload['created_at']) ?? DateTime.now();
+    return ExportJobSummary(
+      jobId: _toStringValue(payload['job_id']) ?? '',
+      tripId: _toStringValue(payload['trip_id']) ?? '',
+      tripTitle: _toStringValue(payload['trip_title']),
+      template: _toStringValue(payload['template']) ?? 'classic',
+      status: _mapStatusFromString(_toStringValue(payload['status']) ?? 'failed'),
+      stage: _mapStageFromString(_toStringValue(payload['stage'])),
+      progress: _toDouble(payload['progress']) ?? 0.0,
+      outputUrl: _toStringValue(payload['output_url']),
+      thumbnailUrl: _toStringValue(payload['thumbnail_url']),
+      errorCode: _toStringValue(payload['error_code']),
+      errorMessage: _toStringValue(payload['error_message']),
+      createdAt: createdAt,
+      completedAt: _toDateTime(payload['completed_at']),
+    );
+  }
+
+  ExportJobStatus _mapStatusFromString(String value) {
+    switch (value) {
+      case 'queued':
+        return ExportJobStatus.queued;
+      case 'processing':
+        return ExportJobStatus.processing;
+      case 'cancel_requested':
+        return ExportJobStatus.cancelRequested;
+      case 'completed':
+        return ExportJobStatus.completed;
+      case 'canceled':
+        return ExportJobStatus.canceled;
+      case 'blocked':
+        return ExportJobStatus.blocked;
+      case 'failed':
+      default:
+        return ExportJobStatus.failed;
+    }
+  }
+
+  ExportJobStage? _mapStageFromString(String? value) {
+    switch (value) {
+      case 'snapshotting':
+        return ExportJobStage.snapshotting;
+      case 'asset_fetch':
+        return ExportJobStage.assetFetch;
+      case 'rendering':
+        return ExportJobStage.rendering;
+      case 'encoding':
+        return ExportJobStage.encoding;
+      case 'uploading':
+        return ExportJobStage.uploading;
+      case 'finalizing':
+        return ExportJobStage.finalizing;
+      default:
+        return null;
+    }
+  }
+
   Future<int> _countBlockingSyncTasks(String tripId) async {
     final variables = <Variable<String>>[
       Variable<String>(tripId),
@@ -417,6 +535,50 @@ class ExportRepository implements ExportRepositoryContract {
       return value;
     }
     return value.toString();
+  }
+
+  String? _toStringValue(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is String) {
+      return value;
+    }
+    return value.toString();
+  }
+
+  DateTime? _toDateTime(dynamic value) {
+    final asString = _toStringValue(value);
+    if (asString == null || asString.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(asString);
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value.toString());
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is double) {
+      return value;
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value.toString());
   }
 }
 

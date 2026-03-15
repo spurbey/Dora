@@ -75,6 +75,9 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
         _buildHeader(
           viewMode: TripsViewMode.grid,
           onViewModeChanged: (mode) {},
+          onOpenExports: FeatureFlags.enableExport
+              ? () => context.push(Routes.tripsExportsPath())
+              : null,
         ),
         const SizedBox(height: AppSpacing.sm),
         _buildSearchBar(controller),
@@ -111,6 +114,9 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
                 controller.toggleViewMode();
               }
             },
+            onOpenExports: FeatureFlags.enableExport
+                ? () => context.push(Routes.tripsExportsPath())
+                : null,
           ),
           const SizedBox(height: AppSpacing.sm),
           _buildSearchBar(controller),
@@ -158,6 +164,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
   Widget _buildHeader({
     required TripsViewMode viewMode,
     required ValueChanged<TripsViewMode> onViewModeChanged,
+    VoidCallback? onOpenExports,
   }) {
     return Padding(
       padding: AppSpacing.horizontalMd,
@@ -167,9 +174,23 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('My Trips', style: AppTypography.h1),
-            ViewModeToggle(
-              viewMode: viewMode,
-              onChanged: onViewModeChanged,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onOpenExports != null)
+                  IconButton(
+                    tooltip: 'Exports',
+                    onPressed: onOpenExports,
+                    icon: const Icon(
+                      Icons.video_collection_outlined,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ViewModeToggle(
+                  viewMode: viewMode,
+                  onChanged: onViewModeChanged,
+                ),
+              ],
             ),
           ],
         ),
@@ -339,12 +360,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
   }
 
   void _openTrip(UserTrip trip) {
-    final shouldOpenEditor = trip.status == 'editing' || trip.syncStatus != 'synced';
-    if (shouldOpenEditor) {
-      context.push(Routes.editorPath(trip.id));
-      return;
-    }
-    context.push(Routes.tripDetailPath(trip.id));
+    context.push(Routes.editorPath(trip.id));
   }
 
   Future<void> _confirmDelete(TripsController controller, UserTrip trip) async {

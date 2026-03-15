@@ -7,11 +7,12 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
-import 'package:dora/core/theme/app_spacing.dart';
+import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
+import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
@@ -20,9 +21,11 @@ import 'package:dora/features/create/presentation/widgets/city_detail_form.dart'
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
-import 'package:dora/features/create/presentation/widgets/route_creator_form.dart';
-import 'package:dora/features/create/presentation/widgets/route_detail_form.dart';
-import 'package:dora/features/create/presentation/widgets/route_edit_toolbar.dart';
+import 'package:dora/features/create/presentation/widgets/route_studio/place_picker_sheet.dart';
+import 'package:dora/features/create/presentation/widgets/route_studio/route_control_strip.dart';
+import 'package:dora/features/create/presentation/widgets/route_studio/route_creation_strip.dart';
+import 'package:dora/features/create/presentation/widgets/route_studio/route_details_sheet.dart';
+import 'package:dora/features/create/presentation/widgets/route_studio/waypoint_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/timeline_sidebar.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/error_view.dart';
@@ -89,7 +92,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   orElse: () => 0,
                 );
 
-        final showFab = !isWide && !editor.bottomPanelExpanded;
+        final showFab = !isWide &&
+            !editor.bottomPanelExpanded &&
+            !editor.routeStudioActive &&
+            !_isAnyRouteMode(editor.mode);
 
         return WillPopScope(
           onWillPop: () => _handleBack(editor.saving),
@@ -218,27 +224,31 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     int pendingMediaCount,
     String? selectedPlaceId,
   ) {
-    final showPanel =
-        editor.selectedItemId != null || _isAnyRouteMode(editor.mode);
+    final inRouteStudio = editor.routeStudioActive;
+    final inRouteCreation = _isAnyRouteMode(editor.mode);
+    final hideTimeline = inRouteStudio || inRouteCreation;
+    final showPanel = !inRouteStudio && !inRouteCreation &&
+        editor.selectedItemId != null;
     return Row(
       children: [
-        TimelineSidebar(
-          places: editor.places,
-          routes: editor.routes,
-          selectedItemId: editor.selectedItemId,
-          selectedItemType: editor.selectedItemType,
-          onItemTap: (id, type) {
-            if (type == 'place') {
-              controller.handlePlaceTap(id);
-            } else {
-              controller.selectRoute(id);
-            }
-          },
-          onReorder: controller.reorderPlaces,
-          onAddPlace: () => controller.setMode(EditorMode.addPlace),
-          onAddCity: () => controller.setMode(EditorMode.addCity),
-          onAddRoute: () => controller.startDrawingRoute(),
-        ),
+        if (!hideTimeline)
+          TimelineSidebar(
+            places: editor.places,
+            routes: editor.routes,
+            selectedItemId: editor.selectedItemId,
+            selectedItemType: editor.selectedItemType,
+            onItemTap: (id, type) {
+              if (type == 'place') {
+                controller.handlePlaceTap(id);
+              } else {
+                controller.selectRoute(id);
+              }
+            },
+            onReorder: controller.reorderPlaces,
+            onAddPlace: () => controller.setMode(EditorMode.addPlace),
+            onAddCity: () => controller.setMode(EditorMode.addCity),
+            onAddRoute: () => controller.startDrawingRoute(),
+          ),
         Expanded(
           child: Stack(
             children: [
@@ -268,42 +278,31 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   right: 0,
                   bottom: 0,
                   child: BottomDetailPanel(
-                    expanded: _isAnyRouteMode(editor.mode)
-                        ? true
-                        : editor.bottomPanelExpanded,
+                    expanded: editor.bottomPanelExpanded,
                     onToggle: controller.toggleBottomPanel,
-                    selectedItemName: _isAnyRouteMode(editor.mode)
-                        ? _routeModeName(editor.mode)
-                        : selectedName,
-                    selectedItemIcon: _isAnyRouteMode(editor.mode)
-                        ? Icons.route
-                        : selectedIcon,
+                    selectedItemName: selectedName,
+                    selectedItemIcon: selectedIcon,
                     statusText: pendingMediaCount > 0
                         ? '$pendingMediaCount upload(s) pending'
                         : null,
                     child: _buildDetailContent(editor, controller),
                   ),
                 ),
-              // Route edit toolbar — shown when a route is selected
-              if (editor.selectedItemType == 'route' &&
-                  editor.selectedItemId != null &&
-                  !_isAnyRouteMode(editor.mode))
+              // Route creation strip
+              if (inRouteCreation)
                 Positioned(
-                  right: AppSpacing.md,
-                  top: 0,
+                  left: 0,
+                  right: 0,
                   bottom: 0,
-                  child: Center(
-                    child: RouteEditToolbar(
-                      currentMode: editor.mode,
-                      onToggleEdit: () => controller
-                          .toggleRouteEditMode(editor.selectedItemId!),
-                      onFlip: () =>
-                          controller.flipRoute(editor.selectedItemId!),
-                      onDelete: () =>
-                          controller.removeRoute(editor.selectedItemId!),
-                      onClose: controller.deselectAll,
-                    ),
-                  ),
+                  child: _buildRouteCreationStrip(editor, controller),
+                ),
+              // Route Studio control strip
+              if (inRouteStudio && editor.selectedItemId != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildRouteControlStrip(editor, controller),
                 ),
             ],
           ),
@@ -323,8 +322,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     int pendingMediaCount,
     String? selectedPlaceId,
   ) {
-    final showPanel =
-        editor.selectedItemId != null || _isAnyRouteMode(editor.mode);
+    final inRouteStudio = editor.routeStudioActive;
+    final inRouteCreation = _isAnyRouteMode(editor.mode);
+    final showPanel = !inRouteStudio && !inRouteCreation &&
+        editor.selectedItemId != null;
     return Stack(
       children: [
         MapCanvas(
@@ -352,46 +353,35 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             right: 0,
             bottom: 0,
             child: BottomDetailPanel(
-              expanded: _isAnyRouteMode(editor.mode)
-                  ? true
-                  : editor.bottomPanelExpanded,
+              expanded: editor.bottomPanelExpanded,
               onToggle: controller.toggleBottomPanel,
-              selectedItemName: _isAnyRouteMode(editor.mode)
-                  ? _routeModeName(editor.mode)
-                  : selectedName,
-              selectedItemIcon:
-                  _isAnyRouteMode(editor.mode) ? Icons.route : selectedIcon,
+              selectedItemName: selectedName,
+              selectedItemIcon: selectedIcon,
               statusText: pendingMediaCount > 0
                   ? '$pendingMediaCount upload(s) pending'
                   : null,
               child: _buildDetailContent(editor, controller),
             ),
           ),
-        // Route edit toolbar — shown when a route is selected
-        if (editor.selectedItemType == 'route' &&
-            editor.selectedItemId != null &&
-            !_isAnyRouteMode(editor.mode))
+        // Route creation strip
+        if (inRouteCreation)
           Positioned(
-            right: AppSpacing.md,
-            bottom: 120,
-            child: RouteEditToolbar(
-              currentMode: editor.mode,
-              onToggleEdit: () =>
-                  controller.toggleRouteEditMode(editor.selectedItemId!),
-              onFlip: () => controller.flipRoute(editor.selectedItemId!),
-              onDelete: () => controller.removeRoute(editor.selectedItemId!),
-              onClose: controller.deselectAll,
-            ),
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildRouteCreationStrip(editor, controller),
+          ),
+        // Route Studio control strip
+        if (inRouteStudio && editor.selectedItemId != null)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildRouteControlStrip(editor, controller),
           ),
       ],
     );
   }
-
-  String _routeModeName(EditorMode mode) => switch (mode) {
-        EditorMode.addRouteAir => 'Flight Path',
-        EditorMode.addRouteWalking => 'Walking Route',
-        _ => 'Driving Route',
-      };
 
   void _showTimelineSheet(
     EditorState editor,
@@ -527,25 +517,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     EditorState editor,
     EditorController controller,
   ) {
-    // Route creator form takes priority when in any route drawing mode
-    if (_isAnyRouteMode(editor.mode)) {
-      return RouteCreatorForm(
-        mode: editor.mode,
-        places: editor.places,
-        sourceId: editor.routeStartItemId,
-        destinationId: editor.routeEndItemId,
-        onSourceChanged: controller.selectRouteSource,
-        onDestinationChanged: controller.selectRouteDestination,
-        onCreateRoute: () => controller.drawRoute(
-          editor.routeStartItemId!,
-          editor.routeEndItemId!,
-          capturedMode: editor.mode,
-        ),
-        onCancel: controller.cancelRouteMode,
-        isLoading: editor.isGeneratingRoute,
-      );
-    }
-
+    // Route creation is handled by RouteCreationStrip — not BottomDetailPanel
     final type = editor.selectedItemType;
     final id = editor.selectedItemId;
     final places = editor.places;
@@ -578,23 +550,171 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       }
     }
 
-    if (type == 'route' && id != null) {
-      try {
-        final route = routes.firstWhere((item) => item.id == id);
-        final startName = _findPlaceName(places, route.startPlaceId);
-        final endName = _findPlaceName(places, route.endPlaceId);
-        return RouteDetailForm(
-          route: route,
-          onSave: controller.updateRoute,
-          onDelete: () => controller.removeRoute(route.id),
-          startPlaceName: startName,
-          endPlaceName: endName,
-        );
-      } catch (_) {
-        return null;
-      }
-    }
-
+    // Routes are handled by Route Studio control strip — not BottomDetailPanel
     return null;
+  }
+
+  Widget _buildRouteCreationStrip(
+    EditorState editor,
+    EditorController controller,
+  ) {
+    final sourceName =
+        _findPlaceName(editor.places, editor.routeStartItemId);
+    final destName =
+        _findPlaceName(editor.places, editor.routeEndItemId);
+
+    // Determine eligible places for current mode
+    final eligible = editor.mode == EditorMode.addRouteAir
+        ? editor.places.where((p) => p.placeType == 'city').toList()
+        : editor.places;
+    final hasValidSource = editor.routeStartItemId != null &&
+        eligible.any((p) => p.id == editor.routeStartItemId);
+    final destEligible =
+        eligible.where((p) => p.id != editor.routeStartItemId).toList();
+    final hasValidDest = editor.routeEndItemId != null &&
+        destEligible.any((p) => p.id == editor.routeEndItemId);
+    final canCreate =
+        hasValidSource && hasValidDest && !editor.isGeneratingRoute;
+
+    return RouteCreationStrip(
+      mode: editor.mode,
+      sourceName: sourceName,
+      destinationName: destName,
+      isLoading: editor.isGeneratingRoute,
+      canCreate: canCreate,
+      onModeChanged: (newMode) {
+        controller.setMode(newMode);
+      },
+      onPickSource: () => _openPlacePicker(
+        title: 'Pick starting point',
+        places: eligible,
+        onPick: controller.selectRouteSource,
+      ),
+      onPickDestination: () => _openPlacePicker(
+        title: 'Pick destination',
+        places: destEligible,
+        onPick: controller.selectRouteDestination,
+        excludeId: editor.routeStartItemId,
+      ),
+      onCreateRoute: () => controller.drawRoute(
+        editor.routeStartItemId!,
+        editor.routeEndItemId!,
+        capturedMode: editor.mode,
+      ),
+      onCancel: controller.cancelRouteMode,
+    );
+  }
+
+  void _openPlacePicker({
+    required String title,
+    required List<Place> places,
+    required ValueChanged<String?> onPick,
+    String? excludeId,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.sheetTop,
+      ),
+      builder: (_) => PlacePickerSheet(
+        title: title,
+        places: places,
+        excludeId: excludeId,
+        onPick: (id) => onPick(id),
+      ),
+    );
+  }
+
+  Widget _buildRouteControlStrip(
+    EditorState editor,
+    EditorController controller,
+  ) {
+    try {
+      final route =
+          editor.routes.firstWhere((r) => r.id == editor.selectedItemId);
+      final startName =
+          _findPlaceName(editor.places, route.startPlaceId) ?? '?';
+      final endName =
+          _findPlaceName(editor.places, route.endPlaceId) ?? '?';
+      return RouteControlStrip(
+        transportMode: route.transportMode,
+        startName: startName,
+        endName: endName,
+        distanceKm: route.distance,
+        durationMins: route.duration,
+        isEditMode: editor.mode == EditorMode.editRoute,
+        waypointCount: route.waypoints.length,
+        onToggleEdit: () =>
+            controller.toggleRouteEditMode(editor.selectedItemId!),
+        onOpenWaypoints: () =>
+            _openWaypointSheet(editor, controller, route),
+        onFlip: () => controller.flipRoute(editor.selectedItemId!),
+        onOpenDetails: () =>
+            _openRouteDetailsSheet(editor, controller, route),
+        onDelete: () {
+          controller.removeRoute(editor.selectedItemId!);
+        },
+        onClose: () => controller.exitRouteStudio(),
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+  }
+
+  void _openRouteDetailsSheet(
+    EditorState editor,
+    EditorController controller,
+    create_route.Route route,
+  ) {
+    final startName = _findPlaceName(editor.places, route.startPlaceId);
+    final endName = _findPlaceName(editor.places, route.endPlaceId);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.sheetTop,
+      ),
+      builder: (_) => RouteDetailsSheet(
+        route: route,
+        onSave: controller.updateRoute,
+        startPlaceName: startName,
+        endPlaceName: endName,
+      ),
+    );
+  }
+
+  void _openWaypointSheet(
+    EditorState editor,
+    EditorController controller,
+    create_route.Route route,
+  ) {
+    final startName =
+        _findPlaceName(editor.places, route.startPlaceId) ?? '?';
+    final endName =
+        _findPlaceName(editor.places, route.endPlaceId) ?? '?';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.sheetTop,
+      ),
+      builder: (_) => WaypointSheet(
+        waypoints: route.waypoints,
+        startPlaceName: startName,
+        endPlaceName: endName,
+        onReorder: (oldIndex, newIndex) {
+          controller.reorderWaypoints(route.id, oldIndex, newIndex);
+          Navigator.pop(context);
+        },
+        onRemove: (index) {
+          controller.removeWaypoint(route.id, index);
+          Navigator.pop(context);
+        },
+      ),
+    );
   }
 }

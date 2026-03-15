@@ -266,6 +266,77 @@ class PlaceRepository {
     );
   }
 
+  /// Hydrates places from the backend into local Drift tables.
+  ///
+  /// Returns a tuple of (places, remoteToLocalIdMapping) so that route
+  /// hydration can remap `startPlaceId`/`endPlaceId` to local UUIDs.
+  Future<(List<Place>, Map<String, String>)> hydratePlacesFromBackend(
+    String remoteTripId,
+    String localTripId,
+  ) async {
+    final placesApi = _placesApi;
+    final authService = _authService;
+    if (placesApi == null || authService == null) {
+      return (const <Place>[], const <String, String>{});
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return (const <Place>[], const <String, String>{});
+    }
+
+    try {
+      final response = await placesApi.listPlacesApiV1PlacesGet(
+        tripId: remoteTripId,
+        authorization: 'Bearer $token',
+      );
+      final remotePlaces = response.data?.places;
+      if (remotePlaces == null || remotePlaces.isEmpty) {
+        return (const <Place>[], const <String, String>{});
+      }
+
+      final now = DateTime.now();
+      final places = <Place>[];
+      final idMapping = <String, String>{};
+
+      for (final remote in remotePlaces) {
+        final localId = const Uuid().v4();
+        idMapping[remote.id] = localId;
+
+        final photos = remote.photos;
+        final photoUrls = photos == null
+            ? const <String>[]
+            : photos.map((p) => p.fileUrl).toList();
+
+        places.add(Place(
+          id: localId,
+          serverPlaceId: remote.id,
+          tripId: localTripId,
+          name: remote.name,
+          coordinates: AppLatLng(
+            latitude: remote.lat.toDouble(),
+            longitude: remote.lng.toDouble(),
+          ),
+          notes: remote.userNotes,
+          orderIndex: remote.orderInTrip ?? 0,
+          placeType: remote.placeType,
+          rating: remote.userRating,
+          photoUrls: photoUrls,
+          localUpdatedAt: now,
+          serverUpdatedAt: remote.updatedAt,
+          syncStatus: 'synced',
+        ));
+      }
+
+      final companions = places.map(_toCompanion).toList();
+      await _db.placeDao.insertPlaces(companions);
+
+      return (places, idMapping);
+    } catch (_) {
+      return (const <Place>[], const <String, String>{});
+    }
+  }
+
   Place _mapRow(PlaceRow row) {
     return Place(
       id: row.id,
@@ -365,7 +436,9 @@ class PlaceRepository {
           final refreshedRemoteTripId =
               await _tripRepository.ensureRemoteTripId(
                 local.tripId,
-                allowCreate: false,
+                // If mapping is stale and backend trip was removed, recreate it
+                // so place/media upload can continue without manual resync.
+                allowCreate: true,
               );
           responseData = await _createRemotePlace(
             placesApi: placesApi,

@@ -223,7 +223,9 @@ async def get_trip(
         db.commit()
         db.refresh(trip)
 
-    return TripResponse.model_validate(trip)
+    resp = TripResponse.model_validate(trip)
+    resp.place_count = service.get_place_count(trip_id)
+    return resp
 
 
 @router.patch("/{trip_id}", response_model=TripResponse)
@@ -280,7 +282,9 @@ async def update_trip(
     """
     service = TripService(db)
     updated_trip = service.update_trip(trip_id, current_user.id, trip_update)
-    return TripResponse.model_validate(updated_trip)
+    resp = TripResponse.model_validate(updated_trip)
+    resp.place_count = service.get_place_count(trip_id)
+    return resp
 
 
 @router.delete("/{trip_id}", status_code=status.HTTP_204_NO_CONTENT)

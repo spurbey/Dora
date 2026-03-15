@@ -18,7 +18,7 @@ void main() {
     setUp(() {
       database = AppDatabase(NativeDatabase.memory());
       api = _FakeExportsApi();
-      repository = ExportRepository(database, api, () async => 'fake-token');
+      repository = ExportRepository(database, api, Dio(), () async => 'fake-token');
     });
 
     tearDown(() async {

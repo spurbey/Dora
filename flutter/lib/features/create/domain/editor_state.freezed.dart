@@ -25,7 +25,8 @@ mixin _$EditorState {
 // Editor mode
   EditorMode get mode => throw _privateConstructorUsedError; // UI state
   bool get saving => throw _privateConstructorUsedError;
-  bool get bottomPanelExpanded =>
+  bool get bottomPanelExpanded => throw _privateConstructorUsedError;
+  bool get routeStudioActive =>
       throw _privateConstructorUsedError; // Map controller reference
   AppMapController? get mapController =>
       throw _privateConstructorUsedError; // Route drawing state
@@ -57,6 +58,7 @@ abstract class $EditorStateCopyWith<$Res> {
       EditorMode mode,
       bool saving,
       bool bottomPanelExpanded,
+      bool routeStudioActive,
       AppMapController? mapController,
       String? routeStartItemId,
       String? routeStartItemType,
@@ -89,6 +91,7 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
     Object? mode = null,
     Object? saving = null,
     Object? bottomPanelExpanded = null,
+    Object? routeStudioActive = null,
     Object? mapController = freezed,
     Object? routeStartItemId = freezed,
     Object? routeStartItemType = freezed,
@@ -127,6 +130,10 @@ class _$EditorStateCopyWithImpl<$Res, $Val extends EditorState>
       bottomPanelExpanded: null == bottomPanelExpanded
           ? _value.bottomPanelExpanded
           : bottomPanelExpanded // ignore: cast_nullable_to_non_nullable
+              as bool,
+      routeStudioActive: null == routeStudioActive
+          ? _value.routeStudioActive
+          : routeStudioActive // ignore: cast_nullable_to_non_nullable
               as bool,
       mapController: freezed == mapController
           ? _value.mapController
@@ -179,6 +186,7 @@ abstract class _$$EditorStateImplCopyWith<$Res>
       EditorMode mode,
       bool saving,
       bool bottomPanelExpanded,
+      bool routeStudioActive,
       AppMapController? mapController,
       String? routeStartItemId,
       String? routeStartItemType,
@@ -210,6 +218,7 @@ class __$$EditorStateImplCopyWithImpl<$Res>
     Object? mode = null,
     Object? saving = null,
     Object? bottomPanelExpanded = null,
+    Object? routeStudioActive = null,
     Object? mapController = freezed,
     Object? routeStartItemId = freezed,
     Object? routeStartItemType = freezed,
@@ -249,6 +258,10 @@ class __$$EditorStateImplCopyWithImpl<$Res>
           ? _value.bottomPanelExpanded
           : bottomPanelExpanded // ignore: cast_nullable_to_non_nullable
               as bool,
+      routeStudioActive: null == routeStudioActive
+          ? _value.routeStudioActive
+          : routeStudioActive // ignore: cast_nullable_to_non_nullable
+              as bool,
       mapController: freezed == mapController
           ? _value.mapController
           : mapController // ignore: cast_nullable_to_non_nullable
@@ -285,6 +298,7 @@ class _$EditorStateImpl implements _EditorState {
       this.mode = EditorMode.view,
       this.saving = false,
       this.bottomPanelExpanded = false,
+      this.routeStudioActive = false,
       this.mapController,
       this.routeStartItemId,
       this.routeStartItemType,
@@ -330,6 +344,9 @@ class _$EditorStateImpl implements _EditorState {
   @override
   @JsonKey()
   final bool bottomPanelExpanded;
+  @override
+  @JsonKey()
+  final bool routeStudioActive;
 // Map controller reference
   @override
   final AppMapController? mapController;
@@ -347,7 +364,7 @@ class _$EditorStateImpl implements _EditorState {
 
   @override
   String toString() {
-    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, mapController: $mapController, routeStartItemId: $routeStartItemId, routeStartItemType: $routeStartItemType, routeEndItemId: $routeEndItemId, isGeneratingRoute: $isGeneratingRoute)';
+    return 'EditorState(trip: $trip, places: $places, routes: $routes, selectedItemId: $selectedItemId, selectedItemType: $selectedItemType, mode: $mode, saving: $saving, bottomPanelExpanded: $bottomPanelExpanded, routeStudioActive: $routeStudioActive, mapController: $mapController, routeStartItemId: $routeStartItemId, routeStartItemType: $routeStartItemType, routeEndItemId: $routeEndItemId, isGeneratingRoute: $isGeneratingRoute)';
   }
 
   @override
@@ -366,6 +383,8 @@ class _$EditorStateImpl implements _EditorState {
             (identical(other.saving, saving) || other.saving == saving) &&
             (identical(other.bottomPanelExpanded, bottomPanelExpanded) ||
                 other.bottomPanelExpanded == bottomPanelExpanded) &&
+            (identical(other.routeStudioActive, routeStudioActive) ||
+                other.routeStudioActive == routeStudioActive) &&
             (identical(other.mapController, mapController) ||
                 other.mapController == mapController) &&
             (identical(other.routeStartItemId, routeStartItemId) ||
@@ -389,6 +408,7 @@ class _$EditorStateImpl implements _EditorState {
       mode,
       saving,
       bottomPanelExpanded,
+      routeStudioActive,
       mapController,
       routeStartItemId,
       routeStartItemType,
@@ -414,6 +434,7 @@ abstract class _EditorState implements EditorState {
       final EditorMode mode,
       final bool saving,
       final bool bottomPanelExpanded,
+      final bool routeStudioActive,
       final AppMapController? mapController,
       final String? routeStartItemId,
       final String? routeStartItemType,
@@ -436,7 +457,9 @@ abstract class _EditorState implements EditorState {
   @override
   bool get saving;
   @override
-  bool get bottomPanelExpanded; // Map controller reference
+  bool get bottomPanelExpanded;
+  @override
+  bool get routeStudioActive; // Map controller reference
   @override
   AppMapController? get mapController; // Route drawing state
   @override

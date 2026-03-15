@@ -120,7 +120,8 @@ class MapboxAdapter implements AppMapController {
   Future<void> addMarker(AppMarker marker) async {
     final manager = await _ensurePointManager();
     final isCity = marker.markerType == 'city';
-    final iconSize = isCity ? 1.25 : 1.0;
+    final isMidpoint = marker.markerType == 'midpoint';
+    final iconSize = isCity ? 1.25 : (isMidpoint ? 0.65 : 1.0);
     final annotation = await manager.create(
       PointAnnotationOptions(
         geometry: _toPoint(marker.position),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -55,21 +56,22 @@ MapState mapState(MapStateRef ref, String tripId) {
     );
   }).toList();
 
-  // In editRoute mode: add waypoint markers for the selected route
+  // In Route Studio: add waypoint markers for the selected route
   final isEditRoute = editor.mode == EditorMode.editRoute;
-  final editingRouteId =
-      isEditRoute && editor.selectedItemType == 'route'
+  final isRouteStudio = editor.routeStudioActive;
+  final studioRouteId =
+      isRouteStudio && editor.selectedItemType == 'route'
           ? editor.selectedItemId
           : null;
 
-  if (editingRouteId != null) {
+  if (studioRouteId != null) {
     try {
       final editingRoute =
-          editor.routes.firstWhere((r) => r.id == editingRouteId);
+          editor.routes.firstWhere((r) => r.id == studioRouteId);
       if (editingRoute.coordinates.isNotEmpty) {
         final start = editingRoute.coordinates.first;
         markers.add(AppMarker(
-          id: '_ep_start_$editingRouteId',
+          id: '_ep_start_$studioRouteId',
           position: start,
           title: 'Start',
           color: const Color(0xFF2E7D32), // green
@@ -80,7 +82,7 @@ MapState mapState(MapStateRef ref, String tripId) {
       if (editingRoute.coordinates.length > 1) {
         final end = editingRoute.coordinates.last;
         markers.add(AppMarker(
-          id: '_ep_end_$editingRouteId',
+          id: '_ep_end_$studioRouteId',
           position: end,
           title: 'End',
           color: const Color(0xFFC62828), // red
@@ -92,20 +94,61 @@ MapState mapState(MapStateRef ref, String tripId) {
         final wp = editingRoute.waypoints[i];
         final capturedIndex = i;
         markers.add(AppMarker(
-          id: '_wp_${editingRouteId}_$i',
+          id: '_wp_${studioRouteId}_$i',
           position: wp,
           title: 'Waypoint ${i + 1}',
           color: const Color(0xFF7B1FA2), // purple
           markerType: 'waypoint',
           label: '${i + 1}',
-          draggable: true,
-          onTap: () => ref
-              .read(editorControllerProvider(tripId).notifier)
-              .removeWaypoint(editingRouteId, capturedIndex),
-          onDragEnd: (newPos) => ref
-              .read(editorControllerProvider(tripId).notifier)
-              .moveWaypoint(editingRouteId, capturedIndex, newPos),
+          draggable: isEditRoute,
+          onTap: isEditRoute
+              ? () => ref
+                    .read(editorControllerProvider(tripId).notifier)
+                    .removeWaypoint(studioRouteId, capturedIndex)
+              : null,
+          onDragEnd: isEditRoute
+              ? (newPos) => ref
+                    .read(editorControllerProvider(tripId).notifier)
+                    .moveWaypoint(studioRouteId, capturedIndex, newPos)
+              : null,
         ));
+      }
+      // In editRoute mode: add midpoint handles between each pair of logical nodes
+      if (isEditRoute && editingRoute.transportMode != 'air') {
+        final logicalNodes = <AppLatLng>[];
+        try {
+          final startPlace = editor.places
+              .firstWhere((p) => p.id == editingRoute.startPlaceId);
+          final endPlace = editor.places
+              .firstWhere((p) => p.id == editingRoute.endPlaceId);
+          logicalNodes.addAll([
+            startPlace.coordinates,
+            ...editingRoute.waypoints,
+            endPlace.coordinates,
+          ]);
+        } catch (_) {}
+
+        for (int i = 0; i < logicalNodes.length - 1; i++) {
+          final a = logicalNodes[i];
+          final b = logicalNodes[i + 1];
+          final mid = AppLatLng(
+            latitude: (a.latitude + b.latitude) / 2,
+            longitude: (a.longitude + b.longitude) / 2,
+          );
+          final capturedSegment = i;
+          markers.add(AppMarker(
+            id: '_mid_${studioRouteId}_$i',
+            position: mid,
+            title: 'Add waypoint',
+            color: const Color(0xFF90CAF9), // light blue
+            markerType: 'midpoint',
+            label: '+',
+            onTap: () => ref
+                .read(editorControllerProvider(tripId).notifier)
+                .insertWaypointAtSegment(
+                    studioRouteId, capturedSegment, mid),
+          ));
+        }
       }
     } catch (_) {}
   }
@@ -120,7 +163,9 @@ MapState mapState(MapStateRef ref, String tripId) {
       'foot' || 'walk' || 'walking' => 2.0,
       _ => 4.0,
     };
-    final widthMultiplier = isSelected && isEditRoute ? 3.0 : (isSelected ? 2.0 : 1.0);
+    final widthMultiplier = isSelected && isEditRoute
+        ? 3.0
+        : (isSelected && isRouteStudio ? 2.0 : (isSelected ? 1.5 : 1.0));
     return AppRoute(
       id: route.id,
       coordinates: route.coordinates,

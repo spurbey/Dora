@@ -70,6 +70,34 @@ Add a My Trips-level Export Hub so users can see all export jobs (in progress, c
 - Captured current capabilities and gaps.
 - Locked execution sequence (contract -> backend -> data -> UI -> hardening).
 
+### 2026-03-13 - Step 2 Completed (Backend/API)
+- Added export list response schemas in:
+  - `backend/app/schemas/export.py`
+- Added service query method for paginated, user-scoped export history:
+  - `ExportService.list_export_jobs(...)` in `backend/app/services/export_service.py`
+- Added new endpoint:
+  - `GET /api/v1/exports` in `backend/app/api/v1/exports.py`
+  - supports `page`, `page_size`, optional `status`, optional `trip_id`
+- Added endpoint test coverage in:
+  - `backend/tests/test_export_endpoints.py`
+
+### 2026-03-13 - Step 3/4 Completed (Flutter Data + UI)
+- Added export history domain models:
+  - `flutter/lib/features/export/domain/export_job_summary.dart`
+- Extended export repository with list API integration:
+  - `listExportJobs(...)` in `flutter/lib/features/export/data/export_repository.dart`
+  - uses new backend `GET /api/v1/exports`
+- Updated repository provider wiring to inject Dio client:
+  - `flutter/lib/features/export/presentation/providers/export_provider.dart`
+- Added Export Hub screen:
+  - `flutter/lib/features/export/presentation/screens/my_trips_export_screen.dart`
+  - sections: In Progress, Completed, Failed/Blocked, Canceled
+  - actions: Cancel, Download, Share, Re-export
+- Added route and navigation integration:
+  - `flutter/lib/core/navigation/routes.dart` (`/trips/exports`)
+  - `flutter/lib/core/navigation/app_router.dart`
+  - My Trips header action in `flutter/lib/features/trips/presentation/screens/my_trips_screen.dart`
+
 ## Risks / Watchpoints
 - Without backend list endpoint, history can’t be reliably reconstructed client-side.
 - Overlapping polling from multiple screens can increase API chatter; hub should poll only active jobs.

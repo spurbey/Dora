@@ -43,6 +43,16 @@ Update this file after each completed work item.
   - missing global export-history capabilities,
   - deterministic step plan for implementation.
 
+### 2026-03-13 - Export Hub Backend Contract Added
+- Added `GET /api/v1/exports` backend endpoint (user-scoped, paginated, filterable).
+- Added export list response schemas and service-level query mapping.
+- Added backend tests for ownership scoping, ordering, and status filtering.
+
+### 2026-03-13 - Export Hub Flutter Integration Added
+- Added export history domain model and repository list method to consume backend export history.
+- Added new My Trips Export Hub screen with status-based sections and operational actions.
+- Added My Trips header entry + route wiring for `/trips/exports` while keeping existing per-trip Export Studio flow.
+
 ## Pending Work Buckets
 - Design implementation: replace current Material `BottomNavigationBar` with custom tab component aligned to provided reference.
 - Behavior parity: preserve route switching behavior (`Feed`, `Create`, `My Trips`, `Profile`).

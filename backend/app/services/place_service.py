@@ -238,7 +238,7 @@ class PlaceService:
         from app.services.media_service import MediaService
         from app.models.media import MediaFile
 
-        media_service = MediaService(self.db)
+        media_service: Optional[MediaService] = None
         place_responses = []
 
         for place in places:
@@ -278,6 +278,8 @@ class PlaceService:
                 ).all()
                 media_map = {str(media_item.id): media_item for media_item in media_items}
                 use_signed = trip.visibility == "private"
+                if media_service is None:
+                    media_service = MediaService(self.db)
                 photos = [
                     media_service.build_media_response(
                         media_map[photo_id],
@@ -559,7 +561,7 @@ class PlaceService:
         from app.services.media_service import MediaService
         from app.models.media import MediaFile
 
-        media_service = MediaService(self.db)
+        media_service: Optional[MediaService] = None
 
         # Build base dict manually (don't validate yet - photos are still UUIDs)
         place_data = {
@@ -596,6 +598,7 @@ class PlaceService:
                 MediaFile.id.in_(photo_ids)
             ).all()
             media_map = {str(media_item.id): media_item for media_item in media_items}
+            media_service = MediaService(self.db)
             photos = [
                 media_service.build_media_response(
                     media_map[photo_id],

@@ -209,6 +209,41 @@ class _TripNotFoundPlacesApi extends openapi.PlacesApi {
   }
 }
 
+class _StorageMisconfiguredPlacesApi extends openapi.PlacesApi {
+  _StorageMisconfiguredPlacesApi()
+      : super(
+          Dio(),
+          openapi.standardSerializers,
+        );
+
+  @override
+  Future<Response<openapi.PlaceResponse>> createPlaceApiV1PlacesPost({
+    required String authorization,
+    required openapi.PlaceCreate placeCreate,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final request = RequestOptions(path: '/api/v1/places');
+    final response = Response<dynamic>(
+      requestOptions: request,
+      statusCode: 503,
+      statusMessage: 'Service Unavailable',
+      data: <String, dynamic>{'detail': 'Storage service misconfigured'},
+    );
+
+    throw DioException(
+      requestOptions: request,
+      response: response,
+      type: DioExceptionType.badResponse,
+      message: 'Storage service misconfigured',
+    );
+  }
+}
+
 class _FakeTripsApi extends openapi.TripsApi {
   _FakeTripsApi({
     this.existingTripIds = const <String>{},
@@ -711,6 +746,67 @@ void main() {
           await staleAwareTripRepository.getTrip(localTripWithStaleServerId);
       expect(tripAfterFailure, isNotNull);
       expect(tripAfterFailure!.serverTripId, isNull);
+    });
+
+    test('non-retryable storage misconfiguration is surfaced from place sync',
+        () async {
+      const localTripWithServerId = 'local-trip-storage-misconfig';
+      const serverTripId = 'remote-trip-storage-misconfig';
+      const localPlaceWithoutServer = 'local-place-storage-misconfig';
+
+      await _insertTripRow(
+        database: database,
+        localTripId: localTripWithServerId,
+        serverTripId: serverTripId,
+      );
+
+      final now = DateTime.utc(2026, 2, 21);
+      await database.placeDao.insertPlace(
+        PlacesCompanion(
+          id: const drift.Value(localPlaceWithoutServer),
+          serverPlaceId: const drift.Value(null),
+          tripId: const drift.Value(localTripWithServerId),
+          name: const drift.Value('Storage Misconfigured Place'),
+          address: const drift.Value.absent(),
+          coordinates: const drift.Value(
+            AppLatLng(latitude: 40.7128, longitude: -74.0060),
+          ),
+          notes: const drift.Value.absent(),
+          visitTime: const drift.Value.absent(),
+          dayNumber: const drift.Value.absent(),
+          orderIndex: const drift.Value(1),
+          photoUrls: const drift.Value(<String>[]),
+          placeType: const drift.Value.absent(),
+          rating: const drift.Value.absent(),
+          localUpdatedAt: drift.Value(now),
+          serverUpdatedAt: drift.Value(now),
+          syncStatus: const drift.Value('pending'),
+        ),
+      );
+
+      final repo = PlaceRepository(
+        database,
+        tripRepository: TripRepository(
+          database,
+          authService,
+          tripsApi: _FakeTripsApi(existingTripIds: {serverTripId}),
+        ),
+        placesApi: _StorageMisconfiguredPlacesApi(),
+        authService: authService,
+      );
+
+      await expectLater(
+        repo.ensureRemotePlaceId(localPlaceWithoutServer),
+        throwsA(
+          isA<PlaceIdentityException>()
+              .having((error) => error.retryable, 'retryable', false)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('Backend storage is misconfigured'),
+              ),
+        ),
+      );
     });
   });
 }

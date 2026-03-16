@@ -430,11 +430,39 @@ class UploadQueueWorker {
         return true;
       }
       if (status >= 500) {
+        if (_isNonRetryableServerConfigError(error)) {
+          return false;
+        }
         return true;
       }
       return false;
     }
     return false;
+  }
+
+  bool _isNonRetryableServerConfigError(DioException error) {
+    final status = error.response?.statusCode;
+    if (status == null || status < 500) {
+      return false;
+    }
+
+    final detail = _extractDioErrorDetail(error.response?.data).toLowerCase();
+    return detail.contains('storage service misconfigured') ||
+        detail.contains('supabase_service_role_key') ||
+        detail.contains('invalid api key');
+  }
+
+  String _extractDioErrorDetail(Object? payload) {
+    if (payload is Map) {
+      final detail = payload['detail'];
+      if (detail is String && detail.isNotEmpty) {
+        return detail;
+      }
+    }
+    if (payload is String && payload.isNotEmpty) {
+      return payload;
+    }
+    return '';
   }
 
   String _compactError(Object error) {

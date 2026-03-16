@@ -21,6 +21,7 @@ from app.models.place import TripPlace
 from app.models.trip import Trip
 from app.models.user import User
 from app.services import media_service
+from app.services.storage_service import StorageConfigurationError
 
 
 def override_current_user(user):
@@ -232,6 +233,32 @@ def test_upload_media_not_owner(client, db, test_user, other_user, auth_as, samp
     response = client.post("/api/v1/media/upload", files=files, data=data)
     assert response.status_code == 403
     assert "permission" in response.json()["detail"].lower()
+
+
+def test_upload_media_storage_misconfigured_returns_503(
+    client,
+    db,
+    test_user,
+    auth_as,
+    sample_image_bytes,
+    monkeypatch,
+):
+    class BrokenStorageService:
+        def __init__(self):
+            raise StorageConfigurationError("invalid service role key")
+
+    monkeypatch.setattr(media_service, "StorageService", BrokenStorageService)
+
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id)
+    place = create_place(db, trip.id, test_user.id)
+
+    files = {"file": ("test.jpg", sample_image_bytes, "image/jpeg")}
+    data = {"trip_place_id": str(place.id)}
+
+    response = client.post("/api/v1/media/upload", files=files, data=data)
+    assert response.status_code == 503
+    assert "storage service misconfigured" in response.json()["detail"].lower()
 
 
 def test_get_media_owner(client, db, test_user, auth_as):

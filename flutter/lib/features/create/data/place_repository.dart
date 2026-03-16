@@ -437,7 +437,7 @@ class PlaceRepository {
               await _tripRepository.ensureRemoteTripId(
                 local.tripId,
                 // If mapping is stale and backend trip was removed, recreate it
-                // so place/media upload can continue without manual resync.
+                // so place/media can continue without manual sync.
                 allowCreate: true,
               );
           responseData = await _createRemotePlace(
@@ -557,6 +557,11 @@ class PlaceRepository {
     final detail = _extractErrorDetail(error.response?.data);
     final normalizedDetail = detail.toLowerCase();
 
+    if (_isNonRetryableServerConfigError(error)) {
+      return 'Backend storage is misconfigured. Please contact support '
+          'before retrying.';
+    }
+
     if (statusCode == 404 && normalizedDetail.contains('trip not found')) {
       return 'Trip is not available on backend for place/media upload '
           '(local tripId=$localTripId). Sync/create this trip on server first, '
@@ -611,9 +616,24 @@ class PlaceRepository {
       return true;
     }
     if (statusCode >= 500) {
+      if (_isNonRetryableServerConfigError(error)) {
+        return false;
+      }
       return true;
     }
     return false;
+  }
+
+  bool _isNonRetryableServerConfigError(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == null || statusCode < 500) {
+      return false;
+    }
+
+    final detail = _extractErrorDetail(error.response?.data).toLowerCase();
+    return detail.contains('storage service misconfigured') ||
+        detail.contains('supabase_service_role_key') ||
+        detail.contains('invalid api key');
   }
 
   Future<openapi.PlaceResponse?> _createRemotePlace({

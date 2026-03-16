@@ -17,6 +17,8 @@ from app.dependencies import get_current_user
 from app.models.place import TripPlace
 from app.models.trip import Trip
 from app.models.user import User
+from app.services import media_service
+from app.services.storage_service import StorageConfigurationError
 
 
 def override_current_user(user):
@@ -125,6 +127,28 @@ def test_create_place_success(client, db, test_user, auth_as):
     assert data["lng"] == 2.2945
 
 
+def test_create_place_without_storage_when_no_media(client, db, test_user, auth_as, monkeypatch):
+    class BrokenStorageService:
+        def __init__(self):
+            raise StorageConfigurationError("storage misconfigured")
+
+    monkeypatch.setattr(media_service, "StorageService", BrokenStorageService)
+
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id)
+
+    payload = {
+        "trip_id": str(trip.id),
+        "name": "No Media Place",
+        "lat": 48.8584,
+        "lng": 2.2945,
+    }
+
+    response = client.post("/api/v1/places", json=payload)
+    assert response.status_code == 201
+    assert response.json()["photos"] == []
+
+
 def test_create_place_unauthorized(client, unauthorized):
     response = client.post("/api/v1/places", json={})
     assert response.status_code == 401
@@ -196,6 +220,22 @@ def test_list_places_ordered(client, db, test_user, auth_as):
     assert response.status_code == 200
     names = [place["name"] for place in response.json()["places"]]
     assert names == ["First", "Second"]
+
+
+def test_list_places_without_storage_when_no_media(client, db, test_user, auth_as, monkeypatch):
+    class BrokenStorageService:
+        def __init__(self):
+            raise StorageConfigurationError("storage misconfigured")
+
+    monkeypatch.setattr(media_service, "StorageService", BrokenStorageService)
+
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id)
+    create_place(db, trip.id, test_user.id, name="Only Place")
+
+    response = client.get(f"/api/v1/places?trip_id={trip.id}")
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
 
 
 def test_list_places_private_not_owner(client, db, test_user, other_user, auth_as):

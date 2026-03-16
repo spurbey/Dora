@@ -20,7 +20,7 @@ from app.models.media import MediaFile
 from app.models.place import TripPlace
 from app.models.trip import Trip
 from app.schemas.media import MediaCreate, MediaResponse
-from app.services.storage_service import StorageService
+from app.services.storage_service import StorageService, StorageConfigurationError
 
 
 class MediaService:
@@ -47,7 +47,21 @@ class MediaService:
             db: SQLAlchemy database session
         """
         self.db = db
-        self.storage_service = StorageService()
+        self.storage_service: Optional[StorageService] = None
+
+    def _get_storage_service(self) -> StorageService:
+        """
+        Lazily initialize storage service only for storage-dependent operations.
+        """
+        if self.storage_service is None:
+            try:
+                self.storage_service = StorageService()
+            except StorageConfigurationError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Storage service misconfigured"
+                ) from exc
+        return self.storage_service
     
     def _check_place_ownership(self, place_id: UUID, user_id: UUID) -> TripPlace:
         """
@@ -223,7 +237,8 @@ class MediaService:
         
         # Upload to Supabase Storage
         # This validates file type and size
-        file_url = await self.storage_service.upload_file(
+        storage_service = self._get_storage_service()
+        file_url = await storage_service.upload_file(
             file=file,
             bucket="photos",
             user_id=user_id,
@@ -239,7 +254,7 @@ class MediaService:
         width, height = self._get_image_dimensions(file_bytes)
         
         # Generate thumbnail URL
-        thumbnail_url = self.storage_service.get_thumbnail_url(
+        thumbnail_url = storage_service.get_thumbnail_url(
             bucket="photos",
             file_path=file_path,
             width=200,
@@ -328,7 +343,7 @@ class MediaService:
         # Delete from Supabase Storage
         try:
             file_path = self._extract_file_path(media.file_url)
-            self.storage_service.delete_file("photos", file_path)
+            self._get_storage_service().delete_file("photos", file_path)
         except Exception as e:
             print(f"Warning: Failed to delete file from storage: {e}")
 
@@ -386,12 +401,13 @@ class MediaService:
             return response
 
         file_path = self._extract_file_path(response.file_url)
-        signed_url = self.storage_service.get_signed_url(
+        storage_service = self._get_storage_service()
+        signed_url = storage_service.get_signed_url(
             bucket="photos",
             file_path=file_path,
             expires_in=expires_in
         )
-        signed_thumbnail = self.storage_service.build_thumbnail_url(
+        signed_thumbnail = storage_service.build_thumbnail_url(
             signed_url,
             width=200,
             height=200

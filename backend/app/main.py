@@ -8,6 +8,8 @@ Configures:
     - Health check endpoints (liveness + readiness)
 """
 
+import logging
+
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
@@ -18,6 +20,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.config import settings
 from app.database import SessionLocal
+from app.services.storage_service import validate_supabase_runtime_configuration
 
 # --- Sentry ---
 if settings.SENTRY_DSN:
@@ -34,6 +37,8 @@ if settings.SENTRY_DSN:
 
 # Import routers
 from app.api.v1 import auth, users, trips, places, media, search, metadata, routes, components, exports
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -62,6 +67,30 @@ app.include_router(metadata.router, prefix="/api/v1")
 app.include_router(routes.router, prefix="/api/v1")
 app.include_router(components.router, prefix="/api/v1")
 app.include_router(exports.router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+def _validate_supabase_runtime_config() -> None:
+    diagnostics = validate_supabase_runtime_configuration(
+        environment=settings.ENVIRONMENT,
+        supabase_url=settings.SUPABASE_URL,
+        service_role_key=settings.SUPABASE_SERVICE_ROLE_KEY,
+        strict=False,
+    )
+
+    if diagnostics["url_sanitized"] or diagnostics["key_sanitized"]:
+        logger.warning(
+            "Supabase runtime configuration required sanitization (host=%s, key_format=%s)",
+            diagnostics["supabase_host"],
+            diagnostics["key_format"],
+        )
+
+    if diagnostics["key_format"] != "jwt":
+        logger.error(
+            "Supabase service key format is incompatible with current backend client (host=%s, key_format=%s)",
+            diagnostics["supabase_host"],
+            diagnostics["key_format"],
+        )
 
 @app.get("/")
 def root():

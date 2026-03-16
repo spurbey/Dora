@@ -327,6 +327,33 @@ void main() {
       expect(task['worker_session_id'], isNull);
     });
 
+    test('marks non-retryable place identity failures as blocked', () async {
+      placeRepository.onSyncPlace = (_, __) async {
+        throw PlaceIdentityException(
+          'Backend storage misconfigured',
+          retryable: false,
+        );
+      };
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-place-blocked',
+        entityType: 'place',
+        entityId: 'place-1',
+        operation: 'create',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-place-blocked');
+      expect(task['status'], 'blocked');
+      expect(task['retry_count'], 0);
+      expect(task['next_attempt_at'], isNull);
+      expect(task['error_code'], 'place_identity_failure');
+      expect(task['error_message'], contains('storage misconfigured'));
+      expect(task['worker_session_id'], isNull);
+      expect(placeRepository.syncCalls, 1);
+    });
+
     test('marks retryable route identity failures as failed', () async {
       routeRepository.onSyncRoute = (_, __) async {
         throw const RouteIdentityException(

@@ -8,12 +8,100 @@ Handles:
     - File validation (type, size)
 """
 
+import re
+from urllib.parse import urlparse
+
 from supabase import create_client, Client
 from fastapi import UploadFile, HTTPException, status
 from typing import Optional
 from uuid import UUID, uuid4
 
 from app.config import settings
+
+
+JWT_COMPATIBLE_SUPABASE_KEY_RE = re.compile(
+    r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$"
+)
+
+
+def _strip_wrapping_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def _normalize_secret(value: str) -> tuple[str, bool]:
+    trimmed = value.strip()
+    unquoted = _strip_wrapping_quotes(trimmed)
+    return unquoted, unquoted != value
+
+
+def _normalize_url(value: str) -> tuple[str, bool]:
+    trimmed = value.strip()
+    unquoted = _strip_wrapping_quotes(trimmed)
+    normalized = unquoted.rstrip("/")
+    return normalized, normalized != value
+
+
+def detect_supabase_key_format(value: str) -> str:
+    if not value:
+        return "empty"
+    if value.startswith("sb_secret_"):
+        return "sb_secret"
+    if JWT_COMPATIBLE_SUPABASE_KEY_RE.match(value):
+        return "jwt"
+    return "invalid"
+
+
+def validate_supabase_runtime_configuration(
+    *,
+    environment: str,
+    supabase_url: str,
+    service_role_key: str,
+    strict: bool,
+) -> dict[str, str | bool]:
+    """
+    Validate runtime Supabase settings used by the Python storage client.
+
+    Returns non-sensitive diagnostics for observability and raises RuntimeError
+    in strict mode when configuration is incompatible.
+    """
+    normalized_url, url_sanitized = _normalize_url(supabase_url or "")
+    normalized_key, key_sanitized = _normalize_secret(service_role_key or "")
+    parsed_url = urlparse(normalized_url) if normalized_url else None
+    url_is_valid = bool(parsed_url and parsed_url.scheme in {"http", "https"} and parsed_url.netloc)
+    key_format = detect_supabase_key_format(normalized_key)
+
+    diagnostics: dict[str, str | bool] = {
+        "environment": environment,
+        "supabase_host": parsed_url.netloc if parsed_url else "",
+        "url_valid": url_is_valid,
+        "key_format": key_format,
+        "url_sanitized": url_sanitized,
+        "key_sanitized": key_sanitized,
+    }
+
+    if strict:
+        errors: list[str] = []
+        if not url_is_valid:
+            errors.append("SUPABASE_URL must be a valid http(s) URL")
+        if key_format == "empty":
+            errors.append("SUPABASE_SERVICE_ROLE_KEY is missing")
+        elif key_format == "sb_secret":
+            errors.append(
+                "SUPABASE_SERVICE_ROLE_KEY uses sb_secret format, but backend currently uses supabase-py "
+                "validation that requires JWT-style keys"
+            )
+        elif key_format != "jwt":
+            errors.append("SUPABASE_SERVICE_ROLE_KEY has invalid format")
+        if errors:
+            raise RuntimeError("; ".join(errors))
+
+    return diagnostics
+
+
+class StorageConfigurationError(RuntimeError):
+    """Raised when storage client configuration is missing or invalid."""
 
 
 class StorageService:
@@ -38,16 +126,29 @@ class StorageService:
         Uses credentials from settings (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY).
         """
 
-        if not settings.SUPABASE_SERVICE_ROLE_KEY:
-            raise RuntimeError(
+        normalized_url, _ = _normalize_url(settings.SUPABASE_URL or "")
+        normalized_key, _ = _normalize_secret(settings.SUPABASE_SERVICE_ROLE_KEY or "")
+        key_format = detect_supabase_key_format(normalized_key)
+
+        if not normalized_key:
+            raise StorageConfigurationError(
                 "SUPABASE_SERVICE_ROLE_KEY is missing in environment"
             )
 
-        # CHANGED: use service role key
-        self.supabase: Client = create_client(
-            settings.SUPABASE_URL,
-            settings.SUPABASE_SERVICE_ROLE_KEY
-        )
+        if key_format != "jwt":
+            raise StorageConfigurationError(
+                "SUPABASE_SERVICE_ROLE_KEY format is not compatible with current backend storage client"
+            )
+
+        try:
+            self.supabase: Client = create_client(
+                normalized_url,
+                normalized_key
+            )
+        except Exception as exc:
+            raise StorageConfigurationError(
+                "Failed to initialize Supabase storage client"
+            ) from exc
     
     def _validate_file_type(self, file: UploadFile, allowed_types: list[str]) -> None:
         """

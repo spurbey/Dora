@@ -13,17 +13,25 @@ class SearchBarWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: AppSpacing.horizontalMd,
-      child: SearchBar(
-        hintText: 'Plan, advise, or search...',
-        leading: const Icon(Icons.explore, color: AppColors.accent),
-        backgroundColor: MaterialStateProperty.all(AppColors.card),
-        elevation: const MaterialStatePropertyAll(0),
-        shape: MaterialStateProperty.all(
-          const RoundedRectangleBorder(
-            borderRadius: AppRadius.borderMd,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: AppRadius.borderMd,
+          onTap: onTap,
+          child: IgnorePointer(
+            child: SearchBar(
+              hintText: 'Plan, advise, or search...',
+              leading: const Icon(Icons.explore, color: AppColors.accent),
+              backgroundColor: WidgetStateProperty.all(AppColors.card),
+              elevation: const WidgetStatePropertyAll(0),
+              shape: WidgetStateProperty.all(
+                const RoundedRectangleBorder(
+                  borderRadius: AppRadius.borderMd,
+                ),
+              ),
+            ),
           ),
         ),
-        onTap: onTap,
       ),
     );
   }

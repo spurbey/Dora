@@ -37,47 +37,54 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final searchState = ref.watch(searchControllerProvider);
     final controller = ref.read(searchControllerProvider.notifier);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context, controller),
-            Padding(
-              padding: AppSpacing.horizontalMd,
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: true,
-                onChanged: controller.search,
-                onSubmitted: controller.search,
-                decoration: InputDecoration(
-                  hintText: 'Type to search or ask...',
-                  prefixIcon: const Icon(Icons.search, color: AppColors.accent),
-                  filled: true,
-                  fillColor: AppColors.card,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: AppRadius.borderMd,
-                    borderSide: const BorderSide(color: AppColors.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: AppRadius.borderMd,
-                    borderSide: const BorderSide(color: AppColors.accent, width: 2),
+    return PopScope<void>(
+      onPopInvokedWithResult: (_, __) => _dismissKeyboard(),
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context, controller),
+              Padding(
+                padding: AppSpacing.horizontalMd,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  autofocus: true,
+                  onChanged: controller.search,
+                  onSubmitted: controller.search,
+                  decoration: InputDecoration(
+                    hintText: 'Type to search or ask...',
+                    prefixIcon:
+                        const Icon(Icons.search, color: AppColors.accent),
+                    filled: true,
+                    fillColor: AppColors.card,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: AppRadius.borderMd,
+                      borderSide: const BorderSide(color: AppColors.divider),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: AppRadius.borderMd,
+                      borderSide: const BorderSide(
+                        color: AppColors.accent,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Expanded(
-              child: searchState.when(
-                loading: () => const LoadingIndicator(),
-                error: (e, st) => ErrorView(
-                  message: 'Search failed',
-                  onRetry: () => controller.search(_controller.text),
+              const SizedBox(height: AppSpacing.md),
+              Expanded(
+                child: searchState.when(
+                  loading: () => const LoadingIndicator(),
+                  error: (e, st) => ErrorView(
+                    message: 'Search failed',
+                    onRetry: () => controller.search(_controller.text),
+                  ),
+                  data: (state) => _buildBody(context, state, controller),
                 ),
-                data: (state) => _buildBody(context, state, controller),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -95,7 +102,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
+              onPressed: () {
+                _dismissKeyboard();
+                if (context.canPop()) {
+                  context.pop();
+                  return;
+                }
+                context.go(Routes.feed);
+              },
             ),
             const Spacer(),
             TextButton(
@@ -179,8 +193,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           else
             ...state.recentSearches.map(
               (item) => ListTile(
-                leading: const Icon(Icons.history,
-                    color: AppColors.textSecondary),
+                leading:
+                    const Icon(Icons.history, color: AppColors.textSecondary),
                 title: Text(item, style: AppTypography.body),
                 trailing: IconButton(
                   icon: const Icon(Icons.close),
@@ -258,6 +272,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         const SizedBox(height: AppSpacing.xl),
       ],
     );
+  }
+
+  void _dismissKeyboard() {
+    _focusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   Widget _suggestion(String text) {

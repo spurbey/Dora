@@ -46,7 +46,7 @@ class FeedScreen extends ConsumerWidget {
                 _buildHeader(context),
                 const SizedBox(height: AppSpacing.md),
                 SearchBarWidget(
-                  onTap: () => context.go(Routes.search),
+                  onTap: () => context.push(Routes.search),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (state.activeTrip != null)
@@ -129,7 +129,7 @@ class FeedScreen extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.search),
                     color: AppColors.textPrimary,
-                    onPressed: () => context.go(Routes.search),
+                    onPressed: () => context.push(Routes.search),
                   ),
                 ],
               ),

@@ -436,9 +436,10 @@ class PlaceRepository {
           final refreshedRemoteTripId =
               await _tripRepository.ensureRemoteTripId(
                 local.tripId,
-                // If mapping is stale and backend trip was removed, recreate it
-                // so place/media can continue without manual sync.
-                allowCreate: true,
+                // Don't recreate the trip inline — clear the stale mapping
+                // and let the sync worker handle trip recreation as a
+                // separate tracked task, avoiding orphaned server trips.
+                allowCreate: false,
               );
           responseData = await _createRemotePlace(
             placesApi: placesApi,

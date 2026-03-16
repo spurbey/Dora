@@ -20,6 +20,8 @@ MapState mapState(MapStateRef ref, String tripId) {
 
   final routeStartId = editor.routeStartItemId;
   final routeEndId = editor.routeEndItemId;
+  final selectedPlaceId =
+      editor.selectedItemType == 'place' ? editor.selectedItemId : null;
 
   // Number non-city places sequentially
   int placeNumber = 0;
@@ -32,24 +34,44 @@ MapState mapState(MapStateRef ref, String tripId) {
 
     final isRouteStart = routeStartId == place.id;
     final isRouteEnd = routeEndId == place.id;
+    final isSelectedPlace = selectedPlaceId == place.id;
     final Color markerColor;
     if (isRouteStart) {
       markerColor = const Color(0xFFE53935); // red = source
     } else if (isRouteEnd) {
       markerColor = const Color(0xFF1565C0); // blue = destination
+    } else if (isSelectedPlace) {
+      markerColor = isCity
+          ? const Color(0xFF355C7D)
+          : const Color(0xFF0D7377); // stronger highlight for active selection
     } else if (isCity) {
       markerColor = AppColors.primary;
     } else {
       markerColor = AppColors.accent;
     }
 
+    final markerType = isRouteStart
+        ? 'route_start'
+        : isRouteEnd
+            ? 'route_end'
+            : isCity
+                ? (isSelectedPlace ? 'city_selected' : 'city')
+                : (isSelectedPlace ? 'place_selected' : 'place');
+    final label = isRouteStart
+        ? 'S'
+        : isRouteEnd
+            ? 'D'
+            : isCity
+                ? (isSelectedPlace ? 'CTY' : 'C')
+                : '$placeNumber';
+
     return AppMarker(
       id: place.id,
       position: place.coordinates,
       title: place.name,
       color: markerColor,
-      markerType: isCity ? 'city' : 'place',
-      label: isCity ? 'C' : '$placeNumber',
+      markerType: markerType,
+      label: label,
       onTap: () => ref
           .read(editorControllerProvider(tripId).notifier)
           .handlePlaceTap(place.id),
@@ -59,10 +81,9 @@ MapState mapState(MapStateRef ref, String tripId) {
   // In Route Studio: add waypoint markers for the selected route
   final isEditRoute = editor.mode == EditorMode.editRoute;
   final isRouteStudio = editor.routeStudioActive;
-  final studioRouteId =
-      isRouteStudio && editor.selectedItemType == 'route'
-          ? editor.selectedItemId
-          : null;
+  final studioRouteId = isRouteStudio && editor.selectedItemType == 'route'
+      ? editor.selectedItemId
+      : null;
 
   if (studioRouteId != null) {
     try {
@@ -103,13 +124,13 @@ MapState mapState(MapStateRef ref, String tripId) {
           draggable: isEditRoute,
           onTap: isEditRoute
               ? () => ref
-                    .read(editorControllerProvider(tripId).notifier)
-                    .removeWaypoint(studioRouteId, capturedIndex)
+                  .read(editorControllerProvider(tripId).notifier)
+                  .removeWaypoint(studioRouteId, capturedIndex)
               : null,
           onDragEnd: isEditRoute
               ? (newPos) => ref
-                    .read(editorControllerProvider(tripId).notifier)
-                    .moveWaypoint(studioRouteId, capturedIndex, newPos)
+                  .read(editorControllerProvider(tripId).notifier)
+                  .moveWaypoint(studioRouteId, capturedIndex, newPos)
               : null,
         ));
       }
@@ -119,8 +140,8 @@ MapState mapState(MapStateRef ref, String tripId) {
         try {
           final startPlace = editor.places
               .firstWhere((p) => p.id == editingRoute.startPlaceId);
-          final endPlace = editor.places
-              .firstWhere((p) => p.id == editingRoute.endPlaceId);
+          final endPlace =
+              editor.places.firstWhere((p) => p.id == editingRoute.endPlaceId);
           logicalNodes.addAll([
             startPlace.coordinates,
             ...editingRoute.waypoints,
@@ -145,8 +166,7 @@ MapState mapState(MapStateRef ref, String tripId) {
             label: '+',
             onTap: () => ref
                 .read(editorControllerProvider(tripId).notifier)
-                .insertWaypointAtSegment(
-                    studioRouteId, capturedSegment, mid),
+                .insertWaypointAtSegment(studioRouteId, capturedSegment, mid),
           ));
         }
       }

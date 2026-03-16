@@ -50,6 +50,8 @@ class _AppMapViewState extends State<AppMapView> {
   bool _styleLoaded = false;
   bool _syncInFlight = false;
   bool _needsResync = false;
+  final Map<String, _MarkerRenderSignature> _markerSignatures = {};
+  final Map<String, _RouteRenderSignature> _routeSignatures = {};
 
   @override
   void didUpdateWidget(covariant AppMapView oldWidget) {
@@ -97,18 +99,64 @@ class _AppMapViewState extends State<AppMapView> {
     if (controller == null || !_styleLoaded) {
       return;
     }
-    await controller.clearMarkers();
-    for (final marker in widget.markers ?? const <AppMarker>[]) {
-      await controller.addMarker(marker);
+    final nextMarkers = <String, AppMarker>{
+      for (final marker in widget.markers ?? const <AppMarker>[])
+        marker.id: marker,
+    };
+    final existingMarkerIds = Set<String>.from(_markerSignatures.keys);
+    final nextMarkerIds = Set<String>.from(nextMarkers.keys);
+
+    for (final removedId in existingMarkerIds.difference(nextMarkerIds)) {
+      await controller.removeMarker(removedId);
+      _markerSignatures.remove(removedId);
     }
 
-    await controller.clearRoutes();
-    for (final route in widget.routes ?? const <AppRoute>[]) {
-      await controller.addRoute(route);
+    for (final entry in nextMarkers.entries) {
+      final marker = entry.value;
+      final signature = _MarkerRenderSignature.from(marker);
+      final previous = _markerSignatures[entry.key];
+      if (previous == null) {
+        await controller.addMarker(marker);
+        _markerSignatures[entry.key] = signature;
+        continue;
+      }
+      if (previous != signature) {
+        await controller.updateMarker(marker);
+        _markerSignatures[entry.key] = signature;
+      }
+    }
+
+    final nextRoutes = <String, AppRoute>{
+      for (final route in widget.routes ?? const <AppRoute>[]) route.id: route,
+    };
+    final existingRouteIds = Set<String>.from(_routeSignatures.keys);
+    final nextRouteIds = Set<String>.from(nextRoutes.keys);
+
+    for (final removedId in existingRouteIds.difference(nextRouteIds)) {
+      await controller.removeRoute(removedId);
+      _routeSignatures.remove(removedId);
+    }
+
+    for (final entry in nextRoutes.entries) {
+      final route = entry.value;
+      final signature = _RouteRenderSignature.from(route);
+      final previous = _routeSignatures[entry.key];
+      if (previous == null) {
+        await controller.addRoute(route);
+        _routeSignatures[entry.key] = signature;
+        continue;
+      }
+      if (previous != signature) {
+        await controller.updateRoute(route);
+        _routeSignatures[entry.key] = signature;
+      }
     }
   }
 
   void _onMapCreated(MapboxMap mapboxMap) {
+    _styleLoaded = false;
+    _markerSignatures.clear();
+    _routeSignatures.clear();
     _controller = MapboxAdapter(
       mapboxMap,
       onMapTap: widget.onMapTap,
@@ -122,6 +170,8 @@ class _AppMapViewState extends State<AppMapView> {
 
   void _onStyleLoaded(StyleLoadedEventData _) {
     _styleLoaded = true;
+    _markerSignatures.clear();
+    _routeSignatures.clear();
     _scheduleSync();
   }
 
@@ -145,6 +195,8 @@ class _AppMapViewState extends State<AppMapView> {
   @override
   void dispose() {
     _controller?.dispose();
+    _markerSignatures.clear();
+    _routeSignatures.clear();
     super.dispose();
   }
 
@@ -165,4 +217,145 @@ class _AppMapViewState extends State<AppMapView> {
       onTapListener: _onMapTap,
     );
   }
+}
+
+class _MarkerRenderSignature {
+  const _MarkerRenderSignature({
+    required this.lat,
+    required this.lng,
+    required this.title,
+    required this.snippet,
+    required this.iconAsset,
+    required this.colorValue,
+    required this.markerType,
+    required this.label,
+    required this.draggable,
+    required this.hasTap,
+    required this.hasDragEnd,
+  });
+
+  factory _MarkerRenderSignature.from(AppMarker marker) {
+    return _MarkerRenderSignature(
+      lat: marker.position.latitude,
+      lng: marker.position.longitude,
+      title: marker.title,
+      snippet: marker.snippet,
+      iconAsset: marker.iconAsset,
+      colorValue: marker.color?.value,
+      markerType: marker.markerType,
+      label: marker.label,
+      draggable: marker.draggable,
+      hasTap: marker.onTap != null,
+      hasDragEnd: marker.onDragEnd != null,
+    );
+  }
+
+  final double lat;
+  final double lng;
+  final String? title;
+  final String? snippet;
+  final String? iconAsset;
+  final int? colorValue;
+  final String? markerType;
+  final String? label;
+  final bool draggable;
+  final bool hasTap;
+  final bool hasDragEnd;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    return other is _MarkerRenderSignature &&
+        lat == other.lat &&
+        lng == other.lng &&
+        title == other.title &&
+        snippet == other.snippet &&
+        iconAsset == other.iconAsset &&
+        colorValue == other.colorValue &&
+        markerType == other.markerType &&
+        label == other.label &&
+        draggable == other.draggable &&
+        hasTap == other.hasTap &&
+        hasDragEnd == other.hasDragEnd;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        lat,
+        lng,
+        title,
+        snippet,
+        iconAsset,
+        colorValue,
+        markerType,
+        label,
+        draggable,
+        hasTap,
+        hasDragEnd,
+      );
+}
+
+class _RouteRenderSignature {
+  const _RouteRenderSignature({
+    required this.coordinates,
+    required this.colorValue,
+    required this.width,
+    required this.dashed,
+  });
+
+  factory _RouteRenderSignature.from(AppRoute route) {
+    return _RouteRenderSignature(
+      coordinates: route.coordinates
+          .map((point) => _LatLngTuple(point.latitude, point.longitude))
+          .toList(growable: false),
+      colorValue: route.color?.value,
+      width: route.width,
+      dashed: route.dashed,
+    );
+  }
+
+  final List<_LatLngTuple> coordinates;
+  final int? colorValue;
+  final double? width;
+  final bool? dashed;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    return other is _RouteRenderSignature &&
+        listEquals(coordinates, other.coordinates) &&
+        colorValue == other.colorValue &&
+        width == other.width &&
+        dashed == other.dashed;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        Object.hashAll(coordinates),
+        colorValue,
+        width,
+        dashed,
+      );
+}
+
+class _LatLngTuple {
+  const _LatLngTuple(this.lat, this.lng);
+
+  final double lat;
+  final double lng;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    return other is _LatLngTuple && lat == other.lat && lng == other.lng;
+  }
+
+  @override
+  int get hashCode => Object.hash(lat, lng);
 }

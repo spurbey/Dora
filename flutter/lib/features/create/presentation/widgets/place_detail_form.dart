@@ -16,6 +16,8 @@ class PlaceDetailForm extends StatefulWidget {
     required this.onSave,
     required this.onDelete,
     this.onManageMedia,
+    this.onMediaPreviewTap,
+    this.onViewMediaGallery,
     this.mediaItems = const <MediaItem>[],
   });
 
@@ -23,6 +25,8 @@ class PlaceDetailForm extends StatefulWidget {
   final ValueChanged<Place> onSave;
   final VoidCallback onDelete;
   final VoidCallback? onManageMedia;
+  final ValueChanged<MediaItem>? onMediaPreviewTap;
+  final VoidCallback? onViewMediaGallery;
   final List<MediaItem> mediaItems;
 
   @override
@@ -169,92 +173,134 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
           // Photos
           Row(
             children: [
-              Text('Photos', style: AppTypography.caption),
+              Text('Photos (${photoPreviews.length})',
+                  style: AppTypography.caption),
               const Spacer(),
+              if (photoPreviews.isNotEmpty && widget.onViewMediaGallery != null)
+                TextButton.icon(
+                  onPressed: widget.onViewMediaGallery,
+                  icon: const Icon(Icons.slideshow_outlined, size: 16),
+                  label: const Text('View'),
+                ),
               if (widget.onManageMedia != null)
                 TextButton.icon(
                   onPressed: widget.onManageMedia,
-                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                  icon:
+                      const Icon(Icons.add_photo_alternate_outlined, size: 16),
                   label: const Text('Manage'),
                 ),
             ],
           ),
-          SizedBox(
-            height: 70,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final preview in photoPreviews)
-                  Stack(
-                    children: [
-                      Container(
-                        width: 70,
-                        margin: const EdgeInsets.only(right: AppSpacing.sm),
-                        decoration: BoxDecoration(
-                          borderRadius: AppRadius.borderSm,
-                          color: AppColors.surface,
-                          image: DecorationImage(
-                            image: preview.imageProvider,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      if (preview.uploadStatus == 'failed')
-                        Positioned(
-                          top: 4,
-                          right: 12,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                              color: AppColors.error,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.error_outline,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      else if (preview.uploadStatus != 'uploaded')
-                        Positioned(
-                          top: 4,
-                          right: 12,
-                          child: Container(
-                            width: 14,
-                            height: 14,
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.all(2),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                InkWell(
-                  onTap: widget.onManageMedia,
-                  borderRadius: AppRadius.borderSm,
-                  child: Container(
-                    width: 70,
-                    margin: const EdgeInsets.only(right: AppSpacing.sm),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            child: photoPreviews.isEmpty
+                ? Container(
+                    key: const ValueKey('no-photos'),
+                    height: 70,
+                    width: double.infinity,
+                    alignment: Alignment.centerLeft,
+                    padding: AppSpacing.allSm,
                     decoration: BoxDecoration(
-                      borderRadius: AppRadius.borderSm,
                       border: Border.all(color: AppColors.divider),
+                      borderRadius: AppRadius.borderSm,
+                      color: AppColors.surface,
                     ),
-                    child: const Icon(Icons.add, color: AppColors.accent),
+                    child: Text(
+                      'No attachments yet. Add media to make this stop richer.',
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                  )
+                : SizedBox(
+                    key: const ValueKey('with-photos'),
+                    height: 70,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (final preview in photoPreviews)
+                          InkWell(
+                            onTap: preview.mediaItem == null ||
+                                    widget.onMediaPreviewTap == null
+                                ? null
+                                : () => widget
+                                    .onMediaPreviewTap!(preview.mediaItem!),
+                            borderRadius: AppRadius.borderSm,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 70,
+                                  margin: const EdgeInsets.only(
+                                      right: AppSpacing.sm),
+                                  decoration: BoxDecoration(
+                                    borderRadius: AppRadius.borderSm,
+                                    color: AppColors.surface,
+                                    image: DecorationImage(
+                                      image: preview.imageProvider,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                if (preview.uploadStatus == 'failed')
+                                  Positioned(
+                                    top: 4,
+                                    right: 12,
+                                    child: Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.error,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.error_outline,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                else if (preview.uploadStatus != 'uploaded')
+                                  Positioned(
+                                    top: 4,
+                                    right: 12,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        InkWell(
+                          onTap: widget.onManageMedia,
+                          borderRadius: AppRadius.borderSm,
+                          child: Container(
+                            width: 70,
+                            margin: const EdgeInsets.only(right: AppSpacing.sm),
+                            decoration: BoxDecoration(
+                              borderRadius: AppRadius.borderSm,
+                              border: Border.all(color: AppColors.divider),
+                            ),
+                            child:
+                                const Icon(Icons.add, color: AppColors.accent),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: AppSpacing.md),
 
@@ -310,6 +356,7 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
         _PhotoPreview(
           imageProvider: provider,
           uploadStatus: item.uploadStatus,
+          mediaItem: item,
         ),
       );
 
@@ -327,6 +374,7 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
         _PhotoPreview(
           imageProvider: NetworkImage(url),
           uploadStatus: 'uploaded',
+          mediaItem: null,
         ),
       );
     }
@@ -397,8 +445,10 @@ class _PhotoPreview {
   const _PhotoPreview({
     required this.imageProvider,
     required this.uploadStatus,
+    required this.mediaItem,
   });
 
   final ImageProvider<Object> imageProvider;
   final String uploadStatus;
+  final MediaItem? mediaItem;
 }

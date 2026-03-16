@@ -35,7 +35,7 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 960),
+      duration: const Duration(milliseconds: 1200),
     )..repeat();
   }
 
@@ -47,40 +47,56 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final indicator = AnimatedBuilder(
+    final dotSize = (widget.size * 0.16).clamp(4.0, 10.0);
+    final trailWidth = widget.size * 1.25;
+    final lineColor = widget.color.withValues(alpha: 0.14);
+
+    final animated = AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final bars = List<Widget>.generate(3, (index) {
-          final wave = (_controller.value + (index * 0.18)) * math.pi * 2;
-          final intensity = (math.sin(wave) + 1) / 2;
-          final barHeight =
-              (widget.size * 0.26) + (widget.size * 0.34 * intensity);
-          final opacity = 0.35 + (0.65 * intensity);
+        final dots = List<Widget>.generate(3, (index) {
+          final phase = (_controller.value + (index * 0.2)) * math.pi * 2;
+          final wave = (math.sin(phase) + 1) / 2;
+          final opacity = 0.28 + (0.52 * wave);
+          final scale = 0.84 + (0.22 * wave);
 
-          return Container(
-            width: widget.size * 0.2,
-            height: barHeight,
-            decoration: BoxDecoration(
-              color: widget.color.withValues(alpha: opacity),
-              borderRadius: BorderRadius.circular(999),
+          return Transform.scale(
+            scale: scale,
+            child: Container(
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color.withValues(alpha: opacity),
+              ),
             ),
           );
         });
 
-        final content = Column(
+        return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              height: widget.size * 0.62,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              width: trailWidth,
+              height: dotSize * 2.2,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  bars[0],
-                  SizedBox(width: widget.size * 0.13),
-                  bars[1],
-                  SizedBox(width: widget.size * 0.13),
-                  bars[2],
+                  Container(
+                    width: trailWidth,
+                    height: 2,
+                    color: lineColor,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      dots[0],
+                      SizedBox(width: dotSize * 0.9),
+                      dots[1],
+                      SizedBox(width: dotSize * 0.9),
+                      dots[2],
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -88,26 +104,27 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
               const SizedBox(height: AppSpacing.sm),
               Text(
                 widget.label!,
+                textAlign: TextAlign.center,
                 style: AppTypography.caption.copyWith(color: widget.labelColor),
               ),
             ],
           ],
         );
-
-        if (widget.centered) {
-          return Center(child: content);
-        }
-
-        return content;
       },
     );
 
-    return Semantics(
+    final content = Semantics(
       label: widget.label ?? 'Loading',
       child: SizedBox(
-        width: widget.size * 2.2,
-        child: indicator,
+        width: widget.size * 2.1,
+        child: animated,
       ),
     );
+
+    if (widget.centered) {
+      return Center(child: content);
+    }
+
+    return content;
   }
 }

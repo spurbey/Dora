@@ -48,7 +48,9 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
   @override
   Widget build(BuildContext context) {
     final dotSize = (widget.size * 0.16).clamp(4.0, 10.0);
-    final trailWidth = widget.size * 1.25;
+    final dotSpacing = dotSize * 0.9;
+    final dotsRowWidth = (dotSize * 3) + (dotSpacing * 2);
+    final trailWidth = math.max(widget.size * 1.25, dotsRowWidth);
     final lineColor = widget.color.withValues(alpha: 0.14);
 
     final animated = AnimatedBuilder(
@@ -91,9 +93,9 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       dots[0],
-                      SizedBox(width: dotSize * 0.9),
+                      SizedBox(width: dotSpacing),
                       dots[1],
-                      SizedBox(width: dotSize * 0.9),
+                      SizedBox(width: dotSpacing),
                       dots[2],
                     ],
                   ),

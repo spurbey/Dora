@@ -18,7 +18,7 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(viewportFraction: 0.92);
   int _currentIndex = 0;
   bool _saving = false;
 
@@ -75,8 +75,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
     await _pageController.nextPage(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutQuart,
     );
   }
 
@@ -114,13 +114,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
+                    physics: const BouncingScrollPhysics(),
+                    pageSnapping: true,
+                    allowImplicitScrolling: true,
                     itemCount: _items.length,
                     onPageChanged: (index) {
-                      setState(() => _currentIndex = index);
+                      if (_currentIndex != index) {
+                        setState(() => _currentIndex = index);
+                      }
                     },
                     itemBuilder: (context, index) {
                       final item = _items[index];
-                      return _OnboardingCard(item: item);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: AppSpacing.sm,
+                        ),
+                        child: RepaintBoundary(
+                          child: _OnboardingCard(
+                            item: item,
+                            index: index,
+                            total: _items.length,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -152,7 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ? null
                             : () => _pageController.previousPage(
                                   duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeOut,
+                                  curve: Curves.easeOutQuart,
                                 ),
                         child: const Text('Back'),
                       ),
@@ -161,9 +178,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: _saving ? null : _goNext,
-                        child: Text(
-                          isLast ? 'Start with Dora' : 'Continue',
-                        ),
+                        child: Text(isLast ? 'Start with Dora' : 'Continue'),
                       ),
                     ),
                   ],
@@ -178,58 +193,79 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingCard extends StatelessWidget {
-  const _OnboardingCard({required this.item});
+  const _OnboardingCard({
+    required this.item,
+    required this.index,
+    required this.total,
+  });
 
   final _OnboardingItem item;
+  final int index;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: AppRadius.borderXl,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
-        boxShadow: [
-          BoxShadow(
-            color: item.accentColor.withValues(alpha: 0.14),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      padding: AppSpacing.allXl,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            height: 108,
-            width: 108,
-            decoration: BoxDecoration(
-              color: item.accentColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: item.accentColor.withValues(alpha: 0.24),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.93),
+            borderRadius: AppRadius.borderXl,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
+            boxShadow: [
+              BoxShadow(
+                color: item.accentColor.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
-            ),
-            child: Icon(item.icon, size: 52, color: item.accentColor),
+            ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            item.title,
-            textAlign: TextAlign.center,
-            style: AppTypography.h2.copyWith(
-              color: AppColors.textPrimary,
-              height: 1.25,
-            ),
+          padding: AppSpacing.allXl,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'STEP ${index + 1} OF $total',
+                style: AppTypography.caption.copyWith(
+                  color: item.accentColor,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                height: 108,
+                width: 108,
+                decoration: BoxDecoration(
+                  color: item.accentColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: item.accentColor.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Icon(item.icon, size: 52, color: item.accentColor),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                item.title,
+                textAlign: TextAlign.center,
+                style: AppTypography.h2.copyWith(
+                  color: AppColors.textPrimary,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                item.description,
+                textAlign: TextAlign.center,
+                style:
+                    AppTypography.body.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            item.description,
-            textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
+        ),
       ),
     );
   }

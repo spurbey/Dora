@@ -64,5 +64,7 @@
 	<string>Allow Dora to access your photos for trip media uploads.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Allow Dora to save processed photos for uploads when needed.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allow Dora to access your location to center the map and search nearby places.</string>
 </dict>
 </plist>

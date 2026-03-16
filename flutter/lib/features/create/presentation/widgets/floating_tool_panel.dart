@@ -15,12 +15,14 @@ class FloatingToolPanel extends StatefulWidget {
     required this.onToolSelected,
     this.showMediaTool = false,
     this.onMediaTap,
+    this.onCurrentLocationTap,
   });
 
   final EditorMode currentMode;
   final ValueChanged<EditorMode> onToolSelected;
   final bool showMediaTool;
   final VoidCallback? onMediaTap;
+  final VoidCallback? onCurrentLocationTap;
 
   @override
   State<FloatingToolPanel> createState() => _FloatingToolPanelState();
@@ -97,6 +99,15 @@ class _FloatingToolPanelState extends State<FloatingToolPanel> {
                 active: widget.currentMode == EditorMode.addPlace,
                 onTap: () => widget.onToolSelected(EditorMode.addPlace),
               ),
+              if (widget.onCurrentLocationTap != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _ToolIcon(
+                  icon: Icons.my_location,
+                  label: 'Locate',
+                  active: false,
+                  onTap: widget.onCurrentLocationTap!,
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               // Route button + expandable sub-menu
               _ToolIcon(
@@ -116,24 +127,28 @@ class _FloatingToolPanelState extends State<FloatingToolPanel> {
                           _SubToolIcon(
                             icon: Icons.flight,
                             label: 'Air',
-                            active: widget.currentMode == EditorMode.addRouteAir,
-                            onTap: () => widget.onToolSelected(EditorMode.addRouteAir),
+                            active:
+                                widget.currentMode == EditorMode.addRouteAir,
+                            onTap: () =>
+                                widget.onToolSelected(EditorMode.addRouteAir),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           _SubToolIcon(
                             icon: Icons.directions_car,
                             label: 'Car',
-                            active: widget.currentMode == EditorMode.addRouteCar,
-                            onTap: () => widget.onToolSelected(EditorMode.addRouteCar),
+                            active:
+                                widget.currentMode == EditorMode.addRouteCar,
+                            onTap: () =>
+                                widget.onToolSelected(EditorMode.addRouteCar),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           _SubToolIcon(
                             icon: Icons.directions_walk,
                             label: 'Walk',
-                            active:
-                                widget.currentMode == EditorMode.addRouteWalking,
-                            onTap: () =>
-                                widget.onToolSelected(EditorMode.addRouteWalking),
+                            active: widget.currentMode ==
+                                EditorMode.addRouteWalking,
+                            onTap: () => widget
+                                .onToolSelected(EditorMode.addRouteWalking),
                           ),
                         ],
                       )

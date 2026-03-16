@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/config/feature_flags.dart';
+import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -27,6 +31,7 @@ import 'package:dora/features/create/presentation/widgets/route_studio/route_cre
 import 'package:dora/features/create/presentation/widgets/route_studio/route_details_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/waypoint_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/timeline_sidebar.dart';
+import 'package:dora/features/create/presentation/widgets/media_attachment_viewer.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 
@@ -40,6 +45,23 @@ class EditorScreen extends ConsumerStatefulWidget {
 }
 
 class _EditorScreenState extends ConsumerState<EditorScreen> {
+  AppLatLng? _deviceCenter;
+  bool _didAutoCenterOnDevice = false;
+  AppMarker? _mediaFocusMarker;
+  String? _mediaFocusPlaceId;
+  static const _defaultEditorCenter = AppLatLng(
+    latitude: 20.5937,
+    longitude: 78.9629,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _resolveDeviceCenter();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final editorAsync = ref.watch(editorControllerProvider(widget.tripId));
@@ -47,6 +69,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     ref.listen(editorControllerProvider(widget.tripId), (prev, next) {
       final prevMode = prev?.valueOrNull?.mode;
       final nextMode = next.valueOrNull?.mode;
+
+      _maybeCenterMapOnDevice(next.valueOrNull);
+      _syncMediaFocusWithSelection(next.valueOrNull);
 
       if (nextMode == EditorMode.addPlace && prevMode != EditorMode.addPlace) {
         _openPlaceSearch();
@@ -76,8 +101,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final mediaQuery = MediaQuery.of(context);
         final isWide = mediaQuery.size.width >= 900;
         final initialCenter =
-            mapState.center ?? const AppLatLng(latitude: 0, longitude: 0);
+            mapState.center ?? _deviceCenter ?? _defaultEditorCenter;
         final initialZoom = mapState.zoom ?? 12.0;
+        final markers = _mediaFocusMarker == null
+            ? mapState.markers
+            : [...mapState.markers, _mediaFocusMarker!];
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
@@ -120,6 +148,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         ? _buildWideLayout(
                             editor,
                             mapState,
+                            markers,
                             controller,
                             initialCenter,
                             initialZoom,
@@ -130,6 +159,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         : _buildMobileLayout(
                             editor,
                             mapState,
+                            markers,
                             controller,
                             initialCenter,
                             initialZoom,
@@ -213,9 +243,189 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       mode == EditorMode.addRouteCar ||
       mode == EditorMode.addRouteWalking;
 
+  Future<void> _resolveDeviceCenter() async {
+    final position =
+        await ref.read(locationServiceProvider).getCurrentPosition();
+    if (!mounted || position == null) {
+      return;
+    }
+
+    final center = AppLatLng(
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    setState(() {
+      _deviceCenter = center;
+    });
+
+    _maybeCenterMapOnDevice(
+      ref.read(editorControllerProvider(widget.tripId)).valueOrNull,
+    );
+  }
+
+  void _maybeCenterMapOnDevice(EditorState? editor) {
+    if (_didAutoCenterOnDevice || editor == null) {
+      return;
+    }
+    if (_deviceCenter == null) {
+      return;
+    }
+    final hasTripCenter = editor.trip.centerPoint != null;
+    final hasPlaces = editor.places.isNotEmpty;
+    if (hasTripCenter || hasPlaces) {
+      return;
+    }
+
+    final mapController = editor.mapController;
+    if (mapController == null) {
+      return;
+    }
+    _didAutoCenterOnDevice = true;
+    unawaited(mapController.flyTo(_deviceCenter!, zoom: 13));
+  }
+
+  Future<void> _centerMapOnCurrentLocation() async {
+    final position =
+        await ref.read(locationServiceProvider).getCurrentPosition();
+    if (!mounted) {
+      return;
+    }
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not get current location')),
+      );
+      return;
+    }
+
+    final center = AppLatLng(
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    setState(() {
+      _deviceCenter = center;
+    });
+
+    final mapController = ref
+        .read(editorControllerProvider(widget.tripId))
+        .valueOrNull
+        ?.mapController;
+    if (mapController != null) {
+      await mapController.flyTo(center, zoom: 14);
+    }
+  }
+
+  void _syncMediaFocusWithSelection(EditorState? editor) {
+    final focusPlaceId = _mediaFocusPlaceId;
+    if (focusPlaceId == null) {
+      return;
+    }
+    final selectedPlaceId =
+        editor?.selectedItemType == 'place' ? editor?.selectedItemId : null;
+    if (selectedPlaceId != focusPlaceId) {
+      _clearMediaFocus();
+    }
+  }
+
+  void _clearMediaFocus() {
+    if (_mediaFocusMarker == null && _mediaFocusPlaceId == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _mediaFocusMarker = null;
+      _mediaFocusPlaceId = null;
+    });
+  }
+
+  void _openMediaAttachmentViewer({
+    required Place place,
+    required List<MediaItem> mediaItems,
+    required MediaItem initialMedia,
+    required EditorController controller,
+  }) {
+    if (!mounted || mediaItems.isEmpty) {
+      return;
+    }
+    final initialIndex =
+        mediaItems.indexWhere((item) => item.id == initialMedia.id);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.card,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: 0.92,
+        child: MediaAttachmentViewer(
+          items: mediaItems,
+          initialIndex: initialIndex < 0 ? 0 : initialIndex,
+          onShowOnMap: (item) {
+            Navigator.of(sheetContext).pop();
+            _focusMediaOnMap(
+              place: place,
+              media: item,
+              controller: controller,
+            );
+          },
+          onManageMedia: () {
+            Navigator.of(sheetContext).pop();
+            if (mounted) {
+              context.push(Routes.mediaUploadPath(widget.tripId, place.id));
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _focusMediaOnMap({
+    required Place place,
+    required MediaItem media,
+    required EditorController controller,
+  }) {
+    final marker = AppMarker(
+      id: '_media_focus_${place.id}_${media.id}',
+      position: place.coordinates,
+      title: '${place.name} media',
+      color: const Color(0xFFFF7A18),
+      markerType: 'media_focus',
+      label: 'M',
+    );
+    if (mounted) {
+      setState(() {
+        _mediaFocusMarker = marker;
+        _mediaFocusPlaceId = place.id;
+      });
+    }
+    controller.selectPlace(place.id);
+    final mapController = ref
+        .read(editorControllerProvider(widget.tripId))
+        .valueOrNull
+        ?.mapController;
+    if (mapController != null) {
+      unawaited(
+        mapController.flyTo(
+          place.coordinates,
+          zoom: 16,
+          duration: const Duration(milliseconds: 700),
+        ),
+      );
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Highlighted the selected attachment on the map.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Widget _buildWideLayout(
     EditorState editor,
     MapState mapState,
+    List<AppMarker> markers,
     EditorController controller,
     AppLatLng initialCenter,
     double initialZoom,
@@ -227,8 +437,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
     final hideTimeline = inRouteStudio || inRouteCreation;
-    final showPanel = !inRouteStudio && !inRouteCreation &&
-        editor.selectedItemId != null;
+    final showPanel =
+        !inRouteStudio && !inRouteCreation && editor.selectedItemId != null;
     return Row(
       children: [
         if (!hideTimeline)
@@ -238,6 +448,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             selectedItemId: editor.selectedItemId,
             selectedItemType: editor.selectedItemType,
             onItemTap: (id, type) {
+              _clearMediaFocus();
               if (type == 'place') {
                 controller.handlePlaceTap(id);
               } else {
@@ -245,9 +456,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               }
             },
             onReorder: controller.reorderPlaces,
-            onAddPlace: () => controller.setMode(EditorMode.addPlace),
-            onAddCity: () => controller.setMode(EditorMode.addCity),
-            onAddRoute: () => controller.startDrawingRoute(),
+            onAddPlace: () {
+              _clearMediaFocus();
+              controller.setMode(EditorMode.addPlace);
+            },
+            onAddCity: () {
+              _clearMediaFocus();
+              controller.setMode(EditorMode.addCity);
+            },
+            onAddRoute: () {
+              _clearMediaFocus();
+              controller.startDrawingRoute();
+            },
           ),
         Expanded(
           child: Stack(
@@ -255,15 +475,25 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               MapCanvas(
                 initialCenter: initialCenter,
                 initialZoom: initialZoom,
-                markers: mapState.markers,
+                markers: markers,
                 routes: mapState.routes,
                 mode: editor.mode,
                 routeStartItemId: editor.routeStartItemId,
-                onModeChanged: controller.setMode,
+                onModeChanged: (mode) {
+                  _clearMediaFocus();
+                  controller.setMode(mode);
+                },
                 onMapCreated: controller.setMapController,
-                onMapTap: controller.handleMapTap,
-                onRouteTap: controller.selectRoute,
+                onMapTap: (position) {
+                  _clearMediaFocus();
+                  controller.handleMapTap(position);
+                },
+                onRouteTap: (routeId) {
+                  _clearMediaFocus();
+                  controller.selectRoute(routeId);
+                },
                 onRouteLineTap: controller.handleRouteLineTap,
+                onCurrentLocationTap: _centerMapOnCurrentLocation,
                 showMediaTool: selectedPlaceId != null,
                 onMediaTap: selectedPlaceId == null
                     ? null
@@ -314,6 +544,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Widget _buildMobileLayout(
     EditorState editor,
     MapState mapState,
+    List<AppMarker> markers,
     EditorController controller,
     AppLatLng initialCenter,
     double initialZoom,
@@ -324,22 +555,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   ) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
-    final showPanel = !inRouteStudio && !inRouteCreation &&
-        editor.selectedItemId != null;
+    final showPanel =
+        !inRouteStudio && !inRouteCreation && editor.selectedItemId != null;
     return Stack(
       children: [
         MapCanvas(
           initialCenter: initialCenter,
           initialZoom: initialZoom,
-          markers: mapState.markers,
+          markers: markers,
           routes: mapState.routes,
           mode: editor.mode,
           routeStartItemId: editor.routeStartItemId,
-          onModeChanged: controller.setMode,
+          onModeChanged: (mode) {
+            _clearMediaFocus();
+            controller.setMode(mode);
+          },
           onMapCreated: controller.setMapController,
-          onMapTap: controller.handleMapTap,
-          onRouteTap: controller.selectRoute,
+          onMapTap: (position) {
+            _clearMediaFocus();
+            controller.handleMapTap(position);
+          },
+          onRouteTap: (routeId) {
+            _clearMediaFocus();
+            controller.selectRoute(routeId);
+          },
           onRouteLineTap: controller.handleRouteLineTap,
+          onCurrentLocationTap: _centerMapOnCurrentLocation,
           showMediaTool: selectedPlaceId != null,
           onMediaTap: selectedPlaceId == null
               ? null
@@ -423,6 +664,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 selectedItemType: editor.selectedItemType,
                 onItemTap: (id, type) {
                   Navigator.pop(context);
+                  _clearMediaFocus();
                   if (type == 'place') {
                     controller.handlePlaceTap(id);
                   } else {
@@ -432,14 +674,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 onReorder: controller.reorderPlaces,
                 onAddPlace: () {
                   Navigator.pop(context);
+                  _clearMediaFocus();
                   controller.setMode(EditorMode.addPlace);
                 },
                 onAddCity: () {
                   Navigator.pop(context);
+                  _clearMediaFocus();
                   controller.setMode(EditorMode.addCity);
                 },
                 onAddRoute: () {
                   Navigator.pop(context);
+                  _clearMediaFocus();
                   controller.startDrawingRoute();
                 },
               ),
@@ -454,6 +699,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!mounted) {
       return;
     }
+    _clearMediaFocus();
     await context.push(Routes.placeSearchPath(widget.tripId));
     if (mounted) {
       ref
@@ -466,6 +712,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!mounted) {
       return;
     }
+    _clearMediaFocus();
     await context.push(Routes.citySearchPath(widget.tripId));
     if (mounted) {
       ref
@@ -543,6 +790,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           onDelete: () => controller.removePlace(place.id),
           onManageMedia: () =>
               context.push(Routes.mediaUploadPath(widget.tripId, place.id)),
+          onMediaPreviewTap: placeMedia.isEmpty
+              ? null
+              : (item) => _openMediaAttachmentViewer(
+                    place: place,
+                    mediaItems: placeMedia,
+                    initialMedia: item,
+                    controller: controller,
+                  ),
+          onViewMediaGallery: placeMedia.isEmpty
+              ? null
+              : () => _openMediaAttachmentViewer(
+                    place: place,
+                    mediaItems: placeMedia,
+                    initialMedia: placeMedia.first,
+                    controller: controller,
+                  ),
           mediaItems: placeMedia,
         );
       } catch (_) {
@@ -558,10 +821,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     EditorState editor,
     EditorController controller,
   ) {
-    final sourceName =
-        _findPlaceName(editor.places, editor.routeStartItemId);
-    final destName =
-        _findPlaceName(editor.places, editor.routeEndItemId);
+    final sourceName = _findPlaceName(editor.places, editor.routeStartItemId);
+    final destName = _findPlaceName(editor.places, editor.routeEndItemId);
 
     // Determine eligible places for current mode
     final eligible = editor.mode == EditorMode.addRouteAir
@@ -583,6 +844,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       isLoading: editor.isGeneratingRoute,
       canCreate: canCreate,
       onModeChanged: (newMode) {
+        _clearMediaFocus();
         controller.setMode(newMode);
       },
       onPickSource: () => _openPlacePicker(
@@ -596,12 +858,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         onPick: controller.selectRouteDestination,
         excludeId: editor.routeStartItemId,
       ),
-      onCreateRoute: () => controller.drawRoute(
-        editor.routeStartItemId!,
-        editor.routeEndItemId!,
-        capturedMode: editor.mode,
-      ),
-      onCancel: controller.cancelRouteMode,
+      onCreateRoute: () {
+        _clearMediaFocus();
+        controller.drawRoute(
+          editor.routeStartItemId!,
+          editor.routeEndItemId!,
+          capturedMode: editor.mode,
+        );
+      },
+      onCancel: () {
+        _clearMediaFocus();
+        controller.cancelRouteMode();
+      },
     );
   }
 
@@ -636,8 +904,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           editor.routes.firstWhere((r) => r.id == editor.selectedItemId);
       final startName =
           _findPlaceName(editor.places, route.startPlaceId) ?? '?';
-      final endName =
-          _findPlaceName(editor.places, route.endPlaceId) ?? '?';
+      final endName = _findPlaceName(editor.places, route.endPlaceId) ?? '?';
       return RouteControlStrip(
         transportMode: route.transportMode,
         startName: startName,
@@ -648,15 +915,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         waypointCount: route.waypoints.length,
         onToggleEdit: () =>
             controller.toggleRouteEditMode(editor.selectedItemId!),
-        onOpenWaypoints: () =>
-            _openWaypointSheet(editor, controller, route),
+        onOpenWaypoints: () => _openWaypointSheet(editor, controller, route),
         onFlip: () => controller.flipRoute(editor.selectedItemId!),
-        onOpenDetails: () =>
-            _openRouteDetailsSheet(editor, controller, route),
+        onOpenDetails: () => _openRouteDetailsSheet(editor, controller, route),
         onDelete: () {
+          _clearMediaFocus();
           controller.removeRoute(editor.selectedItemId!);
         },
-        onClose: () => controller.exitRouteStudio(),
+        onClose: () {
+          _clearMediaFocus();
+          controller.exitRouteStudio();
+        },
       );
     } catch (_) {
       return const SizedBox.shrink();
@@ -691,10 +960,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     EditorController controller,
     create_route.Route route,
   ) {
-    final startName =
-        _findPlaceName(editor.places, route.startPlaceId) ?? '?';
-    final endName =
-        _findPlaceName(editor.places, route.endPlaceId) ?? '?';
+    final startName = _findPlaceName(editor.places, route.startPlaceId) ?? '?';
+    final endName = _findPlaceName(editor.places, route.endPlaceId) ?? '?';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

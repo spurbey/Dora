@@ -25,6 +25,7 @@ class MapCanvas extends StatelessWidget {
     this.routeStartItemId,
     this.showMediaTool = false,
     this.onMediaTap,
+    this.onCurrentLocationTap,
   });
 
   final AppLatLng initialCenter;
@@ -40,6 +41,7 @@ class MapCanvas extends StatelessWidget {
   final String? routeStartItemId;
   final bool showMediaTool;
   final VoidCallback? onMediaTap;
+  final VoidCallback? onCurrentLocationTap;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +68,7 @@ class MapCanvas extends StatelessWidget {
             onToolSelected: onModeChanged,
             showMediaTool: showMediaTool,
             onMediaTap: onMediaTap,
+            onCurrentLocationTap: onCurrentLocationTap,
           ),
         ),
       ],

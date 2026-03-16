@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
@@ -13,11 +14,16 @@ part 'place_search_provider.g.dart';
 @riverpod
 class PlaceSearchController extends _$PlaceSearchController {
   Timer? _debounce;
+  AppLatLng? _searchOrigin;
 
   @override
   Future<PlaceSearchState> build() async {
     ref.onDispose(() => _debounce?.cancel());
     return const PlaceSearchState();
+  }
+
+  void setSearchOrigin(AppLatLng? origin) {
+    _searchOrigin = origin;
   }
 
   void search(String query) {
@@ -28,8 +34,8 @@ class PlaceSearchController extends _$PlaceSearchController {
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       final trimmed = query.trim();
       if (trimmed.isEmpty) {
-        state = AsyncData(state.valueOrNull?.copyWith(query: '') ??
-            const PlaceSearchState());
+        state = AsyncData(
+            state.valueOrNull?.copyWith(query: '') ?? const PlaceSearchState());
         return;
       }
 
@@ -38,13 +44,25 @@ class PlaceSearchController extends _$PlaceSearchController {
         final repository = ref.read(placeRepositoryProvider);
         final position =
             await ref.read(locationServiceProvider).getCurrentPosition();
-        final latitude = position?.latitude ?? 0.0;
-        final longitude = position?.longitude ?? 0.0;
+        final origin = position == null
+            ? _searchOrigin
+            : AppLatLng(
+                latitude: position.latitude,
+                longitude: position.longitude,
+              );
+        if (origin == null) {
+          state = AsyncData(PlaceSearchState(
+            query: trimmed,
+            results: const [],
+          ));
+          return;
+        }
+        _searchOrigin = origin;
 
         final results = await repository.searchPlaces(
           query: trimmed,
-          latitude: latitude,
-          longitude: longitude,
+          latitude: origin.latitude,
+          longitude: origin.longitude,
         );
 
         state = AsyncData(PlaceSearchState(

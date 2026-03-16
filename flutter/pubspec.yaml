@@ -85,3 +85,5 @@ flutter:
           weight: 500
         - asset: assets/fonts/SFPRODISPLAYBOLD.OTF
           weight: 700
+  assets:
+    - shorebird.yaml

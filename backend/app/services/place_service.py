@@ -47,6 +47,35 @@ class PlaceService:
         """
         self.db = db
 
+    @staticmethod
+    def _extract_photo_media_ids(photo_items: Optional[list]) -> List[str]:
+        """
+        Normalize/validate place photo references before querying media_files.
+
+        Legacy/partial payloads can contain non-UUID values in `trip_places.photos`.
+        Returning only valid UUID strings avoids database cast errors.
+        """
+        media_ids: List[str] = []
+        seen: set[str] = set()
+
+        for item in photo_items or []:
+            raw_id = item.get("id") if isinstance(item, dict) else item
+            if raw_id is None:
+                continue
+
+            try:
+                normalized_id = str(UUID(str(raw_id)))
+            except (TypeError, ValueError, AttributeError):
+                continue
+
+            if normalized_id in seen:
+                continue
+
+            seen.add(normalized_id)
+            media_ids.append(normalized_id)
+
+        return media_ids
+
     def get_place_by_id(self, place_id: UUID) -> Optional[TripPlace]:
         """
         Get place by ID.
@@ -262,14 +291,7 @@ class PlaceService:
             }
 
             # Expand photo IDs to full MediaFile objects
-            photo_ids = []
-            for item in place.photos or []:
-                if isinstance(item, dict):
-                    item_id = item.get("id")
-                    if item_id:
-                        photo_ids.append(str(item_id))
-                else:
-                    photo_ids.append(str(item))
+            photo_ids = self._extract_photo_media_ids(place.photos)
 
             photos = []
             if photo_ids:
@@ -583,14 +605,7 @@ class PlaceService:
         }
 
         # Expand photo IDs to full MediaFile objects
-        photo_ids = []
-        for item in place.photos or []:
-            if isinstance(item, dict):
-                item_id = item.get("id")
-                if item_id:
-                    photo_ids.append(str(item_id))
-            else:
-                photo_ids.append(str(item))
+        photo_ids = self._extract_photo_media_ids(place.photos)
 
         photos = []
         if photo_ids:

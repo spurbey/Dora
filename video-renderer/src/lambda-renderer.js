@@ -6,6 +6,14 @@ import {
   renderStillOnLambda,
 } from '@remotion/lambda/client';
 
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value || '', 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
 function clampProgress(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return 0;
@@ -31,9 +39,49 @@ export class LambdaRenderBackend {
       1,
       parseInt(process.env.LAMBDA_FRAMES_PER_LAMBDA || '200', 10) || 200,
     );
+    this._renderRetentionMs = parsePositiveInt(
+      process.env.LAMBDA_RENDER_RETENTION_MS,
+      10 * 60 * 1000,
+    );
+    this._maxTrackedRenders = parsePositiveInt(
+      process.env.LAMBDA_MAX_TRACKED_RENDERS,
+      2000,
+    );
     this._mapboxToken = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
     this._mapStyle = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
     this._renders = new Map();
+  }
+
+  _pruneRenders(now = Date.now()) {
+    for (const [renderId, entry] of this._renders.entries()) {
+      const timestamp = entry.updatedAt || entry.createdAt || now;
+      if (entry.done && now - timestamp > this._renderRetentionMs) {
+        this._renders.delete(renderId);
+      }
+    }
+
+    if (this._renders.size <= this._maxTrackedRenders) {
+      return;
+    }
+
+    // Evict oldest terminal entries first.
+    for (const [renderId, entry] of this._renders.entries()) {
+      if (this._renders.size <= this._maxTrackedRenders) {
+        break;
+      }
+      if (entry.done) {
+        this._renders.delete(renderId);
+      }
+    }
+
+    // Final hard cap as fallback.
+    while (this._renders.size > this._maxTrackedRenders) {
+      const oldestKey = this._renders.keys().next().value;
+      if (!oldestKey) {
+        break;
+      }
+      this._renders.delete(oldestKey);
+    }
   }
 
   ensureConfigured() {
@@ -74,6 +122,7 @@ export class LambdaRenderBackend {
 
   async submit(manifest) {
     this.ensureConfigured();
+    this._pruneRenders();
 
     const composition = this._compositionByTemplate[manifest.template];
     if (!composition) {
@@ -140,6 +189,8 @@ export class LambdaRenderBackend {
       done: false,
       terminalStatus: null,
       error: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
     console.log(
       `[EXPORT_RENDER] lambda_submit job_id=${manifest.job_id} render_id=${renderId} lambda_render_id=${response.renderId}`,
@@ -149,10 +200,12 @@ export class LambdaRenderBackend {
   }
 
   async getStatus(renderId) {
+    this._pruneRenders();
     const entry = this._renders.get(renderId);
     if (!entry) {
       return null;
     }
+    entry.updatedAt = Date.now();
 
     if (entry.done) {
       if (entry.terminalStatus === 'failed') {
@@ -190,6 +243,7 @@ export class LambdaRenderBackend {
       entry.done = true;
       entry.terminalStatus = 'failed';
       entry.error = message;
+      entry.updatedAt = Date.now();
       console.error(
         `[EXPORT_FAIL] lambda_render render_id=${renderId} lambda_render_id=${entry.lambdaRenderId} error=${message}`,
       );
@@ -205,6 +259,7 @@ export class LambdaRenderBackend {
     if (progress.done) {
       entry.done = true;
       entry.terminalStatus = 'completed';
+      entry.updatedAt = Date.now();
       console.log(
         `[EXPORT_RENDER] lambda_complete render_id=${renderId} output_path=s3://${entry.outputBucketName}/${entry.outputKey}`,
       );
@@ -231,6 +286,7 @@ export class LambdaRenderBackend {
   }
 
   getActiveCount() {
+    this._pruneRenders();
     let active = 0;
     for (const entry of this._renders.values()) {
       if (!entry.done) {
@@ -245,10 +301,12 @@ export class LambdaRenderBackend {
    *  Lambda runs to completion and bills regardless. The worker marks the job
    *  canceled in DB so the artifact is never surfaced to users. */
   async cancel(renderId) {
+    this._pruneRenders();
     const entry = this._renders.get(renderId);
     if (!entry) {
       return false;
     }
+    entry.updatedAt = Date.now();
     console.warn(
       `[lambda-renderer] cancel requested for ${renderId} — no-op: Lambda continues billing`,
     );

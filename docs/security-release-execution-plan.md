@@ -11,6 +11,7 @@ Scope: backend + video-renderer release paths
   - Require `X-Renderer-Secret` on `/api/v1/render*`.
   - Enforce manifest limits (duration/fps/snapshot size).
   - Enforce queue cap and submit rate limits.
+  - Add retention/eviction for renderer in-memory maps to avoid unbounded growth.
   - Require renderer secret in backend renderer client and production startup checks.
 - Files:
   - `video-renderer/src/server.js`

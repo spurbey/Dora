@@ -8,6 +8,7 @@ Tracking only confirmed vulnerabilities and release blockers.
 - [x] Backend renderer client sends secret header.
 - [x] Payload guardrails added (duration/fps/snapshot size).
 - [x] Submit rate limit + active queue cap added.
+- [x] Added bounded in-memory retention/eviction for render state + rate-limit windows.
 - [x] Production fail-fast for missing renderer secret.
 - Evidence:
   - `video-renderer/src/server.js`

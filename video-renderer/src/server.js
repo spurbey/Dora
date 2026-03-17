@@ -39,6 +39,16 @@ const MAX_SNAPSHOT_BYTES = parsePositiveInt(process.env.RENDER_MAX_SNAPSHOT_BYTE
 const MAX_ACTIVE_RENDERS = parsePositiveInt(process.env.RENDER_MAX_ACTIVE_RENDERS, 8);
 const SUBMIT_WINDOW_MS = parsePositiveInt(process.env.RENDER_SUBMIT_WINDOW_MS, 60_000);
 const SUBMIT_MAX_PER_WINDOW = parsePositiveInt(process.env.RENDER_SUBMIT_MAX_PER_WINDOW, 20);
+const MAX_RATE_WINDOW_KEYS = parsePositiveInt(process.env.RENDER_MAX_RATE_WINDOW_KEYS, 10_000);
+const RATE_WINDOW_RETENTION_MS = parsePositiveInt(
+  process.env.RENDER_RATE_WINDOW_RETENTION_MS,
+  SUBMIT_WINDOW_MS * 2,
+);
+const MAX_TRACKED_RENDER_STATES = parsePositiveInt(process.env.RENDER_MAX_TRACKED_STATES, 2_000);
+const RENDER_STATE_RETENTION_MS = parsePositiveInt(
+  process.env.RENDER_STATE_RETENTION_MS,
+  10 * 60 * 1000,
+);
 
 const ALLOWED_TEMPLATES = new Set(['classic', 'cinematic']);
 const ALLOWED_ASPECT_RATIOS = new Set(['9:16', '1:1', '16:9']);
@@ -134,9 +144,65 @@ function ensureRendererAuth(req, res, next) {
   return next();
 }
 
+function pruneSubmitRateWindows(now = Date.now()) {
+  for (const [key, windowState] of submitRateWindows.entries()) {
+    if (now - windowState.startedAt > RATE_WINDOW_RETENTION_MS) {
+      submitRateWindows.delete(key);
+    }
+  }
+
+  while (submitRateWindows.size > MAX_RATE_WINDOW_KEYS) {
+    const oldestKey = submitRateWindows.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    submitRateWindows.delete(oldestKey);
+  }
+}
+
+function isTerminalRenderState(state) {
+  return state.status === 'completed' || state.status === 'failed';
+}
+
+function pruneRenderStates(now = Date.now()) {
+  for (const [renderId, state] of renders.entries()) {
+    const timestamp = state.updatedAt || state.createdAt || now;
+    if (isTerminalRenderState(state) && now - timestamp > RENDER_STATE_RETENTION_MS) {
+      renders.delete(renderId);
+      cancelFns.delete(renderId);
+    }
+  }
+
+  if (renders.size <= MAX_TRACKED_RENDER_STATES) {
+    return;
+  }
+
+  // Prefer evicting terminal states first.
+  for (const [renderId, state] of renders.entries()) {
+    if (renders.size <= MAX_TRACKED_RENDER_STATES) {
+      break;
+    }
+    if (isTerminalRenderState(state)) {
+      renders.delete(renderId);
+      cancelFns.delete(renderId);
+    }
+  }
+
+  // Hard cap fallback.
+  while (renders.size > MAX_TRACKED_RENDER_STATES) {
+    const oldestKey = renders.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    renders.delete(oldestKey);
+    cancelFns.delete(oldestKey);
+  }
+}
+
 function enforceSubmitRateLimit(req, res, next) {
   const key = req.ip || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
+  pruneSubmitRateWindows(now);
   const windowState = submitRateWindows.get(key);
   if (!windowState || now - windowState.startedAt >= SUBMIT_WINDOW_MS) {
     submitRateWindows.set(key, { startedAt: now, count: 1 });
@@ -379,6 +445,7 @@ async function submitRender(manifest) {
     return { render_id: renderId, status: 'queued' };
   }
 
+  pruneRenderStates();
   const renderId = crypto.randomUUID();
   renders.set(renderId, {
     renderId,
@@ -403,6 +470,7 @@ async function getRenderStatus(renderId) {
     return lambdaBackend.getStatus(renderId);
   }
 
+  pruneRenderStates();
   const state = renders.get(renderId);
   if (!state) {
     return null;
@@ -423,6 +491,7 @@ async function cancelRender(renderId) {
     return found;
   }
 
+  pruneRenderStates();
   const state = renders.get(renderId);
   if (!state) {
     return false;
@@ -447,6 +516,7 @@ function getActiveRenderCount() {
   if (RENDER_BACKEND === 'lambda') {
     return lambdaBackend?.getActiveCount?.() ?? 0;
   }
+  pruneRenderStates();
   let active = 0;
   for (const state of renders.values()) {
     if (state.status === 'queued' || state.status === 'rendering') {

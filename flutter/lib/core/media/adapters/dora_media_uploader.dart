@@ -56,12 +56,18 @@ class DoraMediaUploader implements AppMediaUploader {
       throw const MediaUploadContractException(
           'Upload response payload is empty');
     }
+    final tripId = data.tripId;
+    if (tripId == null || tripId.isEmpty) {
+      throw const MediaUploadContractException(
+        'Upload response missing tripId',
+      );
+    }
 
     return UploadedPhotoResult(
       mediaId: data.id,
       fileUrl: data.fileUrl,
       fileType: data.fileType,
-      tripId: data.tripId,
+      tripId: tripId,
       tripPlaceId: data.tripPlaceId,
       createdAt: data.createdAt,
       thumbnailUrl: data.thumbnailUrl,

@@ -15,6 +15,8 @@ doc/ExportCancelResponse.md
 doc/ExportCreateRequest.md
 doc/ExportCreateResponse.md
 doc/ExportDownloadUrlResponse.md
+doc/ExportJobListResponse.md
+doc/ExportJobSummaryResponse.md
 doc/ExportQuality.md
 doc/ExportShareUrlResponse.md
 doc/ExportStage.md
@@ -104,6 +106,8 @@ lib/src/model/export_cancel_response.dart
 lib/src/model/export_create_request.dart
 lib/src/model/export_create_response.dart
 lib/src/model/export_download_url_response.dart
+lib/src/model/export_job_list_response.dart
+lib/src/model/export_job_summary_response.dart
 lib/src/model/export_quality.dart
 lib/src/model/export_share_url_response.dart
 lib/src/model/export_stage.dart
@@ -155,15 +159,5 @@ lib/src/model/waypoint_response.dart
 lib/src/model/waypoint_update.dart
 lib/src/serializers.dart
 pubspec.yaml
-test/export_aspect_ratio_test.dart
-test/export_cancel_response_test.dart
-test/export_create_request_test.dart
-test/export_create_response_test.dart
-test/export_download_url_response_test.dart
-test/export_quality_test.dart
-test/export_share_url_response_test.dart
-test/export_stage_test.dart
-test/export_status_response_test.dart
-test/export_status_test.dart
-test/export_template_test.dart
-test/exports_api_test.dart
+test/export_job_list_response_test.dart
+test/export_job_summary_response_test.dart

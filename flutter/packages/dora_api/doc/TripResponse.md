@@ -18,6 +18,7 @@ Name | Type | Description | Notes
 **visibility** | **String** |  | 
 **viewsCount** | **int** |  | 
 **savesCount** | **int** |  | 
+**placeCount** | **int** |  | [optional] [default to 0]
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **updatedAt** | [**DateTime**](DateTime.md) |  | 
 

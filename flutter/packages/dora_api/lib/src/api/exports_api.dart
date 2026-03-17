@@ -13,7 +13,9 @@ import 'package:dora_api/src/model/export_cancel_response.dart';
 import 'package:dora_api/src/model/export_create_request.dart';
 import 'package:dora_api/src/model/export_create_response.dart';
 import 'package:dora_api/src/model/export_download_url_response.dart';
+import 'package:dora_api/src/model/export_job_list_response.dart';
 import 'package:dora_api/src/model/export_share_url_response.dart';
+import 'package:dora_api/src/model/export_status.dart';
 import 'package:dora_api/src/model/export_status_response.dart';
 import 'package:dora_api/src/model/http_validation_error.dart';
 
@@ -426,6 +428,98 @@ class ExportsApi {
     }
 
     return Response<ExportStatusResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// List Exports
+  /// 
+  ///
+  /// Parameters:
+  /// * [authorization] - Bearer token from Supabase Auth
+  /// * [page] - Page number (1-indexed)
+  /// * [pageSize] - Items per page
+  /// * [status] - Optional status filter
+  /// * [tripId] - Optional trip filter
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [ExportJobListResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<ExportJobListResponse>> listExportsApiV1ExportsGet({ 
+    required String authorization,
+    int? page = 1,
+    int? pageSize = 20,
+    ExportStatus? status,
+    String? tripId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/exports';
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{
+        r'authorization': authorization,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{
+      if (page != null) r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
+      if (pageSize != null) r'page_size': encodeQueryParameter(_serializers, pageSize, const FullType(int)),
+      r'status': encodeQueryParameter(_serializers, status, const FullType(ExportStatus)),
+      r'trip_id': encodeQueryParameter(_serializers, tripId, const FullType(String)),
+    };
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    ExportJobListResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(ExportJobListResponse),
+      ) as ExportJobListResponse;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<ExportJobListResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

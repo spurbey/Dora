@@ -9,11 +9,54 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**deleteCurrentUserAccountApiV1UsersMeDelete**](UsersApi.md#deletecurrentuseraccountapiv1usersmedelete) | **DELETE** /api/v1/users/me | Delete Current User Account
 [**getCurrentUserCompleteProfileApiV1UsersMeProfileGet**](UsersApi.md#getcurrentusercompleteprofileapiv1usersmeprofileget) | **GET** /api/v1/users/me/profile | Get Current User Complete Profile
 [**getCurrentUserProfileApiV1UsersMeGet**](UsersApi.md#getcurrentuserprofileapiv1usersmeget) | **GET** /api/v1/users/me | Get Current User Profile
 [**getCurrentUserStatsApiV1UsersMeStatsGet**](UsersApi.md#getcurrentuserstatsapiv1usersmestatsget) | **GET** /api/v1/users/me/stats | Get Current User Stats
 [**updateCurrentUserProfileApiV1UsersMePatch**](UsersApi.md#updatecurrentuserprofileapiv1usersmepatch) | **PATCH** /api/v1/users/me | Update Current User Profile
 
+
+# **deleteCurrentUserAccountApiV1UsersMeDelete**
+> deleteCurrentUserAccountApiV1UsersMeDelete(authorization)
+
+Delete Current User Account
+
+Permanently delete current user account and owned data.  Deletion sequence: 1. Remove auth identity from Supabase Auth. 2. Remove backend user row (DB cascades remove related rows).
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getUsersApi();
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+
+try {
+    api.deleteCurrentUserAccountApiV1UsersMeDelete(authorization);
+} on DioException catch (e) {
+    print('Exception when calling UsersApi->deleteCurrentUserAccountApiV1UsersMeDelete: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getCurrentUserCompleteProfileApiV1UsersMeProfileGet**
 > UserProfileResponse getCurrentUserCompleteProfileApiV1UsersMeProfileGet(authorization)

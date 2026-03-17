@@ -14,6 +14,7 @@ Method | HTTP request | Description
 [**getExportDownloadUrlApiV1ExportsJobIdDownloadUrlGet**](ExportsApi.md#getexportdownloadurlapiv1exportsjobiddownloadurlget) | **GET** /api/v1/exports/{job_id}/download-url | Get Export Download Url
 [**getExportShareUrlApiV1ExportsJobIdShareGet**](ExportsApi.md#getexportshareurlapiv1exportsjobidshareget) | **GET** /api/v1/exports/{job_id}/share | Get Export Share Url
 [**getExportStatusApiV1ExportsJobIdGet**](ExportsApi.md#getexportstatusapiv1exportsjobidget) | **GET** /api/v1/exports/{job_id} | Get Export Status
+[**listExportsApiV1ExportsGet**](ExportsApi.md#listexportsapiv1exportsget) | **GET** /api/v1/exports | List Exports
 
 
 # **cancelExportApiV1ExportsJobIdCancelPost**
@@ -221,6 +222,55 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**ExportStatusResponse**](ExportStatusResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listExportsApiV1ExportsGet**
+> ExportJobListResponse listExportsApiV1ExportsGet(authorization, page, pageSize, status, tripId)
+
+List Exports
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getExportsApi();
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final int page = 56; // int | Page number (1-indexed)
+final int pageSize = 56; // int | Items per page
+final ExportStatus status = ; // ExportStatus | Optional status filter
+final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | Optional trip filter
+
+try {
+    final response = api.listExportsApiV1ExportsGet(authorization, page, pageSize, status, tripId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling ExportsApi->listExportsApiV1ExportsGet: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+ **page** | **int**| Page number (1-indexed) | [optional] [default to 1]
+ **pageSize** | **int**| Items per page | [optional] [default to 20]
+ **status** | [**ExportStatus**](.md)| Optional status filter | [optional] 
+ **tripId** | **String**| Optional trip filter | [optional] 
+
+### Return type
+
+[**ExportJobListResponse**](ExportJobListResponse.md)
 
 ### Authorization
 

@@ -51,6 +51,7 @@ class FeedApi {
     int page = 1,
     int limit = 10,
     String? visibility,
+    bool publicOnly = true,
   }) async {
     try {
       final auth = await _authorizationHeader();
@@ -59,6 +60,7 @@ class FeedApi {
         page: page,
         pageSize: limit,
         visibility: visibility,
+        publicOnly: publicOnly,
       );
       final trips = response.data?.trips;
       if (trips == null || trips.isEmpty) {

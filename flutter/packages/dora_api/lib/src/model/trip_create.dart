@@ -9,7 +9,7 @@ import 'package:built_value/serializer.dart';
 
 part 'trip_create.g.dart';
 
-/// Trip creation schema.  Inherits all fields from TripBase. Used for POST /trips endpoint.  Business Logic:     - user_id is automatically set from authenticated user     - Free tier users: max 3 trips (enforced in service layer)     - Premium users: unlimited trips
+/// Trip creation schema.  Inherits all fields from TripBase. Used for POST /trips endpoint.  Business Logic:     - user_id is automatically set from authenticated user     - Free tier users: max 6 trips (enforced in service layer)     - Premium users: unlimited trips
 ///
 /// Properties:
 /// * [title] 

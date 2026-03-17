@@ -262,6 +262,36 @@ def test_list_trips_visibility_filter(client, db, test_user, auth_as):
     assert all(trip["visibility"] == "public" for trip in data["trips"])
 
 
+def test_list_trips_public_only_returns_global_public(client, db, test_user, other_user, auth_as):
+    auth_as(test_user)
+
+    create_trip(db, test_user.id, title="Mine Public", visibility="public")
+    create_trip(db, test_user.id, title="Mine Private", visibility="private")
+    create_trip(db, other_user.id, title="Other Public", visibility="public")
+    create_trip(db, other_user.id, title="Other Unlisted", visibility="unlisted")
+
+    response = client.get("/api/v1/trips?public_only=true")
+    assert response.status_code == 200
+
+    data = response.json()
+    titles = {trip["title"] for trip in data["trips"]}
+    assert titles == {"Mine Public", "Other Public"}
+    assert all(trip["visibility"] == "public" for trip in data["trips"])
+
+
+def test_list_trips_public_only_with_private_filter_is_empty(client, db, test_user, other_user, auth_as):
+    auth_as(test_user)
+
+    create_trip(db, test_user.id, title="Mine Public", visibility="public")
+    create_trip(db, other_user.id, title="Other Public", visibility="public")
+
+    response = client.get("/api/v1/trips?public_only=true&visibility=private")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["trips"] == []
+    assert data["total"] == 0
+
+
 def test_list_trips_ordered_by_newest(client, db, test_user, auth_as):
     auth_as(test_user)
 

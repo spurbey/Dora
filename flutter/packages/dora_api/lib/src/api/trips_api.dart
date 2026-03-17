@@ -25,7 +25,7 @@ class TripsApi {
   const TripsApi(this._dio, this._serializers);
 
   /// Create Trip
-  /// Create a new trip.      **Authentication:** Required      **Permissions:** Any authenticated user      **Request Body:**     - title: Trip title (required, 1-255 chars)     - description: Optional trip description     - start_date: Optional trip start date (YYYY-MM-DD)     - end_date: Optional trip end date (YYYY-MM-DD)     - cover_photo_url: Optional cover photo URL     - visibility: private | unlisted | public (default: private)      **Returns:**     Created trip with generated ID      **Response Example:** &#x60;&#x60;&#x60;json     {         \&quot;id\&quot;: \&quot;123e4567-e89b-12d3-a456-426614174000\&quot;,         \&quot;user_id\&quot;: \&quot;987e6543-e21b-12d3-a456-426614174000\&quot;,         \&quot;title\&quot;: \&quot;Summer Europe Trip\&quot;,         \&quot;description\&quot;: \&quot;Backpacking across Europe\&quot;,         \&quot;start_date\&quot;: \&quot;2025-06-01\&quot;,         \&quot;end_date\&quot;: \&quot;2025-06-30\&quot;,         \&quot;visibility\&quot;: \&quot;private\&quot;,         \&quot;views_count\&quot;: 0,         \&quot;saves_count\&quot;: 0,         \&quot;created_at\&quot;: \&quot;2025-01-25T10:30:00Z\&quot;,         \&quot;updated_at\&quot;: \&quot;2025-01-25T10:30:00Z\&quot;     } &#x60;&#x60;&#x60;      **Errors:**     - 400: Invalid date range (end_date &lt; start_date) or invalid visibility     - 401: Not authenticated     - 403: Free tier limit reached (3 trips max)      **Business Logic:**     - user_id is automatically set from authenticated user     - Free tier users: max 3 trips     - Premium users: unlimited trips     - Default visibility is \&quot;private\&quot;     - views_count and saves_count initialized to 0
+  /// Create a new trip.      **Authentication:** Required      **Permissions:** Any authenticated user      **Request Body:**     - title: Trip title (required, 1-255 chars)     - description: Optional trip description     - start_date: Optional trip start date (YYYY-MM-DD)     - end_date: Optional trip end date (YYYY-MM-DD)     - cover_photo_url: Optional cover photo URL     - visibility: private | unlisted | public (default: private)      **Returns:**     Created trip with generated ID      **Response Example:** &#x60;&#x60;&#x60;json     {         \&quot;id\&quot;: \&quot;123e4567-e89b-12d3-a456-426614174000\&quot;,         \&quot;user_id\&quot;: \&quot;987e6543-e21b-12d3-a456-426614174000\&quot;,         \&quot;title\&quot;: \&quot;Summer Europe Trip\&quot;,         \&quot;description\&quot;: \&quot;Backpacking across Europe\&quot;,         \&quot;start_date\&quot;: \&quot;2025-06-01\&quot;,         \&quot;end_date\&quot;: \&quot;2025-06-30\&quot;,         \&quot;visibility\&quot;: \&quot;private\&quot;,         \&quot;views_count\&quot;: 0,         \&quot;saves_count\&quot;: 0,         \&quot;created_at\&quot;: \&quot;2025-01-25T10:30:00Z\&quot;,         \&quot;updated_at\&quot;: \&quot;2025-01-25T10:30:00Z\&quot;     } &#x60;&#x60;&#x60;      **Errors:**     - 400: Invalid date range (end_date &lt; start_date) or invalid visibility     - 401: Not authenticated     - 403: Free tier limit reached (6 trips max)      **Business Logic:**     - user_id is automatically set from authenticated user     - Free tier users: max 6 trips     - Premium users: unlimited trips     - Default visibility is \&quot;private\&quot;     - views_count and saves_count initialized to 0
   ///
   /// Parameters:
   /// * [authorization] - Bearer token from Supabase Auth
@@ -329,13 +329,14 @@ class TripsApi {
   }
 
   /// List Trips
-  /// List current user&#39;s trips with pagination.      **Authentication:** Required      **Permissions:** Any authenticated user (only sees own trips)      **Query Parameters:**     - page: Page number (default: 1, min: 1)     - page_size: Items per page (default: 20, max: 100)     - visibility: Optional filter by visibility (private|unlisted|public)      **Returns:**     Paginated list of trips with metadata      **Response Example:** &#x60;&#x60;&#x60;json     {         \&quot;trips\&quot;: [             {                 \&quot;id\&quot;: \&quot;123e4567-e89b-12d3-a456-426614174000\&quot;,                 \&quot;title\&quot;: \&quot;Summer Europe Trip\&quot;,                 ...             },             {                 \&quot;id\&quot;: \&quot;987e6543-e21b-12d3-a456-426614174000\&quot;,                 \&quot;title\&quot;: \&quot;Winter Japan Trip\&quot;,                 ...             }         ],         \&quot;total\&quot;: 15,         \&quot;page\&quot;: 1,         \&quot;page_size\&quot;: 20,         \&quot;total_pages\&quot;: 1     } &#x60;&#x60;&#x60;      **Errors:**     - 401: Not authenticated      **Business Logic:**     - Only returns trips owned by current user     - Results ordered by created_at DESC (newest first)     - Page size automatically capped at 100     - Empty list if user has no trips
+  /// List trips with pagination.      **Authentication:** Required      **Permissions:** Any authenticated user      **Query Parameters:**     - page: Page number (default: 1, min: 1)     - page_size: Items per page (default: 20, max: 100)     - visibility: Optional filter by visibility (private|unlisted|public)     - public_only: When true, returns global public trips for social feed      **Returns:**     Paginated list of trips with metadata      **Response Example:** &#x60;&#x60;&#x60;json     {         \&quot;trips\&quot;: [             {                 \&quot;id\&quot;: \&quot;123e4567-e89b-12d3-a456-426614174000\&quot;,                 \&quot;title\&quot;: \&quot;Summer Europe Trip\&quot;,                 ...             },             {                 \&quot;id\&quot;: \&quot;987e6543-e21b-12d3-a456-426614174000\&quot;,                 \&quot;title\&quot;: \&quot;Winter Japan Trip\&quot;,                 ...             }         ],         \&quot;total\&quot;: 15,         \&quot;page\&quot;: 1,         \&quot;page_size\&quot;: 20,         \&quot;total_pages\&quot;: 1     } &#x60;&#x60;&#x60;      **Errors:**     - 401: Not authenticated      **Business Logic:**     - Default (&#x60;public_only&#x3D;false&#x60;): returns only trips owned by current user     - Social feed (&#x60;public_only&#x3D;true&#x60;): returns only public trips from all users     - Results ordered by created_at DESC (newest first)     - Page size automatically capped at 100     - Empty list if user has no trips
   ///
   /// Parameters:
   /// * [authorization] - Bearer token from Supabase Auth
   /// * [page] - Page number (1-indexed)
   /// * [pageSize] - Items per page (max 100)
   /// * [visibility] - Filter by visibility (private|unlisted|public)
+  /// * [publicOnly] - When true, return only public trips across all users
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -350,6 +351,7 @@ class TripsApi {
     int? page = 1,
     int? pageSize = 20,
     String? visibility,
+    bool? publicOnly = false,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -375,6 +377,7 @@ class TripsApi {
       if (page != null) r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
       if (pageSize != null) r'page_size': encodeQueryParameter(_serializers, pageSize, const FullType(int)),
       r'visibility': encodeQueryParameter(_serializers, visibility, const FullType(String)),
+      if (publicOnly != null) r'public_only': encodeQueryParameter(_serializers, publicOnly, const FullType(bool)),
     };
 
     final _response = await _dio.request<Object>(

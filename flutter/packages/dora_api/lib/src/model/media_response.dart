@@ -37,7 +37,7 @@ abstract class MediaResponse implements Built<MediaResponse, MediaResponseBuilde
   String get tripPlaceId;
 
   @BuiltValueField(wireName: r'trip_id')
-  String get tripId;
+  String? get tripId;
 
   @BuiltValueField(wireName: r'file_url')
   String get fileUrl;
@@ -107,11 +107,13 @@ class _$MediaResponseSerializer implements PrimitiveSerializer<MediaResponse> {
       object.tripPlaceId,
       specifiedType: const FullType(String),
     );
-    yield r'trip_id';
-    yield serializers.serialize(
-      object.tripId,
-      specifiedType: const FullType(String),
-    );
+    if (object.tripId != null) {
+      yield r'trip_id';
+      yield serializers.serialize(
+        object.tripId,
+        specifiedType: const FullType.nullable(String),
+      );
+    }
     yield r'file_url';
     yield serializers.serialize(
       object.fileUrl,
@@ -223,8 +225,9 @@ class _$MediaResponseSerializer implements PrimitiveSerializer<MediaResponse> {
         case r'trip_id':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(String),
-          ) as String;
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
           result.tripId = valueDes;
           break;
         case r'file_url':

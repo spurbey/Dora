@@ -22,6 +22,7 @@ part 'trip_response.g.dart';
 /// * [visibility] 
 /// * [viewsCount] 
 /// * [savesCount] 
+/// * [placeCount] 
 /// * [createdAt] 
 /// * [updatedAt] 
 @BuiltValue()
@@ -56,6 +57,9 @@ abstract class TripResponse implements Built<TripResponse, TripResponseBuilder> 
   @BuiltValueField(wireName: r'saves_count')
   int get savesCount;
 
+  @BuiltValueField(wireName: r'place_count')
+  int? get placeCount;
+
   @BuiltValueField(wireName: r'created_at')
   DateTime get createdAt;
 
@@ -67,7 +71,8 @@ abstract class TripResponse implements Built<TripResponse, TripResponseBuilder> 
   factory TripResponse([void updates(TripResponseBuilder b)]) = _$TripResponse;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(TripResponseBuilder b) => b;
+  static void _defaults(TripResponseBuilder b) => b
+      ..placeCount = 0;
 
   @BuiltValueSerializer(custom: true)
   static Serializer<TripResponse> get serializer => _$TripResponseSerializer();
@@ -143,6 +148,13 @@ class _$TripResponseSerializer implements PrimitiveSerializer<TripResponse> {
       object.savesCount,
       specifiedType: const FullType(int),
     );
+    if (object.placeCount != null) {
+      yield r'place_count';
+      yield serializers.serialize(
+        object.placeCount,
+        specifiedType: const FullType(int),
+      );
+    }
     yield r'created_at';
     yield serializers.serialize(
       object.createdAt,
@@ -249,6 +261,13 @@ class _$TripResponseSerializer implements PrimitiveSerializer<TripResponse> {
             specifiedType: const FullType(int),
           ) as int;
           result.savesCount = valueDes;
+          break;
+        case r'place_count':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(int),
+          ) as int;
+          result.placeCount = valueDes;
           break;
         case r'created_at':
           final valueDes = serializers.deserialize(

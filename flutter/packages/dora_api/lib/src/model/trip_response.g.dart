@@ -28,6 +28,8 @@ class _$TripResponse extends TripResponse {
   @override
   final int savesCount;
   @override
+  final int? placeCount;
+  @override
   final DateTime createdAt;
   @override
   final DateTime updatedAt;
@@ -46,6 +48,7 @@ class _$TripResponse extends TripResponse {
       required this.visibility,
       required this.viewsCount,
       required this.savesCount,
+      this.placeCount,
       required this.createdAt,
       required this.updatedAt})
       : super._();
@@ -70,6 +73,7 @@ class _$TripResponse extends TripResponse {
         visibility == other.visibility &&
         viewsCount == other.viewsCount &&
         savesCount == other.savesCount &&
+        placeCount == other.placeCount &&
         createdAt == other.createdAt &&
         updatedAt == other.updatedAt;
   }
@@ -87,6 +91,7 @@ class _$TripResponse extends TripResponse {
     _$hash = $jc(_$hash, visibility.hashCode);
     _$hash = $jc(_$hash, viewsCount.hashCode);
     _$hash = $jc(_$hash, savesCount.hashCode);
+    _$hash = $jc(_$hash, placeCount.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, updatedAt.hashCode);
     _$hash = $jf(_$hash);
@@ -106,6 +111,7 @@ class _$TripResponse extends TripResponse {
           ..add('visibility', visibility)
           ..add('viewsCount', viewsCount)
           ..add('savesCount', savesCount)
+          ..add('placeCount', placeCount)
           ..add('createdAt', createdAt)
           ..add('updatedAt', updatedAt))
         .toString();
@@ -157,6 +163,10 @@ class TripResponseBuilder
   int? get savesCount => _$this._savesCount;
   set savesCount(int? savesCount) => _$this._savesCount = savesCount;
 
+  int? _placeCount;
+  int? get placeCount => _$this._placeCount;
+  set placeCount(int? placeCount) => _$this._placeCount = placeCount;
+
   DateTime? _createdAt;
   DateTime? get createdAt => _$this._createdAt;
   set createdAt(DateTime? createdAt) => _$this._createdAt = createdAt;
@@ -182,6 +192,7 @@ class TripResponseBuilder
       _visibility = $v.visibility;
       _viewsCount = $v.viewsCount;
       _savesCount = $v.savesCount;
+      _placeCount = $v.placeCount;
       _createdAt = $v.createdAt;
       _updatedAt = $v.updatedAt;
       _$v = null;
@@ -220,6 +231,7 @@ class TripResponseBuilder
               viewsCount, r'TripResponse', 'viewsCount'),
           savesCount: BuiltValueNullFieldError.checkNotNull(
               savesCount, r'TripResponse', 'savesCount'),
+          placeCount: placeCount,
           createdAt: BuiltValueNullFieldError.checkNotNull(
               createdAt, r'TripResponse', 'createdAt'),
           updatedAt: BuiltValueNullFieldError.checkNotNull(

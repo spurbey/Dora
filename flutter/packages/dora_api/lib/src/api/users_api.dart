@@ -22,6 +22,54 @@ class UsersApi {
 
   const UsersApi(this._dio, this._serializers);
 
+  /// Delete Current User Account
+  /// Permanently delete current user account and owned data.  Deletion sequence: 1. Remove auth identity from Supabase Auth. 2. Remove backend user row (DB cascades remove related rows).
+  ///
+  /// Parameters:
+  /// * [authorization] - Bearer token from Supabase Auth
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future]
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<void>> deleteCurrentUserAccountApiV1UsersMeDelete({ 
+    required String authorization,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/users/me';
+    final _options = Options(
+      method: r'DELETE',
+      headers: <String, dynamic>{
+        r'authorization': authorization,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    return _response;
+  }
+
   /// Get Current User Complete Profile
   /// Get complete user profile with statistics.          **Authentication:** Required          **Permissions:** Any authenticated user          **Returns:**     User profile + statistics in single response          **Response Example:** &#x60;&#x60;&#x60;json     {         \&quot;user\&quot;: {             \&quot;id\&quot;: \&quot;123e4567-e89b-12d3-a456-426614174000\&quot;,             \&quot;email\&quot;: \&quot;user@example.com\&quot;,             \&quot;username\&quot;: \&quot;traveler123\&quot;,             ...         },         \&quot;stats\&quot;: {             \&quot;trip_count\&quot;: 5,             \&quot;place_count\&quot;: 47,             ...         }     } &#x60;&#x60;&#x60;          **Errors:**     - 401: Not authenticated          **Business Logic:**     - Combines /me and /me/stats into single response     - Reduces frontend API calls for profile page     - More efficient than two separate requests
   ///

@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **id** | **String** |  | 
 **userId** | **String** |  | 
 **tripPlaceId** | **String** |  | 
-**tripId** | **String** |  | 
+**tripId** | **String** |  | [optional] 
 **fileUrl** | **String** |  | 
 **fileType** | **String** |  | 
 **fileSizeBytes** | **int** |  | [optional] 

@@ -14,7 +14,7 @@ class _$MediaResponse extends MediaResponse {
   @override
   final String tripPlaceId;
   @override
-  final String tripId;
+  final String? tripId;
   @override
   final String fileUrl;
   @override
@@ -43,7 +43,7 @@ class _$MediaResponse extends MediaResponse {
       {required this.id,
       required this.userId,
       required this.tripPlaceId,
-      required this.tripId,
+      this.tripId,
       required this.fileUrl,
       required this.fileType,
       this.fileSizeBytes,
@@ -232,8 +232,7 @@ class MediaResponseBuilder
               userId, r'MediaResponse', 'userId'),
           tripPlaceId: BuiltValueNullFieldError.checkNotNull(
               tripPlaceId, r'MediaResponse', 'tripPlaceId'),
-          tripId: BuiltValueNullFieldError.checkNotNull(
-              tripId, r'MediaResponse', 'tripId'),
+          tripId: tripId,
           fileUrl: BuiltValueNullFieldError.checkNotNull(
               fileUrl, r'MediaResponse', 'fileUrl'),
           fileType: BuiltValueNullFieldError.checkNotNull(

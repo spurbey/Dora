@@ -33,6 +33,8 @@ export 'package:dora_api/src/model/export_cancel_response.dart';
 export 'package:dora_api/src/model/export_create_request.dart';
 export 'package:dora_api/src/model/export_create_response.dart';
 export 'package:dora_api/src/model/export_download_url_response.dart';
+export 'package:dora_api/src/model/export_job_list_response.dart';
+export 'package:dora_api/src/model/export_job_summary_response.dart';
 export 'package:dora_api/src/model/export_quality.dart';
 export 'package:dora_api/src/model/export_share_url_response.dart';
 export 'package:dora_api/src/model/export_stage.dart';

@@ -25,6 +25,8 @@ import 'package:dora_api/src/model/export_cancel_response.dart';
 import 'package:dora_api/src/model/export_create_request.dart';
 import 'package:dora_api/src/model/export_create_response.dart';
 import 'package:dora_api/src/model/export_download_url_response.dart';
+import 'package:dora_api/src/model/export_job_list_response.dart';
+import 'package:dora_api/src/model/export_job_summary_response.dart';
 import 'package:dora_api/src/model/export_quality.dart';
 import 'package:dora_api/src/model/export_share_url_response.dart';
 import 'package:dora_api/src/model/export_stage.dart';
@@ -89,6 +91,8 @@ part 'serializers.g.dart';
   ExportCreateRequest,
   ExportCreateResponse,
   ExportDownloadUrlResponse,
+  ExportJobListResponse,
+  ExportJobSummaryResponse,
   ExportQuality,
   ExportShareUrlResponse,
   ExportStage,

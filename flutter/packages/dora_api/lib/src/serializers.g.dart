@@ -19,6 +19,8 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(ExportCreateRequest.serializer)
       ..add(ExportCreateResponse.serializer)
       ..add(ExportDownloadUrlResponse.serializer)
+      ..add(ExportJobListResponse.serializer)
+      ..add(ExportJobSummaryResponse.serializer)
       ..add(ExportQuality.serializer)
       ..add(ExportShareUrlResponse.serializer)
       ..add(ExportStage.serializer)
@@ -94,6 +96,10 @@ Serializers _$serializers = (Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(ComponentReorderItem)]),
           () => ListBuilder<ComponentReorderItem>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ExportJobSummaryResponse)]),
+          () => ListBuilder<ExportJobSummaryResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(LocationInner)]),
           () => ListBuilder<LocationInner>())

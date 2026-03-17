@@ -248,6 +248,42 @@ def test_list_user_trips_empty(db, test_user):
     assert result.total_pages == 0
 
 
+def test_list_public_trips_returns_only_public(db, test_user, premium_user):
+    """
+    Test social feed listing returns only public trips across users.
+    """
+    service = TripService(db)
+
+    db.add_all([
+        Trip(user_id=test_user.id, title="Mine Public", visibility="public"),
+        Trip(user_id=test_user.id, title="Mine Private", visibility="private"),
+        Trip(user_id=premium_user.id, title="Other Public", visibility="public"),
+        Trip(user_id=premium_user.id, title="Other Unlisted", visibility="unlisted"),
+    ])
+    db.commit()
+
+    result = service.list_public_trips(page=1, page_size=20)
+    titles = {trip.title for trip in result.trips}
+
+    assert titles == {"Mine Public", "Other Public"}
+    assert all(trip.visibility == "public" for trip in result.trips)
+    assert result.total == 2
+
+
+def test_list_public_trips_private_visibility_filter_returns_empty(db, test_user):
+    """
+    Test public-trip list remains restricted to public visibility.
+    """
+    service = TripService(db)
+    db.add(Trip(user_id=test_user.id, title="Mine Public", visibility="public"))
+    db.commit()
+
+    result = service.list_public_trips(page=1, page_size=20, visibility_filter="private")
+
+    assert result.trips == []
+    assert result.total == 0
+
+
 def test_update_trip_success(db, sample_trip, test_user):
     """
     Test updating trip fields.

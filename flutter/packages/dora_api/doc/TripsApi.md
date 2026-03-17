@@ -22,7 +22,7 @@ Method | HTTP request | Description
 
 Create Trip
 
-Create a new trip.      **Authentication:** Required      **Permissions:** Any authenticated user      **Request Body:**     - title: Trip title (required, 1-255 chars)     - description: Optional trip description     - start_date: Optional trip start date (YYYY-MM-DD)     - end_date: Optional trip end date (YYYY-MM-DD)     - cover_photo_url: Optional cover photo URL     - visibility: private | unlisted | public (default: private)      **Returns:**     Created trip with generated ID      **Response Example:** ```json     {         \"id\": \"123e4567-e89b-12d3-a456-426614174000\",         \"user_id\": \"987e6543-e21b-12d3-a456-426614174000\",         \"title\": \"Summer Europe Trip\",         \"description\": \"Backpacking across Europe\",         \"start_date\": \"2025-06-01\",         \"end_date\": \"2025-06-30\",         \"visibility\": \"private\",         \"views_count\": 0,         \"saves_count\": 0,         \"created_at\": \"2025-01-25T10:30:00Z\",         \"updated_at\": \"2025-01-25T10:30:00Z\"     } ```      **Errors:**     - 400: Invalid date range (end_date < start_date) or invalid visibility     - 401: Not authenticated     - 403: Free tier limit reached (3 trips max)      **Business Logic:**     - user_id is automatically set from authenticated user     - Free tier users: max 3 trips     - Premium users: unlimited trips     - Default visibility is \"private\"     - views_count and saves_count initialized to 0
+Create a new trip.      **Authentication:** Required      **Permissions:** Any authenticated user      **Request Body:**     - title: Trip title (required, 1-255 chars)     - description: Optional trip description     - start_date: Optional trip start date (YYYY-MM-DD)     - end_date: Optional trip end date (YYYY-MM-DD)     - cover_photo_url: Optional cover photo URL     - visibility: private | unlisted | public (default: private)      **Returns:**     Created trip with generated ID      **Response Example:** ```json     {         \"id\": \"123e4567-e89b-12d3-a456-426614174000\",         \"user_id\": \"987e6543-e21b-12d3-a456-426614174000\",         \"title\": \"Summer Europe Trip\",         \"description\": \"Backpacking across Europe\",         \"start_date\": \"2025-06-01\",         \"end_date\": \"2025-06-30\",         \"visibility\": \"private\",         \"views_count\": 0,         \"saves_count\": 0,         \"created_at\": \"2025-01-25T10:30:00Z\",         \"updated_at\": \"2025-01-25T10:30:00Z\"     } ```      **Errors:**     - 400: Invalid date range (end_date < start_date) or invalid visibility     - 401: Not authenticated     - 403: Free tier limit reached (6 trips max)      **Business Logic:**     - user_id is automatically set from authenticated user     - Free tier users: max 6 trips     - Premium users: unlimited trips     - Default visibility is \"private\"     - views_count and saves_count initialized to 0
 
 ### Example
 ```dart
@@ -197,11 +197,11 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listTripsApiV1TripsGet**
-> TripListResponse listTripsApiV1TripsGet(authorization, page, pageSize, visibility)
+> TripListResponse listTripsApiV1TripsGet(authorization, page, pageSize, visibility, publicOnly)
 
 List Trips
 
-List current user's trips with pagination.      **Authentication:** Required      **Permissions:** Any authenticated user (only sees own trips)      **Query Parameters:**     - page: Page number (default: 1, min: 1)     - page_size: Items per page (default: 20, max: 100)     - visibility: Optional filter by visibility (private|unlisted|public)      **Returns:**     Paginated list of trips with metadata      **Response Example:** ```json     {         \"trips\": [             {                 \"id\": \"123e4567-e89b-12d3-a456-426614174000\",                 \"title\": \"Summer Europe Trip\",                 ...             },             {                 \"id\": \"987e6543-e21b-12d3-a456-426614174000\",                 \"title\": \"Winter Japan Trip\",                 ...             }         ],         \"total\": 15,         \"page\": 1,         \"page_size\": 20,         \"total_pages\": 1     } ```      **Errors:**     - 401: Not authenticated      **Business Logic:**     - Only returns trips owned by current user     - Results ordered by created_at DESC (newest first)     - Page size automatically capped at 100     - Empty list if user has no trips
+List trips with pagination.      **Authentication:** Required      **Permissions:** Any authenticated user      **Query Parameters:**     - page: Page number (default: 1, min: 1)     - page_size: Items per page (default: 20, max: 100)     - visibility: Optional filter by visibility (private|unlisted|public)     - public_only: When true, returns global public trips for social feed      **Returns:**     Paginated list of trips with metadata      **Response Example:** ```json     {         \"trips\": [             {                 \"id\": \"123e4567-e89b-12d3-a456-426614174000\",                 \"title\": \"Summer Europe Trip\",                 ...             },             {                 \"id\": \"987e6543-e21b-12d3-a456-426614174000\",                 \"title\": \"Winter Japan Trip\",                 ...             }         ],         \"total\": 15,         \"page\": 1,         \"page_size\": 20,         \"total_pages\": 1     } ```      **Errors:**     - 401: Not authenticated      **Business Logic:**     - Default (`public_only=false`): returns only trips owned by current user     - Social feed (`public_only=true`): returns only public trips from all users     - Results ordered by created_at DESC (newest first)     - Page size automatically capped at 100     - Empty list if user has no trips
 
 ### Example
 ```dart
@@ -212,9 +212,10 @@ final String authorization = authorization_example; // String | Bearer token fro
 final int page = 56; // int | Page number (1-indexed)
 final int pageSize = 56; // int | Items per page (max 100)
 final String visibility = visibility_example; // String | Filter by visibility (private|unlisted|public)
+final bool publicOnly = true; // bool | When true, return only public trips across all users
 
 try {
-    final response = api.listTripsApiV1TripsGet(authorization, page, pageSize, visibility);
+    final response = api.listTripsApiV1TripsGet(authorization, page, pageSize, visibility, publicOnly);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling TripsApi->listTripsApiV1TripsGet: $e\n');
@@ -229,6 +230,7 @@ Name | Type | Description  | Notes
  **page** | **int**| Page number (1-indexed) | [optional] [default to 1]
  **pageSize** | **int**| Items per page (max 100) | [optional] [default to 20]
  **visibility** | **String**| Filter by visibility (private|unlisted|public) | [optional] 
+ **publicOnly** | **bool**| When true, return only public trips across all users | [optional] [default to false]
 
 ### Return type
 

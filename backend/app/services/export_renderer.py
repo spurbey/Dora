@@ -58,19 +58,35 @@ class LocalRemotionRenderer(AbstractRemotionRenderer):
         self,
         base_url: Optional[str] = None,
         renderer_version: str = "1",
+        renderer_shared_secret: Optional[str] = None,
         timeout_seconds: float | httpx.Timeout = 10.0,
         client: Optional[httpx.AsyncClient] = None,
     ) -> None:
         self._base_url = (base_url or os.getenv("RENDERER_URL", "http://localhost:3100")).rstrip("/")
         self._renderer_version = renderer_version
+        self._renderer_shared_secret = (
+            renderer_shared_secret
+            if renderer_shared_secret is not None
+            else os.getenv("RENDERER_SHARED_SECRET", "")
+        ).strip()
+        if not self._renderer_shared_secret:
+            raise RuntimeError("renderer_auth_missing: set RENDERER_SHARED_SECRET")
         timeout = timeout_seconds
         if isinstance(timeout_seconds, (int, float)):
             timeout = httpx.Timeout(float(timeout_seconds))
-        self._client = client or httpx.AsyncClient(
-            base_url=self._base_url,
-            timeout=timeout,
-            headers={"X-Renderer-Version": self._renderer_version},
-        )
+        headers = {
+            "X-Renderer-Version": self._renderer_version,
+            "X-Renderer-Secret": self._renderer_shared_secret,
+        }
+        if client is not None:
+            self._client = client
+            self._client.headers.update(headers)
+        else:
+            self._client = httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=timeout,
+                headers=headers,
+            )
 
     async def render(self, manifest: RenderManifest) -> str:
         response = await self._client.post(

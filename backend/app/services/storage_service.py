@@ -212,7 +212,8 @@ class StorageService:
         user_id: UUID,
         is_premium: bool = False,
         allowed_types: Optional[list[str]] = None,
-        max_size_mb: int = 10
+        max_size_mb: int = 10,
+        contents: Optional[bytes] = None,
     ) -> str:
         """
         Upload file to Supabase Storage.
@@ -245,8 +246,10 @@ class StorageService:
         # Validate file type
         self._validate_file_type(file, allowed_types)
         
-        # Read file contents
-        contents = await file.read()
+        # Read file contents if caller didn't provide preloaded bytes.
+        # This allows upstream services to avoid duplicate full-file reads.
+        if contents is None:
+            contents = await file.read()
         file_size = len(contents)
         
         # Validate file size

@@ -599,3 +599,36 @@ def test_generate_route_mapbox(mock_httpx, client, test_user, auth_as):
     assert data["route_geojson"]["type"] == "LineString"
     assert data["distance_km"] == 10.5
     assert data["duration_mins"] == 30
+
+
+@patch('app.api.v1.routes.RouteService.generate_route', new_callable=AsyncMock)
+def test_generate_route_redacts_token_in_logs(
+    mock_generate_route,
+    client,
+    test_user,
+    auth_as,
+    caplog,
+):
+    """Failure logs must not include access tokens from upstream exception text."""
+    auth_as(test_user)
+    leaked_token = "pk.leak-test-token"
+    mock_generate_route.side_effect = RuntimeError(
+        f"mapbox_failed access_token={leaked_token}"
+    )
+
+    with caplog.at_level("ERROR"):
+        response = client.post(
+            "/api/v1/routes/generate",
+            json={
+                "coordinates": [[77.5946, 12.9716], [77.6000, 13.0000]],
+                "mode": "driving",
+            },
+        )
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == "Route generation failed. Please try again later."
+
+    log_text = " | ".join(record.getMessage() for record in caplog.records)
+    assert "Mapbox API error" in log_text
+    assert leaked_token not in log_text
+    assert "access_token=" not in log_text

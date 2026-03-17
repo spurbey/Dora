@@ -108,6 +108,7 @@ def mock_storage_service(monkeypatch):
             is_premium=False,
             allowed_types=None,
             max_size_mb=10,
+            contents=None,
         ):
             if allowed_types is None:
                 allowed_types = ["image/jpeg", "image/png", "image/webp"]
@@ -118,8 +119,8 @@ def mock_storage_service(monkeypatch):
                     detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}",
                 )
 
-            contents = await file.read()
-            await file.seek(0)
+            if contents is None:
+                contents = await file.read()
             file_size = len(contents)
 
             max_bytes = max_size_mb * 1024 * 1024

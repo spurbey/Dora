@@ -189,6 +189,47 @@ class MediaService:
         place.photos = updated_photos
         # Mark JSONB column as modified so SQLAlchemy tracks the change
         flag_modified(place, "photos")
+
+    async def _read_upload_bytes_bounded(
+        self,
+        file: UploadFile,
+        max_size_mb: int,
+        is_premium: bool,
+    ) -> bytes:
+        """
+        Read upload in chunks and fail once size limit is exceeded.
+
+        Prevents unbounded reads and avoids duplicate full-file buffering.
+        """
+        max_bytes = max_size_mb * 1024 * 1024
+        if is_premium:
+            max_bytes *= 10
+
+        chunks: list[bytes] = []
+        total = 0
+        chunk_size = 1024 * 1024
+
+        while True:
+            chunk = await file.read(chunk_size)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                tier = "Premium" if is_premium else "Free"
+                max_mb = max_bytes / 1024 / 1024
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{tier} tier file size limit: {max_mb:.0f}MB. Your file exceeds the allowed size",
+                )
+            chunks.append(chunk)
+
+        if total == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file is empty",
+            )
+
+        return b"".join(chunks)
     
     async def upload_photo(
         self,
@@ -230,21 +271,32 @@ class MediaService:
         """
         # Check place ownership
         place = self._check_place_ownership(media_data.trip_place_id, user_id)
-        
-        # Read file contents (needed for dimensions + storage)
-        file_bytes = await file.read()
-        await file.seek(0)  # Reset file pointer for storage service
-        
+
+        allowed_types = ["image/jpeg", "image/png", "image/webp"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}",
+            )
+
+        max_size_mb = 10
+        file_bytes = await self._read_upload_bytes_bounded(
+            file=file,
+            max_size_mb=max_size_mb,
+            is_premium=is_premium,
+        )
+
         # Upload to Supabase Storage
-        # This validates file type and size
+        # This validates file type/size again and persists bytes without re-reading.
         storage_service = self._get_storage_service()
         file_url = await storage_service.upload_file(
             file=file,
             bucket="photos",
             user_id=user_id,
             is_premium=is_premium,
-            allowed_types=["image/jpeg", "image/png", "image/webp"],
-            max_size_mb=10
+            allowed_types=allowed_types,
+            max_size_mb=max_size_mb,
+            contents=file_bytes,
         )
         
         # Extract file path from URL for thumbnail

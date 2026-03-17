@@ -336,7 +336,17 @@ async def generate_route(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logging.getLogger(__name__).error(f"Mapbox API error: {e}")
+        logger = logging.getLogger(__name__)
+        response = getattr(e, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if status_code is not None:
+            logger.error(
+                "Mapbox API error type=%s status=%s",
+                e.__class__.__name__,
+                status_code,
+            )
+        else:
+            logger.error("Mapbox API error type=%s", e.__class__.__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Route generation failed. Please try again later."

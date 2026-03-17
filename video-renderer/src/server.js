@@ -32,6 +32,13 @@ const CHROME_EXECUTABLE = process.env.REMOTION_CHROME_EXECUTABLE || undefined;
 const RENDER_BACKEND = (process.env.RENDER_BACKEND || 'local').trim().toLowerCase();
 const RENDERER_MAPBOX_TOKEN = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
 const RENDERER_MAP_STYLE = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
+const RENDERER_SHARED_SECRET = (process.env.RENDERER_SHARED_SECRET || '').trim();
+const MAX_DURATION_SEC = parsePositiveInt(process.env.RENDER_MAX_DURATION_SEC, 180);
+const MAX_FPS = parsePositiveInt(process.env.RENDER_MAX_FPS, 60);
+const MAX_SNAPSHOT_BYTES = parsePositiveInt(process.env.RENDER_MAX_SNAPSHOT_BYTES, 500 * 1024);
+const MAX_ACTIVE_RENDERS = parsePositiveInt(process.env.RENDER_MAX_ACTIVE_RENDERS, 8);
+const SUBMIT_WINDOW_MS = parsePositiveInt(process.env.RENDER_SUBMIT_WINDOW_MS, 60_000);
+const SUBMIT_MAX_PER_WINDOW = parsePositiveInt(process.env.RENDER_SUBMIT_MAX_PER_WINDOW, 20);
 
 const ALLOWED_TEMPLATES = new Set(['classic', 'cinematic']);
 const ALLOWED_ASPECT_RATIOS = new Set(['9:16', '1:1', '16:9']);
@@ -42,6 +49,16 @@ const COMPOSITION_BY_TEMPLATE = {
   classic: 'Classic',
   cinematic: 'Cinematic',
 };
+
+const submitRateWindows = new Map();
+
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value || '', 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
 
 function getDimensions(quality, aspectRatio) {
   const base = { '480p': 480, '720p': 720, '1080p': 1080 };
@@ -97,6 +114,44 @@ function ensureVersion(req, res, next) {
   return next();
 }
 
+function constantTimeEqual(left, right) {
+  const leftBuf = Buffer.from(left, 'utf8');
+  const rightBuf = Buffer.from(right, 'utf8');
+  if (leftBuf.length !== rightBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(leftBuf, rightBuf);
+}
+
+function ensureRendererAuth(req, res, next) {
+  if (!RENDERER_SHARED_SECRET) {
+    return res.status(503).json({ error: 'renderer_auth_not_configured' });
+  }
+  const provided = (req.header('x-renderer-secret') || '').trim();
+  if (!provided || !constantTimeEqual(provided, RENDERER_SHARED_SECRET)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  return next();
+}
+
+function enforceSubmitRateLimit(req, res, next) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowState = submitRateWindows.get(key);
+  if (!windowState || now - windowState.startedAt >= SUBMIT_WINDOW_MS) {
+    submitRateWindows.set(key, { startedAt: now, count: 1 });
+    return next();
+  }
+  if (windowState.count >= SUBMIT_MAX_PER_WINDOW) {
+    return res.status(429).json({
+      error: 'rate_limited',
+      detail: `Too many render submissions. Max ${SUBMIT_MAX_PER_WINDOW} per ${SUBMIT_WINDOW_MS}ms.`,
+    });
+  }
+  windowState.count += 1;
+  return next();
+}
+
 function hasBinaryPayload(snapshot) {
   const queue = [snapshot];
   while (queue.length) {
@@ -125,9 +180,17 @@ function validateManifest(body) {
   if (!Number.isInteger(duration_sec) || duration_sec <= 0) {
     return 'duration_sec must be a positive integer';
   }
+  if (duration_sec > MAX_DURATION_SEC) {
+    return `duration_sec must be <= ${MAX_DURATION_SEC}`;
+  }
   if (!Number.isInteger(fps) || fps <= 0) return 'fps must be a positive integer';
+  if (fps > MAX_FPS) return `fps must be <= ${MAX_FPS}`;
   if (!isObject(snapshot)) return 'snapshot must be a JSON object';
   if (hasBinaryPayload(snapshot)) return 'snapshot must not contain binary/base64 payloads';
+  const snapshotBytes = Buffer.byteLength(JSON.stringify(snapshot), 'utf8');
+  if (snapshotBytes > MAX_SNAPSHOT_BYTES) {
+    return `snapshot exceeds max size (${MAX_SNAPSHOT_BYTES} bytes)`;
+  }
   return null;
 }
 
@@ -380,9 +443,22 @@ async function cancelRender(renderId) {
   return true;
 }
 
-app.use('/api/v1/render', ensureVersion);
+function getActiveRenderCount() {
+  if (RENDER_BACKEND === 'lambda') {
+    return lambdaBackend?.getActiveCount?.() ?? 0;
+  }
+  let active = 0;
+  for (const state of renders.values()) {
+    if (state.status === 'queued' || state.status === 'rendering') {
+      active += 1;
+    }
+  }
+  return active;
+}
 
-app.post('/api/v1/render', async (req, res) => {
+app.use('/api/v1/render', ensureVersion, ensureRendererAuth);
+
+app.post('/api/v1/render', enforceSubmitRateLimit, async (req, res) => {
   if (!bundleReady) {
     const detail = bundleErr ? `backend_error:${bundleErr.message}` : 'backend_initializing';
     return res.status(503).json({ error: 'renderer_not_ready', detail });
@@ -390,6 +466,12 @@ app.post('/api/v1/render', async (req, res) => {
 
   const validationErr = validateManifest(req.body);
   if (validationErr) return badRequest(res, validationErr);
+  if (getActiveRenderCount() >= MAX_ACTIVE_RENDERS) {
+    return res.status(429).json({
+      error: 'queue_full',
+      detail: `Active render limit reached (${MAX_ACTIVE_RENDERS}).`,
+    });
+  }
 
   try {
     console.log(

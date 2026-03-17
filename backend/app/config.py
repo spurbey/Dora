@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     # Export renderer (Phase 6)
     RENDER_BACKEND: str = "mock"
     RENDERER_URL: str = "http://localhost:3100"
+    RENDERER_SHARED_SECRET: str = ""
 
     # AWS / Lambda export settings
     AWS_REGION: str = "us-east-1"
@@ -108,4 +109,9 @@ if settings.ENVIRONMENT == "production" and settings.RENDER_BACKEND == "lambda":
                 if not os.getenv(v)]
     if _missing:
         print(f"FATAL: Lambda mode requires: {', '.join(_missing)}", file=sys.stderr)
+        sys.exit(1)
+
+if settings.ENVIRONMENT == "production" and settings.RENDER_BACKEND in {"local", "lambda"}:
+    if not settings.RENDERER_SHARED_SECRET:
+        print("FATAL: RENDERER_SHARED_SECRET must be set in production", file=sys.stderr)
         sys.exit(1)

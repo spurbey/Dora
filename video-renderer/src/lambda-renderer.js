@@ -138,6 +138,8 @@ export class LambdaRenderBackend {
       thumbnailBucketName: stillResponse.bucketName || this._outputBucket,
       thumbnailKey: stillResponse.outKey || thumbnailKey,
       done: false,
+      terminalStatus: null,
+      error: null,
     });
     console.log(
       `[EXPORT_RENDER] lambda_submit job_id=${manifest.job_id} render_id=${renderId} lambda_render_id=${response.renderId}`,
@@ -153,6 +155,16 @@ export class LambdaRenderBackend {
     }
 
     if (entry.done) {
+      if (entry.terminalStatus === 'failed') {
+        return {
+          render_id: renderId,
+          status: 'failed',
+          progress: 1,
+          output_path: null,
+          thumbnail_path: null,
+          error: entry.error || 'lambda_render_failed',
+        };
+      }
       return {
         render_id: renderId,
         status: 'completed',
@@ -175,6 +187,9 @@ export class LambdaRenderBackend {
         ? progress.errors[0]
         : null;
       const message = firstError?.message || 'lambda_render_failed';
+      entry.done = true;
+      entry.terminalStatus = 'failed';
+      entry.error = message;
       console.error(
         `[EXPORT_FAIL] lambda_render render_id=${renderId} lambda_render_id=${entry.lambdaRenderId} error=${message}`,
       );
@@ -189,6 +204,7 @@ export class LambdaRenderBackend {
 
     if (progress.done) {
       entry.done = true;
+      entry.terminalStatus = 'completed';
       console.log(
         `[EXPORT_RENDER] lambda_complete render_id=${renderId} output_path=s3://${entry.outputBucketName}/${entry.outputKey}`,
       );
@@ -212,6 +228,16 @@ export class LambdaRenderBackend {
       thumbnail_path: null,
       error: null,
     };
+  }
+
+  getActiveCount() {
+    let active = 0;
+    for (const entry of this._renders.values()) {
+      if (!entry.done) {
+        active += 1;
+      }
+    }
+    return active;
   }
 
   /** Cancel is intentionally a no-op for Lambda renders.

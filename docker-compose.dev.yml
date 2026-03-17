@@ -17,6 +17,7 @@ services:
     environment:
       RENDER_BACKEND: local
       RENDERER_URL: http://renderer:3100
+      RENDERER_SHARED_SECRET: dora-dev-renderer-secret
       RENDER_OUTPUT_DIR: /render_artifacts
     volumes:
       - render_artifacts:/render_artifacts
@@ -32,6 +33,7 @@ services:
     environment:
       PORT: 3100
       RENDER_OUTPUT_DIR: /render_artifacts
+      RENDERER_SHARED_SECRET: dora-dev-renderer-secret
     volumes:
       - render_artifacts:/render_artifacts
 

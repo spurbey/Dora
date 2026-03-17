@@ -142,6 +142,7 @@ def mock_storage_service(monkeypatch):
             is_premium=False,
             allowed_types=None,
             max_size_mb=10,
+            contents=None,
         ):
             if allowed_types is None:
                 allowed_types = ["image/jpeg", "image/png", "image/webp"]

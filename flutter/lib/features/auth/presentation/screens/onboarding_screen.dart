@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    context.go(isLoggedIn ? Routes.startup : Routes.login);
+    context.go(isLoggedIn ? Routes.feed : Routes.login);
   }
 
   Future<void> _goNext() async {

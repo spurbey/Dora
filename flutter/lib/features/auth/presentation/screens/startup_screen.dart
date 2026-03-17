@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/navigation/routes.dart';
-import 'package:dora/features/auth/presentation/providers/profile_completion_provider.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/auth/presentation/constants/onboarding_keys.dart';
 import 'package:dora/shared/widgets/loading_indicator.dart';
 
-class StartupScreen extends ConsumerStatefulWidget {
+class StartupScreen extends StatefulWidget {
   const StartupScreen({super.key});
 
   @override
-  ConsumerState<StartupScreen> createState() => _StartupScreenState();
+  State<StartupScreen> createState() => _StartupScreenState();
 }
 
-class _StartupScreenState extends ConsumerState<StartupScreen>
+class _StartupScreenState extends State<StartupScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
 
@@ -55,28 +53,7 @@ class _StartupScreenState extends ConsumerState<StartupScreen>
       return;
     }
 
-    if (!isLoggedIn) {
-      context.go(Routes.login);
-      return;
-    }
-
-    try {
-      final completion =
-          await ref.read(profileCompletionRepositoryProvider).getStatus();
-      if (!mounted) {
-        return;
-      }
-      if (completion.requiresCompletion) {
-        context.go(Routes.completeProfile);
-        return;
-      }
-    } catch (_) {
-      // Fall through to feed if profile check fails transiently.
-    }
-
-    if (mounted) {
-      context.go(Routes.feed);
-    }
+    context.go(isLoggedIn ? Routes.feed : Routes.login);
   }
 
   @override

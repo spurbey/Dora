@@ -7,7 +7,6 @@ import 'package:dora/core/navigation/go_router_refresh_stream.dart';
 import 'package:dora/core/navigation/navigation_shell.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/config/feature_flags.dart';
-import 'package:dora/features/auth/presentation/screens/complete_profile_screen.dart';
 import 'package:dora/features/auth/presentation/screens/login_screen.dart';
 import 'package:dora/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
@@ -46,7 +45,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLoggedIn && (isAuthRoute || isOnboardingRoute)) {
-        return Routes.startup;
+        return Routes.feed;
       }
 
       return null;
@@ -67,10 +66,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.signup,
         builder: (context, state) => const SignupScreen(),
-      ),
-      GoRoute(
-        path: Routes.completeProfile,
-        builder: (context, state) => const CompleteProfileScreen(),
       ),
       GoRoute(
         path: Routes.editor,

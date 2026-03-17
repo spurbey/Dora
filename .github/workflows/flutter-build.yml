@@ -43,9 +43,9 @@ jobs:
 
       - name: Setup Shorebird
         if: inputs.use_shorebird
-        uses: shorebirdtech/setup@v1
+        uses: shorebirdtech/setup-shorebird@v1
         with:
-          token: ${{ secrets.SHOREBIRD_TOKEN }}
+          cache: true
 
       - uses: subosito/flutter-action@v2
         with:
@@ -74,6 +74,7 @@ jobs:
       - name: Shorebird release Android
         if: inputs.platform == 'android' && inputs.use_shorebird && !inputs.patch
         env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -82,6 +83,7 @@ jobs:
       - name: Shorebird patch Android
         if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
         env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -94,10 +96,14 @@ jobs:
 
       - name: Shorebird release iOS
         if: inputs.platform == 'ios' && inputs.use_shorebird && !inputs.patch
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: shorebird release ios ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch iOS
         if: inputs.platform == 'ios' && inputs.use_shorebird && inputs.patch
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: shorebird patch ios ${{ env.DART_DEFINES }}
 
       # --- Upload artifact ---

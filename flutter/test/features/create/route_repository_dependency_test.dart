@@ -31,6 +31,9 @@ class _FakeAuthService implements AuthService {
   Future<String?> getAccessToken() async => token;
 
   @override
+  Future<String?> refreshAccessToken({bool force = false}) async => token;
+
+  @override
   Future<AuthResponse> signInWithEmail(String email, String password) {
     throw UnimplementedError();
   }

@@ -6,7 +6,8 @@ import 'package:dora/core/storage/tables/sync_tasks_table.dart';
 part 'sync_task_dao.g.dart';
 
 @DriftAccessor(tables: [SyncTasks])
-class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin {
+class SyncTaskDao extends DatabaseAccessor<AppDatabase>
+    with _$SyncTaskDaoMixin {
   SyncTaskDao(super.db);
 
   Future<void> upsertQueuedTask({
@@ -27,23 +28,45 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
 
     if (existing != null) {
       final isInProgress = existing.status == 'in_progress';
+      final operationChanged = existing.operation != operation;
+      final shouldRequeueImmediately = !isInProgress &&
+          (operationChanged ||
+              existing.status == 'completed' ||
+              existing.status == 'blocked');
+      final preserveFailureBackoff =
+          !isInProgress && existing.status == 'failed' && !operationChanged;
       final Value<String?> remoteEntityIdValue =
-          (remoteEntityId == null && isInProgress)
-          ? const Value.absent()
-          : Value(remoteEntityId);
+          remoteEntityId == null ? const Value.absent() : Value(remoteEntityId);
       await (update(syncTasks)..where((t) => t.id.equals(existing.id))).write(
         SyncTasksCompanion(
           operation: Value(operation),
-          status: isInProgress ? const Value.absent() : const Value('queued'),
+          status: isInProgress
+              ? const Value.absent()
+              : (shouldRequeueImmediately
+                  ? const Value('queued')
+                  : const Value.absent()),
           remoteEntityId: remoteEntityIdValue,
-          retryCount: isInProgress ? const Value.absent() : const Value(0),
-          nextAttemptAt: isInProgress ? const Value.absent() : const Value(null),
+          retryCount: (isInProgress ||
+                  preserveFailureBackoff ||
+                  !shouldRequeueImmediately)
+              ? const Value.absent()
+              : const Value(0),
+          nextAttemptAt: (isInProgress ||
+                  preserveFailureBackoff ||
+                  !shouldRequeueImmediately)
+              ? const Value.absent()
+              : const Value(null),
           dependsOnEntityType: Value(dependsOnEntityType),
           dependsOnEntityId: Value(dependsOnEntityId),
-          errorCode: isInProgress ? const Value.absent() : const Value(null),
-          errorMessage: isInProgress ? const Value.absent() : const Value(null),
-          workerSessionId:
-              isInProgress ? const Value.absent() : const Value(null),
+          errorCode: (isInProgress || !shouldRequeueImmediately)
+              ? const Value.absent()
+              : const Value(null),
+          errorMessage: (isInProgress || !shouldRequeueImmediately)
+              ? const Value.absent()
+              : const Value(null),
+          workerSessionId: (isInProgress || !shouldRequeueImmediately)
+              ? const Value.absent()
+              : const Value(null),
           updatedAt: Value(now),
         ),
       );
@@ -278,7 +301,8 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase> with _$SyncTaskDaoMixin 
   }) {
     var predicate = syncTasks.id.equals(taskId);
     if (expectedSessionId != null) {
-      predicate = predicate & syncTasks.workerSessionId.equals(expectedSessionId);
+      predicate =
+          predicate & syncTasks.workerSessionId.equals(expectedSessionId);
     }
     final query = update(syncTasks)..where((_) => predicate);
     return query.write(companion);

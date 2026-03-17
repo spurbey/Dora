@@ -19,7 +19,8 @@ void main() {
       await database.close();
     });
 
-    test('upsertQueuedTask inserts once and updates existing queued task', () async {
+    test('upsertQueuedTask inserts once and updates existing queued task',
+        () async {
       await dao.upsertQueuedTask(
         id: 'task-1',
         entityType: 'trip',
@@ -124,14 +125,16 @@ void main() {
       ).get();
 
       final statusById = {
-        for (final row in rows) row.read<String>('id'): row.read<String>('status'),
+        for (final row in rows)
+          row.read<String>('id'): row.read<String>('status'),
       };
 
       expect(statusById['task-ready'], 'in_progress');
       expect(statusById['task-failed-future'], 'failed');
     });
 
-    test('upsertQueuedTask stores remoteEntityId for delete operations', () async {
+    test('upsertQueuedTask stores remoteEntityId for delete operations',
+        () async {
       await dao.upsertQueuedTask(
         id: 'task-delete-1',
         entityType: 'place',
@@ -189,7 +192,8 @@ void main() {
       expect(row.read<String?>('worker_session_id'), isNot(equals(null)));
     });
 
-    test('upsertQueuedTask preserves in-progress remoteEntityId when absent', () async {
+    test('upsertQueuedTask preserves in-progress remoteEntityId when absent',
+        () async {
       await dao.upsertQueuedTask(
         id: 'task-lock-remote-1',
         entityType: 'route',
@@ -222,6 +226,129 @@ void main() {
       expect(row.read<String>('status'), 'in_progress');
       expect(row.read<String>('operation'), 'update');
       expect(row.read<String?>('remote_entity_id'), 'remote-route-1');
+    });
+
+    test(
+        'upsertQueuedTask preserves failed backoff when operation is unchanged',
+        () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final nextAttemptAt = now + const Duration(minutes: 2).inMilliseconds;
+
+      await database.customInsert(
+        '''
+        INSERT INTO sync_tasks (
+          id,
+          entity_type,
+          entity_id,
+          operation,
+          status,
+          retry_count,
+          next_attempt_at,
+          error_code,
+          error_message,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        variables: [
+          Variable<String>('task-failed-keep'),
+          Variable<String>('place'),
+          Variable<String>('place-failed-1'),
+          Variable<String>('update'),
+          Variable<String>('failed'),
+          Variable<int>(2),
+          Variable<int>(nextAttemptAt),
+          Variable<String>('http_500'),
+          Variable<String>('server error'),
+          Variable<int>(now),
+          Variable<int>(now),
+        ],
+      );
+
+      await dao.upsertQueuedTask(
+        id: 'task-failed-keep-new',
+        entityType: 'place',
+        entityId: 'place-failed-1',
+        operation: 'update',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT status, operation, retry_count, next_attempt_at, error_code, error_message
+        FROM sync_tasks
+        WHERE entity_type = 'place' AND entity_id = 'place-failed-1'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('status'), 'failed');
+      expect(row.read<String>('operation'), 'update');
+      expect(row.read<int>('retry_count'), 2);
+      expect(row.read<int?>('next_attempt_at'), nextAttemptAt);
+      expect(row.read<String?>('error_code'), 'http_500');
+      expect(row.read<String?>('error_message'), 'server error');
+    });
+
+    test('upsertQueuedTask requeues failed task when operation changes',
+        () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final nextAttemptAt = now + const Duration(minutes: 2).inMilliseconds;
+
+      await database.customInsert(
+        '''
+        INSERT INTO sync_tasks (
+          id,
+          entity_type,
+          entity_id,
+          operation,
+          status,
+          retry_count,
+          next_attempt_at,
+          error_code,
+          error_message,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        variables: [
+          Variable<String>('task-failed-reset'),
+          Variable<String>('place'),
+          Variable<String>('place-failed-2'),
+          Variable<String>('create'),
+          Variable<String>('failed'),
+          Variable<int>(2),
+          Variable<int>(nextAttemptAt),
+          Variable<String>('http_500'),
+          Variable<String>('server error'),
+          Variable<int>(now),
+          Variable<int>(now),
+        ],
+      );
+
+      await dao.upsertQueuedTask(
+        id: 'task-failed-reset-new',
+        entityType: 'place',
+        entityId: 'place-failed-2',
+        operation: 'update',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT status, operation, retry_count, next_attempt_at, error_code, error_message
+        FROM sync_tasks
+        WHERE entity_type = 'place' AND entity_id = 'place-failed-2'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('status'), 'queued');
+      expect(row.read<String>('operation'), 'update');
+      expect(row.read<int>('retry_count'), 0);
+      expect(row.read<int?>('next_attempt_at'), equals(null));
+      expect(row.read<String?>('error_code'), equals(null));
+      expect(row.read<String?>('error_message'), equals(null));
     });
 
     test('claimRunnableTasks waits for dependency task completion', () async {
@@ -262,7 +389,8 @@ void main() {
       expect(secondClaim.first.id, 'place-task-1');
     });
 
-    test('claimRunnableTasks does not run when dependency is blocked', () async {
+    test('claimRunnableTasks does not run when dependency is blocked',
+        () async {
       await dao.upsertQueuedTask(
         id: 'trip-task-blocked',
         entityType: 'trip',

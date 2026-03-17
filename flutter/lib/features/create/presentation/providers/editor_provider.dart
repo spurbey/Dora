@@ -249,7 +249,6 @@ class EditorController extends _$EditorController {
     ));
     current.mapController?.flyTo(place.coordinates, zoom: isCity ? 12 : 15);
     Future(() => ref.read(placeRepositoryProvider).addPlace(place));
-    _scheduleAutoSave();
   }
 
   void updateTripName(String name) {
@@ -310,7 +309,6 @@ class EditorController extends _$EditorController {
         .toList();
     state = AsyncData(current.copyWith(places: updated));
     Future(() => ref.read(placeRepositoryProvider).updatePlace(place));
-    _scheduleAutoSave();
   }
 
   void removePlace(String id) {
@@ -321,7 +319,6 @@ class EditorController extends _$EditorController {
     final updated = current.places.where((item) => item.id != id).toList();
     state = AsyncData(current.copyWith(places: updated));
     Future(() => ref.read(placeRepositoryProvider).deletePlace(id));
-    _scheduleAutoSave();
   }
 
   void reorderPlaces(int oldIndex, int newIndex) {
@@ -330,6 +327,9 @@ class EditorController extends _$EditorController {
       return;
     }
 
+    final previousById = {
+      for (final place in current.places) place.id: place,
+    };
     final items = List<Place>.from(current.places);
     final moved = items.removeAt(oldIndex);
     final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
@@ -344,7 +344,23 @@ class EditorController extends _$EditorController {
     }).toList();
 
     state = AsyncData(current.copyWith(places: updated));
-    _scheduleAutoSave();
+    final changedPlaces = updated.where((place) {
+      final previous = previousById[place.id];
+      if (previous == null) {
+        return true;
+      }
+      return previous.orderIndex != place.orderIndex ||
+          previous.dayNumber != place.dayNumber;
+    }).toList();
+
+    if (changedPlaces.isNotEmpty) {
+      unawaited(Future(() async {
+        final repository = ref.read(placeRepositoryProvider);
+        for (final place in changedPlaces) {
+          await repository.updatePlace(place);
+        }
+      }));
+    }
   }
 
   void addRoute(Route route) {
@@ -380,7 +396,6 @@ class EditorController extends _$EditorController {
       );
     }
     Future(() => ref.read(routeRepositoryProvider).addRoute(route));
-    _scheduleAutoSave();
   }
 
   void updateRoute(Route route) {
@@ -397,7 +412,6 @@ class EditorController extends _$EditorController {
         .toList();
     state = AsyncData(current.copyWith(routes: updated));
     Future(() => ref.read(routeRepositoryProvider).updateRoute(normalized));
-    _scheduleAutoSave();
   }
 
   void removeRoute(String id) {
@@ -417,7 +431,6 @@ class EditorController extends _$EditorController {
     ));
     _routeRecalcVersion.remove(id);
     Future(() => ref.read(routeRepositoryProvider).deleteRoute(id));
-    _scheduleAutoSave();
   }
 
   void toggleRouteEditMode(String _routeId) {
@@ -554,7 +567,8 @@ class EditorController extends _$EditorController {
     return snapped;
   }
 
-  int _nearestLogicalInsertIndex(AppLatLng point, List<AppLatLng> logicalNodes) {
+  int _nearestLogicalInsertIndex(
+      AppLatLng point, List<AppLatLng> logicalNodes) {
     double minDist = double.infinity;
     int insertAt = logicalNodes.length - 2;
     for (int i = 0; i < logicalNodes.length - 1; i++) {
@@ -582,9 +596,9 @@ class EditorController extends _$EditorController {
       final d = _dist(p, a);
       return (d, a);
     }
-    final t = ((p.longitude - a.longitude) * dx +
-            (p.latitude - a.latitude) * dy) /
-        lenSq;
+    final t =
+        ((p.longitude - a.longitude) * dx + (p.latitude - a.latitude) * dy) /
+            lenSq;
     final tc = t.clamp(0.0, 1.0);
     final snap = AppLatLng(
       latitude: a.latitude + tc * dy,
@@ -793,7 +807,8 @@ class EditorController extends _$EditorController {
     state = AsyncData(current.copyWith(
       routeStartItemId: id,
       routeStartItemType: routeStartItemType,
-      routeEndItemId: current.routeEndItemId == id ? null : current.routeEndItemId,
+      routeEndItemId:
+          current.routeEndItemId == id ? null : current.routeEndItemId,
     ));
   }
 
@@ -916,11 +931,15 @@ class EditorController extends _$EditorController {
     state = AsyncData(current.copyWith(saving: true));
     try {
       await ref.read(tripRepositoryProvider).updateTrip(current.trip);
-      await ref.read(placeRepositoryProvider).savePlaces(current.places);
-      await ref.read(routeRepositoryProvider).saveRoutes(current.routes);
-      state = AsyncData(current.copyWith(saving: false));
+      final latest = state.valueOrNull;
+      if (latest != null) {
+        state = AsyncData(latest.copyWith(saving: false));
+      }
     } catch (_) {
-      state = AsyncData(current.copyWith(saving: false));
+      final latest = state.valueOrNull;
+      if (latest != null) {
+        state = AsyncData(latest.copyWith(saving: false));
+      }
     }
   }
 

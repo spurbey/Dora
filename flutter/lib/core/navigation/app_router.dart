@@ -44,8 +44,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return Routes.login;
       }
 
-      if (isLoggedIn && (isAuthRoute || isOnboardingRoute)) {
-        return Routes.feed;
+      if (isLoggedIn && isAuthRoute) {
+        return Routes.startup;
       }
 
       return null;

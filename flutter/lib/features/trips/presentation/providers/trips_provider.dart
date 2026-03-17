@@ -49,12 +49,16 @@ class TripsController extends _$TripsController {
       );
     }
 
-    final trips = await repository.getUserTrips(forceRefresh: true);
-    ref.invalidate(profileControllerProvider);
-    return TripsState(
-      allTrips: trips,
-      trips: _applyFilters(trips, TripsFilter.all, ''),
-    );
+    try {
+      final trips = await repository.getUserTrips(forceRefresh: true);
+      ref.invalidate(profileControllerProvider);
+      return TripsState(
+        allTrips: trips,
+        trips: _applyFilters(trips, TripsFilter.all, ''),
+      );
+    } catch (_) {
+      return const TripsState(syncFailed: true);
+    }
   }
 
   void applyFilter(TripsFilter filter) {
@@ -120,11 +124,11 @@ class TripsController extends _$TripsController {
         ),
       );
       ref.invalidate(profileControllerProvider);
-    } catch (e, st) {
+    } catch (_) {
       if (current != null) {
         state = AsyncData(current.copyWith(syncFailed: true));
       } else {
-        state = AsyncError(e, st);
+        state = const AsyncData(TripsState(syncFailed: true));
       }
     }
   }

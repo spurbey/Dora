@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract class AuthTokenProvider {
@@ -11,6 +13,7 @@ class AuthService implements AuthTokenProvider {
 
   final SupabaseClient _supabase;
   Future<String?>? _refreshInFlight;
+  static const Duration _sessionReadyTimeout = Duration(seconds: 2);
 
   Stream<User?> get authStateChanges =>
       _supabase.auth.onAuthStateChange.map((event) => event.session?.user);
@@ -42,7 +45,7 @@ class AuthService implements AuthTokenProvider {
 
   @override
   Future<String?> refreshAccessToken({bool force = false}) async {
-    final current = _supabase.auth.currentSession;
+    final current = await _ensureCurrentSession();
     if (current == null) {
       return null;
     }
@@ -63,6 +66,25 @@ class AuthService implements AuthTokenProvider {
       if (identical(_refreshInFlight, refresh)) {
         _refreshInFlight = null;
       }
+    }
+  }
+
+  Future<Session?> _ensureCurrentSession() async {
+    final session = _supabase.auth.currentSession;
+    if (session != null) {
+      return session;
+    }
+
+    try {
+      final nextSession = await _supabase.auth.onAuthStateChange
+          .map((event) => event.session)
+          .firstWhere((value) => value != null)
+          .timeout(_sessionReadyTimeout);
+      return nextSession;
+    } on TimeoutException {
+      return _supabase.auth.currentSession;
+    } catch (_) {
+      return _supabase.auth.currentSession;
     }
   }
 

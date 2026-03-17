@@ -1,25 +1,30 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/auth/presentation/constants/onboarding_keys.dart';
+import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/shared/widgets/loading_indicator.dart';
 
-class StartupScreen extends StatefulWidget {
+class StartupScreen extends ConsumerStatefulWidget {
   const StartupScreen({super.key});
 
   @override
-  State<StartupScreen> createState() => _StartupScreenState();
+  ConsumerState<StartupScreen> createState() => _StartupScreenState();
 }
 
-class _StartupScreenState extends State<StartupScreen>
+class _StartupScreenState extends ConsumerState<StartupScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
+  static const int _bootstrapMaxAttempts = 5;
+  static const Duration _bootstrapStepDelay = Duration(milliseconds: 350);
 
   @override
   void initState() {
@@ -42,7 +47,6 @@ class _StartupScreenState extends State<StartupScreen>
     final prefs = await SharedPreferences.getInstance();
     final hasSeenOnboarding =
         prefs.getBool(OnboardingKeys.hasSeenOnboarding) ?? false;
-    final isLoggedIn = Supabase.instance.client.auth.currentSession != null;
 
     if (!mounted) {
       return;
@@ -53,7 +57,96 @@ class _StartupScreenState extends State<StartupScreen>
       return;
     }
 
-    context.go(isLoggedIn ? Routes.feed : Routes.login);
+    final initialToken = await ref.read(authServiceProvider).getAccessToken();
+    if (!mounted) {
+      return;
+    }
+    if (initialToken == null || initialToken.isEmpty) {
+      context.go(Routes.login);
+      return;
+    }
+
+    final bootstrapResult = await _warmUpAuthenticatedSession(
+      initialToken: initialToken,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (bootstrapResult == _BootstrapResult.authFailure ||
+        bootstrapResult == _BootstrapResult.accountConflict) {
+      await ref.read(authServiceProvider).signOut();
+      if (!mounted) {
+        return;
+      }
+      if (bootstrapResult == _BootstrapResult.accountConflict) {
+        context.go(_loginPathWithReason('account_conflict'));
+      } else {
+        context.go(Routes.login);
+      }
+      return;
+    }
+
+    context.go(Routes.feed);
+  }
+
+  Future<_BootstrapResult> _warmUpAuthenticatedSession({
+    required String initialToken,
+  }) async {
+    final authService = ref.read(authServiceProvider);
+    final usersApi = ref.read(usersApiProvider);
+    String? token = initialToken;
+
+    for (var attempt = 0; attempt < _bootstrapMaxAttempts; attempt++) {
+      if (token == null || token.isEmpty) {
+        token = await authService.getAccessToken();
+        if (attempt == _bootstrapMaxAttempts - 1) {
+          return _BootstrapResult.authFailure;
+        }
+        await Future<void>.delayed(_delayForAttempt(attempt));
+        continue;
+      }
+
+      try {
+        await usersApi.getCurrentUserProfileApiV1UsersMeGet(
+          authorization: 'Bearer $token',
+        );
+        return _BootstrapResult.ready;
+      } on DioException catch (error) {
+        final statusCode = error.response?.statusCode;
+        if (statusCode == 401 || statusCode == 403) {
+          return _BootstrapResult.authFailure;
+        }
+        if (statusCode == 409) {
+          return _BootstrapResult.accountConflict;
+        }
+        token = await authService.refreshAccessToken(force: true);
+        if (attempt == _bootstrapMaxAttempts - 1) {
+          return _BootstrapResult.transientFailure;
+        }
+        await Future<void>.delayed(_delayForAttempt(attempt));
+      } catch (_) {
+        if (attempt == _bootstrapMaxAttempts - 1) {
+          return _BootstrapResult.transientFailure;
+        }
+        await Future<void>.delayed(_delayForAttempt(attempt));
+      }
+    }
+
+    return _BootstrapResult.transientFailure;
+  }
+
+  Duration _delayForAttempt(int attempt) {
+    final multiplier = attempt + 1;
+    return Duration(
+      milliseconds: _bootstrapStepDelay.inMilliseconds * multiplier,
+    );
+  }
+
+  String _loginPathWithReason(String reason) {
+    return Uri(
+      path: Routes.login,
+      queryParameters: <String, String>{'reason': reason},
+    ).toString();
   }
 
   @override
@@ -146,6 +239,13 @@ class _StartupScreenState extends State<StartupScreen>
       ),
     );
   }
+}
+
+enum _BootstrapResult {
+  ready,
+  transientFailure,
+  authFailure,
+  accountConflict,
 }
 
 class _BackdropOrb extends StatelessWidget {

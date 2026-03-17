@@ -37,6 +37,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final isSubmitting = authState.isLoading || _isGoogleLoading;
+    final startupReason =
+        GoRouterState.of(context).uri.queryParameters['reason'];
+    final startupMessage = _startupReasonMessage(startupReason);
 
     return AuthShell(
       title: 'Welcome back',
@@ -83,6 +86,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 validator: Validators.password,
               ),
+              if (startupMessage != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _AuthErrorBanner(message: startupMessage),
+              ],
               if (authState.hasError) ...[
                 const SizedBox(height: AppSpacing.md),
                 _AuthErrorBanner(
@@ -187,6 +194,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Network issue detected. Please try again.';
     }
     return fallback ?? 'Authentication failed. Please try again.';
+  }
+
+  String? _startupReasonMessage(String? reason) {
+    if (reason == 'account_conflict') {
+      return 'This email is already linked to another sign-in method. '
+          'Use your original login method for this account.';
+    }
+    return null;
   }
 }
 

@@ -34,8 +34,12 @@ class RetryInterceptor extends Interceptor {
   }
 
   bool _shouldRetry(DioException err) {
-    if (err.response != null) {
-      return false;
+    final response = err.response;
+    if (response != null) {
+      final statusCode = response.statusCode ?? 0;
+      final method = err.requestOptions.method.toUpperCase();
+      final isIdempotentGetLike = method == 'GET' || method == 'HEAD';
+      return isIdempotentGetLike && statusCode >= 500 && statusCode < 600;
     }
 
     return err.type == DioExceptionType.connectionError ||

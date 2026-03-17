@@ -182,39 +182,56 @@ async def get_current_user(
             normalized = f"user_{user_id[:8]}"
         normalized = normalized[:50]
 
-        candidate = normalized
-        suffix = 1
-        while db.query(User).filter(User.username == candidate).first():
-            base = normalized[:47]
-            candidate = f"{base}_{suffix}"
-            suffix += 1
+        max_username_attempts = 20
+        is_verified = bool(payload.get("email_verified") or payload.get("email_confirmed_at"))
 
-        user = User(
-            id=user_id,
-            email=email,
-            username=candidate,
-            hashed_password="supabase_auth",
-            full_name=metadata.get("full_name"),
-            avatar_url=metadata.get("avatar_url"),
-            bio=metadata.get("bio"),
-            is_verified=bool(payload.get("email_verified") or payload.get("email_confirmed_at")),
-        )
-        db.add(user)
-        try:
-            db.commit()
-            db.refresh(user)
-        except IntegrityError:
-            # Concurrent first-login requests can race on users.id/users.username.
-            # Recover by returning the row that won the insert.
-            db.rollback()
-            existing = db.query(User).filter(User.id == user_id).first()
-            if existing is not None:
-                user = existing
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Unable to provision user profile"
-                )
+        for attempt in range(max_username_attempts):
+            suffix = "" if attempt == 0 else f"_{attempt}"
+            base_limit = 50 - len(suffix)
+            candidate = f"{normalized[:base_limit]}{suffix}"
+            if len(candidate) < 3:
+                candidate = f"user_{str(user_id)[:8]}"
+
+            user = User(
+                id=user_id,
+                email=email,
+                username=candidate,
+                hashed_password="supabase_auth",
+                full_name=metadata.get("full_name"),
+                avatar_url=metadata.get("avatar_url"),
+                bio=metadata.get("bio"),
+                is_verified=is_verified,
+            )
+            db.add(user)
+
+            try:
+                db.commit()
+                db.refresh(user)
+                break
+            except IntegrityError:
+                # Concurrent first-login requests can race on users.id/users.username.
+                db.rollback()
+
+                existing_by_id = db.query(User).filter(User.id == user_id).first()
+                if existing_by_id is not None:
+                    user = existing_by_id
+                    break
+
+                existing_by_email = db.query(User).filter(User.email == email).first()
+                if existing_by_email is not None and str(existing_by_email.id) != str(user_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "An account with this email already exists. "
+                            "Please sign in using your original method."
+                        ),
+                    )
+
+                if attempt == max_username_attempts - 1:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail="Unable to provision user profile"
+                    )
     
     return user
 

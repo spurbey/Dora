@@ -265,7 +265,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ...state.trips.map(
             (trip) => TripCard(
               trip: trip,
-              onTap: () => context.go(Routes.tripDetailPath(trip.id)),
+              onTap: () => context.push(Routes.tripDetailPath(trip.id)),
             ),
           ),
         ],

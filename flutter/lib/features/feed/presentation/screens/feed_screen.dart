@@ -85,11 +85,12 @@ class FeedScreen extends ConsumerWidget {
                           TripCard(
                             trip: trip,
                             onTap: () =>
-                                context.go(Routes.tripDetailPath(trip.id)),
+                                context.push(Routes.tripDetailPath(trip.id)),
                           ),
                         if (state.isLoadingMore)
                           const Padding(
-                            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                            padding:
+                                EdgeInsets.symmetric(vertical: AppSpacing.lg),
                             child: LoadingIndicator(size: 28),
                           ),
                       ],
@@ -139,5 +140,4 @@ class FeedScreen extends ConsumerWidget {
       ),
     );
   }
-
 }

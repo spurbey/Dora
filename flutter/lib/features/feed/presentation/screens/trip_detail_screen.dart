@@ -9,6 +9,7 @@ import 'package:dora/core/map/models/app_bounds.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
+import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_shadows.dart';
@@ -51,6 +52,12 @@ class TripDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     TripDetailState state,
   ) {
+    final previewMarkers = _buildMapMarkers(state.data.places);
+    final previewRoutes = _buildMapRoutes(state.data.places, state.data.routes);
+    final previewCenter =
+        _resolveInitialCenter(state.data.places, previewRoutes);
+    final previewBounds = _computeBounds(state.data.places, previewRoutes);
+
     return DefaultTabController(
       length: 3,
       child: Stack(
@@ -58,23 +65,18 @@ class TripDetailScreen extends ConsumerWidget {
           NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
               SliverAppBar(
-                expandedHeight: 300,
+                expandedHeight: 260,
                 pinned: false,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: state.data.trip.coverPhotoUrl ?? '',
-                        fit: BoxFit.cover,
-                        errorWidget: (context, _, __) => Container(
-                          color: AppColors.divider,
-                          child: const Icon(
-                            Icons.landscape,
-                            size: 44,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                      _buildHeroPreview(
+                        trip: state.data.trip,
+                        markers: previewMarkers,
+                        routes: previewRoutes,
+                        center: previewCenter,
+                        bounds: previewBounds,
                       ),
                       DecoratedBox(
                         decoration: BoxDecoration(
@@ -93,7 +95,7 @@ class TripDetailScreen extends ConsumerWidget {
                 ),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back, color: AppColors.card),
-                  onPressed: () => context.pop(),
+                  onPressed: () => _handleBackNavigation(context),
                 ),
                 actions: [
                   IconButton(
@@ -115,8 +117,13 @@ class TripDetailScreen extends ConsumerWidget {
                 ],
               ),
               SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: const Offset(0, -40),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                  ),
                   child: _buildHeaderCard(state.data.trip),
                 ),
               ),
@@ -148,28 +155,71 @@ class TripDetailScreen extends ConsumerWidget {
             ),
           ),
           Positioned(
-            left: 0,
-            right: 0,
+            right: AppSpacing.md,
             bottom: AppSpacing.xxl + AppSpacing.sm,
-            child: Padding(
-              padding: AppSpacing.horizontalMd,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppRadius.borderMd,
-                  boxShadow: AppShadows.soft,
+            child: SizedBox(
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () => _copyTrip(context, ref, state),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  shape: const StadiumBorder(),
+                  elevation: 4,
                 ),
-                child: Padding(
-                  padding: AppSpacing.allMd,
-                  child: ElevatedButton(
-                    onPressed: () => _copyTrip(context, ref, state),
-                    child: const Text('Copy Entire Trip'),
-                  ),
-                ),
+                child: const Text('Copy Entire Trip'),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeroPreview({
+    required PublicTrip trip,
+    required List<AppMarker> markers,
+    required List<AppRoute> routes,
+    required AppLatLng center,
+    required AppLatLngBounds? bounds,
+  }) {
+    if (markers.isNotEmpty || routes.isNotEmpty) {
+      return AppMapView(
+        initialCenter: center,
+        initialZoom: bounds != null ? 3 : 11,
+        markers: markers,
+        routes: routes,
+        showUserLocation: false,
+        showCompass: false,
+        enableScrollGestures: false,
+        enableRotateGestures: false,
+        enableTiltGestures: false,
+        enableZoomGestures: false,
+        onMapCreated: bounds != null
+            ? (controller) {
+                controller.fitBounds(
+                  bounds,
+                  padding: const EdgeInsets.fromLTRB(36, 72, 36, 32),
+                );
+              }
+            : null,
+      );
+    }
+
+    final coverUrl = trip.coverPhotoUrl?.trim();
+    if (coverUrl != null && coverUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: coverUrl,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Container(
+      color: AppColors.divider,
+      child: const Icon(
+        Icons.landscape,
+        size: 44,
+        color: AppColors.textSecondary,
       ),
     );
   }
@@ -184,13 +234,10 @@ class TripDetailScreen extends ConsumerWidget {
     }
 
     return Container(
-      margin: AppSpacing.horizontalMd,
       padding: AppSpacing.allLg,
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: AppRadius.borderLg,
         boxShadow: AppShadows.soft,
       ),
       child: Column(
@@ -209,7 +256,7 @@ class TripDetailScreen extends ConsumerWidget {
                 Icon(Icons.place, size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
-                  metaParts.join(' · '),
+                  metaParts.join(' | '),
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -318,12 +365,10 @@ class TripDetailScreen extends ConsumerWidget {
     List<TripPlace> places,
     List<TripRoute> routes,
   ) {
-    final sortedPlaces = [...places]
-      ..sort(
+    final sortedPlaces = [...places]..sort(
         (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
       );
-    final sortedRoutes = [...routes]
-      ..sort(
+    final sortedRoutes = [...routes]..sort(
         (a, b) => (a.dayNumber ?? 1 << 20).compareTo(b.dayNumber ?? 1 << 20),
       );
 
@@ -427,8 +472,7 @@ class TripDetailScreen extends ConsumerWidget {
       return const <AppMarker>[];
     }
 
-    final sorted = [...places]
-      ..sort(
+    final sorted = [...places]..sort(
         (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
       );
 
@@ -437,7 +481,8 @@ class TripDetailScreen extends ConsumerWidget {
       placeCounter += 1;
       return AppMarker(
         id: place.id,
-        position: AppLatLng(latitude: place.latitude, longitude: place.longitude),
+        position:
+            AppLatLng(latitude: place.latitude, longitude: place.longitude),
         title: place.name,
         markerType: 'place',
         label: '$placeCounter',
@@ -446,7 +491,8 @@ class TripDetailScreen extends ConsumerWidget {
     }).toList();
   }
 
-  List<AppRoute> _buildMapRoutes(List<TripPlace> places, List<TripRoute> routes) {
+  List<AppRoute> _buildMapRoutes(
+      List<TripPlace> places, List<TripRoute> routes) {
     final mappedRoutes = <AppRoute>[];
     for (final route in routes) {
       if (route.coordinates.length < 2) {
@@ -475,8 +521,7 @@ class TripDetailScreen extends ConsumerWidget {
     }
 
     // Fallback connector lines when backend has no route geometries.
-    final sortedPlaces = [...places]
-      ..sort(
+    final sortedPlaces = [...places]..sort(
         (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
       );
 
@@ -514,11 +559,12 @@ class TripDetailScreen extends ConsumerWidget {
     }
   }
 
-  AppLatLng _resolveInitialCenter(List<TripPlace> places, List<AppRoute> routes) {
+  AppLatLng _resolveInitialCenter(
+      List<TripPlace> places, List<AppRoute> routes) {
     if (places.isNotEmpty) {
-      final sorted = [...places]
-        ..sort(
-          (a, b) => (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
+      final sorted = [...places]..sort(
+          (a, b) =>
+              (a.orderIndex ?? 1 << 20).compareTo(b.orderIndex ?? 1 << 20),
         );
       final first = sorted.first;
       return AppLatLng(latitude: first.latitude, longitude: first.longitude);
@@ -642,6 +688,14 @@ class TripDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _handleBackNavigation(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go(Routes.feed);
   }
 }
 

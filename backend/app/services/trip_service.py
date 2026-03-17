@@ -33,6 +33,7 @@ class TripService:
         get_user_trip_count: Count user's trips
         create_trip: Create new trip (with free tier limit check)
         list_user_trips: List user's trips with pagination
+        list_public_trips: List public trips from all users with pagination
         update_trip: Update existing trip (with ownership check)
         delete_trip: Delete trip (with ownership check)
         _check_free_tier_limit: Internal free tier limit check
@@ -201,47 +202,25 @@ class TripService:
 
         return trip
 
-    def list_user_trips(
+    def _build_trip_list_response(
         self,
-        user_id: UUID,
-        page: int = 1,
-        page_size: int = 20,
-        visibility_filter: Optional[str] = None
+        query,
+        page: int,
+        page_size: int,
     ) -> TripListResponse:
         """
-        List user's trips with pagination.
+        Build paginated trip response from a SQLAlchemy query.
 
         Args:
-            user_id: User UUID
+            query: SQLAlchemy query already containing access filters
             page: Page number (1-indexed)
-            page_size: Number of items per page (max 100)
-            visibility_filter: Optional filter by visibility
+            page_size: Number of items per page
 
         Returns:
             TripListResponse with trips and pagination metadata
-
-        Business Logic:
-            - Only returns trips owned by user
-            - Results ordered by created_at DESC (newest first)
-            - Page size capped at 100 to prevent abuse
-            - Total count calculated for pagination UI
-
-        Query Pattern:
-            1. Build base query: filter by user_id
-            2. Apply optional visibility filter
-            3. Get total count (before pagination)
-            4. Apply pagination: offset + limit
-            5. Return trips + metadata
         """
         # Cap page_size at 100
         page_size = min(page_size, 100)
-
-        # Build base query
-        query = self.db.query(Trip).filter(Trip.user_id == user_id)
-
-        # Apply visibility filter if provided
-        if visibility_filter:
-            query = query.filter(Trip.visibility == visibility_filter)
 
         # Get total count
         total = query.count()
@@ -277,6 +256,85 @@ class TripService:
             page=page,
             page_size=page_size,
             total_pages=total_pages
+        )
+
+    def list_user_trips(
+        self,
+        user_id: UUID,
+        page: int = 1,
+        page_size: int = 20,
+        visibility_filter: Optional[str] = None
+    ) -> TripListResponse:
+        """
+        List user's trips with pagination.
+
+        Args:
+            user_id: User UUID
+            page: Page number (1-indexed)
+            page_size: Number of items per page (max 100)
+            visibility_filter: Optional filter by visibility
+
+        Returns:
+            TripListResponse with trips and pagination metadata
+
+        Business Logic:
+            - Only returns trips owned by user
+            - Results ordered by created_at DESC (newest first)
+            - Page size capped at 100 to prevent abuse
+            - Total count calculated for pagination UI
+
+        Query Pattern:
+            1. Build base query: filter by user_id
+            2. Apply optional visibility filter
+            3. Get total count (before pagination)
+            4. Apply pagination: offset + limit
+            5. Return trips + metadata
+        """
+        # Build base query
+        query = self.db.query(Trip).filter(Trip.user_id == user_id)
+
+        # Apply visibility filter if provided
+        if visibility_filter:
+            query = query.filter(Trip.visibility == visibility_filter)
+
+        return self._build_trip_list_response(
+            query=query,
+            page=page,
+            page_size=page_size,
+        )
+
+    def list_public_trips(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        visibility_filter: Optional[str] = None,
+    ) -> TripListResponse:
+        """
+        List public trips from all users with pagination.
+
+        Args:
+            page: Page number (1-indexed)
+            page_size: Number of items per page (max 100)
+            visibility_filter: Optional visibility filter (supports "public")
+
+        Returns:
+            TripListResponse with trips and pagination metadata
+
+        Business Logic:
+            - Returns only trips with visibility=public
+            - Results ordered by created_at DESC (newest first)
+            - Page size capped at 100 to prevent abuse
+        """
+        query = self.db.query(Trip).filter(Trip.visibility == "public")
+
+        # Keep filter compatibility; any non-public visibility returns an empty feed.
+        if visibility_filter:
+            query = query.filter(Trip.visibility == visibility_filter)
+
+        return self._build_trip_list_response(
+            query=query,
+            page=page,
+            page_size=page_size,
         )
 
     def update_trip(

@@ -88,20 +88,25 @@ async def list_trips(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     visibility: Optional[str] = Query(None, description="Filter by visibility (private|unlisted|public)"),
+    public_only: bool = Query(
+        False,
+        description="When true, return only public trips across all users",
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    List current user's trips with pagination.
+    List trips with pagination.
 
     **Authentication:** Required
 
-    **Permissions:** Any authenticated user (only sees own trips)
+    **Permissions:** Any authenticated user
 
     **Query Parameters:**
     - page: Page number (default: 1, min: 1)
     - page_size: Items per page (default: 20, max: 100)
     - visibility: Optional filter by visibility (private|unlisted|public)
+    - public_only: When true, returns global public trips for social feed
 
     **Returns:**
     Paginated list of trips with metadata
@@ -132,18 +137,26 @@ async def list_trips(
     - 401: Not authenticated
 
     **Business Logic:**
-    - Only returns trips owned by current user
+    - Default (`public_only=false`): returns only trips owned by current user
+    - Social feed (`public_only=true`): returns only public trips from all users
     - Results ordered by created_at DESC (newest first)
     - Page size automatically capped at 100
     - Empty list if user has no trips
     """
     service = TripService(db)
-    result = service.list_user_trips(
-        user_id=current_user.id,
-        page=page,
-        page_size=page_size,
-        visibility_filter=visibility
-    )
+    if public_only:
+        result = service.list_public_trips(
+            page=page,
+            page_size=page_size,
+            visibility_filter=visibility,
+        )
+    else:
+        result = service.list_user_trips(
+            user_id=current_user.id,
+            page=page,
+            page_size=page_size,
+            visibility_filter=visibility
+        )
     return result
 
 

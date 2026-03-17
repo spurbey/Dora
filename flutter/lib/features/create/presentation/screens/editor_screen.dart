@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/config/feature_flags.dart';
@@ -244,8 +245,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       mode == EditorMode.addRouteWalking;
 
   Future<void> _resolveDeviceCenter() async {
-    final position =
-        await ref.read(locationServiceProvider).getCurrentPosition();
+    final locationResult = await ref
+        .read(locationServiceProvider)
+        .getCurrentPositionResult(requestPermission: false);
+    final position = locationResult.position;
     if (!mounted || position == null) {
       return;
     }
@@ -285,15 +288,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _centerMapOnCurrentLocation() async {
-    final position =
-        await ref.read(locationServiceProvider).getCurrentPosition();
+    final locationResult =
+        await ref.read(locationServiceProvider).getCurrentPositionResult();
     if (!mounted) {
       return;
     }
+
+    if (locationResult.isServiceDisabled) {
+      await _promptToEnableLocationServices();
+      return;
+    }
+    if (locationResult.isPermissionDeniedForever) {
+      await _promptToOpenAppSettings();
+      return;
+    }
+    if (locationResult.isPermissionDenied) {
+      _showLocationMessage('Location permission denied');
+      return;
+    }
+
+    final position = locationResult.position;
     if (position == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not get current location')),
-      );
+      _showLocationMessage('Could not get current location');
       return;
     }
 
@@ -312,6 +328,143 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (mapController != null) {
       await mapController.flyTo(center, zoom: 14);
     }
+  }
+
+  void _showLocationMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _promptToEnableLocationServices() async {
+    if (!mounted) {
+      return;
+    }
+    final shouldOpenSettings = await _showLocationActionDialog(
+      icon: Icons.gps_off_rounded,
+      title: 'Turn On Location Services',
+      message:
+          'Location services are off. Enable them to center the map to your current location.',
+      confirmLabel: 'Open settings',
+    );
+    if (shouldOpenSettings == true) {
+      await Geolocator.openLocationSettings();
+    }
+  }
+
+  Future<void> _promptToOpenAppSettings() async {
+    if (!mounted) {
+      return;
+    }
+    final shouldOpenSettings = await _showLocationActionDialog(
+      icon: Icons.location_on_outlined,
+      title: 'Allow Location Permission',
+      message:
+          'Location permission is permanently denied. Open app settings and allow location access.',
+      confirmLabel: 'Open settings',
+    );
+    if (shouldOpenSettings == true) {
+      await Geolocator.openAppSettings();
+    }
+  }
+
+  Future<bool?> _showLocationActionDialog({
+    required IconData icon,
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: AppRadius.borderLg,
+            border: Border.all(color: AppColors.divider),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 22,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: AppColors.accentSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.accent),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(dialogContext).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.divider),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.borderMd,
+                        ),
+                      ),
+                      child: const Text('Not now'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.borderMd,
+                        ),
+                      ),
+                      child: Text(confirmLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _syncMediaFocusWithSelection(EditorState? editor) {

@@ -26,6 +26,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _confirmController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -38,7 +39,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-    final isSubmitting = authState.isLoading;
+    final isSubmitting = authState.isLoading || _isGoogleLoading;
 
     return AuthShell(
       title: 'Create your account',
@@ -135,6 +136,36 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       : const Text('Create account'),
                 ),
               ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                    child: Text(
+                      'or',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isSubmitting ? null : _handleGoogleSignup,
+                  icon: const Icon(Icons.travel_explore_rounded),
+                  label: Text(
+                    _isGoogleLoading
+                        ? 'Connecting Google...'
+                        : 'Continue with Google',
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'By continuing, you agree to Dora terms and privacy policy.',
@@ -171,6 +202,31 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _emailController.text.trim(),
           _passwordController.text,
         );
+  }
+
+  Future<void> _handleGoogleSignup() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _friendlyError(
+              error,
+              fallback: 'Google sign-in failed. Please try again.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
+    }
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {

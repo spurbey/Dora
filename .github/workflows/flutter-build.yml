@@ -73,10 +73,18 @@ jobs:
 
       - name: Shorebird release Android
         if: inputs.platform == 'android' && inputs.use_shorebird && !inputs.patch
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: shorebird release android ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch Android
         if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: shorebird patch android ${{ env.DART_DEFINES }}
 
       # --- iOS ---

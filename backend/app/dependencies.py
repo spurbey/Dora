@@ -11,16 +11,25 @@ Important:
     - Backend only VERIFIES tokens, never creates them
 """
 
-from fastapi import Depends, HTTPException, status, Header
-from sqlalchemy.orm import Session
-from jose import jwt, JWTError
-import httpx
-from typing import Optional
+import asyncio
 import re
+import time
+from typing import Optional
+
+import httpx
+from fastapi import Depends, Header, HTTPException, status
+from jose import JWTError, jwt
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.config import settings
+
+_JWKS_CACHE: Optional[dict] = None
+_JWKS_CACHE_EXPIRES_AT: float = 0.0
+_JWKS_CACHE_TTL_SECONDS = 300.0
+_JWKS_CACHE_LOCK = asyncio.Lock()
 
 
 async def get_jwks():
@@ -37,19 +46,40 @@ async def get_jwks():
         Supabase rotates keys periodically. Always fetch fresh JWKS.
         In production, consider caching with short TTL (5-10 min).
     """
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json",
-                timeout=5.0
+    global _JWKS_CACHE, _JWKS_CACHE_EXPIRES_AT
+
+    now = time.monotonic()
+    if _JWKS_CACHE is not None and now < _JWKS_CACHE_EXPIRES_AT:
+        return _JWKS_CACHE
+
+    async with _JWKS_CACHE_LOCK:
+        now = time.monotonic()
+        if _JWKS_CACHE is not None and now < _JWKS_CACHE_EXPIRES_AT:
+            return _JWKS_CACHE
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json",
+                    timeout=5.0
+                )
+                response.raise_for_status()
+                jwks_payload = response.json()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Unable to fetch JWKS: {str(e)}"
+            ) from e
+
+        if not isinstance(jwks_payload, dict) or not isinstance(jwks_payload.get("keys"), list):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Unable to fetch JWKS: invalid JWKS payload"
             )
-            response.raise_for_status()
-            return response.json()
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Unable to fetch JWKS: {str(e)}"
-        )
+
+        _JWKS_CACHE = jwks_payload
+        _JWKS_CACHE_EXPIRES_AT = time.monotonic() + _JWKS_CACHE_TTL_SECONDS
+        return jwks_payload
 
 
 async def get_current_user(
@@ -116,13 +146,18 @@ async def get_current_user(
         if user_id is None:
             raise credentials_exception
             
+    except HTTPException:
+        raise
     except JWTError as e:
         # Log for debugging (remove in production or use proper logging)
         print(f"JWT validation error: {e}")
         raise credentials_exception
     except Exception as e:
         print(f"Unexpected error during auth: {e}")
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable"
+        ) from e
     
     # Get or create user from database
     user = db.query(User).filter(User.id == user_id).first()
@@ -165,8 +200,21 @@ async def get_current_user(
             is_verified=bool(payload.get("email_verified") or payload.get("email_confirmed_at")),
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            # Concurrent first-login requests can race on users.id/users.username.
+            # Recover by returning the row that won the insert.
+            db.rollback()
+            existing = db.query(User).filter(User.id == user_id).first()
+            if existing is not None:
+                user = existing
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Unable to provision user profile"
+                )
     
     return user
 

@@ -30,7 +30,25 @@ class AuthService {
 
   Future<String?> getAccessToken() async {
     final session = _supabase.auth.currentSession;
-    return session?.accessToken;
+    if (session == null) {
+      return null;
+    }
+
+    if (!session.isExpired) {
+      return session.accessToken;
+    }
+
+    try {
+      final refreshed = await _supabase.auth.refreshSession();
+      return refreshed.session?.accessToken ??
+          _supabase.auth.currentSession?.accessToken;
+    } catch (_) {
+      final latest = _supabase.auth.currentSession;
+      if (latest != null && !latest.isExpired) {
+        return latest.accessToken;
+      }
+      return null;
+    }
   }
 
   Future<void> signInWithGoogle() async {

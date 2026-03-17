@@ -12,7 +12,7 @@ class ApiClient {
     _dio = Dio(BaseOptions(baseUrl: _resolveBaseUrl(baseUrl)));
 
     _dio.interceptors.addAll([
-      AuthInterceptor(authService),
+      AuthInterceptor(_dio, authService),
       RetryInterceptor(_dio),
       if (kDebugMode) LogInterceptor(requestBody: true, responseBody: true),
     ]);

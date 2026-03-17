@@ -1,9 +1,16 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class AuthService {
+abstract class AuthTokenProvider {
+  Future<String?> getAccessToken();
+
+  Future<String?> refreshAccessToken({bool force});
+}
+
+class AuthService implements AuthTokenProvider {
   AuthService(this._supabase);
 
   final SupabaseClient _supabase;
+  Future<String?>? _refreshInFlight;
 
   Stream<User?> get authStateChanges =>
       _supabase.auth.onAuthStateChange.map((event) => event.session?.user);
@@ -28,16 +35,38 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 
+  @override
   Future<String?> getAccessToken() async {
-    final session = _supabase.auth.currentSession;
-    if (session == null) {
+    return refreshAccessToken(force: false);
+  }
+
+  @override
+  Future<String?> refreshAccessToken({bool force = false}) async {
+    final current = _supabase.auth.currentSession;
+    if (current == null) {
       return null;
     }
 
-    if (!session.isExpired) {
-      return session.accessToken;
+    if (!force && !current.isExpired) {
+      return current.accessToken;
     }
 
+    if (_refreshInFlight != null) {
+      return _refreshInFlight;
+    }
+
+    final refresh = _runRefresh();
+    _refreshInFlight = refresh;
+    try {
+      return await refresh;
+    } finally {
+      if (identical(_refreshInFlight, refresh)) {
+        _refreshInFlight = null;
+      }
+    }
+  }
+
+  Future<String?> _runRefresh() async {
     try {
       final refreshed = await _supabase.auth.refreshSession();
       return refreshed.session?.accessToken ??

@@ -84,7 +84,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: shorebird release android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
+        run: shorebird release android --verbose --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch Android
         if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
@@ -93,7 +94,8 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: shorebird patch android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
+        run: shorebird patch android --verbose --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       # --- iOS ---
       - name: Build iOS (Flutter)

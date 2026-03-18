@@ -61,7 +61,13 @@ jobs:
       # --- Android ---
       - name: Decode keystore
         if: inputs.platform == 'android'
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+        run: printf '%s' "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Validate keystore
+        if: inputs.platform == 'android'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: keytool -list -keystore android/app/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null
 
       - name: Build Android AAB (Flutter)
         if: inputs.platform == 'android' && !inputs.use_shorebird

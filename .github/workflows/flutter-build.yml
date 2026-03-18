@@ -49,7 +49,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.4'
+          flutter-version: '3.38.9'
           cache: true
 
       - name: Install dependencies
@@ -78,7 +78,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: shorebird release android --flutter-version=3.27.4 ${{ env.DART_DEFINES }}
+        run: shorebird release android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch Android
         if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
@@ -87,7 +87,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: shorebird patch android --flutter-version=3.27.4 ${{ env.DART_DEFINES }}
+        run: shorebird patch android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       # --- iOS ---
       - name: Build iOS (Flutter)
@@ -98,13 +98,13 @@ jobs:
         if: inputs.platform == 'ios' && inputs.use_shorebird && !inputs.patch
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
-        run: shorebird release ios --flutter-version=3.27.4 ${{ env.DART_DEFINES }}
+        run: shorebird release ios --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch iOS
         if: inputs.platform == 'ios' && inputs.use_shorebird && inputs.patch
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
-        run: shorebird patch ios --flutter-version=3.27.4 ${{ env.DART_DEFINES }}
+        run: shorebird patch ios --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       # --- Upload artifact ---
       - name: Upload build artifact

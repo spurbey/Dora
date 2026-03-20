@@ -169,6 +169,7 @@ class FeedRepository {
 
   PublicTrip _mapTripResponse(TripResponse trip, {int? placeCount}) {
     final duration = _calculateDuration(trip.startDate, trip.endDate);
+    final resolvedPlaceCount = placeCount ?? trip.placeCount ?? 0;
     return PublicTrip(
       id: trip.id,
       name: trip.title,
@@ -176,7 +177,7 @@ class FeedRepository {
       coverPhotoUrl: trip.coverPhotoUrl,
       userId: trip.userId,
       username: 'User-${trip.userId.substring(0, 4)}',
-      placeCount: placeCount ?? 0,
+      placeCount: resolvedPlaceCount,
       duration: duration,
       tags: const [],
       visibility: trip.visibility,

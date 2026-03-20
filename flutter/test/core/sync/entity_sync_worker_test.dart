@@ -6,12 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/core/sync/entity_sync_worker.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/route_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
+import 'package:dora/features/trips/data/models/user_trip.dart';
 
 class _FakeAuthService implements AuthService {
   const _FakeAuthService();
@@ -54,22 +57,30 @@ class _TestTripRepository extends TripRepository {
     super.authService,
   );
 
-  Future<void> Function(String localTripId, String operation)? onSyncTrip;
+  Future<EntitySyncReceipt> Function(String localTripId, String operation)?
+      onSyncTrip;
   Future<void> Function(String remoteTripId)? onDeleteTrip;
 
   int syncCalls = 0;
   int deleteCalls = 0;
 
   @override
-  Future<void> syncTripForTask(
+  Future<EntitySyncReceipt> syncTripForTask(
     String localTripId, {
     required String operation,
   }) async {
     syncCalls += 1;
     final handler = onSyncTrip;
     if (handler != null) {
-      await handler(localTripId, operation);
+      return handler(localTripId, operation);
     }
+    final now = DateTime.now();
+    return EntitySyncReceipt(
+      entityType: 'trip',
+      localEntityId: localTripId,
+      remoteEntityId: 'remote-$localTripId',
+      serverUpdatedAt: now,
+    );
   }
 
   @override
@@ -88,22 +99,30 @@ class _TestPlaceRepository extends PlaceRepository {
     required super.tripRepository,
   });
 
-  Future<void> Function(String localPlaceId, String operation)? onSyncPlace;
+  Future<EntitySyncReceipt> Function(String localPlaceId, String operation)?
+      onSyncPlace;
   Future<void> Function(String remotePlaceId)? onDeletePlace;
 
   int syncCalls = 0;
   int deleteCalls = 0;
 
   @override
-  Future<void> syncPlaceForTask(
+  Future<EntitySyncReceipt> syncPlaceForTask(
     String localPlaceId, {
     required String operation,
   }) async {
     syncCalls += 1;
     final handler = onSyncPlace;
     if (handler != null) {
-      await handler(localPlaceId, operation);
+      return handler(localPlaceId, operation);
     }
+    final now = DateTime.now();
+    return EntitySyncReceipt(
+      entityType: 'place',
+      localEntityId: localPlaceId,
+      remoteEntityId: 'remote-$localPlaceId',
+      serverUpdatedAt: now,
+    );
   }
 
   @override
@@ -124,22 +143,30 @@ class _TestRouteRepository extends RouteRepository {
     required super.placeRepository,
   });
 
-  Future<void> Function(String localRouteId, String operation)? onSyncRoute;
+  Future<EntitySyncReceipt> Function(String localRouteId, String operation)?
+      onSyncRoute;
   Future<void> Function(String remoteRouteId)? onDeleteRoute;
 
   int syncCalls = 0;
   int deleteCalls = 0;
 
   @override
-  Future<void> syncRouteForTask(
+  Future<EntitySyncReceipt> syncRouteForTask(
     String localRouteId, {
     required String operation,
   }) async {
     syncCalls += 1;
     final handler = onSyncRoute;
     if (handler != null) {
-      await handler(localRouteId, operation);
+      return handler(localRouteId, operation);
     }
+    final now = DateTime.now();
+    return EntitySyncReceipt(
+      entityType: 'route',
+      localEntityId: localRouteId,
+      remoteEntityId: 'remote-$localRouteId',
+      serverUpdatedAt: now,
+    );
   }
 
   @override
@@ -206,6 +233,7 @@ void main() {
         placeRepository: placeRepository,
       );
       worker = EntitySyncWorker(
+        db: database,
         syncTaskDao: syncTaskDao,
         tripRepository: tripRepository,
         placeRepository: placeRepository,
@@ -291,6 +319,163 @@ void main() {
       expect(task['error_message'], isNull);
       expect(task['worker_session_id'], isNull);
       expect(tripRepository.syncCalls, 1);
+    });
+
+    test('persists trip sync receipt into trip and user_trips rows', () async {
+      final baseTime = DateTime(2026, 3, 20, 10, 0, 0);
+      final receiptTime = DateTime(2026, 3, 20, 10, 5, 0);
+
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-receipt',
+          userId: 'user-1',
+          name: 'Trip Receipt',
+          localUpdatedAt: baseTime,
+          serverUpdatedAt: baseTime,
+          syncStatus: 'pending',
+          createdAt: baseTime,
+        ),
+      );
+      await database.userTripsDao.insertTrip(
+        UserTrip(
+          id: 'trip-receipt',
+          userId: 'user-1',
+          name: 'Trip Receipt',
+          description: null,
+          coverPhotoUrl: null,
+          startDate: null,
+          endDate: null,
+          visibility: 'private',
+          placeCount: 0,
+          status: 'editing',
+          lastEditedAt: baseTime,
+          localUpdatedAt: baseTime,
+          serverUpdatedAt: baseTime,
+          syncStatus: 'pending',
+          createdAt: baseTime,
+        ),
+      );
+
+      tripRepository.onSyncTrip = (_, __) async {
+        return EntitySyncReceipt(
+          entityType: 'trip',
+          localEntityId: 'trip-receipt',
+          remoteEntityId: 'remote-trip-receipt',
+          serverUpdatedAt: receiptTime,
+        );
+      };
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-trip-receipt',
+        entityType: 'trip',
+        entityId: 'trip-receipt',
+        operation: 'create',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-trip-receipt');
+      expect(task['status'], 'completed');
+
+      final tripRow = await database.tripDao.getTripById('trip-receipt');
+      expect(tripRow, isNotNull);
+      expect(tripRow?.serverTripId, 'remote-trip-receipt');
+      expect(tripRow?.serverUpdatedAt, receiptTime);
+      expect(tripRow?.syncStatus, 'synced');
+
+      final userTrip = await database.userTripsDao.getTripById('trip-receipt');
+      expect(userTrip, isNotNull);
+      expect(userTrip?.serverUpdatedAt, receiptTime);
+      expect(userTrip?.syncStatus, 'synced');
+    });
+
+    test('keeps entity pending when task was requeued during in-progress',
+        () async {
+      final baseTime = DateTime(2026, 3, 20, 11, 0, 0);
+      final firstReceiptTime = DateTime(2026, 3, 20, 11, 1, 0);
+      final secondReceiptTime = DateTime(2026, 3, 20, 11, 2, 0);
+
+      await database.placeDao.insertPlace(
+        PlacesCompanion.insert(
+          id: 'place-requeue',
+          tripId: 'trip-1',
+          name: 'Queue Test Place',
+          coordinates: const AppLatLng(latitude: 27.7, longitude: 85.3),
+          orderIndex: 0,
+          localUpdatedAt: baseTime,
+          serverUpdatedAt: baseTime,
+          syncStatus: 'pending',
+        ),
+      );
+
+      final firstStarted = Completer<void>();
+      final releaseFirst = Completer<void>();
+      final secondStarted = Completer<void>();
+      final releaseSecond = Completer<void>();
+      var callCount = 0;
+
+      placeRepository.onSyncPlace = (_, __) async {
+        callCount += 1;
+        if (callCount == 1) {
+          if (!firstStarted.isCompleted) {
+            firstStarted.complete();
+          }
+          await releaseFirst.future;
+          return EntitySyncReceipt(
+            entityType: 'place',
+            localEntityId: 'place-requeue',
+            remoteEntityId: 'remote-place-requeue',
+            serverUpdatedAt: firstReceiptTime,
+          );
+        }
+
+        if (!secondStarted.isCompleted) {
+          secondStarted.complete();
+        }
+        await releaseSecond.future;
+        return EntitySyncReceipt(
+          entityType: 'place',
+          localEntityId: 'place-requeue',
+          remoteEntityId: 'remote-place-requeue',
+          serverUpdatedAt: secondReceiptTime,
+        );
+      };
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-place-requeue',
+        entityType: 'place',
+        entityId: 'place-requeue',
+        operation: 'update',
+      );
+
+      final workerRun = worker.startIfIdle();
+      await firstStarted.future;
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-place-requeue-next',
+        entityType: 'place',
+        entityId: 'place-requeue',
+        operation: 'update',
+      );
+
+      releaseFirst.complete();
+      await secondStarted.future;
+
+      final placeDuringSecondRun = await database.placeDao.getPlaceById(
+        'place-requeue',
+      );
+      expect(placeDuringSecondRun, isNotNull);
+      expect(placeDuringSecondRun?.syncStatus, 'pending');
+
+      final activeTask = await syncTaskDao.getTaskByEntity(
+        entityType: 'place',
+        entityId: 'place-requeue',
+      );
+      expect(activeTask, isNotNull);
+      expect(activeTask?.status, 'in_progress');
+
+      releaseSecond.complete();
+      await workerRun;
     });
 
     test('completes trip delete task without remote id and skips remote delete',

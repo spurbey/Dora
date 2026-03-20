@@ -11,6 +11,7 @@ import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora/features/trips/domain/trips_state.dart';
 import 'package:dora/features/trips/presentation/providers/trips_provider.dart';
+import 'package:dora/features/trips/presentation/sync_status_ui.dart';
 import 'package:dora/features/trips/presentation/widgets/filter_chip_bar.dart';
 import 'package:dora/features/trips/presentation/widgets/trip_context_menu.dart';
 import 'package:dora/features/trips/presentation/widgets/trip_grid_card.dart';
@@ -96,10 +97,10 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
   }
 
   Widget _buildContent(TripsState state, TripsController controller) {
-    final hasPendingSync =
-        state.allTrips.any((trip) => trip.syncStatus == 'pending');
-    final hasSyncFailed = state.syncFailed ||
-        state.allTrips.any((trip) => trip.syncStatus == 'failed');
+    final syncBanner = resolveTripsSyncBannerUi(
+      rawStatuses: state.allTrips.map((trip) => trip.syncStatus),
+      refreshFailed: state.syncFailed,
+    );
 
     return RefreshIndicator(
       color: AppColors.accent,
@@ -125,15 +126,12 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
             selected: state.currentFilter,
             onChanged: controller.applyFilter,
           ),
-          if (hasSyncFailed)
+          if (syncBanner != null)
             _buildSyncBanner(
-              message: 'Sync failed. Check your connection.',
-              actionLabel: 'Retry',
-              onAction: controller.refresh,
-            )
-          else if (hasPendingSync)
-            _buildSyncBanner(
-              message: 'Offline changes pending sync.',
+              message: syncBanner.message,
+              tint: syncBanner.tint,
+              actionLabel: syncBanner.showRetryAction ? 'Retry' : null,
+              onAction: syncBanner.showRetryAction ? controller.refresh : null,
             ),
           const SizedBox(height: AppSpacing.md),
           if (state.trips.isEmpty)
@@ -274,6 +272,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
 
   Widget _buildSyncBanner({
     required String message,
+    required Color tint,
     String? actionLabel,
     VoidCallback? onAction,
   }) {
@@ -283,9 +282,9 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
         margin: const EdgeInsets.only(top: AppSpacing.sm),
         padding: AppSpacing.allMd,
         decoration: BoxDecoration(
-          color: AppColors.accentSoft,
+          color: tint.withValues(alpha: 0.12),
           borderRadius: AppRadius.borderMd,
-          border: Border.all(color: AppColors.accent),
+          border: Border.all(color: tint.withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
@@ -293,7 +292,7 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
               child: Text(
                 message,
                 style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),

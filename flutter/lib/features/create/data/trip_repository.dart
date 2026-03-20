@@ -6,6 +6,7 @@ import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/features/create/domain/trip.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
@@ -22,7 +23,7 @@ class TripRepository {
   final AuthService _authService;
   final openapi.TripsApi? _tripsApi;
   final SyncTaskDao _syncTaskDao;
-  final Map<String, Future<String>> _ensureRemoteTripIdInFlight = {};
+  static final Map<String, Future<String>> _ensureRemoteTripIdInFlight = {};
 
   Future<Trip?> getTrip(String id) async {
     final row = await _db.tripDao.getTripById(id);
@@ -139,10 +140,9 @@ class TripRepository {
     await _upsertUserTrip(updated);
     await _enqueueTripSyncTask(
       localTripId: updated.id,
-      operation:
-          (updated.serverTripId == null || updated.serverTripId!.isEmpty)
-              ? 'create'
-              : 'update',
+      operation: (updated.serverTripId == null || updated.serverTripId!.isEmpty)
+          ? 'create'
+          : 'update',
     );
 
     return updated;
@@ -217,7 +217,9 @@ class TripRepository {
     try {
       return await future;
     } finally {
-      _ensureRemoteTripIdInFlight.remove(operationKey);
+      if (identical(_ensureRemoteTripIdInFlight[operationKey], future)) {
+        _ensureRemoteTripIdInFlight.remove(operationKey);
+      }
     }
   }
 
@@ -486,17 +488,23 @@ class TripRepository {
     );
   }
 
-  Future<void> syncTripForTask(
+  Future<EntitySyncReceipt> syncTripForTask(
     String localTripId, {
     required String operation,
   }) async {
     switch (operation) {
       case 'create':
-        await ensureRemoteTripId(localTripId);
-        return;
+        final remoteTripId = await ensureRemoteTripId(localTripId);
+        final remoteUpdatedAt =
+            await _tryFetchRemoteTripUpdatedAt(remoteTripId) ?? DateTime.now();
+        return EntitySyncReceipt(
+          entityType: 'trip',
+          localEntityId: localTripId,
+          remoteEntityId: remoteTripId,
+          serverUpdatedAt: remoteUpdatedAt,
+        );
       case 'update':
-        await _syncRemoteTripUpdate(localTripId);
-        return;
+        return _syncRemoteTripUpdate(localTripId);
       case 'delete':
         throw const TripIdentityException(
           'Trip delete requires remote trip id context.',
@@ -508,7 +516,7 @@ class TripRepository {
     }
   }
 
-  Future<void> _syncRemoteTripUpdate(String localTripId) async {
+  Future<EntitySyncReceipt> _syncRemoteTripUpdate(String localTripId) async {
     final local = await getTrip(localTripId);
     if (local == null) {
       throw TripIdentityException(
@@ -548,11 +556,39 @@ class TripRepository {
       }
     });
 
-    await tripsApi.updateTripApiV1TripsTripIdPatch(
+    final response = await tripsApi.updateTripApiV1TripsTripIdPatch(
       tripId: remoteTripId,
       authorization: 'Bearer $token',
       tripUpdate: payload,
     );
+    return EntitySyncReceipt(
+      entityType: 'trip',
+      localEntityId: localTripId,
+      remoteEntityId: remoteTripId,
+      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
+    );
+  }
+
+  Future<DateTime?> _tryFetchRemoteTripUpdatedAt(String remoteTripId) async {
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      return null;
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await tripsApi.getTripApiV1TripsTripIdGet(
+        tripId: remoteTripId,
+        authorization: 'Bearer $token',
+      );
+      return response.data?.updatedAt;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _mapTripCreateFailure(DioException error) {

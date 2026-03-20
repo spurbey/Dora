@@ -6,11 +6,13 @@ import 'package:dora/core/sync/entity_sync_worker.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 
 final entitySyncWorkerProvider = Provider<EntitySyncWorker>((ref) {
+  final db = ref.watch(appDatabaseProvider);
   final syncTaskDao = ref.watch(syncTaskDaoProvider);
   final tripRepository = ref.watch(tripRepositoryProvider);
   final placeRepository = ref.watch(placeRepositoryProvider);
   final routeRepository = ref.watch(routeRepositoryProvider);
   return EntitySyncWorker(
+    db: db,
     syncTaskDao: syncTaskDao,
     tripRepository: tripRepository,
     placeRepository: placeRepository,

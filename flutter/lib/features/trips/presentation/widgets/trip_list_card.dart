@@ -8,6 +8,7 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/core/utils/date_time_utils.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
+import 'package:dora/features/trips/presentation/sync_status_ui.dart';
 
 class TripListCard extends StatelessWidget {
   const TripListCard({
@@ -112,42 +113,23 @@ class _SyncStatusLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final badge = resolveTripSyncBadgeUi(syncStatus);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: _background(syncStatus),
+        color: badge.color,
         borderRadius: AppRadius.borderMd,
       ),
       child: Text(
-        _label(syncStatus),
+        badge.label,
         style: AppTypography.caption.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w600,
         ),
       ),
     );
-  }
-
-  String _label(String value) {
-    if (value == 'failed') {
-      return 'Sync Failed';
-    }
-    if (value == 'pending') {
-      return 'Sync Pending';
-    }
-    return 'Syncing';
-  }
-
-  Color _background(String value) {
-    if (value == 'failed') {
-      return AppColors.error;
-    }
-    if (value == 'pending') {
-      return AppColors.warning;
-    }
-    return AppColors.textSecondary;
   }
 }

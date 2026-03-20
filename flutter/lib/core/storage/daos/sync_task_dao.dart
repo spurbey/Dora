@@ -9,6 +9,7 @@ part 'sync_task_dao.g.dart';
 class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     with _$SyncTaskDaoMixin {
   SyncTaskDao(super.db);
+  static const Duration _staleInProgressTimeout = Duration(minutes: 3);
 
   Future<void> upsertQueuedTask({
     required String id,
@@ -44,6 +45,11 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
               ? const Value.absent()
               : (shouldRequeueImmediately
                   ? const Value('queued')
+                  : const Value.absent()),
+          pendingRequeue: isInProgress
+              ? const Value(true)
+              : (shouldRequeueImmediately
+                  ? const Value(false)
                   : const Value.absent()),
           remoteEntityId: remoteEntityIdValue,
           retryCount: (isInProgress ||
@@ -81,6 +87,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
         operation: operation,
         remoteEntityId: Value(remoteEntityId),
         status: const Value('queued'),
+        pendingRequeue: const Value(false),
         retryCount: const Value(0),
         nextAttemptAt: const Value(null),
         dependsOnEntityType: Value(dependsOnEntityType),
@@ -99,11 +106,15 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     int limit = 20,
   }) async {
     final currentTime = now ?? DateTime.now();
+    final staleInProgressBefore = currentTime.subtract(_staleInProgressTimeout);
     final rows = await customSelect(
       '''
       SELECT t.*
       FROM sync_tasks AS t
-      WHERE t.status IN ('queued', 'failed', 'pending')
+      WHERE (
+          t.status IN ('queued', 'failed', 'pending')
+          OR (t.status = 'in_progress' AND t.updated_at <= ?)
+      )
         AND (t.next_attempt_at IS NULL OR t.next_attempt_at <= ?)
         AND (
           t.depends_on_entity_type IS NULL
@@ -120,6 +131,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
       LIMIT ?
       ''',
       variables: [
+        Variable<DateTime>(staleInProgressBefore),
         Variable<DateTime>(currentTime),
         Variable<int>(limit),
       ],
@@ -134,6 +146,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     int limit = 10,
   }) async {
     final claimTime = now ?? DateTime.now();
+    final staleInProgressBefore = claimTime.subtract(_staleInProgressTimeout);
     return transaction(() async {
       final runnable = await getRunnableTasks(now: claimTime, limit: limit);
       if (runnable.isEmpty) {
@@ -147,10 +160,14 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
           UPDATE sync_tasks
           SET
             status = 'in_progress',
+            pending_requeue = 0,
             worker_session_id = ?,
             updated_at = ?
           WHERE id = ?
-            AND status IN ('queued', 'failed', 'pending')
+            AND (
+              status IN ('queued', 'failed', 'pending')
+              OR (status = 'in_progress' AND updated_at <= ?)
+            )
             AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
             AND (
               depends_on_entity_type IS NULL
@@ -168,6 +185,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
             Variable<String>(workerSessionId),
             Variable<DateTime>(claimTime),
             Variable<String>(task.id),
+            Variable<DateTime>(staleInProgressBefore),
             Variable<DateTime>(claimTime),
           ],
           updates: {syncTasks},
@@ -192,18 +210,50 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     required String taskId,
     String? expectedSessionId,
   }) {
-    return _updateTaskState(
-      taskId: taskId,
-      expectedSessionId: expectedSessionId,
-      companion: SyncTasksCompanion(
-        status: const Value('completed'),
-        retryCount: const Value(0),
-        nextAttemptAt: const Value(null),
-        errorCode: const Value(null),
-        errorMessage: const Value(null),
-        workerSessionId: const Value(null),
-        updatedAt: Value(DateTime.now()),
-      ),
+    final now = DateTime.now();
+    if (expectedSessionId == null) {
+      return customUpdate(
+        '''
+        UPDATE sync_tasks
+        SET
+          status = CASE WHEN pending_requeue = 1 THEN 'queued' ELSE 'completed' END,
+          pending_requeue = 0,
+          retry_count = 0,
+          next_attempt_at = NULL,
+          error_code = NULL,
+          error_message = NULL,
+          worker_session_id = NULL,
+          updated_at = ?
+        WHERE id = ?
+        ''',
+        variables: [
+          Variable<DateTime>(now),
+          Variable<String>(taskId),
+        ],
+        updates: {syncTasks},
+      );
+    }
+    return customUpdate(
+      '''
+      UPDATE sync_tasks
+      SET
+        status = CASE WHEN pending_requeue = 1 THEN 'queued' ELSE 'completed' END,
+        pending_requeue = 0,
+        retry_count = 0,
+        next_attempt_at = NULL,
+        error_code = NULL,
+        error_message = NULL,
+        worker_session_id = NULL,
+        updated_at = ?
+      WHERE id = ?
+        AND worker_session_id = ?
+      ''',
+      variables: [
+        Variable<DateTime>(now),
+        Variable<String>(taskId),
+        Variable<String>(expectedSessionId),
+      ],
+      updates: {syncTasks},
     );
   }
 
@@ -220,6 +270,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
       expectedSessionId: expectedSessionId,
       companion: SyncTasksCompanion(
         status: const Value('blocked'),
+        pendingRequeue: const Value(false),
         errorCode: Value(errorCode),
         errorMessage: Value(errorMessage),
         dependsOnEntityType: Value(dependsOnEntityType),
@@ -243,6 +294,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
       expectedSessionId: expectedSessionId,
       companion: SyncTasksCompanion(
         status: const Value('failed'),
+        pendingRequeue: const Value(false),
         retryCount: Value(retryCount),
         nextAttemptAt: Value(nextAttemptAt),
         errorCode: Value(errorCode),
@@ -291,6 +343,11 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
           ..where((t) =>
               t.entityType.equals(entityType) & t.entityId.equals(entityId))
           ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<SyncTaskRow?> getTaskById(String taskId) {
+    return (select(syncTasks)..where((t) => t.id.equals(taskId)))
         .getSingleOrNull();
   }
 

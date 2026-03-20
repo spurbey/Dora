@@ -146,6 +146,7 @@ class _FakePlacesApi extends openapi.PlacesApi {
           openapi.standardSerializers,
         );
 
+  int createCalls = 0;
   String? lastTripId;
   String? lastAuthorization;
 
@@ -160,6 +161,7 @@ class _FakePlacesApi extends openapi.PlacesApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
+    createCalls += 1;
     lastAuthorization = authorization;
     lastTripId = placeCreate.tripId;
 
@@ -675,6 +677,69 @@ void main() {
       expect(fakePlacesApi.lastAuthorization, startsWith('Bearer '));
 
       final place = await repo.getPlace(localPlaceWithoutServer);
+      expect(place, isNotNull);
+      expect(place!.serverPlaceId, 'remote-place-created');
+    });
+
+    test('ensureRemotePlaceId deduplicates across repository instances',
+        () async {
+      const localTripWithServerId = 'local-trip-shared-dedup';
+      const serverTripId = 'remote-trip-shared-dedup';
+      const localPlaceWithoutServer = 'local-place-shared-dedup';
+
+      await _insertTripRow(
+        database: database,
+        localTripId: localTripWithServerId,
+        serverTripId: serverTripId,
+      );
+
+      final now = DateTime.utc(2026, 2, 21);
+      await database.placeDao.insertPlace(
+        PlacesCompanion(
+          id: const drift.Value(localPlaceWithoutServer),
+          serverPlaceId: const drift.Value(null),
+          tripId: const drift.Value(localTripWithServerId),
+          name: const drift.Value('Shared Dedup Place'),
+          address: const drift.Value.absent(),
+          coordinates: const drift.Value(
+            AppLatLng(latitude: 28.2096, longitude: 83.9856),
+          ),
+          notes: const drift.Value.absent(),
+          visitTime: const drift.Value.absent(),
+          dayNumber: const drift.Value.absent(),
+          orderIndex: const drift.Value(1),
+          photoUrls: const drift.Value(<String>[]),
+          placeType: const drift.Value.absent(),
+          rating: const drift.Value.absent(),
+          localUpdatedAt: drift.Value(now),
+          serverUpdatedAt: drift.Value(now),
+          syncStatus: const drift.Value('pending'),
+        ),
+      );
+
+      final fakePlacesApi = _FakePlacesApi();
+      final repoA = PlaceRepository(
+        database,
+        tripRepository: TripRepository(database, authService),
+        placesApi: fakePlacesApi,
+        authService: authService,
+      );
+      final repoB = PlaceRepository(
+        database,
+        tripRepository: TripRepository(database, authService),
+        placesApi: fakePlacesApi,
+        authService: authService,
+      );
+
+      final results = await Future.wait([
+        repoA.ensureRemotePlaceId(localPlaceWithoutServer),
+        repoB.ensureRemotePlaceId(localPlaceWithoutServer),
+      ]);
+
+      expect(results, ['remote-place-created', 'remote-place-created']);
+      expect(fakePlacesApi.createCalls, 1);
+
+      final place = await repoA.getPlace(localPlaceWithoutServer);
       expect(place, isNotNull);
       expect(place!.serverPlaceId, 'remote-place-created');
     });

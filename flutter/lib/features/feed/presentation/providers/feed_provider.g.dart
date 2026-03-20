@@ -39,7 +39,7 @@ final feedApiProvider = AutoDisposeProvider<FeedApi>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef FeedApiRef = AutoDisposeProviderRef<FeedApi>;
-String _$feedControllerHash() => r'1efed9c3d081c0d63a1c61f81f922bbf16473fd6';
+String _$feedControllerHash() => r'8a0c2d856e6e5f5eec48fac792c5e433718053f6';
 
 /// See also [FeedController].
 @ProviderFor(FeedController)

@@ -8,7 +8,8 @@ class EditorHeader extends StatefulWidget {
   const EditorHeader({
     super.key,
     required this.tripName,
-    required this.saving,
+    required this.syncStatusLabel,
+    required this.syncStatusColor,
     required this.onBack,
     required this.onNameChanged,
     required this.onExport,
@@ -16,7 +17,8 @@ class EditorHeader extends StatefulWidget {
   });
 
   final String tripName;
-  final bool saving;
+  final String syncStatusLabel;
+  final Color syncStatusColor;
   final VoidCallback onBack;
   final ValueChanged<String> onNameChanged;
   final VoidCallback onExport;
@@ -97,20 +99,12 @@ class _EditorHeaderState extends State<EditorHeader> {
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
-                        if (widget.saving)
-                          Text(
-                            'Saving...',
-                            style: AppTypography.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          )
-                        else
-                          Text(
-                            'All changes saved',
-                            style: AppTypography.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                        Text(
+                          widget.syncStatusLabel,
+                          style: AppTypography.caption.copyWith(
+                            color: widget.syncStatusColor,
                           ),
+                        ),
                       ],
                     ),
                   ),

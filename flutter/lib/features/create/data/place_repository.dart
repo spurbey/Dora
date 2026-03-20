@@ -6,6 +6,7 @@ import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
@@ -30,7 +31,7 @@ class PlaceRepository {
   final openapi.PlacesApi? _placesApi;
   final AuthService? _authService;
   final SyncTaskDao _syncTaskDao;
-  final Map<String, Future<String>> _ensureRemotePlaceIdInFlight = {};
+  static final Map<String, Future<String>> _ensureRemotePlaceIdInFlight = {};
 
   Future<List<Place>> getPlaces(String tripId) async {
     final rows = await _db.placeDao.getPlacesForTrip(tripId);
@@ -101,36 +102,34 @@ class PlaceRepository {
       return;
     }
 
-    final existingRows = await _db.placeDao.getPlacesForTrip(places.first.tripId);
+    final existingRows =
+        await _db.placeDao.getPlacesForTrip(places.first.tripId);
     final existingById = <String, Place>{
       for (final row in existingRows) row.id: _mapRow(row),
     };
 
     final now = DateTime.now();
-    final companions = places
-        .map((place) {
-          final merged = _preserveSystemManagedFields(
-            incoming: place,
-            existing: existingById[place.id],
-          );
-          return _toCompanion(
-            merged.copyWith(
-              localUpdatedAt: now,
-              syncStatus: 'pending',
-            ),
-          );
-        })
-        .toList();
+    final companions = places.map((place) {
+      final merged = _preserveSystemManagedFields(
+        incoming: place,
+        existing: existingById[place.id],
+      );
+      return _toCompanion(
+        merged.copyWith(
+          localUpdatedAt: now,
+          syncStatus: 'pending',
+        ),
+      );
+    }).toList();
     await _db.placeDao.insertPlaces(companions);
     await _updatePlaceCount(places.first.tripId);
     for (final place in places) {
       await _enqueuePlaceSyncTask(
         placeId: place.id,
         tripId: place.tripId,
-        operation:
-            (place.serverPlaceId == null || place.serverPlaceId!.isEmpty)
-                ? 'create'
-                : 'update',
+        operation: (place.serverPlaceId == null || place.serverPlaceId!.isEmpty)
+            ? 'create'
+            : 'update',
       );
     }
   }
@@ -174,7 +173,9 @@ class PlaceRepository {
     try {
       return await future;
     } finally {
-      _ensureRemotePlaceIdInFlight.remove(localPlaceId);
+      if (identical(_ensureRemotePlaceIdInFlight[localPlaceId], future)) {
+        _ensureRemotePlaceIdInFlight.remove(localPlaceId);
+      }
     }
   }
 
@@ -435,12 +436,12 @@ class PlaceRepository {
         try {
           final refreshedRemoteTripId =
               await _tripRepository.ensureRemoteTripId(
-                local.tripId,
-                // Don't recreate the trip inline — clear the stale mapping
-                // and let the sync worker handle trip recreation as a
-                // separate tracked task, avoiding orphaned server trips.
-                allowCreate: false,
-              );
+            local.tripId,
+            // Don't recreate the trip inline — clear the stale mapping
+            // and let the sync worker handle trip recreation as a
+            // separate tracked task, avoiding orphaned server trips.
+            allowCreate: false,
+          );
           responseData = await _createRemotePlace(
             placesApi: placesApi,
             token: token,
@@ -697,17 +698,24 @@ class PlaceRepository {
     );
   }
 
-  Future<void> syncPlaceForTask(
+  Future<EntitySyncReceipt> syncPlaceForTask(
     String localPlaceId, {
     required String operation,
   }) async {
     switch (operation) {
       case 'create':
-        await ensureRemotePlaceId(localPlaceId);
-        return;
+        final remotePlaceId = await ensureRemotePlaceId(localPlaceId);
+        final remoteUpdatedAt =
+            await _tryFetchRemotePlaceUpdatedAt(remotePlaceId) ??
+                DateTime.now();
+        return EntitySyncReceipt(
+          entityType: 'place',
+          localEntityId: localPlaceId,
+          remoteEntityId: remotePlaceId,
+          serverUpdatedAt: remoteUpdatedAt,
+        );
       case 'update':
-        await _syncRemotePlaceUpdate(localPlaceId);
-        return;
+        return _syncRemotePlaceUpdate(localPlaceId);
       case 'delete':
         throw PlaceIdentityException(
           'Place delete requires remote place id context.',
@@ -719,7 +727,7 @@ class PlaceRepository {
     }
   }
 
-  Future<void> _syncRemotePlaceUpdate(String localPlaceId) async {
+  Future<EntitySyncReceipt> _syncRemotePlaceUpdate(String localPlaceId) async {
     final local = await getPlace(localPlaceId);
     if (local == null) {
       throw PlaceIdentityException(
@@ -765,13 +773,41 @@ class PlaceRepository {
       }
     });
 
-    await placesApi.updatePlaceApiV1PlacesPlaceIdPatch(
+    final response = await placesApi.updatePlaceApiV1PlacesPlaceIdPatch(
       placeId: remotePlaceId,
       authorization: 'Bearer $token',
       placeUpdate: payload,
     );
+    return EntitySyncReceipt(
+      entityType: 'place',
+      localEntityId: localPlaceId,
+      remoteEntityId: remotePlaceId,
+      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
+    );
   }
 
+  Future<DateTime?> _tryFetchRemotePlaceUpdatedAt(String remotePlaceId) async {
+    final placesApi = _placesApi;
+    final authService = _authService;
+    if (placesApi == null || authService == null) {
+      return null;
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await placesApi.getPlaceApiV1PlacesPlaceIdGet(
+        placeId: remotePlaceId,
+        authorization: 'Bearer $token',
+      );
+      return response.data?.updatedAt;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class PlaceIdentityException implements Exception {

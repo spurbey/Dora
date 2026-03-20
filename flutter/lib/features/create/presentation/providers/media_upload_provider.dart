@@ -27,18 +27,9 @@ final thumbnailGeneratorProvider = Provider<ThumbnailGenerator>(
 );
 
 final placeRepositoryForMediaProvider = Provider<PlaceRepository>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  final tripRepository = ref.watch(tripRepositoryProvider);
-  final searchApi = ref.watch(searchApiProvider);
-  final placesApi = ref.watch(placesApiProvider);
-  final authService = ref.watch(authServiceProvider);
-  return PlaceRepository(
-    db,
-    tripRepository: tripRepository,
-    searchApi: searchApi,
-    placesApi: placesApi,
-    authService: authService,
-  );
+  // Reuse the canonical repository instance so in-flight identity dedup
+  // is shared across entity sync and media workers.
+  return ref.watch(placeRepositoryProvider);
 });
 
 final appMediaUploaderProvider = Provider<AppMediaUploader>((ref) {

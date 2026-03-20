@@ -98,7 +98,7 @@ class OpenApiTripsApi implements TripsApi {
       startDate: trip.startDate?.toDateTime(),
       endDate: trip.endDate?.toDateTime(),
       visibility: trip.visibility,
-      placeCount: 0,
+      placeCount: trip.placeCount ?? 0,
       status: status,
       lastEditedAt: trip.updatedAt,
       localUpdatedAt: now,

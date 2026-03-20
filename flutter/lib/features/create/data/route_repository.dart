@@ -10,6 +10,7 @@ import 'package:dora/core/map/directions/app_directions_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/features/create/data/arc_generator.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -38,7 +39,7 @@ class RouteRepository {
   final TripRepository? _tripRepository;
   final PlaceRepository? _placeRepository;
   final SyncTaskDao _syncTaskDao;
-  final Map<String, Future<String>> _ensureRemoteRouteIdInFlight = {};
+  static final Map<String, Future<String>> _ensureRemoteRouteIdInFlight = {};
 
   Future<List<Route>> getRoutes(String tripId) async {
     final rows = await _db.routeDao.getRoutesForTrip(tripId);
@@ -389,17 +390,24 @@ class RouteRepository {
     );
   }
 
-  Future<void> syncRouteForTask(
+  Future<EntitySyncReceipt> syncRouteForTask(
     String localRouteId, {
     required String operation,
   }) async {
     switch (operation) {
       case 'create':
-        await ensureRemoteRouteId(localRouteId);
-        return;
+        final remoteRouteId = await ensureRemoteRouteId(localRouteId);
+        final remoteUpdatedAt =
+            await _tryFetchRemoteRouteUpdatedAt(remoteRouteId) ??
+                DateTime.now();
+        return EntitySyncReceipt(
+          entityType: 'route',
+          localEntityId: localRouteId,
+          remoteEntityId: remoteRouteId,
+          serverUpdatedAt: remoteUpdatedAt,
+        );
       case 'update':
-        await _syncRemoteRouteUpdate(localRouteId);
-        return;
+        return _syncRemoteRouteUpdate(localRouteId);
       case 'delete':
         throw const RouteIdentityException(
           'Route delete requires remote route id context.',
@@ -422,7 +430,9 @@ class RouteRepository {
     try {
       return await future;
     } finally {
-      _ensureRemoteRouteIdInFlight.remove(localRouteId);
+      if (identical(_ensureRemoteRouteIdInFlight[localRouteId], future)) {
+        _ensureRemoteRouteIdInFlight.remove(localRouteId);
+      }
     }
   }
 
@@ -547,7 +557,7 @@ class RouteRepository {
     return remoteRouteId;
   }
 
-  Future<void> _syncRemoteRouteUpdate(String localRouteId) async {
+  Future<EntitySyncReceipt> _syncRemoteRouteUpdate(String localRouteId) async {
     final local = await getRoute(localRouteId);
     if (local == null) {
       throw RouteIdentityException(
@@ -586,11 +596,40 @@ class RouteRepository {
         ..routeGeojson = JsonObject(_resolveRouteGeoJson(local));
     });
 
-    await routesApi.updateRouteApiV1RoutesRouteIdPatch(
+    final response = await routesApi.updateRouteApiV1RoutesRouteIdPatch(
       routeId: remoteRouteId,
       authorization: 'Bearer $token',
       routeUpdate: payload,
     );
+    return EntitySyncReceipt(
+      entityType: 'route',
+      localEntityId: localRouteId,
+      remoteEntityId: remoteRouteId,
+      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
+    );
+  }
+
+  Future<DateTime?> _tryFetchRemoteRouteUpdatedAt(String remoteRouteId) async {
+    final routesApi = _routesApi;
+    final authService = _authService;
+    if (routesApi == null || authService == null) {
+      return null;
+    }
+
+    final token = await authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await routesApi.getRouteApiV1RoutesRouteIdGet(
+        routeId: remoteRouteId,
+        authorization: 'Bearer $token',
+      );
+      return response.data?.updatedAt;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String?> _resolveRemotePlaceId({

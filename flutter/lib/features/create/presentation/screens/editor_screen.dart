@@ -13,13 +13,18 @@ import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
+import 'package:dora/core/theme/app_spacing.dart';
+import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
+import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
+import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
+import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
@@ -96,8 +101,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ),
       data: (editor) {
         final mapState = ref.watch(mapStateProvider(widget.tripId));
+        final syncStatusAsync =
+            ref.watch(editorSyncStatusProvider(widget.tripId));
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
+        final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
+          savingLocally: editor.saving,
+          syncStatusAsync: syncStatusAsync,
+        );
+        final syncCallout = _resolveEditorSyncCallout(
+          syncStatusAsync: syncStatusAsync,
+          controller: controller,
+        );
 
         final mediaQuery = MediaQuery.of(context);
         final isWide = mediaQuery.size.width >= 900;
@@ -134,7 +149,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 children: [
                   EditorHeader(
                     tripName: editor.trip.name,
-                    saving: editor.saving,
+                    syncStatusLabel: syncStatusLabel,
+                    syncStatusColor: syncStatusColor,
                     onBack: () => _handleBack(editor.saving).then((value) {
                       if (value && mounted) {
                         context.go(Routes.trips);
@@ -144,6 +160,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     onExport: _openExportStudio,
                     onMore: () {},
                   ),
+                  if (syncCallout != null) _buildSyncCallout(syncCallout),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -243,6 +260,173 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       mode == EditorMode.addRouteAir ||
       mode == EditorMode.addRouteCar ||
       mode == EditorMode.addRouteWalking;
+
+  (String, Color) _resolveHeaderSyncStatus({
+    required bool savingLocally,
+    required AsyncValue<EditorSyncStatus> syncStatusAsync,
+  }) {
+    if (savingLocally) {
+      return ('Saving locally...', AppColors.textSecondary);
+    }
+
+    return syncStatusAsync.when(
+      data: (status) {
+        switch (status.kind) {
+          case EditorSyncStatusKind.localSaved:
+            return (status.label, AppColors.textSecondary);
+          case EditorSyncStatusKind.syncing:
+            return (status.label, AppColors.accent);
+          case EditorSyncStatusKind.synced:
+            return (status.label, AppColors.success);
+          case EditorSyncStatusKind.failed:
+            return (status.label, AppColors.error);
+          case EditorSyncStatusKind.blocked:
+            return (status.label, AppColors.warning);
+        }
+      },
+      loading: () => ('Checking sync...', AppColors.textSecondary),
+      error: (_, __) => ('Sync status unavailable', AppColors.warning),
+    );
+  }
+
+  _EditorSyncCallout? _resolveEditorSyncCallout({
+    required AsyncValue<EditorSyncStatus> syncStatusAsync,
+    required EditorController controller,
+  }) {
+    return syncStatusAsync.when(
+      data: (status) {
+        switch (status.kind) {
+          case EditorSyncStatusKind.failed:
+            return _EditorSyncCallout(
+              message: 'Some changes failed to sync.',
+              tint: AppColors.error,
+              actionLabel: 'Retry now',
+              onAction: () => unawaited(_retrySyncNow()),
+            );
+          case EditorSyncStatusKind.blocked:
+            final snapshot = status.snapshot;
+            final blockedMediaPlaceId = snapshot.firstBlockedMediaPlaceId;
+            if (blockedMediaPlaceId != null && blockedMediaPlaceId.isNotEmpty) {
+              return _EditorSyncCallout(
+                message: 'Some media uploads are blocked.',
+                tint: AppColors.warning,
+                actionLabel: 'Open uploads',
+                onAction: () => unawaited(
+                  _openBlockedMediaUploads(blockedMediaPlaceId),
+                ),
+              );
+            }
+            return _EditorSyncCallout(
+              message: snapshot.firstBlockedTaskErrorMessage ??
+                  'Sync is blocked. Resolve the issue and retry.',
+              tint: AppColors.warning,
+              actionLabel: 'Review',
+              onAction: () => _focusBlockedEntity(snapshot, controller),
+            );
+          case EditorSyncStatusKind.localSaved:
+          case EditorSyncStatusKind.syncing:
+          case EditorSyncStatusKind.synced:
+            return null;
+        }
+      },
+      loading: () => null,
+      error: (_, __) => _EditorSyncCallout(
+        message: 'Sync status unavailable.',
+        tint: AppColors.warning,
+        actionLabel: 'Retry now',
+        onAction: () => unawaited(_retrySyncNow()),
+      ),
+    );
+  }
+
+  Future<void> _retrySyncNow() async {
+    final entityWorker = ref.read(entitySyncWorkerProvider);
+    final mediaWorker = ref.read(uploadQueueWorkerProvider);
+    await Future.wait([
+      entityWorker.startIfIdle(),
+      mediaWorker.startIfIdle(),
+    ]);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Retrying sync now.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _openBlockedMediaUploads(String placeId) async {
+    if (!mounted) {
+      return;
+    }
+    await context.push(Routes.mediaUploadPath(widget.tripId, placeId));
+  }
+
+  void _focusBlockedEntity(
+    EditorSyncSnapshot snapshot,
+    EditorController controller,
+  ) {
+    final entityType = snapshot.firstBlockedTaskEntityType;
+    final entityId = snapshot.firstBlockedTaskEntityId;
+    if (entityType == 'place' && entityId != null) {
+      controller.selectPlace(entityId);
+    } else if (entityType == 'route' && entityId != null) {
+      controller.selectRoute(entityId);
+    }
+
+    final message = snapshot.firstBlockedTaskErrorMessage ??
+        'Sync is blocked. Resolve the highlighted item and retry.';
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () => unawaited(_retrySyncNow()),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyncCallout(_EditorSyncCallout callout) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Container(
+        padding: AppSpacing.allSm,
+        decoration: BoxDecoration(
+          color: callout.tint.withValues(alpha: 0.12),
+          border: Border.all(color: callout.tint.withValues(alpha: 0.35)),
+          borderRadius: AppRadius.borderMd,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                callout.message,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (callout.actionLabel != null && callout.onAction != null)
+              TextButton(
+                onPressed: callout.onAction,
+                child: Text(callout.actionLabel!),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _resolveDeviceCenter() async {
     final locationResult = await ref
@@ -921,7 +1105,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final type = editor.selectedItemType;
     final id = editor.selectedItemId;
     final places = editor.places;
-    final routes = editor.routes;
 
     if (type == 'place' && id != null) {
       try {
@@ -1137,4 +1320,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ),
     );
   }
+}
+
+class _EditorSyncCallout {
+  const _EditorSyncCallout({
+    required this.message,
+    required this.tint,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String message;
+  final Color tint;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 }

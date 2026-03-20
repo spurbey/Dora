@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 import 'package:dora/features/feed/data/models/trip_detail_data.dart';
@@ -55,21 +57,90 @@ class FeedApi {
   }) async {
     try {
       final auth = await _authorizationHeader();
-      final response = await _tripsApi.listTripsApiV1TripsGet(
-        authorization: auth,
-        page: page,
-        pageSize: limit,
-        visibility: visibility,
-        publicOnly: publicOnly,
-      );
-      final trips = response.data?.trips;
-      if (trips == null || trips.isEmpty) {
-        return const <TripResponse>[];
+      try {
+        return await _listTrips(
+          authorization: auth,
+          page: page,
+          limit: limit,
+          visibility: visibility,
+          publicOnly: publicOnly,
+        );
+      } on DioException catch (error) {
+        if (publicOnly && _isPublicOnlyCompatibilityError(error)) {
+          debugPrint(
+            '[FEED] backend missing public_only support; retrying '
+            'without public_only (status=${error.response?.statusCode})',
+          );
+          return _listTrips(
+            authorization: auth,
+            page: page,
+            limit: limit,
+            visibility: visibility,
+            publicOnly: null,
+          );
+        }
+        rethrow;
       }
-      return trips.toList();
     } catch (e) {
       throw FeedApiException('Failed to fetch trips: $e');
     }
+  }
+
+  Future<List<TripResponse>> _listTrips({
+    required String authorization,
+    required int page,
+    required int limit,
+    required String? visibility,
+    required bool? publicOnly,
+  }) async {
+    final response = await _tripsApi.listTripsApiV1TripsGet(
+      authorization: authorization,
+      page: page,
+      pageSize: limit,
+      visibility: visibility,
+      publicOnly: publicOnly,
+    );
+    final trips = response.data?.trips;
+    if (trips == null || trips.isEmpty) {
+      return const <TripResponse>[];
+    }
+    return trips.toList();
+  }
+
+  bool _isPublicOnlyCompatibilityError(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode != 400 && statusCode != 422) {
+      return false;
+    }
+    final detail = _extractErrorDetail(error.response?.data).toLowerCase();
+    return detail.contains('public_only') ||
+        detail.contains('publiconly') ||
+        detail.contains('unexpected keyword') ||
+        detail.contains('extra fields not permitted');
+  }
+
+  String _extractErrorDetail(Object? payload) {
+    if (payload is Map) {
+      final detail = payload['detail'];
+      if (detail is String && detail.isNotEmpty) {
+        return detail;
+      }
+      if (detail is List && detail.isNotEmpty) {
+        return detail
+            .whereType<Map>()
+            .map((item) => item['msg'])
+            .whereType<String>()
+            .join(' ');
+      }
+      final message = payload['message'];
+      if (message is String && message.isNotEmpty) {
+        return message;
+      }
+    }
+    if (payload is String && payload.isNotEmpty) {
+      return payload;
+    }
+    return '';
   }
 
   Future<List<TripPlace>> getTripPlaces(String tripId) async {
@@ -165,8 +236,9 @@ class FeedApi {
       longitude: place.lng.toDouble(),
       notes: place.userNotes,
       orderIndex: place.orderInTrip,
-      photoUrls:
-          photos == null ? const <String>[] : photos.map((photo) => photo.fileUrl).toList(),
+      photoUrls: photos == null
+          ? const <String>[]
+          : photos.map((photo) => photo.fileUrl).toList(),
     );
   }
 

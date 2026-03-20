@@ -40,7 +40,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -125,6 +125,13 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 11) {
             await _repairSchemaForV11(m);
+          }
+          if (from < 12) {
+            await _addColumnIfMissing(
+              tableName: 'sync_tasks',
+              columnName: 'pending_requeue',
+              definition: 'INTEGER NOT NULL DEFAULT 0',
+            );
           }
         },
       );

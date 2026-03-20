@@ -180,7 +180,7 @@ void main() {
 
       final row = (await database.customSelect(
         '''
-        SELECT status, operation, worker_session_id
+        SELECT status, operation, worker_session_id, pending_requeue
         FROM sync_tasks
         WHERE entity_type = 'trip' AND entity_id = 'trip-lock-1'
         LIMIT 1
@@ -190,6 +190,7 @@ void main() {
       expect(row.read<String>('status'), 'in_progress');
       expect(row.read<String>('operation'), 'update');
       expect(row.read<String?>('worker_session_id'), isNot(equals(null)));
+      expect(row.read<int>('pending_requeue'), 1);
     });
 
     test('upsertQueuedTask preserves in-progress remoteEntityId when absent',
@@ -216,7 +217,7 @@ void main() {
 
       final row = await database.customSelect(
         '''
-        SELECT status, operation, remote_entity_id
+        SELECT status, operation, remote_entity_id, pending_requeue
         FROM sync_tasks
         WHERE entity_type = 'route' AND entity_id = 'route-lock-1'
         LIMIT 1
@@ -226,6 +227,97 @@ void main() {
       expect(row.read<String>('status'), 'in_progress');
       expect(row.read<String>('operation'), 'update');
       expect(row.read<String?>('remote_entity_id'), 'remote-route-1');
+      expect(row.read<int>('pending_requeue'), 1);
+    });
+
+    test('markCompleted requeues when in-progress task received newer intent',
+        () async {
+      await dao.upsertQueuedTask(
+        id: 'task-requeue-1',
+        entityType: 'trip',
+        entityId: 'trip-requeue-1',
+        operation: 'create',
+      );
+
+      await dao.claimRunnableTasks(
+        workerSessionId: 'worker-requeue',
+        limit: 10,
+      );
+
+      await dao.upsertQueuedTask(
+        id: 'task-requeue-2',
+        entityType: 'trip',
+        entityId: 'trip-requeue-1',
+        operation: 'update',
+      );
+
+      await dao.markCompleted(
+        taskId: 'task-requeue-1',
+        expectedSessionId: 'worker-requeue',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT status, operation, pending_requeue, retry_count, next_attempt_at, worker_session_id
+        FROM sync_tasks
+        WHERE entity_type = 'trip' AND entity_id = 'trip-requeue-1'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('status'), 'queued');
+      expect(row.read<String>('operation'), 'update');
+      expect(row.read<int>('pending_requeue'), 0);
+      expect(row.read<int>('retry_count'), 0);
+      expect(row.read<int?>('next_attempt_at'), equals(null));
+      expect(row.read<String?>('worker_session_id'), equals(null));
+    });
+
+    test(
+        'markCompleted requeues latest intent after multiple in-progress upserts',
+        () async {
+      await dao.upsertQueuedTask(
+        id: 'task-requeue-latest-1',
+        entityType: 'place',
+        entityId: 'place-requeue-latest-1',
+        operation: 'create',
+      );
+
+      await dao.claimRunnableTasks(
+        workerSessionId: 'worker-requeue-latest',
+        limit: 10,
+      );
+
+      await dao.upsertQueuedTask(
+        id: 'task-requeue-latest-2',
+        entityType: 'place',
+        entityId: 'place-requeue-latest-1',
+        operation: 'update',
+      );
+      await dao.upsertQueuedTask(
+        id: 'task-requeue-latest-3',
+        entityType: 'place',
+        entityId: 'place-requeue-latest-1',
+        operation: 'delete',
+      );
+
+      await dao.markCompleted(
+        taskId: 'task-requeue-latest-1',
+        expectedSessionId: 'worker-requeue-latest',
+      );
+
+      final row = await database.customSelect(
+        '''
+        SELECT status, operation, pending_requeue
+        FROM sync_tasks
+        WHERE entity_type = 'place' AND entity_id = 'place-requeue-latest-1'
+        LIMIT 1
+        ''',
+      ).getSingle();
+
+      expect(row.read<String>('status'), 'queued');
+      expect(row.read<String>('operation'), 'delete');
+      expect(row.read<int>('pending_requeue'), 0);
     });
 
     test(
@@ -426,6 +518,46 @@ void main() {
       );
 
       expect(secondClaim, isEmpty);
+    });
+
+    test('claimRunnableTasks recovers stale in-progress task locks', () async {
+      await dao.upsertQueuedTask(
+        id: 'task-stale-lock',
+        entityType: 'trip',
+        entityId: 'trip-stale',
+        operation: 'update',
+      );
+
+      await dao.claimRunnableTasks(
+        workerSessionId: 'worker-old',
+        limit: 10,
+      );
+
+      final staleUpdatedAt = DateTime.now().subtract(
+        const Duration(minutes: 4),
+      );
+      await database.customUpdate(
+        '''
+        UPDATE sync_tasks
+        SET updated_at = ?
+        WHERE id = ?
+        ''',
+        variables: [
+          Variable<DateTime>(staleUpdatedAt),
+          Variable<String>('task-stale-lock'),
+        ],
+        updates: {database.syncTasks},
+      );
+
+      final claimed = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-new',
+        limit: 10,
+      );
+
+      expect(claimed.length, 1);
+      expect(claimed.first.id, 'task-stale-lock');
+      expect(claimed.first.status, 'in_progress');
+      expect(claimed.first.workerSessionId, 'worker-new');
     });
   });
 }

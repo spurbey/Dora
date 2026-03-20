@@ -3,27 +3,32 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/route_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 
 class EntitySyncWorker {
   EntitySyncWorker({
+    required AppDatabase db,
     required SyncTaskDao syncTaskDao,
     required TripRepository tripRepository,
     required PlaceRepository placeRepository,
     required RouteRepository routeRepository,
     int maxConcurrency = 2,
-  })  : _syncTaskDao = syncTaskDao,
+  })  : _db = db,
+        _syncTaskDao = syncTaskDao,
         _tripRepository = tripRepository,
         _placeRepository = placeRepository,
         _routeRepository = routeRepository,
         _maxConcurrency = maxConcurrency;
 
+  final AppDatabase _db;
   final SyncTaskDao _syncTaskDao;
   final TripRepository _tripRepository;
   final PlaceRepository _placeRepository;
@@ -53,7 +58,8 @@ class EntitySyncWorker {
         if (claimed.isEmpty) {
           break;
         }
-        debugPrint('[ENTITY_SYNC] claimed=${claimed.length} session=$sessionId');
+        debugPrint(
+            '[ENTITY_SYNC] claimed=${claimed.length} session=$sessionId');
         await Future.wait(claimed.map(_processClaimedTask), eagerError: false);
       }
     } finally {
@@ -64,15 +70,16 @@ class EntitySyncWorker {
   Future<void> _processClaimedTask(SyncTaskRow task) async {
     final sessionId = task.workerSessionId;
     try {
+      EntitySyncReceipt? receipt;
       switch (task.entityType) {
         case 'trip':
-          await _processTripTask(task);
+          receipt = await _processTripTask(task);
           break;
         case 'place':
-          await _processPlaceTask(task);
+          receipt = await _processPlaceTask(task);
           break;
         case 'route':
-          await _processRouteTask(task);
+          receipt = await _processRouteTask(task);
           break;
         default:
           throw _EntitySyncTerminalException(
@@ -81,9 +88,10 @@ class EntitySyncWorker {
           );
       }
 
-      await _syncTaskDao.markCompleted(
-        taskId: task.id,
-        expectedSessionId: sessionId,
+      await _persistReceiptAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        receipt: receipt,
       );
       debugPrint(
         '[ENTITY_SYNC] success entity=${task.entityType} '
@@ -98,7 +106,16 @@ class EntitySyncWorker {
         dependsOnEntityType: task.dependsOnEntityType,
         dependsOnEntityId: task.dependsOnEntityId,
       );
-      debugPrint('[ENTITY_SYNC] blocked taskId=${task.id} reason=${error.code}');
+      debugPrint(
+          '[ENTITY_SYNC] blocked taskId=${task.id} reason=${error.code}');
+    } on _EntitySyncRetryableException catch (error) {
+      await _handleRecoverableFailure(
+        task: task,
+        sessionId: sessionId,
+        code: error.code,
+        message: error.message,
+        retryable: true,
+      );
     } on TripIdentityException catch (error) {
       await _handleRecoverableFailure(
         task: task,
@@ -165,22 +182,21 @@ class EntitySyncWorker {
     }
   }
 
-  Future<void> _processTripTask(SyncTaskRow task) async {
+  Future<EntitySyncReceipt?> _processTripTask(SyncTaskRow task) async {
     switch (task.operation) {
       case 'create':
       case 'update':
-        await _tripRepository.syncTripForTask(
+        return _tripRepository.syncTripForTask(
           task.entityId,
           operation: task.operation,
         );
-        return;
       case 'delete':
         final remoteTripId = task.remoteEntityId;
         if (remoteTripId == null || remoteTripId.isEmpty) {
-          return;
+          return null;
         }
         await _tripRepository.deleteRemoteTripById(remoteTripId);
-        return;
+        return null;
       default:
         throw _EntitySyncTerminalException(
           code: 'unsupported_trip_operation',
@@ -189,22 +205,21 @@ class EntitySyncWorker {
     }
   }
 
-  Future<void> _processPlaceTask(SyncTaskRow task) async {
+  Future<EntitySyncReceipt?> _processPlaceTask(SyncTaskRow task) async {
     switch (task.operation) {
       case 'create':
       case 'update':
-        await _placeRepository.syncPlaceForTask(
+        return _placeRepository.syncPlaceForTask(
           task.entityId,
           operation: task.operation,
         );
-        return;
       case 'delete':
         final remotePlaceId = task.remoteEntityId;
         if (remotePlaceId == null || remotePlaceId.isEmpty) {
-          return;
+          return null;
         }
         await _placeRepository.deleteRemotePlaceById(remotePlaceId);
-        return;
+        return null;
       default:
         throw _EntitySyncTerminalException(
           code: 'unsupported_place_operation',
@@ -213,28 +228,161 @@ class EntitySyncWorker {
     }
   }
 
-  Future<void> _processRouteTask(SyncTaskRow task) async {
+  Future<EntitySyncReceipt?> _processRouteTask(SyncTaskRow task) async {
     switch (task.operation) {
       case 'create':
       case 'update':
-        await _routeRepository.syncRouteForTask(
+        return _routeRepository.syncRouteForTask(
           task.entityId,
           operation: task.operation,
         );
-        return;
       case 'delete':
         final remoteRouteId = task.remoteEntityId;
         if (remoteRouteId == null || remoteRouteId.isEmpty) {
-          return;
+          return null;
         }
         await _routeRepository.deleteRemoteRouteById(remoteRouteId);
-        return;
+        return null;
       default:
         throw _EntitySyncTerminalException(
           code: 'unsupported_route_operation',
           message: 'Unsupported route sync operation: ${task.operation}',
         );
     }
+  }
+
+  Future<void> _persistReceiptAndCompleteTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+    required EntitySyncReceipt? receipt,
+  }) async {
+    if (receipt == null) {
+      final completed = await _syncTaskDao.markCompleted(
+        taskId: task.id,
+        expectedSessionId: sessionId,
+      );
+      if (completed != 1) {
+        throw const _EntitySyncRetryableException(
+          code: 'sync_task_completion_conflict',
+          message: 'Failed to complete sync task due to session mismatch.',
+        );
+      }
+      return;
+    }
+
+    await _db.transaction(() async {
+      final currentTask = await _syncTaskDao.getTaskById(task.id);
+      if (currentTask == null) {
+        throw const _EntitySyncRetryableException(
+          code: 'sync_task_missing',
+          message: 'Sync task disappeared before completion.',
+        );
+      }
+
+      final shouldMarkEntitySynced = !currentTask.pendingRequeue;
+      await _applyReceiptToLocalRows(
+        receipt: receipt,
+        shouldMarkEntitySynced: shouldMarkEntitySynced,
+      );
+
+      final completed = await _syncTaskDao.markCompleted(
+        taskId: task.id,
+        expectedSessionId: sessionId,
+      );
+      if (completed != 1) {
+        throw const _EntitySyncRetryableException(
+          code: 'sync_task_completion_conflict',
+          message: 'Failed to complete sync task due to session mismatch.',
+        );
+      }
+    });
+  }
+
+  Future<void> _applyReceiptToLocalRows({
+    required EntitySyncReceipt receipt,
+    required bool shouldMarkEntitySynced,
+  }) async {
+    switch (receipt.entityType) {
+      case 'trip':
+        await _applyTripReceipt(
+          receipt: receipt,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+        );
+        return;
+      case 'place':
+        await _applyPlaceReceipt(
+          receipt: receipt,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+        );
+        return;
+      case 'route':
+        await _applyRouteReceipt(
+          receipt: receipt,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+        );
+        return;
+      default:
+        throw _EntitySyncTerminalException(
+          code: 'unsupported_receipt_entity_type',
+          message: 'Unsupported receipt entity type: ${receipt.entityType}',
+        );
+    }
+  }
+
+  Future<void> _applyTripReceipt({
+    required EntitySyncReceipt receipt,
+    required bool shouldMarkEntitySynced,
+  }) async {
+    final syncStatus = shouldMarkEntitySynced ? 'synced' : 'pending';
+    await (_db.update(_db.trips)
+          ..where((t) => t.id.equals(receipt.localEntityId)))
+        .write(
+      TripsCompanion(
+        serverTripId: Value(receipt.remoteEntityId),
+        serverUpdatedAt: Value(receipt.serverUpdatedAt),
+        syncStatus: Value(syncStatus),
+      ),
+    );
+    await (_db.update(_db.userTrips)
+          ..where((t) => t.id.equals(receipt.localEntityId)))
+        .write(
+      UserTripsCompanion(
+        serverUpdatedAt: Value(receipt.serverUpdatedAt),
+        syncStatus: Value(syncStatus),
+      ),
+    );
+  }
+
+  Future<void> _applyPlaceReceipt({
+    required EntitySyncReceipt receipt,
+    required bool shouldMarkEntitySynced,
+  }) async {
+    final syncStatus = shouldMarkEntitySynced ? 'synced' : 'pending';
+    await (_db.update(_db.places)
+          ..where((p) => p.id.equals(receipt.localEntityId)))
+        .write(
+      PlacesCompanion(
+        serverPlaceId: Value(receipt.remoteEntityId),
+        serverUpdatedAt: Value(receipt.serverUpdatedAt),
+        syncStatus: Value(syncStatus),
+      ),
+    );
+  }
+
+  Future<void> _applyRouteReceipt({
+    required EntitySyncReceipt receipt,
+    required bool shouldMarkEntitySynced,
+  }) async {
+    final syncStatus = shouldMarkEntitySynced ? 'synced' : 'pending';
+    await (_db.update(_db.routes)
+          ..where((r) => r.id.equals(receipt.localEntityId)))
+        .write(
+      RoutesCompanion(
+        serverRouteId: Value(receipt.remoteEntityId),
+        serverUpdatedAt: Value(receipt.serverUpdatedAt),
+        syncStatus: Value(syncStatus),
+      ),
+    );
   }
 
   Future<void> _handleRecoverableFailure({
@@ -317,6 +465,16 @@ class EntitySyncWorker {
 
 class _EntitySyncTerminalException implements Exception {
   const _EntitySyncTerminalException({
+    required this.code,
+    required this.message,
+  });
+
+  final String code;
+  final String message;
+}
+
+class _EntitySyncRetryableException implements Exception {
+  const _EntitySyncRetryableException({
     required this.code,
     required this.message,
   });

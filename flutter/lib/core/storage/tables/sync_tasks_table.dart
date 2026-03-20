@@ -8,6 +8,8 @@ class SyncTasks extends Table {
   TextColumn get remoteEntityId => text().nullable()();
   TextColumn get operation => text()();
   TextColumn get status => text().withDefault(const Constant('queued'))();
+  BoolColumn get pendingRequeue =>
+      boolean().withDefault(const Constant(false))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();
   TextColumn get dependsOnEntityType => text().nullable()();

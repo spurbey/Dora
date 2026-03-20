@@ -4969,6 +4969,16 @@ class $SyncTasksTable extends SyncTasks
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('queued'));
+  static const VerificationMeta _pendingRequeueMeta =
+      const VerificationMeta('pendingRequeue');
+  @override
+  late final GeneratedColumn<bool> pendingRequeue = GeneratedColumn<bool>(
+      'pending_requeue', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("pending_requeue" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _retryCountMeta =
       const VerificationMeta('retryCount');
   @override
@@ -5033,6 +5043,7 @@ class $SyncTasksTable extends SyncTasks
         remoteEntityId,
         operation,
         status,
+        pendingRequeue,
         retryCount,
         nextAttemptAt,
         dependsOnEntityType,
@@ -5087,6 +5098,12 @@ class $SyncTasksTable extends SyncTasks
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('pending_requeue')) {
+      context.handle(
+          _pendingRequeueMeta,
+          pendingRequeue.isAcceptableOrUnknown(
+              data['pending_requeue']!, _pendingRequeueMeta));
     }
     if (data.containsKey('retry_count')) {
       context.handle(
@@ -5165,6 +5182,8 @@ class $SyncTasksTable extends SyncTasks
           .read(DriftSqlType.string, data['${effectivePrefix}operation'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      pendingRequeue: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}pending_requeue'])!,
       retryCount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
       nextAttemptAt: attachedDatabase.typeMapping.read(
@@ -5200,6 +5219,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
   final String? remoteEntityId;
   final String operation;
   final String status;
+  final bool pendingRequeue;
   final int retryCount;
   final DateTime? nextAttemptAt;
   final String? dependsOnEntityType;
@@ -5216,6 +5236,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       this.remoteEntityId,
       required this.operation,
       required this.status,
+      required this.pendingRequeue,
       required this.retryCount,
       this.nextAttemptAt,
       this.dependsOnEntityType,
@@ -5236,6 +5257,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
     }
     map['operation'] = Variable<String>(operation);
     map['status'] = Variable<String>(status);
+    map['pending_requeue'] = Variable<bool>(pendingRequeue);
     map['retry_count'] = Variable<int>(retryCount);
     if (!nullToAbsent || nextAttemptAt != null) {
       map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
@@ -5270,6 +5292,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           : Value(remoteEntityId),
       operation: Value(operation),
       status: Value(status),
+      pendingRequeue: Value(pendingRequeue),
       retryCount: Value(retryCount),
       nextAttemptAt: nextAttemptAt == null && nullToAbsent
           ? const Value.absent()
@@ -5304,6 +5327,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       remoteEntityId: serializer.fromJson<String?>(json['remoteEntityId']),
       operation: serializer.fromJson<String>(json['operation']),
       status: serializer.fromJson<String>(json['status']),
+      pendingRequeue: serializer.fromJson<bool>(json['pendingRequeue']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
       nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
       dependsOnEntityType:
@@ -5327,6 +5351,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       'remoteEntityId': serializer.toJson<String?>(remoteEntityId),
       'operation': serializer.toJson<String>(operation),
       'status': serializer.toJson<String>(status),
+      'pendingRequeue': serializer.toJson<bool>(pendingRequeue),
       'retryCount': serializer.toJson<int>(retryCount),
       'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
       'dependsOnEntityType': serializer.toJson<String?>(dependsOnEntityType),
@@ -5346,6 +5371,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           Value<String?> remoteEntityId = const Value.absent(),
           String? operation,
           String? status,
+          bool? pendingRequeue,
           int? retryCount,
           Value<DateTime?> nextAttemptAt = const Value.absent(),
           Value<String?> dependsOnEntityType = const Value.absent(),
@@ -5363,6 +5389,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
             remoteEntityId.present ? remoteEntityId.value : this.remoteEntityId,
         operation: operation ?? this.operation,
         status: status ?? this.status,
+        pendingRequeue: pendingRequeue ?? this.pendingRequeue,
         retryCount: retryCount ?? this.retryCount,
         nextAttemptAt:
             nextAttemptAt.present ? nextAttemptAt.value : this.nextAttemptAt,
@@ -5392,6 +5419,9 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           : this.remoteEntityId,
       operation: data.operation.present ? data.operation.value : this.operation,
       status: data.status.present ? data.status.value : this.status,
+      pendingRequeue: data.pendingRequeue.present
+          ? data.pendingRequeue.value
+          : this.pendingRequeue,
       retryCount:
           data.retryCount.present ? data.retryCount.value : this.retryCount,
       nextAttemptAt: data.nextAttemptAt.present
@@ -5424,6 +5454,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           ..write('remoteEntityId: $remoteEntityId, ')
           ..write('operation: $operation, ')
           ..write('status: $status, ')
+          ..write('pendingRequeue: $pendingRequeue, ')
           ..write('retryCount: $retryCount, ')
           ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('dependsOnEntityType: $dependsOnEntityType, ')
@@ -5445,6 +5476,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
       remoteEntityId,
       operation,
       status,
+      pendingRequeue,
       retryCount,
       nextAttemptAt,
       dependsOnEntityType,
@@ -5464,6 +5496,7 @@ class SyncTaskRow extends DataClass implements Insertable<SyncTaskRow> {
           other.remoteEntityId == this.remoteEntityId &&
           other.operation == this.operation &&
           other.status == this.status &&
+          other.pendingRequeue == this.pendingRequeue &&
           other.retryCount == this.retryCount &&
           other.nextAttemptAt == this.nextAttemptAt &&
           other.dependsOnEntityType == this.dependsOnEntityType &&
@@ -5482,6 +5515,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
   final Value<String?> remoteEntityId;
   final Value<String> operation;
   final Value<String> status;
+  final Value<bool> pendingRequeue;
   final Value<int> retryCount;
   final Value<DateTime?> nextAttemptAt;
   final Value<String?> dependsOnEntityType;
@@ -5499,6 +5533,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     this.remoteEntityId = const Value.absent(),
     this.operation = const Value.absent(),
     this.status = const Value.absent(),
+    this.pendingRequeue = const Value.absent(),
     this.retryCount = const Value.absent(),
     this.nextAttemptAt = const Value.absent(),
     this.dependsOnEntityType = const Value.absent(),
@@ -5517,6 +5552,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     this.remoteEntityId = const Value.absent(),
     required String operation,
     this.status = const Value.absent(),
+    this.pendingRequeue = const Value.absent(),
     this.retryCount = const Value.absent(),
     this.nextAttemptAt = const Value.absent(),
     this.dependsOnEntityType = const Value.absent(),
@@ -5540,6 +5576,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     Expression<String>? remoteEntityId,
     Expression<String>? operation,
     Expression<String>? status,
+    Expression<bool>? pendingRequeue,
     Expression<int>? retryCount,
     Expression<DateTime>? nextAttemptAt,
     Expression<String>? dependsOnEntityType,
@@ -5558,6 +5595,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       if (remoteEntityId != null) 'remote_entity_id': remoteEntityId,
       if (operation != null) 'operation': operation,
       if (status != null) 'status': status,
+      if (pendingRequeue != null) 'pending_requeue': pendingRequeue,
       if (retryCount != null) 'retry_count': retryCount,
       if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
       if (dependsOnEntityType != null)
@@ -5579,6 +5617,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       Value<String?>? remoteEntityId,
       Value<String>? operation,
       Value<String>? status,
+      Value<bool>? pendingRequeue,
       Value<int>? retryCount,
       Value<DateTime?>? nextAttemptAt,
       Value<String?>? dependsOnEntityType,
@@ -5596,6 +5635,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
       remoteEntityId: remoteEntityId ?? this.remoteEntityId,
       operation: operation ?? this.operation,
       status: status ?? this.status,
+      pendingRequeue: pendingRequeue ?? this.pendingRequeue,
       retryCount: retryCount ?? this.retryCount,
       nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
       dependsOnEntityType: dependsOnEntityType ?? this.dependsOnEntityType,
@@ -5629,6 +5669,9 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
+    }
+    if (pendingRequeue.present) {
+      map['pending_requeue'] = Variable<bool>(pendingRequeue.value);
     }
     if (retryCount.present) {
       map['retry_count'] = Variable<int>(retryCount.value);
@@ -5673,6 +5716,7 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
           ..write('remoteEntityId: $remoteEntityId, ')
           ..write('operation: $operation, ')
           ..write('status: $status, ')
+          ..write('pendingRequeue: $pendingRequeue, ')
           ..write('retryCount: $retryCount, ')
           ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('dependsOnEntityType: $dependsOnEntityType, ')
@@ -7859,6 +7903,7 @@ typedef $$SyncTasksTableCreateCompanionBuilder = SyncTasksCompanion Function({
   Value<String?> remoteEntityId,
   required String operation,
   Value<String> status,
+  Value<bool> pendingRequeue,
   Value<int> retryCount,
   Value<DateTime?> nextAttemptAt,
   Value<String?> dependsOnEntityType,
@@ -7877,6 +7922,7 @@ typedef $$SyncTasksTableUpdateCompanionBuilder = SyncTasksCompanion Function({
   Value<String?> remoteEntityId,
   Value<String> operation,
   Value<String> status,
+  Value<bool> pendingRequeue,
   Value<int> retryCount,
   Value<DateTime?> nextAttemptAt,
   Value<String?> dependsOnEntityType,
@@ -7916,6 +7962,10 @@ class $$SyncTasksTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get pendingRequeue => $composableBuilder(
+      column: $table.pendingRequeue,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnFilters(column));
@@ -7975,6 +8025,10 @@ class $$SyncTasksTableOrderingComposer
 
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get pendingRequeue => $composableBuilder(
+      column: $table.pendingRequeue,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnOrderings(column));
@@ -8036,6 +8090,9 @@ class $$SyncTasksTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<bool> get pendingRequeue => $composableBuilder(
+      column: $table.pendingRequeue, builder: (column) => column);
+
   GeneratedColumn<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => column);
 
@@ -8093,6 +8150,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             Value<String?> remoteEntityId = const Value.absent(),
             Value<String> operation = const Value.absent(),
             Value<String> status = const Value.absent(),
+            Value<bool> pendingRequeue = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
             Value<DateTime?> nextAttemptAt = const Value.absent(),
             Value<String?> dependsOnEntityType = const Value.absent(),
@@ -8111,6 +8169,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             remoteEntityId: remoteEntityId,
             operation: operation,
             status: status,
+            pendingRequeue: pendingRequeue,
             retryCount: retryCount,
             nextAttemptAt: nextAttemptAt,
             dependsOnEntityType: dependsOnEntityType,
@@ -8129,6 +8188,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             Value<String?> remoteEntityId = const Value.absent(),
             required String operation,
             Value<String> status = const Value.absent(),
+            Value<bool> pendingRequeue = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
             Value<DateTime?> nextAttemptAt = const Value.absent(),
             Value<String?> dependsOnEntityType = const Value.absent(),
@@ -8147,6 +8207,7 @@ class $$SyncTasksTableTableManager extends RootTableManager<
             remoteEntityId: remoteEntityId,
             operation: operation,
             status: status,
+            pendingRequeue: pendingRequeue,
             retryCount: retryCount,
             nextAttemptAt: nextAttemptAt,
             dependsOnEntityType: dependsOnEntityType,

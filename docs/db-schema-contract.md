@@ -38,6 +38,9 @@
      - `alembic upgrade head`
      - `alembic check`
      - targeted pytest suites for impacted domain
+10. Connection schema determinism:
+   - Runtime and test DB engines must enforce deterministic `search_path` defaults.
+   - Shared engine helpers should be reused instead of ad-hoc `create_engine(...)` calls.
 
 ## Required PR Checklist (Schema PRs)
 - [ ] Model changes and migration revision are in same PR.

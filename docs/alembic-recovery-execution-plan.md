@@ -55,6 +55,7 @@ Update this file after each phase, test run, and decision so future sessions can
 - 2026-03-21: Fresh-DB bootstrap fixed by making revision `90383dc1f729` skip duplicate route-branch creates when `routes` already exists.
 - 2026-03-21: Alembic connection hardening added to enforce non-empty `search_path` for pooled connections before migration context setup.
 - 2026-03-21: Governance lock-in added via repository PR template with migration/schema validation checklist.
+- 2026-03-21: Application and pytest DB engines now share deterministic `search_path` connect args to prevent clone-environment schema visibility drift.
 
 ## Execution Log
 ### 2026-03-21 (Session 1)
@@ -164,6 +165,23 @@ Update this file after each phase, test run, and decision so future sessions can
 - Notes:
   - Clone-targeted pytest had environment-specific table-visibility issues through pooled clone connection; migration gates for clone are green after search-path hardening.
   - CI remains strict (`upgrade head` before `check`) and now aligns with governance checklist.
+
+### 2026-03-21 (Session 6)
+- Completed:
+  - Closed remaining clone-visibility risk by centralizing DB engine connect policy in:
+    - [database.py](/c:/Users/sumit/Downloads/Dora/backend/app/database.py)
+    - added `DEFAULT_DB_CONNECT_ARGS` with deterministic `search_path` and reused via `create_db_engine(...)`
+  - Aligned pytest engine creation to same runtime policy:
+    - [conftest.py](/c:/Users/sumit/Downloads/Dora/backend/tests/conftest.py)
+    - [test_session_14.py](/c:/Users/sumit/Downloads/Dora/backend/tests/test_session_14.py)
+    - [test_session14_search.py](/c:/Users/sumit/Downloads/Dora/backend/tests/test_session14_search.py)
+- Verification:
+  - `cd backend; .\venv\Scripts\python.exe -m py_compile app/database.py tests/conftest.py tests/test_session_14.py tests/test_session14_search.py` (pass)
+  - `cd backend; $env:DEBUG='false'; .\venv\Scripts\alembic.exe check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; $env:DEBUG='false'; .\venv\Scripts\pytest.exe -q tests/test_trip_endpoints.py` (pass: `31 passed`)
+- Notes:
+  - Local shell had `DEBUG=release`; backend tests require boolean `DEBUG` env, so validation commands explicitly set `DEBUG='false'`.
+  - Remaining warnings are deprecation-level (Pydantic/FastAPI/SQLAlchemy) and non-blocking for migration health.
 
 ## Next Immediate Actions
 1. Keep PR checklist enforcement active and require command evidence in schema-affecting PRs.

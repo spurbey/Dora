@@ -87,3 +87,8 @@
   - fresh DB: `upgrade head` + `check` passed
   - upgraded dataset clone DB: `upgrade head` + `check` passed
 - Governance lock-in now includes repository PR template checklist for migration evidence and contract compliance.
+
+## Session 6 Update (2026-03-21)
+- Root cause follow-up: clone-targeted pytest failures were tied to inconsistent connection-level schema visibility across non-Alembic engines.
+- Remediation: centralized DB engine helper with deterministic `search_path` connect args and reused it in app runtime + pytest engine creation.
+- Impact: migration checks remain clean and test DB connectivity is aligned with Alembic runtime assumptions.

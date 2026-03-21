@@ -5,7 +5,7 @@ Stores routes with GeoJSON LineStrings, transport modes, and route metadata.
 Follows Phase A2 PRD specification.
 """
 
-from sqlalchemy import Column, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -134,6 +134,31 @@ class Route(Base):
         comment="User notes"
     )
 
+    # Provenance and inference
+    source = Column(
+        String(20),
+        nullable=False,
+        default="manual",
+        comment="manual|auto|edited_auto",
+    )
+    confidence = Column(
+        Float,
+        nullable=True,
+        comment="Inference confidence for auto/edited_auto routes",
+    )
+    inferred_from_session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("trip_tracking_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Tracking session that generated this inferred route",
+    )
+    locked_fields = Column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        comment="Field-level manual lock markers to prevent silent auto overwrite",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
@@ -170,6 +195,10 @@ class Route(Base):
         CheckConstraint(
             "order_in_trip >= 0",
             name="check_order_positive"
+        ),
+        CheckConstraint(
+            "source IN ('manual', 'auto', 'edited_auto')",
+            name="check_routes_source",
         ),
     )
 

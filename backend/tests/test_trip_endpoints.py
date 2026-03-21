@@ -265,17 +265,25 @@ def test_list_trips_visibility_filter(client, db, test_user, auth_as):
 def test_list_trips_public_only_returns_global_public(client, db, test_user, other_user, auth_as):
     auth_as(test_user)
 
-    create_trip(db, test_user.id, title="Mine Public", visibility="public")
-    create_trip(db, test_user.id, title="Mine Private", visibility="private")
-    create_trip(db, other_user.id, title="Other Public", visibility="public")
-    create_trip(db, other_user.id, title="Other Unlisted", visibility="unlisted")
+    suffix = str(uuid4())[:8]
+    mine_public = f"Mine Public {suffix}"
+    mine_private = f"Mine Private {suffix}"
+    other_public = f"Other Public {suffix}"
+    other_unlisted = f"Other Unlisted {suffix}"
+
+    create_trip(db, test_user.id, title=mine_public, visibility="public")
+    create_trip(db, test_user.id, title=mine_private, visibility="private")
+    create_trip(db, other_user.id, title=other_public, visibility="public")
+    create_trip(db, other_user.id, title=other_unlisted, visibility="unlisted")
 
     response = client.get("/api/v1/trips?public_only=true")
     assert response.status_code == 200
 
     data = response.json()
     titles = {trip["title"] for trip in data["trips"]}
-    assert titles == {"Mine Public", "Other Public"}
+    assert {mine_public, other_public}.issubset(titles)
+    assert mine_private not in titles
+    assert other_unlisted not in titles
     assert all(trip["visibility"] == "public" for trip in data["trips"])
 
 

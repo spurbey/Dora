@@ -141,6 +141,30 @@ class TripPlace(Base):
         comment="Position in trip itinerary"
     )
 
+    # Provenance and inference
+    source = Column(
+        String(20),
+        nullable=False,
+        default="manual",
+        comment="manual|auto|edited_auto",
+    )
+    confidence = Column(
+        Float,
+        comment="Inference confidence for auto/edited_auto places",
+    )
+    candidate_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("trip_checkin_candidates.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Origin check-in candidate for auto-generated places",
+    )
+    locked_fields = Column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        comment="Field-level manual lock markers to prevent silent auto overwrite",
+    )
+
     # Full-text search (Session 14)
     search_vector = Column(
         TSVECTOR,
@@ -165,6 +189,10 @@ class TripPlace(Base):
         CheckConstraint(
             "user_rating IS NULL OR (user_rating >= 1 AND user_rating <= 5)",
             name="check_rating"
+        ),
+        CheckConstraint(
+            "source IN ('manual', 'auto', 'edited_auto')",
+            name="check_trip_places_source",
         ),
     )
     

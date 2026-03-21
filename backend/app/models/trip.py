@@ -5,7 +5,7 @@ A trip represents a travel journey with places, routes, and metadata.
 Users can create multiple trips and organize places within them.
 """
 
-from sqlalchemy import Column, String, Text, Date, Integer, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Date, Integer, DateTime, Boolean, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -93,6 +93,36 @@ class Trip(Base):
         index=True,
         comment="Visibility: private | unlisted | public"
     )
+
+    # Live-tracking lifecycle
+    status = Column(
+        String(32),
+        nullable=False,
+        default="planned",
+        comment="Trip lifecycle: planned|tracking_active|tracking_paused|review_pending|completed|shared",
+    )
+    tracking_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether live tracking features are enabled for this trip",
+    )
+    tracking_started_at = Column(
+        DateTime(timezone=True),
+        comment="Time when tracking first started for this trip",
+    )
+    tracking_ended_at = Column(
+        DateTime(timezone=True),
+        comment="Time when tracking ended for this trip",
+    )
+    timezone = Column(
+        String(64),
+        comment="IANA timezone name used for lifecycle/event interpretation",
+    )
+    auto_end_reason = Column(
+        Text,
+        comment="Reason set by auto-end pipeline when trip tracking ends automatically",
+    )
     
     # Engagement metrics
     views_count = Column(
@@ -124,6 +154,10 @@ class Trip(Base):
         CheckConstraint(
             "visibility IN ('private', 'unlisted', 'public')",
             name="check_visibility"
+        ),
+        CheckConstraint(
+            "status IN ('planned', 'tracking_active', 'tracking_paused', 'review_pending', 'completed', 'shared')",
+            name="check_trip_status_live_tracking",
         ),
         CheckConstraint(
             "end_date IS NULL OR end_date >= start_date",

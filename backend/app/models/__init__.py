@@ -31,5 +31,32 @@ from app.models.waypoint import Waypoint
 from app.models.route_metadata import RouteMetadata
 from app.models.export_job import ExportJob
 from app.models.export_share_token import ExportShareToken
+from app.models.trip_tracking_session import TripTrackingSession
+from app.models.trip_location_point import TripLocationPoint
+from app.models.trip_checkin_candidate import TripCheckinCandidate
+from app.models.trip_moment import TripMoment
+from app.models.trip_auto_entity_tombstone import TripAutoEntityTombstone
+from app.models.api_idempotency_record import ApiIdempotencyRecord
 
-__all__ = ["User", "Trip", "TripPlace", "MediaFile", "SearchEvent", "PlaceView", "PlaceSave", "TripMetadata", "PlaceMetadata", "Route", "Waypoint", "RouteMetadata", "ExportJob", "ExportShareToken"]
+__all__ = [
+    "User",
+    "Trip",
+    "TripPlace",
+    "MediaFile",
+    "SearchEvent",
+    "PlaceView",
+    "PlaceSave",
+    "TripMetadata",
+    "PlaceMetadata",
+    "Route",
+    "Waypoint",
+    "RouteMetadata",
+    "ExportJob",
+    "ExportShareToken",
+    "TripTrackingSession",
+    "TripLocationPoint",
+    "TripCheckinCandidate",
+    "TripMoment",
+    "TripAutoEntityTombstone",
+    "ApiIdempotencyRecord",
+]

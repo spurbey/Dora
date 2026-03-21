@@ -32,6 +32,7 @@ Out of scope for this track:
 Primary references:
 
 - `docs/live-tracking/live-tracking-prd.md`
+- `docs/live-tracking/2026-03-21-live-tracking-phase0-contract-freeze.md`
 - `flutter/docs/handoffs/2026-03-20-trip-sync-execution-tracker.md`
 - `flutter/docs/handoffs/2026-03-20-trip-sync-m0-contract-freeze.md`
 - `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
@@ -60,8 +61,8 @@ Important current baseline:
 
 | Phase | Name | Status | Planned Output | Validation Evidence |
 |---|---|---|---|---|
-| 0 | Contract Freeze | Not Started | Final API/state contracts | Signed request/response + state transitions |
-| 1 | Backend Data Model | Not Started | Migrations + ORM updates | Migration tests + constraint checks |
+| 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
+| 1 | Backend Data Model | In Progress | Migrations + ORM updates | Migration/model patch authored; runtime DB checks pending dependency-ready environment |
 | 2 | Backend APIs/Services | Not Started | Tracking/check-in/moment endpoints | API tests + auth/idempotency checks |
 | 3 | Async Processing | Not Started | Workers for scoring/auto-end/moments | Retry/recovery tests + duplicate suppression |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
@@ -401,38 +402,134 @@ Canary progression requires all of the following:
 7. Queue backlog drains to steady-state within 15 minutes after network restoration in validation scenarios.
 8. Rollback drill completes with no data corruption and no orphan active sessions.
 
-## 9. Open Decisions (Must Resolve Early)
+## 9. Resolved Decisions (Locked Baseline)
 
-1. v1 tracking mode: foreground-only or full background on both platforms.
-2. Default location cadence and adaptive throttling thresholds.
-3. Auto-end detection thresholds (inactivity + movement).
-4. Candidate notification strategy: push-first, in-app-first, or both.
-5. Moment generation strictness: conservative vs broad suggestion.
-6. Rollout strategy: Android-first, iOS-first, or parity.
+Resolved on 2026-03-21 in:
+`docs/live-tracking/2026-03-21-live-tracking-phase0-contract-freeze.md` (section 12)
+
+1. v1 supports foreground + background tracking where granted, with foreground fallback.
+2. Adaptive cadence defaults:
+   - 5s fast movement (>= 8 m/s)
+   - 10s walking/normal movement (1-8 m/s)
+   - 60s stationary (< 1 m/s for >= 120s)
+   - flush every 30s or 25 points
+3. Auto-end defaults:
+   - 6h inactivity threshold
+   - meaningful movement baseline >= 250m in rolling 30 minutes
+   - 30-minute prompt grace before auto-end commit
+4. Candidate strategy:
+   - in-app first when foreground
+   - push + inbox when background/terminated
+5. Moment strategy: conservative default with strict auto-link thresholds.
+6. Rollout strategy:
+   - internal parity dogfood
+   - Android-first external canary
+   - iOS expansion after 7-day stable Android canary.
 
 ## 10. Change Log (Execution Memory)
 
 Use this section after each phase with dated entries:
 
-- Date:
-- Phase:
-- Implemented:
+- Date: 2026-03-21
+- Phase: 0 (Contract Freeze)
+- Implemented: Created detailed phase-0 freeze artifact with state machine, API matrix, idempotency wire format, DB invariants, migration/backfill mapping, and rollout gates.
 - Key files:
-- API or schema changes:
+  - `docs/live-tracking/2026-03-21-live-tracking-phase0-contract-freeze.md`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes: Documentation contract only (no runtime code changes yet).
 - Decisions made:
+  - Mandatory `X-Idempotency-Key` for mutating live-tracking endpoints.
+  - DB-level single-active-session invariant via partial unique index.
+  - Tombstone table + manual-lock schema contract required before auto inference rollout.
+  - `workmanager` treated as recovery/flush support, not primary sampling engine.
+  - Product defaults locked (sampling, auto-end, notifications, moments strictness, retention, rollout order).
 - Risks introduced:
+  - None beyond baseline implementation risks already listed in section 12.
 - Next action:
+  - Start Phase 1 backend migrations and model updates per locked contract.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Implemented: Added Phase 1 schema migration + new tracking domain models + Trip/Place/Route model extensions for lifecycle/provenance/manual-lock/tombstone compatibility.
+- Key files:
+  - `backend/alembic/versions/e9b3f0a7c1d2_add_live_tracking_phase1_schema.py`
+  - `backend/app/models/trip.py`
+  - `backend/app/models/place.py`
+  - `backend/app/models/route.py`
+  - `backend/app/models/trip_tracking_session.py`
+  - `backend/app/models/trip_location_point.py`
+  - `backend/app/models/trip_checkin_candidate.py`
+  - `backend/app/models/trip_moment.py`
+  - `backend/app/models/trip_auto_entity_tombstone.py`
+  - `backend/app/models/api_idempotency_record.py`
+  - `backend/app/models/__init__.py`
+- API or schema changes:
+  - Added tracking sessions/points/candidates/moments/tombstones/idempotency tables.
+  - Added live-tracking lifecycle columns to `trips`.
+  - Added provenance/manual-lock fields to `trip_places` and `routes`.
+  - Added DB invariants including partial unique active-session index.
+- Decisions made:
+  - Implemented contract-locked invariants from Phase 0 as migration-level constraints.
+- Risks introduced:
+  - `alembic check` reports large pre-existing autogenerate drift across legacy tables/index/comments.
+  - `alembic check` drift prevents strict migration-signoff in current repository baseline.
+- Next action:
+  - Triage `alembic check` drift policy (baseline vs required cleanup) and resolve failing trip endpoint tests before Phase 1 validation signoff.
 
 ## 11. Test Evidence Log
 
 Use this section after each phase:
 
-- Date:
-- Phase:
+- Date: 2026-03-21
+- Phase: 0 (Contract Freeze)
 - Automated tests run:
+  - Not applicable (documentation phase).
 - Manual checks run:
+  - Cross-checked PRD requirements vs Phase 0 contract artifact.
+  - Cross-checked execution plan rules vs Phase 0 contract sections (idempotency, uniqueness, tombstones, status mapping, rollout gates).
 - Result summary:
+  - Phase 0 contract is validated and internally consistent with PRD + execution plan.
 - Known failures/waivers:
+  - None for Phase 0 documentation gate.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Automated tests run:
+  - `python -m py_compile` on modified/new model files and migration file (pass).
+  - `alembic check` (blocked: `alembic` CLI not available in current environment).
+  - `pytest -q tests/test_trip_endpoints.py` (blocked: `sqlalchemy` missing in current environment).
+- Manual checks run:
+  - Reviewed migration constraints/indexes against Phase 0 contract freeze requirements.
+  - Reviewed ORM model changes for alignment with migration schema.
+- Result summary:
+  - Static validation passes; runtime DB/test validation blocked by missing dependencies.
+- Known failures/waivers:
+  - Environment waiver required until backend dependency stack is available.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic upgrade head` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic current` -> `e9b3f0a7c1d2 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic check` (fail: `New upgrade operations detected`, broad pre-existing metadata drift)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_trip_endpoints.py` (fail: 2 failed, 29 passed)
+- Manual checks run:
+  - Verified migration applied to DB head revision.
+  - Reviewed failing pytest cases to confirm failures are in existing trip endpoint expectations, not migration syntax/runtime crash.
+- Result summary:
+  - Phase 1 schema migration is executable and applied; signoff remains blocked on repository `alembic check` drift policy and failing trip endpoint test baseline.
+- Known failures/waivers:
+  - `test_create_trip_free_tier_limit` expected `403`, observed `201`.
+  - `test_list_trips_public_only_returns_global_public` includes extra titles from current test DB state.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_trip_endpoints.py` (pass: 31 passed)
+- Manual checks run:
+  - Verified free-tier guard invocation in `TripService.create_trip`.
+  - Hardened public-only test expectation to remain valid in non-empty shared DB while preserving behavior checks.
+- Result summary:
+  - Targeted trip endpoint suite is green after fixes.
+  - Remaining blocker for strict Phase 1 signoff is `alembic check` repository drift baseline.
+- Known failures/waivers:
+  - `alembic check` still reports broad pre-existing drift unrelated to only this phase's new schema.
 
 ## 12. Risk Register
 

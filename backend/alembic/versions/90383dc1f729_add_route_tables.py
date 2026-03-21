@@ -19,6 +19,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # This revision represents an alternate historical branch for route tables.
+    # On fresh databases, the other branch (6e11ad2da6d0 -> a2f6b9c1d0e2) may
+    # already have created equivalent route tables by the time this revision is
+    # reached. In that case, skip duplicate creates so `upgrade head` remains
+    # deterministic on clean environments.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if 'routes' in inspector.get_table_names():
+        return
+
     # Create routes table
     op.create_table(
         'routes',

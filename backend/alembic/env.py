@@ -16,6 +16,7 @@ Important:
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import text
 from alembic import context
 from alembic.operations import ops
 
@@ -152,6 +153,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Some pooled connections can arrive with empty search_path; ensure a
+        # deterministic default so Alembic can discover/create version objects.
+        current_search_path = connection.execute(text("SHOW search_path")).scalar() or ""
+        if not current_search_path.strip():
+            connection.execute(text('SET search_path TO "$user", public, extensions'))
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

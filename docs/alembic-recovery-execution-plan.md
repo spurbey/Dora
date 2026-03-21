@@ -56,6 +56,7 @@ Update this file after each phase, test run, and decision so future sessions can
 - 2026-03-21: Alembic connection hardening added to enforce non-empty `search_path` for pooled connections before migration context setup.
 - 2026-03-21: Governance lock-in added via repository PR template with migration/schema validation checklist.
 - 2026-03-21: Application and pytest DB engines now share deterministic `search_path` connect args to prevent clone-environment schema visibility drift.
+- 2026-03-21: Route branch safety hardened in revision `90383dc1f729` with explicit sibling-branch dependency and downgrade protection against shared-table drops.
 
 ## Execution Log
 ### 2026-03-21 (Session 1)
@@ -182,6 +183,21 @@ Update this file after each phase, test run, and decision so future sessions can
 - Notes:
   - Local shell had `DEBUG=release`; backend tests require boolean `DEBUG` env, so validation commands explicitly set `DEBUG='false'`.
   - Remaining warnings are deprecation-level (Pydantic/FastAPI/SQLAlchemy) and non-blocking for migration health.
+
+### 2026-03-21 (Session 7)
+- Completed:
+  - Reviewed external finding and accepted high-risk route-branch concern in historical revision:
+    - [90383dc1f729_add_route_tables.py](/c:/Users/sumit/Downloads/Dora/backend/alembic/versions/90383dc1f729_add_route_tables.py)
+  - Implemented deterministic route-branch ordering and safer downgrade behavior in `90383dc1f729`:
+    - set `depends_on = 'a2f6b9c1d0e2'` to enforce sibling-branch ordering
+    - `upgrade()` now validates companion route tables before no-op
+    - `downgrade()` now no-ops when sibling route branch revision is active and uses defensive `DROP INDEX IF EXISTS`
+- Verification:
+  - `cd backend; .\venv\Scripts\python.exe -m py_compile alembic/versions/90383dc1f729_add_route_tables.py` (pass)
+  - `cd backend; $env:DEBUG='false'; .\venv\Scripts\alembic.exe history -r ae14fa145f26:cca061e41224` (pass; route branch dependency shown)
+  - `cd backend; $env:DEBUG='false'; .\venv\Scripts\alembic.exe check` (pass: `No new upgrade operations detected.`)
+- Notes:
+  - This is a targeted historical migration hardening exception to preserve reliable fresh bootstrap and non-destructive downgrade semantics around branched route history.
 
 ## Next Immediate Actions
 1. Keep PR checklist enforcement active and require command evidence in schema-affecting PRs.

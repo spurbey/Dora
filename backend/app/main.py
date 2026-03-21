@@ -36,7 +36,19 @@ if settings.SENTRY_DSN:
     )
 
 # Import routers
-from app.api.v1 import auth, users, trips, places, media, search, metadata, routes, components, exports
+from app.api.v1 import (
+    auth,
+    users,
+    trips,
+    places,
+    media,
+    search,
+    metadata,
+    routes,
+    components,
+    exports,
+    live_tracking,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +79,7 @@ app.include_router(metadata.router, prefix="/api/v1")
 app.include_router(routes.router, prefix="/api/v1")
 app.include_router(components.router, prefix="/api/v1")
 app.include_router(exports.router, prefix="/api/v1")
+app.include_router(live_tracking.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

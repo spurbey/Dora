@@ -65,7 +65,7 @@ Important current baseline:
 |---|---|---|---|---|
 | 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
-| 2 | Backend APIs/Services | Not Started | Tracking/check-in/moment endpoints | API tests + auth/idempotency checks |
+| 2 | Backend APIs/Services | In Progress | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests green |
 | 3 | Async Processing | Not Started | Workers for scoring/auto-end/moments | Retry/recovery tests + duplicate suppression |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
@@ -498,6 +498,30 @@ Use this section after each phase with dated entries:
   - None new; primary risk moved from migration drift to Phase 2 service-logic correctness.
 - Next action:
   - Start Phase 2 backend APIs/services.
+- Date: 2026-03-21
+- Phase: 2 (Backend APIs/Services)
+- Implemented: Added Phase 2 live-tracking API/router/service stack with idempotent mutation handling and core lifecycle/candidate/moment flows.
+- Key files:
+  - `backend/app/schemas/live_tracking.py`
+  - `backend/app/services/live_tracking_service.py`
+  - `backend/app/api/v1/live_tracking.py`
+  - `backend/app/main.py`
+  - `backend/tests/test_live_tracking_endpoints.py`
+- API or schema changes:
+  - Added tracking lifecycle endpoints: start/pause/resume/stop + points batch ingestion.
+  - Added check-in workflows: pending list + confirm/reject/snooze actions.
+  - Added moments workflows: list/create/update.
+  - Added manual/auto finalize commit endpoint.
+  - Enforced `X-Idempotency-Key` on mutating live-tracking routes with replay headers.
+- Decisions made:
+  - Idempotency is enforced via `api_idempotency_records` and deterministic payload hashing.
+  - Cooldown remains service-enforced invariant with explicit helper and test coverage.
+  - Manual completion transition (`planned -> completed`) is handled in Phase 2 finalize flow.
+- Risks introduced:
+  - Candidate creation pipeline is still async-worker deferred (Phase 3); current APIs operate on pre-existing candidates.
+  - Some contract-matrix endpoints remain intentionally deferred outside this phase slice.
+- Next action:
+  - Continue Phase 2 completion pass (remaining contract endpoints) or move to Phase 3 worker pipelines per release scope.
 
 ## 11. Test Evidence Log
 
@@ -568,6 +592,20 @@ Use this section after each phase:
   - Phase 1 blocker is closed; phase moved to `Validated`.
 - Known failures/waivers:
   - Non-blocking deprecation warnings (Pydantic/FastAPI) remain in test output.
+- Date: 2026-03-21
+- Phase: 2 (Backend APIs/Services)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m py_compile app/schemas/live_tracking.py app/services/live_tracking_service.py app/api/v1/live_tracking.py tests/test_live_tracking_endpoints.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_live_tracking_endpoints.py` (pass: 8 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_trip_endpoints.py` (pass: 31 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic check` (pass: `No new upgrade operations detected.`)
+- Manual checks run:
+  - Verified idempotency replay header behavior and conflict semantics via endpoint tests.
+  - Verified manual completion path and cooldown enforcement behavior in Phase 2 flows.
+- Result summary:
+  - Phase 2 foundation endpoints/services are implemented and validated with targeted suite coverage.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 

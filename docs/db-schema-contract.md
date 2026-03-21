@@ -46,10 +46,11 @@
 - [ ] Index names follow contract naming.
 - [ ] Nullability transitions include data remediation plan.
 - [ ] `alembic upgrade head` and `alembic check` outputs are attached.
+- [ ] Repository PR template checklist is completed:
+  - `.github/pull_request_template.md`
 
 ## Current Reconciliation Scope
 - Source-of-truth table decisions are tracked in:
   - [db-source-of-truth-matrix.md](/c:/Users/sumit/Downloads/Dora/docs/db-source-of-truth-matrix.md)
 - Execution progress and evidence log are tracked in:
   - [alembic-recovery-execution-plan.md](/c:/Users/sumit/Downloads/Dora/docs/alembic-recovery-execution-plan.md)
-

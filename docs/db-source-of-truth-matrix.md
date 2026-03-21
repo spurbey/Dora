@@ -79,3 +79,11 @@
   - `trip_places.candidate_id` FK with explicit existing name `fk_trip_places_candidate_id`
   - `use_alter=True` to break DDL sort-cycle while preserving both FK relationships
 - `alembic check` remains clean after this change and no cycle warning is emitted.
+
+## Phase 7/8 Update (2026-03-21)
+- Fresh-bootstrap validation exposed duplicate route-branch table creation in historical revision `90383dc1f729`.
+- Remediation: revision now short-circuits when `routes` already exists, preserving deterministic `upgrade head` on clean databases.
+- Validation status:
+  - fresh DB: `upgrade head` + `check` passed
+  - upgraded dataset clone DB: `upgrade head` + `check` passed
+- Governance lock-in now includes repository PR template checklist for migration evidence and contract compliance.

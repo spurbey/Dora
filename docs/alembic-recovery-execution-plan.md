@@ -22,7 +22,7 @@ Update this file after each phase, test run, and decision so future sessions can
 - [x] Phase 3: Publish source-of-truth matrix (table-by-table indexes/nullability/comments/FKs).
 - [x] Phase 4: Publish DB schema contract (`docs/db-schema-contract.md`).
 - [x] Phase 5: Reconciliation migrations (domain chunks: signals, metadata, export, routes, live-tracking).
-- [ ] Phase 6: FK cycle resolution (`trip_checkin_candidates` <-> `trip_places`) with explicit strategy.
+- [x] Phase 6: FK cycle resolution (`trip_checkin_candidates` <-> `trip_places`) with explicit strategy.
 - [ ] Phase 7: Validation on fresh DB + upgraded dataset clone.
 - [ ] Phase 8: Governance lock-in (CI + PR checklist + drift policy).
 
@@ -51,6 +51,7 @@ Update this file after each phase, test run, and decision so future sessions can
 - 2026-03-21: Source-of-truth and schema contract docs published for future sessions.
 - 2026-03-21: Signal-table nullability aligned to DB-permissive contract for ingestion compatibility.
 - 2026-03-21: Added forward migration `f3a7b8c9d0e1` to remove duplicate legacy `routes.trip_id` index.
+- 2026-03-21: Resolved SQLAlchemy FK-cycle warning by declaring `trip_places.candidate_id` FK with `use_alter=True` and explicit existing constraint name (`fk_trip_places_candidate_id`).
 
 ## Execution Log
 ### 2026-03-21 (Session 1)
@@ -117,10 +118,23 @@ Update this file after each phase, test run, and decision so future sessions can
   - `cd backend; $env:DEBUG='false'; .\\venv\\Scripts\\pytest.exe -q tests/test_trip_endpoints.py` (pass: `31 passed`)
 - Notes:
   - Alembic check is now clean at head.
-  - SQLAlchemy warning remains about FK cycle `trip_checkin_candidates` <-> `trip_places`; this is tracked in Phase 6.
+  - SQLAlchemy warning about FK cycle `trip_checkin_candidates` <-> `trip_places` remained at this point and was carried to Session 4.
   - Pydantic/FastAPI deprecation warnings observed in pytest output (non-blocking for this phase).
 
+### 2026-03-21 (Session 4)
+- Completed:
+  - Phase 6 cycle-resolution strategy implemented without dropping either FK:
+    - updated [place.py](/c:/Users/sumit/Downloads/Dora/backend/app/models/place.py) `candidate_id` foreign key to:
+      - use explicit existing constraint name `fk_trip_places_candidate_id`
+      - set `use_alter=True` so SQLAlchemy can topologically sort table DDL
+- Verification:
+  - `cd backend; $env:DEBUG='false'; .\\venv\\Scripts\\python.exe -m py_compile app/models/place.py` (pass)
+  - `cd backend; $env:DEBUG='false'; .\\venv\\Scripts\\alembic.exe check` (pass: `No new upgrade operations detected.`)
+  - Confirmed: no SQLAlchemy cycle warning emitted during check.
+- Notes:
+  - Both directional references are retained (`trip_places.candidate_id` and `trip_checkin_candidates.confirmed_trip_place_id`).
+  - Resolution is metadata/DDL-ordering level; no destructive data or FK-drop migration was needed.
+
 ## Next Immediate Actions
-1. Phase 6: Ship explicit FK-cycle strategy and migration for `trip_checkin_candidates` <-> `trip_places`.
-2. Phase 7: Validate on both fresh DB and upgraded dataset clone with evidence logs (`upgrade head`, `check`, targeted pytest).
-3. Phase 8: Lock governance artifacts (PR checklist + migration owner queue policy + CI enforcement notes).
+1. Phase 7: Validate on both fresh DB and upgraded dataset clone with evidence logs (`upgrade head`, `check`, targeted pytest).
+2. Phase 8: Lock governance artifacts (PR checklist + migration owner queue policy + CI enforcement notes).

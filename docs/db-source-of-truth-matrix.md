@@ -66,12 +66,16 @@
 - One migration owner queue during stabilization.
 
 ## Open Decisions Requiring Signoff
-- FK cycle treatment:
-  - current drift report shows no FK mismatch, but architectural cycle (`trip_checkin_candidates` <-> `trip_places`) still needs explicit resolution strategy in Phase 6.
+- None currently blocking Alembic drift-gate stability.
 
 ## Post-Phase 5A Status (2026-03-21)
 - Added explicit model index declarations to match DB contract across export, metadata, routes, and live-tracking tables.
 - Added forward reconciliation migration:
   - `f3a7b8c9d0e1_drop_legacy_routes_trip_index.py` (drops duplicate `ix_routes_trip_id`)
 - `alembic check` now returns: `No new upgrade operations detected.`
-- Remaining structural risk is the FK cycle warning (`trip_checkin_candidates` <-> `trip_places`), tracked for Phase 6.
+
+## Phase 6 Update (2026-03-21)
+- SQLAlchemy cycle warning for `trip_checkin_candidates` <-> `trip_places` resolved by setting:
+  - `trip_places.candidate_id` FK with explicit existing name `fk_trip_places_candidate_id`
+  - `use_alter=True` to break DDL sort-cycle while preserving both FK relationships
+- `alembic check` remains clean after this change and no cycle warning is emitted.

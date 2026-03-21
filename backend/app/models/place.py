@@ -154,7 +154,12 @@ class TripPlace(Base):
     )
     candidate_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("trip_checkin_candidates.id", ondelete="SET NULL"),
+        ForeignKey(
+            "trip_checkin_candidates.id",
+            name="fk_trip_places_candidate_id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
         nullable=True,
         comment="Origin check-in candidate for auto-generated places",
     )

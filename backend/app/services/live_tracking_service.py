@@ -494,6 +494,7 @@ class LiveTrackingService:
         accepted = 0
         duplicates = 0
         latest_recorded: Optional[datetime] = session.last_point_at
+        earliest_accepted_recorded: Optional[datetime] = None
 
         for item in points:
             point_id = item["point_id"]
@@ -520,10 +521,16 @@ class LiveTrackingService:
                         provider=item.get("provider"),
                     )
                 )
+                if earliest_accepted_recorded is None or recorded_at < earliest_accepted_recorded:
+                    earliest_accepted_recorded = recorded_at
             if latest_recorded is None or recorded_at > latest_recorded:
                 latest_recorded = recorded_at
 
         session.last_point_at = latest_recorded
+        if accepted > 0 and earliest_accepted_recorded is not None:
+            existing_marker = session.oldest_uninferred_point_at
+            if existing_marker is None or earliest_accepted_recorded < self._to_utc(existing_marker):
+                session.oldest_uninferred_point_at = earliest_accepted_recorded
         self.db.flush()
 
         return status.HTTP_202_ACCEPTED, {

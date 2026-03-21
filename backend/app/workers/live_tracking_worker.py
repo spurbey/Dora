@@ -390,21 +390,29 @@ def process_session_inference(
 
     session_last_point_at = _to_utc(session.last_point_at)
     cursor = _to_utc(session.inference_cursor_at) if session.inference_cursor_at is not None else None
-    if cursor is not None and session_last_point_at <= cursor:
+    oldest_uninferred = (
+        _to_utc(session.oldest_uninferred_point_at)
+        if session.oldest_uninferred_point_at is not None
+        else None
+    )
+    if cursor is not None and session_last_point_at <= cursor and oldest_uninferred is None:
         return result
 
     points_query = db.query(TripLocationPoint).filter(TripLocationPoint.session_id == session_id)
     if cursor is not None:
         # Keep a small overlap so stays spanning the cursor boundary are still inferred.
         overlap_minutes = max(1, int(settings.TRACKING_STAY_MIN_DURATION_MINUTES))
-        overlap_start = cursor - timedelta(minutes=overlap_minutes)
-        points_query = points_query.filter(TripLocationPoint.recorded_at >= overlap_start)
+        scan_start = cursor - timedelta(minutes=overlap_minutes)
+        if oldest_uninferred is not None and oldest_uninferred < scan_start:
+            scan_start = oldest_uninferred
+        points_query = points_query.filter(TripLocationPoint.recorded_at >= scan_start)
 
     rows = points_query.order_by(TripLocationPoint.recorded_at.asc()).all()
     result.scanned_points = len(rows)
     if not rows:
         session.inference_cursor_at = session_last_point_at
         session.inference_updated_at = as_of
+        session.oldest_uninferred_point_at = None
         db.flush()
         return result
 
@@ -413,6 +421,7 @@ def process_session_inference(
     if len(points) < 2:
         session.inference_cursor_at = session_last_point_at
         session.inference_updated_at = as_of
+        session.oldest_uninferred_point_at = None
         db.flush()
         return result
 
@@ -421,6 +430,7 @@ def process_session_inference(
     if not clusters:
         session.inference_cursor_at = session_last_point_at
         session.inference_updated_at = as_of
+        session.oldest_uninferred_point_at = None
         db.flush()
         return result
 
@@ -527,6 +537,7 @@ def process_session_inference(
 
     session.inference_cursor_at = session_last_point_at
     session.inference_updated_at = as_of
+    session.oldest_uninferred_point_at = None
     db.flush()
     return result
 
@@ -757,6 +768,7 @@ def _claim_sessions_for_inference(db: Session, *, batch_size: int) -> list[TripT
             or_(
                 TripTrackingSession.inference_cursor_at.is_(None),
                 TripTrackingSession.last_point_at > TripTrackingSession.inference_cursor_at,
+                TripTrackingSession.oldest_uninferred_point_at.is_not(None),
             )
         )
         .order_by(state_priority.asc(), TripTrackingSession.last_point_at.desc())

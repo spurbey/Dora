@@ -50,6 +50,10 @@ class TripTrackingSession(Base):
     ended_at = Column(DateTime(timezone=True))
     abandoned_at = Column(DateTime(timezone=True))
     last_point_at = Column(DateTime(timezone=True), comment="Latest ingested point timestamp")
+    oldest_uninferred_point_at = Column(
+        DateTime(timezone=True),
+        comment="Oldest ingested point timestamp not yet considered by inference",
+    )
     inference_cursor_at = Column(
         DateTime(timezone=True),
         comment="Latest point timestamp processed by inference worker",
@@ -87,6 +91,11 @@ class TripTrackingSession(Base):
             "state",
             "last_point_at",
             "inference_cursor_at",
+        ),
+        Index(
+            "idx_tracking_sessions_uninferred_marker",
+            "state",
+            "oldest_uninferred_point_at",
         ),
         Index(
             "uq_tracking_session_active_trip_user",

@@ -640,6 +640,29 @@ Use this section after each phase with dated entries:
   - Inference cursor strategy adds statefulness to sessions and requires migration compatibility checks in future schema refactors.
 - Next action:
   - Continue with inbox fallback parity and queue/throughput hardening under production-like data volume.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing)
+- Implemented: Closed late-arriving-point correctness gap so out-of-order/same-timestamp points are not skipped by inference gating.
+- Key files:
+  - `backend/alembic/versions/d4e9c2a1b7f0_add_uninferred_marker_to_tracking_sessions.py`
+  - `backend/app/models/trip_tracking_session.py`
+  - `backend/app/services/live_tracking_service.py`
+  - `backend/app/workers/live_tracking_worker.py`
+  - `backend/tests/test_live_tracking_worker.py`
+  - `backend/tests/test_live_tracking_endpoints.py`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes:
+  - Added `trip_tracking_sessions.oldest_uninferred_point_at` marker + `idx_tracking_sessions_uninferred_marker`.
+  - Ingest now records earliest accepted point timestamp in `oldest_uninferred_point_at`, even when `last_point_at` does not advance.
+  - Inference claim query now includes sessions with uninferred marker regardless of `last_point_at > inference_cursor_at`.
+  - Inference scan start now considers marker timestamp (plus overlap window), then clears marker on successful pass.
+- Decisions made:
+  - Use explicit marker state instead of relying on monotonic `recorded_at` ordering from clients.
+  - Preserve scale behavior by keeping cursor gating and only widening scan window when marker indicates late data.
+- Risks introduced:
+  - Marker maintenance correctness is now part of ingest/inference contract and must remain covered by regression tests.
+- Next action:
+  - Continue Phase 3 hardening with inbox fallback parity and throughput tuning.
 
 ## 11. Test Evidence Log
 
@@ -809,6 +832,25 @@ Use this section after each phase:
 - Result summary:
   - All three review findings are addressed with code + regression coverage.
   - Worker behavior is now safer for backlog growth and poison-record scenarios.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/models/trip_tracking_session.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py alembic/versions/d4e9c2a1b7f0_add_uninferred_marker_to_tracking_sessions.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/models/trip_tracking_session.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py alembic/versions/d4e9c2a1b7f0_add_uninferred_marker_to_tracking_sessions.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; upgraded `b7c2e1d4f9a3 -> d4e9c2a1b7f0`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `d4e9c2a1b7f0 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `d4e9c2a1b7f0 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py` (pass: 14 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_endpoints.py` (pass: 13 passed)
+- Manual checks run:
+  - Verified late/out-of-order point ingestion sets session marker even when `last_point_at` remains unchanged.
+  - Verified claim set includes sessions with marker so worker revisits them.
+  - Verified inference clears marker after successful reprocessing.
+- Result summary:
+  - Late-arriving-point data-loss path is closed without regressing starvation protections from previous hardening.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
 

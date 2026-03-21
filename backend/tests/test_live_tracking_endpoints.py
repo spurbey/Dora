@@ -584,3 +584,64 @@ def test_device_token_register_and_deactivate_idempotent(client, db, test_user, 
     assert deactivate_replay.status_code == 200
     assert deactivate_replay.json()["token"]["is_active"] is False
     assert deactivate_replay.json()["idempotency_replayed"] is True
+
+
+def test_ingest_points_marks_uninferred_marker_for_late_points(db, test_user):
+    trip = create_trip(db, test_user.id, title="Late Ingest Marker")
+    session = create_session(db, trip.id, test_user.id, state="active")
+    service = LiveTrackingService(db)
+
+    base = datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    service.ingest_points_batch(
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        client_batch_id=uuid4(),
+        points=[
+            {
+                "point_id": uuid4(),
+                "recorded_at": base,
+                "latitude": 27.7172,
+                "longitude": 85.3240,
+            },
+            {
+                "point_id": uuid4(),
+                "recorded_at": base + timedelta(minutes=10),
+                "latitude": 27.7173,
+                "longitude": 85.3241,
+            },
+        ],
+    )
+    db.flush()
+    db.refresh(session)
+    assert session.last_point_at == base + timedelta(minutes=10)
+    assert session.oldest_uninferred_point_at == base
+
+    # Simulate worker processing completion at current max timestamp.
+    session.inference_cursor_at = session.last_point_at
+    session.inference_updated_at = datetime.now(timezone.utc)
+    session.oldest_uninferred_point_at = None
+    db.flush()
+
+    late_timestamp = base + timedelta(minutes=5)
+    service.ingest_points_batch(
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        client_batch_id=uuid4(),
+        points=[
+            {
+                "point_id": uuid4(),
+                "recorded_at": late_timestamp,
+                "latitude": 27.7174,
+                "longitude": 85.3242,
+            }
+        ],
+    )
+    db.flush()
+    db.refresh(session)
+
+    # last_point_at remains at max timestamp, but marker captures late arrival.
+    assert session.last_point_at == base + timedelta(minutes=10)
+    assert session.oldest_uninferred_point_at == late_timestamp

@@ -230,6 +230,63 @@ def test_claim_sessions_prioritizes_fresh_work_and_skips_fully_processed(db, tes
     assert stale.id in claimed_ids
 
 
+def test_claim_sessions_includes_late_point_marker_without_max_timestamp_advance(db, test_user):
+    now = datetime.now(timezone.utc)
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(
+        db,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        state="active",
+        started_at=now - timedelta(hours=1),
+        last_point_at=now - timedelta(minutes=5),
+    )
+    session.inference_cursor_at = session.last_point_at
+    session.oldest_uninferred_point_at = now - timedelta(minutes=20)
+    db.flush()
+
+    claimed = _claim_sessions_for_inference(db, batch_size=10)
+    claimed_ids = [row.id for row in claimed]
+    assert session.id in claimed_ids
+
+
+def test_process_session_inference_reprocesses_when_late_marker_present(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    base = datetime.now(timezone.utc) - timedelta(minutes=30)
+    session = _create_session(
+        db,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        state="active",
+        started_at=base,
+        last_point_at=base + timedelta(minutes=12),
+    )
+    _seed_cluster_points(db, trip=trip, session=session, base_time=base)
+    process_session_inference(db, session_id=session.id, now=base + timedelta(minutes=20))
+    db.flush()
+    db.refresh(session)
+
+    # Inject a late point that does not advance max timestamp.
+    _add_point(
+        db,
+        session_id=session.id,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(minutes=6),
+        lat=27.71726,
+        lng=85.32403,
+    )
+    session.oldest_uninferred_point_at = base + timedelta(minutes=6)
+    db.flush()
+
+    rerun = process_session_inference(db, session_id=session.id, now=base + timedelta(minutes=25))
+    db.flush()
+    db.refresh(session)
+
+    assert rerun.scanned_points > 0
+    assert session.oldest_uninferred_point_at is None
+
+
 def test_process_session_inference_respects_candidate_cooldown(db, test_user):
     trip = _create_trip(db, user_id=test_user.id)
     base = datetime.now(timezone.utc) - timedelta(minutes=30)

@@ -15,7 +15,15 @@ from sqlalchemy.dialects import postgresql
 revision: str = '90383dc1f729'
 down_revision: Union[str, None] = 'fdacf42ca8c0'
 branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = 'a2f6b9c1d0e2'
+
+PRIMARY_ROUTE_BRANCH_REVISION = 'a2f6b9c1d0e2'
+EXPECTED_ROUTE_TABLES = {'routes', 'waypoints', 'route_metadata'}
+
+
+def _active_alembic_revisions(bind) -> set[str]:
+    rows = bind.execute(sa.text('SELECT version_num FROM alembic_version')).fetchall()
+    return {row[0] for row in rows}
 
 
 def upgrade() -> None:
@@ -26,7 +34,14 @@ def upgrade() -> None:
     # deterministic on clean environments.
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    if 'routes' in inspector.get_table_names():
+    existing_tables = set(inspector.get_table_names())
+    if 'routes' in existing_tables:
+        missing_tables = EXPECTED_ROUTE_TABLES - existing_tables
+        if missing_tables:
+            raise RuntimeError(
+                'Found existing routes table with incomplete companion route tables: '
+                f'{sorted(missing_tables)}. Refusing to continue automatically.'
+            )
         return
 
     # Create routes table
@@ -180,16 +195,29 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    if PRIMARY_ROUTE_BRANCH_REVISION in _active_alembic_revisions(bind):
+        # When sibling branch state is active, this alternate branch must not
+        # drop shared route tables/indexes.
+        return
+
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+    if 'routes' not in existing_tables:
+        return
+
     # Drop route_metadata table and indexes
-    op.drop_index('idx_route_metadata_highlights', table_name='route_metadata')
-    op.drop_index('idx_route_metadata_public', table_name='route_metadata')
-    op.drop_table('route_metadata')
+    if 'route_metadata' in existing_tables:
+        op.execute('DROP INDEX IF EXISTS idx_route_metadata_highlights')
+        op.execute('DROP INDEX IF EXISTS idx_route_metadata_public')
+        op.drop_table('route_metadata')
 
     # Drop waypoints table and indexes
-    op.drop_index('idx_waypoints_route', table_name='waypoints')
-    op.drop_table('waypoints')
+    if 'waypoints' in existing_tables:
+        op.execute('DROP INDEX IF EXISTS idx_waypoints_route')
+        op.drop_table('waypoints')
 
     # Drop routes table and indexes
-    op.drop_index('idx_routes_order', table_name='routes')
-    op.drop_index('idx_routes_trip', table_name='routes')
+    op.execute('DROP INDEX IF EXISTS idx_routes_order')
+    op.execute('DROP INDEX IF EXISTS idx_routes_trip')
     op.drop_table('routes')

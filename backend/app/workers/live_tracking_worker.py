@@ -25,7 +25,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import case, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -121,6 +121,16 @@ class AutoEndPassResult:
     auto_ended_sessions: int
     ended_session_ids: list[UUID]
     ended_trip_ids: list[UUID]
+
+
+@dataclass
+class WorkerBacklogSnapshot:
+    inference_backlog: int
+    handoff_backlog: int
+    dispatch_backlog: int
+    retryable_backlog: int
+    stuck_active_sessions: int
+    oldest_dispatch_due_age_seconds: int
 
 
 def build_candidate_fingerprint(
@@ -334,6 +344,156 @@ def _notification_due_filter(*, as_of: datetime):
         next_attempt.is_(None),
         next_attempt <= cutoff_iso,
     )
+
+
+def _active_notification_filter():
+    notification_status = TripCheckinCandidate.payload["notification_status"].astext
+    return or_(
+        notification_status.is_(None),
+        notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens"]),
+    )
+
+
+def _adaptive_limit(*, base_limit: int, backlog_count: int, max_multiplier: int) -> int:
+    base_limit = max(1, int(base_limit))
+    backlog_count = max(0, int(backlog_count))
+    max_multiplier = max(1, int(max_multiplier))
+    max_limit = base_limit * max_multiplier
+    if backlog_count <= base_limit:
+        return base_limit
+    return min(max_limit, max(base_limit, backlog_count))
+
+
+def _collect_backlog_snapshot(db: Session, *, as_of: datetime) -> WorkerBacklogSnapshot:
+    due_filter = _notification_due_filter(as_of=as_of)
+    active_notification_filter = _active_notification_filter()
+
+    inference_backlog = (
+        db.query(func.count(TripTrackingSession.id))
+        .filter(TripTrackingSession.last_point_at.is_not(None))
+        .filter(TripTrackingSession.state.in_(["active", "paused", "ended"]))
+        .filter(
+            or_(
+                TripTrackingSession.inference_cursor_at.is_(None),
+                TripTrackingSession.last_point_at > TripTrackingSession.inference_cursor_at,
+                TripTrackingSession.oldest_uninferred_point_at.is_not(None),
+            )
+        )
+        .scalar()
+        or 0
+    )
+
+    handoff_backlog = (
+        db.query(func.count(TripCheckinCandidate.id))
+        .filter(
+            TripCheckinCandidate.status == "pending",
+            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        )
+        .filter(
+            or_(
+                TripCheckinCandidate.payload.is_(None),
+                TripCheckinCandidate.payload["notification_handoff_at"].astext.is_(None),
+            )
+        )
+        .scalar()
+        or 0
+    )
+
+    dispatch_backlog = (
+        db.query(func.count(TripCheckinCandidate.id))
+        .filter(
+            TripCheckinCandidate.status == "pending",
+            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        )
+        .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
+        .filter(active_notification_filter)
+        .filter(due_filter)
+        .scalar()
+        or 0
+    )
+
+    retryable_backlog = (
+        db.query(func.count(TripCheckinCandidate.id))
+        .filter(
+            TripCheckinCandidate.status == "pending",
+            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            TripCheckinCandidate.payload["notification_status"].astext == "retryable_failure",
+        )
+        .scalar()
+        or 0
+    )
+
+    oldest_due_created_at = (
+        db.query(func.min(TripCheckinCandidate.created_at))
+        .filter(
+            TripCheckinCandidate.status == "pending",
+            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        )
+        .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
+        .filter(active_notification_filter)
+        .filter(due_filter)
+        .scalar()
+    )
+    if oldest_due_created_at is None:
+        oldest_dispatch_due_age_seconds = 0
+    else:
+        oldest_dispatch_due_age_seconds = max(
+            0,
+            int((as_of - _to_utc(oldest_due_created_at)).total_seconds()),
+        )
+
+    stuck_cutoff = as_of - timedelta(
+        hours=int(settings.TRACKING_AUTO_END_INACTIVITY_HOURS),
+        minutes=int(settings.TRACKING_AUTO_END_PROMPT_GRACE_MINUTES),
+    )
+    stuck_active_sessions = (
+        db.query(func.count(TripTrackingSession.id))
+        .filter(TripTrackingSession.state.in_(["active", "paused"]))
+        .filter(func.coalesce(TripTrackingSession.last_point_at, TripTrackingSession.resumed_at, TripTrackingSession.started_at) <= stuck_cutoff)
+        .scalar()
+        or 0
+    )
+
+    return WorkerBacklogSnapshot(
+        inference_backlog=int(inference_backlog),
+        handoff_backlog=int(handoff_backlog),
+        dispatch_backlog=int(dispatch_backlog),
+        retryable_backlog=int(retryable_backlog),
+        stuck_active_sessions=int(stuck_active_sessions),
+        oldest_dispatch_due_age_seconds=int(oldest_dispatch_due_age_seconds),
+    )
+
+
+def _emit_operational_alerts(summary: dict[str, int]) -> None:
+    retryable_threshold = int(settings.TRACKING_ALERT_RETRYABLE_BACKLOG_THRESHOLD)
+    dispatch_lag_threshold_seconds = int(settings.TRACKING_ALERT_DISPATCH_LAG_MINUTES) * 60
+    stuck_session_threshold = int(settings.TRACKING_ALERT_STUCK_SESSION_THRESHOLD)
+    inference_threshold = int(settings.TRACKING_ALERT_INFERENCE_BACKLOG_THRESHOLD)
+
+    if int(summary.get("notifications_retryable_backlog", 0)) >= retryable_threshold:
+        logger.warning(
+            "[LIVE_TRACKING_ALERT] type=retryable_backlog count=%s threshold=%s",
+            summary.get("notifications_retryable_backlog", 0),
+            retryable_threshold,
+        )
+    if int(summary.get("dispatch_oldest_due_age_seconds", 0)) >= dispatch_lag_threshold_seconds:
+        logger.warning(
+            "[LIVE_TRACKING_ALERT] type=dispatch_lag age_seconds=%s threshold_seconds=%s",
+            summary.get("dispatch_oldest_due_age_seconds", 0),
+            dispatch_lag_threshold_seconds,
+        )
+    if int(summary.get("stuck_active_sessions", 0)) >= stuck_session_threshold:
+        logger.warning(
+            "[LIVE_TRACKING_ALERT] type=stuck_active_sessions count=%s threshold=%s",
+            summary.get("stuck_active_sessions", 0),
+            stuck_session_threshold,
+        )
+    if int(summary.get("inference_backlog", 0)) >= inference_threshold:
+        logger.warning(
+            "[LIVE_TRACKING_ALERT] type=inference_backlog count=%s threshold=%s",
+            summary.get("inference_backlog", 0),
+            inference_threshold,
+        )
 
 
 def _notification_snapshot(*, candidate: TripCheckinCandidate, payload: dict) -> dict:
@@ -720,7 +880,7 @@ def dispatch_candidate_notifications(
 ) -> NotificationDispatchResult:
     as_of = _to_utc(now or utcnow())
     max_attempts = int(settings.TRACKING_NOTIFICATION_MAX_ATTEMPTS)
-    notification_status = TripCheckinCandidate.payload["notification_status"].astext
+    active_notification_filter = _active_notification_filter()
 
     candidates = (
         db.query(TripCheckinCandidate)
@@ -729,12 +889,7 @@ def dispatch_candidate_notifications(
             TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
         )
         .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
-        .filter(
-            or_(
-                notification_status.is_(None),
-                notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens"]),
-            )
-        )
+        .filter(active_notification_filter)
         .filter(_notification_due_filter(as_of=as_of))
         .order_by(TripCheckinCandidate.created_at.asc())
         .with_for_update(skip_locked=True)
@@ -941,9 +1096,28 @@ def _claim_sessions_for_inference(db: Session, *, batch_size: int) -> list[TripT
 
 
 def run_worker_cycle(db: Session) -> dict[str, int]:
-    batch_size = int(settings.TRACKING_WORKER_BATCH_SIZE)
+    base_batch_size = max(1, int(settings.TRACKING_WORKER_BATCH_SIZE))
+    max_multiplier = max(1, int(settings.TRACKING_WORKER_MAX_BATCH_MULTIPLIER))
+    as_of = utcnow()
+    backlog = _collect_backlog_snapshot(db, as_of=as_of)
 
-    sessions = _claim_sessions_for_inference(db, batch_size=batch_size)
+    inference_limit = _adaptive_limit(
+        base_limit=base_batch_size,
+        backlog_count=backlog.inference_backlog,
+        max_multiplier=max_multiplier,
+    )
+    handoff_limit = _adaptive_limit(
+        base_limit=base_batch_size * 2,
+        backlog_count=backlog.handoff_backlog,
+        max_multiplier=max_multiplier,
+    )
+    dispatch_limit = _adaptive_limit(
+        base_limit=base_batch_size * 2,
+        backlog_count=backlog.dispatch_backlog,
+        max_multiplier=max_multiplier,
+    )
+
+    sessions = _claim_sessions_for_inference(db, batch_size=inference_limit)
     candidates_created = 0
     moments_created = 0
     session_errors = 0
@@ -964,7 +1138,7 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
     handoff = NotificationHandoffResult(dispatched_count=0, candidate_ids=[])
     try:
         with db.begin_nested():
-            handoff = handoff_candidate_notifications(db, limit=batch_size * 2)
+            handoff = handoff_candidate_notifications(db, limit=handoff_limit, now=as_of)
     except Exception:
         logger.exception("[LIVE_TRACKING_WORKER] notification_handoff_failed")
 
@@ -982,7 +1156,8 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
             dispatch = dispatch_candidate_notifications(
                 db,
                 push_service=push_service,
-                limit=batch_size * 2,
+                limit=dispatch_limit,
+                now=as_of,
             )
     except Exception:
         logger.exception("[LIVE_TRACKING_WORKER] notification_dispatch_failed")
@@ -1004,6 +1179,15 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         "session_errors": session_errors,
         "candidates_created": candidates_created,
         "moments_created": moments_created,
+        "inference_backlog": backlog.inference_backlog,
+        "inference_limit": inference_limit,
+        "notification_handoff_backlog": backlog.handoff_backlog,
+        "notification_handoff_limit": handoff_limit,
+        "notification_dispatch_backlog": backlog.dispatch_backlog,
+        "notification_dispatch_limit": dispatch_limit,
+        "notifications_retryable_backlog": backlog.retryable_backlog,
+        "dispatch_oldest_due_age_seconds": backlog.oldest_dispatch_due_age_seconds,
+        "stuck_active_sessions": backlog.stuck_active_sessions,
         "notifications_handed_off": handoff.dispatched_count,
         "notifications_attempted": dispatch.attempted_count,
         "notifications_sent": dispatch.sent_count,
@@ -1013,6 +1197,7 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         "notifications_transport_unavailable": dispatch.transport_unavailable,
         "auto_ended_sessions": auto_end.auto_ended_sessions,
     }
+    _emit_operational_alerts(summary)
     return summary
 
 

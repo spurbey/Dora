@@ -66,7 +66,7 @@ Important current baseline:
 | 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
-| 3 | Async Processing | In Progress | Workers for scoring/auto-end/moments | Phase 3 worker foundations + push dispatch shipped; duplicate suppression + auto-end + notification retry tests green |
+| 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
@@ -912,6 +912,34 @@ Use this section after each phase:
 - Result summary:
   - Previous design ambiguity is removed: snapshot table remains current-state view, and events table is immutable history.
   - `no_tokens` behavior is now explicitly tested and documented to avoid future implementation divergence.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing) Closeout - Ops Hardening + Exit Validation
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/config.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/config.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; no-op at `b3f1d8c7e2a4`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 37 passed)
+- Manual checks run:
+  - Added adaptive worker batch sizing for inference/handoff/dispatch using live backlog counts and bounded multipliers.
+  - Added operational alert thresholds and warning hooks for:
+    - retryable backlog saturation
+    - dispatch lag (oldest due age)
+    - stuck active sessions
+    - inference backlog saturation
+  - Added worker summary fields for backlog/limit/lag/stuck-session visibility to support monitoring and canary decisions.
+  - Executed backlog/retry behavior tests validating:
+    - bounded adaptive scaling under backlog
+    - alert emission on threshold breach
+    - retry/no-token policy behavior remains deterministic.
+- Result summary:
+  - Phase 3 closeout items are complete:
+    - inbox fallback parity
+    - queue/backlog control + alerting hooks
+    - exit validation under retry/backlog scenarios
+  - Phase 3 status moved to `Validated`.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
 

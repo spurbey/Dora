@@ -17,7 +17,9 @@ from app.models.trip_tracking_notification_event import TripTrackingNotification
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
 from app.workers.live_tracking_worker import (
+    _adaptive_limit,
     _claim_sessions_for_inference,
+    _emit_operational_alerts,
     build_candidate_fingerprint,
     dispatch_candidate_notifications,
     handoff_candidate_notifications,
@@ -905,3 +907,88 @@ def test_run_worker_cycle_isolates_single_session_failure(db, test_user, monkeyp
     assert summary["session_errors"] == 1
     assert summary["candidates_created"] == 1
     assert summary["moments_created"] == 1
+
+
+def test_adaptive_limit_scales_with_backlog():
+    assert _adaptive_limit(base_limit=5, backlog_count=2, max_multiplier=4) == 5
+    assert _adaptive_limit(base_limit=5, backlog_count=8, max_multiplier=4) == 8
+    assert _adaptive_limit(base_limit=5, backlog_count=50, max_multiplier=4) == 20
+
+
+def test_emit_operational_alerts_logs_threshold_breaches(monkeypatch, caplog):
+    import app.workers.live_tracking_worker as worker_module
+
+    monkeypatch.setattr(worker_module.settings, "TRACKING_ALERT_RETRYABLE_BACKLOG_THRESHOLD", 2)
+    monkeypatch.setattr(worker_module.settings, "TRACKING_ALERT_DISPATCH_LAG_MINUTES", 1)
+    monkeypatch.setattr(worker_module.settings, "TRACKING_ALERT_STUCK_SESSION_THRESHOLD", 1)
+    monkeypatch.setattr(worker_module.settings, "TRACKING_ALERT_INFERENCE_BACKLOG_THRESHOLD", 3)
+
+    with caplog.at_level("WARNING"):
+        _emit_operational_alerts(
+            {
+                "notifications_retryable_backlog": 3,
+                "dispatch_oldest_due_age_seconds": 120,
+                "stuck_active_sessions": 1,
+                "inference_backlog": 5,
+            }
+        )
+
+    joined = "\n".join(record.message for record in caplog.records)
+    assert "type=retryable_backlog" in joined
+    assert "type=dispatch_lag" in joined
+    assert "type=stuck_active_sessions" in joined
+    assert "type=inference_backlog" in joined
+
+
+def test_run_worker_cycle_scales_dispatch_limit_under_backlog(db, test_user, monkeypatch):
+    import app.workers.live_tracking_worker as worker_module
+
+    monkeypatch.setattr(worker_module.settings, "TRACKING_WORKER_BATCH_SIZE", 1)
+    monkeypatch.setattr(worker_module.settings, "TRACKING_WORKER_MAX_BATCH_MULTIPLIER", 4)
+
+    now = datetime.now(timezone.utc)
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(
+        db,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        state="active",
+        started_at=now - timedelta(hours=1),
+        last_point_at=now,
+    )
+    for _ in range(5):
+        db.add(
+            TripCheckinCandidate(
+                id=uuid4(),
+                trip_id=trip.id,
+                user_id=test_user.id,
+                session_id=session.id,
+                fingerprint=f"fp-{uuid4()}",
+                status="pending",
+                confidence=0.96,
+                suggested_name="Dispatch backlog",
+                payload={
+                    "notification_handoff_at": (now - timedelta(minutes=1)).isoformat(),
+                    "notification_status": "retryable_failure",
+                    "notification_attempt_count": 0,
+                    "notification_next_attempt_at": (now - timedelta(seconds=1)).isoformat(),
+                },
+            )
+        )
+    db.flush()
+
+    class _NoOpPushService:
+        def __init__(self, db_session):
+            self.db = db_session
+
+        def send_candidate_notification(self, *, candidate, now=None):
+            return _FakePushDispatchResult("retryable_failure", "transport timeout")
+
+    monkeypatch.setattr(worker_module, "PushNotificationService", _NoOpPushService)
+
+    summary = run_worker_cycle(db)
+    db.flush()
+
+    assert summary["notification_dispatch_backlog"] >= 5
+    assert summary["notification_dispatch_limit"] == 5
+    assert summary["notifications_attempted"] == 5

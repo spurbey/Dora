@@ -6,7 +6,7 @@ Stores request hash + response metadata for deterministic replay handling.
 
 import uuid
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 
@@ -47,4 +47,6 @@ class ApiIdempotencyRecord(Base):
             "idempotency_key",
             name="uq_idempotency_user_endpoint_key",
         ),
+        Index("idx_idempotency_expires_at", "expires_at"),
+        Index("idx_idempotency_user_first_seen", "user_id", "first_seen_at"),
     )

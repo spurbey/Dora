@@ -5,7 +5,7 @@ Stores places within trips with geospatial data for map display and queries.
 Uses PostGIS Geography type for accurate distance calculations.
 """
 
-from sqlalchemy import Column, String, Text, Date, Integer, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Date, Integer, Float, DateTime, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB, TSVECTOR
 from geoalchemy2 import Geography
 from sqlalchemy.sql import func
@@ -194,6 +194,9 @@ class TripPlace(Base):
             "source IN ('manual', 'auto', 'edited_auto')",
             name="check_trip_places_source",
         ),
+        Index("idx_trip_places_source", "source"),
+        Index("idx_trip_places_candidate_id", "candidate_id"),
+        Index("idx_trip_places_search", "search_vector", postgresql_using="gin"),
     )
     
     def __repr__(self):

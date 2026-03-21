@@ -5,7 +5,7 @@ Stores optional metadata for trips to enable intelligent search and discovery.
 Uses PostgreSQL ARRAY types with GIN indexes for efficient tag queries.
 """
 
-from sqlalchemy import Column, Text, Boolean, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Text, Boolean, Float, DateTime, ForeignKey, CheckConstraint, Index, text
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -139,6 +139,14 @@ class TripMetadata(Base):
             "quality_score >= 0.0 AND quality_score <= 1.0",
             name="check_quality_score_range"
         ),
+        Index(
+            "idx_trip_metadata_discoverable",
+            "is_discoverable",
+            postgresql_where=text("is_discoverable = true"),
+        ),
+        Index("idx_trip_metadata_tags", "tags", postgresql_using="gin"),
+        Index("idx_trip_metadata_traveler_type", "traveler_type", postgresql_using="gin"),
+        Index("idx_trip_metadata_activity_focus", "activity_focus", postgresql_using="gin"),
     )
 
     def __repr__(self):

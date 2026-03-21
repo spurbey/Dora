@@ -6,7 +6,7 @@ Prevents immediate regeneration of deleted inferred places/routes.
 
 import uuid
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, String, DateTime, ForeignKey, Index, UniqueConstraint, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -58,4 +58,5 @@ class TripAutoEntityTombstone(Base):
             "entity_type IN ('place', 'route', 'moment_link')",
             name="check_tombstone_entity_type",
         ),
+        Index("idx_tombstones_trip_cooldown", "trip_id", "cooldown_expires_at"),
     )

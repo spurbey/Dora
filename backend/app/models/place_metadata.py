@@ -5,7 +5,7 @@ Stores optional metadata for places to enable filtering and recommendations.
 Uses PostgreSQL ARRAY types with GIN indexes for efficient tag queries.
 """
 
-from sqlalchemy import Column, Text, Boolean, Float, Integer, Numeric, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Text, Boolean, Float, Integer, Numeric, DateTime, ForeignKey, CheckConstraint, Index, text
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -163,6 +163,14 @@ class PlaceMetadata(Base):
             "budget_per_person >= 0 OR budget_per_person IS NULL",
             name="check_budget_per_person_positive"
         ),
+        Index(
+            "idx_place_metadata_public",
+            "is_public",
+            postgresql_where=text("is_public = true"),
+        ),
+        Index("idx_place_metadata_component_type", "component_type"),
+        Index("idx_place_metadata_tags", "experience_tags", postgresql_using="gin"),
+        Index("idx_place_metadata_best_for", "best_for", postgresql_using="gin"),
     )
 
     def __repr__(self):

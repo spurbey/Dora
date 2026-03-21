@@ -2,7 +2,7 @@
 Persistent share-token records for export artifact sharing.
 """
 
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -22,29 +22,24 @@ class ExportShareToken(Base):
     token = Column(
         String(96),
         nullable=False,
-        unique=True,
-        index=True,
         comment="Opaque share token",
     )
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="Owner user ID",
     )
     trip_id = Column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="Trip ID for privacy enforcement",
     )
     job_id = Column(
         UUID(as_uuid=True),
         ForeignKey("export_jobs.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="Export job ID",
     )
     created_at = Column(
@@ -67,6 +62,13 @@ class ExportShareToken(Base):
         DateTime(timezone=True),
         nullable=True,
         comment="Revocation timestamp",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("token", name="uq_export_share_tokens_token"),
+        Index("idx_export_share_tokens_job_active", "job_id", "revoked_at", "expires_at"),
+        Index("idx_export_share_tokens_trip", "trip_id"),
+        Index("idx_export_share_tokens_user", "user_id"),
     )
 
     def __repr__(self) -> str:

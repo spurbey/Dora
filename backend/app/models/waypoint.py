@@ -5,7 +5,7 @@ Stores waypoints with coordinates, types, and user notes.
 Follows Phase A2 PRD specification.
 """
 
-from sqlalchemy import Column, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -138,6 +138,7 @@ class Waypoint(Base):
             "order_in_route >= 0",
             name="check_waypoint_order_positive"
         ),
+        Index("idx_waypoints_route", "route_id", "order_in_route"),
     )
 
     def __repr__(self):

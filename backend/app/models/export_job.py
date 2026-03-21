@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -41,14 +42,12 @@ class ExportJob(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="Owner user ID",
     )
     trip_id = Column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="Target trip ID",
     )
 
@@ -84,7 +83,6 @@ class ExportJob(Base):
     snapshot_hash = Column(
         String(64),
         nullable=False,
-        index=True,
         comment="SHA-256 hash of normalized snapshot + config",
     )
 
@@ -164,6 +162,10 @@ class ExportJob(Base):
             "max_retries >= 0",
             name="check_export_job_max_retries_non_negative",
         ),
+        Index("idx_export_jobs_user_status", "user_id", "status"),
+        Index("idx_export_jobs_status_next_attempt", "status", "next_attempt_at"),
+        Index("idx_export_jobs_trip", "trip_id"),
+        Index("idx_export_jobs_snapshot_hash", "snapshot_hash"),
     )
 
     def __repr__(self) -> str:

@@ -5,7 +5,7 @@ Stores route metadata including quality ratings, costs, and highlights.
 Follows Phase A2 PRD specification.
 """
 
-from sqlalchemy import Column, Text, Boolean, Integer, Numeric, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Text, Boolean, Integer, Numeric, DateTime, ForeignKey, CheckConstraint, Index, text
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.sql import func
 
@@ -147,6 +147,12 @@ class RouteMetadata(Base):
             "toll_cost >= 0 OR toll_cost IS NULL",
             name="check_toll_cost_positive"
         ),
+        Index(
+            "idx_route_metadata_public",
+            "is_public",
+            postgresql_where=text("is_public = true"),
+        ),
+        Index("idx_route_metadata_highlights", "highlights", postgresql_using="gin"),
     )
 
     def __repr__(self):

@@ -5,7 +5,7 @@ Stores routes with GeoJSON LineStrings, transport modes, and route metadata.
 Follows Phase A2 PRD specification.
 """
 
-from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
@@ -59,7 +59,6 @@ class Route(Base):
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="FK to trips"
     )
     user_id = Column(
@@ -200,6 +199,13 @@ class Route(Base):
             "source IN ('manual', 'auto', 'edited_auto')",
             name="check_routes_source",
         ),
+        Index("idx_routes_trip", "trip_id"),
+        Index("idx_routes_order", "trip_id", "order_in_trip"),
+        Index("idx_routes_source", "source"),
+        Index("idx_routes_inferred_from_session_id", "inferred_from_session_id"),
+        Index("ix_routes_user_id", "user_id"),
+        Index("ix_routes_from_place_id", "start_place_id"),
+        Index("ix_routes_to_place_id", "end_place_id"),
     )
 
     def __repr__(self):

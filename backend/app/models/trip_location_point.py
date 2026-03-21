@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     CheckConstraint,
+    Index,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -70,4 +71,6 @@ class TripLocationPoint(Base):
             "heading_deg IS NULL OR (heading_deg >= 0 AND heading_deg <= 360)",
             name="check_tracking_point_heading",
         ),
+        Index("idx_tracking_points_trip_time", "trip_id", "recorded_at"),
+        Index("idx_tracking_points_session_time", "session_id", "recorded_at"),
     )

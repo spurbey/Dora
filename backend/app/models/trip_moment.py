@@ -6,7 +6,7 @@ Stores user or system created moments that can later be linked to places.
 
 import uuid
 
-from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 
@@ -97,4 +97,6 @@ class TripMoment(Base):
             "longitude IS NULL OR (longitude >= -180 AND longitude <= 180)",
             name="check_trip_moment_longitude",
         ),
+        Index("idx_trip_moments_trip_captured_at", "trip_id", "captured_at"),
+        Index("idx_trip_moments_user_captured_at", "user_id", "captured_at"),
     )

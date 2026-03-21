@@ -5,7 +5,7 @@ A trip represents a travel journey with places, routes, and metadata.
 Users can create multiple trips and organize places within them.
 """
 
-from sqlalchemy import Column, String, Text, Date, Integer, DateTime, Boolean, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Date, Integer, DateTime, Boolean, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -163,6 +163,7 @@ class Trip(Base):
             "end_date IS NULL OR end_date >= start_date",
             name="check_valid_dates"
         ),
+        Index("idx_trips_status", "status"),
     )
     
     def __repr__(self):

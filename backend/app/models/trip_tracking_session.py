@@ -6,7 +6,7 @@ Represents tracking lifecycle for a specific user-trip pair.
 
 import uuid
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, DateTime, ForeignKey, CheckConstraint, Index, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 
@@ -71,5 +71,14 @@ class TripTrackingSession(Base):
         CheckConstraint(
             "state IN ('active', 'paused', 'ended', 'abandoned')",
             name="check_tracking_session_state",
+        ),
+        Index("idx_tracking_sessions_trip_state", "trip_id", "state"),
+        Index("idx_tracking_sessions_user_state", "user_id", "state"),
+        Index(
+            "uq_tracking_session_active_trip_user",
+            "trip_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("state = 'active'"),
         ),
     )

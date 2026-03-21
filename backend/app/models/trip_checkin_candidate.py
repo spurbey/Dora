@@ -6,7 +6,7 @@ Represents inferred candidate stays requiring user confirmation.
 
 import uuid
 
-from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, Float, DateTime, ForeignKey, CheckConstraint, Index, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 
@@ -93,5 +93,15 @@ class TripCheckinCandidate(Base):
         CheckConstraint(
             "suggested_longitude IS NULL OR (suggested_longitude >= -180 AND suggested_longitude <= 180)",
             name="check_checkin_candidate_longitude",
+        ),
+        Index("idx_checkin_candidates_trip_status", "trip_id", "status"),
+        Index("idx_checkin_candidates_user_status", "user_id", "status"),
+        Index(
+            "uq_checkin_candidate_active_fingerprint",
+            "trip_id",
+            "user_id",
+            "fingerprint",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'snoozed')"),
         ),
     )

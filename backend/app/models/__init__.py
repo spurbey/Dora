@@ -37,6 +37,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_moment import TripMoment
 from app.models.trip_auto_entity_tombstone import TripAutoEntityTombstone
 from app.models.api_idempotency_record import ApiIdempotencyRecord
+from app.models.user_device_token import UserDeviceToken
 
 __all__ = [
     "User",
@@ -59,4 +60,5 @@ __all__ = [
     "TripMoment",
     "TripAutoEntityTombstone",
     "ApiIdempotencyRecord",
+    "UserDeviceToken",
 ]

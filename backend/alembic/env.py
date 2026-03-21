@@ -159,6 +159,11 @@ def run_migrations_online() -> None:
         if not current_search_path.strip():
             connection.execute(text('SET search_path TO "$user", public, extensions'))
 
+        # SQLAlchemy 2.x opens an implicit transaction for SHOW/SET; commit it
+        # so Alembic controls the migration transaction boundary explicitly.
+        if connection.in_transaction():
+            connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

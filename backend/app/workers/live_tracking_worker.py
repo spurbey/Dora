@@ -37,6 +37,7 @@ from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_session import TripTrackingSession
 from app.services.live_tracking_service import LiveTrackingService
+from app.services.push_service import PushNotificationService
 from app.utils.geo import haversine_distance
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,16 @@ class SessionInferenceResult:
 class NotificationHandoffResult:
     dispatched_count: int
     candidate_ids: list[UUID]
+
+
+@dataclass
+class NotificationDispatchResult:
+    attempted_count: int
+    sent_count: int
+    retryable_failures: int
+    terminal_failures: int
+    skipped_no_tokens: int
+    transport_unavailable: int
 
 
 @dataclass
@@ -287,6 +298,39 @@ def _is_tombstoned(
         .first()
     )
     return row is not None
+
+
+def _parse_notification_backoff() -> tuple[int, ...]:
+    raw = (settings.TRACKING_NOTIFICATION_BACKOFF_SECONDS or "").strip()
+    if not raw:
+        return (30, 120, 480)
+    values: list[int] = []
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        try:
+            value = int(token)
+        except ValueError:
+            continue
+        if value > 0:
+            values.append(value)
+    return tuple(values) if values else (30, 120, 480)
+
+
+def _notification_backoff_seconds(attempt_count: int) -> int:
+    intervals = _parse_notification_backoff()
+    index = max(0, min(attempt_count - 1, len(intervals) - 1))
+    return intervals[index]
+
+
+def _parse_iso_dt(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return _to_utc(datetime.fromisoformat(value))
+    except Exception:
+        return None
 
 
 def _ensure_auto_moment(
@@ -494,12 +538,114 @@ def handoff_candidate_notifications(
 
         payload["notification_handoff_at"] = as_of.isoformat()
         payload["notification_handoff_id"] = str(uuid4())
+        payload["notification_status"] = "pending"
+        payload["notification_attempt_count"] = 0
+        payload["notification_next_attempt_at"] = as_of.isoformat()
+        payload["notification_last_error"] = None
+        payload["notification_sent_at"] = None
         candidate.payload = payload
         dispatched.append(candidate.id)
 
     return NotificationHandoffResult(
         dispatched_count=len(dispatched),
         candidate_ids=dispatched,
+    )
+
+
+def dispatch_candidate_notifications(
+    db: Session,
+    *,
+    push_service: PushNotificationService,
+    limit: int = 100,
+    now: Optional[datetime] = None,
+) -> NotificationDispatchResult:
+    as_of = _to_utc(now or utcnow())
+    max_attempts = int(settings.TRACKING_NOTIFICATION_MAX_ATTEMPTS)
+
+    candidates = (
+        db.query(TripCheckinCandidate)
+        .filter(
+            TripCheckinCandidate.status == "pending",
+            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        )
+        .order_by(TripCheckinCandidate.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+
+    attempted = 0
+    sent = 0
+    retryable = 0
+    terminal = 0
+    skipped_no_tokens = 0
+    transport_unavailable = 0
+
+    for candidate in candidates:
+        payload = dict(candidate.payload or {})
+        handoff_at = payload.get("notification_handoff_at")
+        if not handoff_at:
+            continue
+
+        status_value = payload.get("notification_status", "pending")
+        if status_value in {"sent", "terminal_failure", "skipped_no_tokens"}:
+            continue
+
+        attempt_count = int(payload.get("notification_attempt_count") or 0)
+        next_attempt_at = _parse_iso_dt(payload.get("notification_next_attempt_at"))
+        if next_attempt_at is not None and next_attempt_at > as_of:
+            continue
+
+        if attempt_count >= max_attempts:
+            payload["notification_status"] = "terminal_failure"
+            payload["notification_last_error"] = "retry_limit_exceeded"
+            candidate.payload = payload
+            terminal += 1
+            continue
+
+        attempted += 1
+        dispatch = push_service.send_candidate_notification(candidate=candidate, now=as_of)
+        attempt_count += 1
+        payload["notification_attempt_count"] = attempt_count
+
+        if dispatch.status == "sent":
+            payload["notification_status"] = "sent"
+            payload["notification_sent_at"] = as_of.isoformat()
+            payload["notification_last_error"] = None
+            payload["notification_next_attempt_at"] = None
+            sent += 1
+        elif dispatch.status == "no_tokens":
+            payload["notification_status"] = "skipped_no_tokens"
+            payload["notification_last_error"] = "no_active_tokens"
+            payload["notification_next_attempt_at"] = None
+            skipped_no_tokens += 1
+        elif dispatch.status == "transport_unavailable":
+            delay = _notification_backoff_seconds(attempt_count)
+            payload["notification_status"] = "retryable_failure"
+            payload["notification_last_error"] = dispatch.error_message or "transport_unavailable"
+            payload["notification_next_attempt_at"] = (as_of + timedelta(seconds=delay)).isoformat()
+            retryable += 1
+            transport_unavailable += 1
+        elif dispatch.status == "retryable_failure":
+            delay = _notification_backoff_seconds(attempt_count)
+            payload["notification_status"] = "retryable_failure"
+            payload["notification_last_error"] = dispatch.error_message or "retryable_failure"
+            payload["notification_next_attempt_at"] = (as_of + timedelta(seconds=delay)).isoformat()
+            retryable += 1
+        else:
+            payload["notification_status"] = "terminal_failure"
+            payload["notification_last_error"] = dispatch.error_message or "terminal_failure"
+            payload["notification_next_attempt_at"] = None
+            terminal += 1
+
+        candidate.payload = payload
+
+    return NotificationDispatchResult(
+        attempted_count=attempted,
+        sent_count=sent,
+        retryable_failures=retryable,
+        terminal_failures=terminal,
+        skipped_no_tokens=skipped_no_tokens,
+        transport_unavailable=transport_unavailable,
     )
 
 
@@ -586,6 +732,12 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         moments_created += result.moments_created
 
     handoff = handoff_candidate_notifications(db, limit=batch_size * 2)
+    push_service = PushNotificationService(db)
+    dispatch = dispatch_candidate_notifications(
+        db,
+        push_service=push_service,
+        limit=batch_size * 2,
+    )
     auto_end = run_auto_end_pass(db)
 
     summary = {
@@ -593,6 +745,9 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         "candidates_created": candidates_created,
         "moments_created": moments_created,
         "notifications_handed_off": handoff.dispatched_count,
+        "notifications_attempted": dispatch.attempted_count,
+        "notifications_sent": dispatch.sent_count,
+        "notifications_retryable_failures": dispatch.retryable_failures,
         "auto_ended_sessions": auto_end.auto_ended_sessions,
     }
     return summary

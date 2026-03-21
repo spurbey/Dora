@@ -19,6 +19,7 @@ TripTrackingStatus = Literal[
     "shared",
 ]
 CheckinStatus = Literal["pending", "confirmed", "rejected", "snoozed", "expired"]
+DevicePlatform = Literal["ios", "android", "web"]
 
 
 class TrackingStartRequest(BaseModel):
@@ -219,4 +220,41 @@ class AutoFinalizeCommitResponse(BaseModel):
     tracking_enabled: bool
     tracking_started_at: Optional[datetime] = None
     tracking_ended_at: Optional[datetime] = None
+    idempotency_replayed: bool
+
+
+class DeviceTokenRegisterRequest(BaseModel):
+    client_event_id: UUID
+    platform: DevicePlatform
+    push_token: str = Field(..., min_length=8, max_length=512)
+    device_id: Optional[str] = Field(default=None, max_length=128)
+    app_version: Optional[str] = Field(default=None, max_length=32)
+    locale: Optional[str] = Field(default=None, max_length=32)
+    seen_at: datetime
+
+
+class DeviceTokenDeactivateRequest(BaseModel):
+    client_event_id: UUID
+    push_token: str = Field(..., min_length=8, max_length=512)
+    deactivated_at: datetime
+
+
+class DeviceTokenResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    platform: DevicePlatform
+    device_id: Optional[str] = None
+    app_version: Optional[str] = None
+    locale: Optional[str] = None
+    token_hint: Optional[str] = None
+    is_active: bool
+    failure_count: int
+    last_seen_at: datetime
+    last_sent_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DeviceTokenActionResponse(BaseModel):
+    token: DeviceTokenResponse
     idempotency_replayed: bool

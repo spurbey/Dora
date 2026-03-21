@@ -5,14 +5,18 @@ Tests for live-tracking Phase 3 worker flows.
 from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
+import pytest
+
 from app.models.trip import Trip
 from app.models.trip_auto_entity_tombstone import TripAutoEntityTombstone
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_session import TripTrackingSession
+from app.models.user_device_token import UserDeviceToken
 from app.workers.live_tracking_worker import (
     build_candidate_fingerprint,
+    dispatch_candidate_notifications,
     handoff_candidate_notifications,
     process_session_inference,
     run_auto_end_pass,
@@ -34,6 +38,11 @@ def _create_trip(db, *, user_id, status="tracking_active", end_date=None):
     db.commit()
     db.refresh(trip)
     return trip
+
+
+@pytest.fixture(autouse=True)
+def ensure_user_device_tokens_table(db):
+    UserDeviceToken.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def _create_session(db, *, trip_id, user_id, state="active", started_at=None, last_point_at=None):
@@ -261,6 +270,105 @@ def test_handoff_candidate_notifications_is_idempotent(db, test_user):
 
     second = handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
     assert second.dispatched_count == 0
+
+
+class _FakePushDispatchResult:
+    def __init__(self, status: str, error_message: str | None = None):
+        self.status = status
+        self.sent_count = 1 if status == "sent" else 0
+        self.invalidated_count = 0
+        self.error_message = error_message
+
+
+class _FakePushService:
+    def __init__(self, status: str, error_message: str | None = None):
+        self.status = status
+        self.error_message = error_message
+        self.calls = 0
+
+    def send_candidate_notification(self, *, candidate, now=None):
+        self.calls += 1
+        return _FakePushDispatchResult(self.status, self.error_message)
+
+
+def test_dispatch_candidate_notifications_marks_sent(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.91,
+        suggested_name="Inferred stop",
+        payload={},
+    )
+    db.add(candidate)
+    db.add(
+        UserDeviceToken(
+            id=uuid4(),
+            user_id=test_user.id,
+            platform="android",
+            push_token=f"token-{uuid4().hex}-abcdef123456",
+            is_active=True,
+        )
+    )
+    db.flush()
+
+    handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    fake_service = _FakePushService(status="sent")
+
+    result = dispatch_candidate_notifications(
+        db,
+        push_service=fake_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+
+    assert result.attempted_count == 1
+    assert result.sent_count == 1
+    assert fake_service.calls == 1
+    payload = dict(candidate.payload or {})
+    assert payload.get("notification_status") == "sent"
+    assert payload.get("notification_sent_at") is not None
+
+
+def test_dispatch_candidate_notifications_sets_retryable_backoff(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.95,
+        suggested_name="Inferred stop",
+        payload={},
+    )
+    db.add(candidate)
+    db.flush()
+
+    handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    fake_service = _FakePushService(status="retryable_failure", error_message="timeout")
+
+    result = dispatch_candidate_notifications(
+        db,
+        push_service=fake_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+
+    assert result.attempted_count == 1
+    assert result.retryable_failures == 1
+    payload = dict(candidate.payload or {})
+    assert payload.get("notification_status") == "retryable_failure"
+    assert payload.get("notification_attempt_count") == 1
+    assert payload.get("notification_next_attempt_at") is not None
+    assert payload.get("notification_last_error") == "timeout"
 
 
 def test_run_auto_end_pass_closes_stale_inactive_sessions(db, test_user):

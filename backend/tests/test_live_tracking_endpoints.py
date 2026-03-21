@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_tracking_session import TripTrackingSession
+from app.models.user_device_token import UserDeviceToken
 from app.services.live_tracking_service import LiveTrackingService
 
 
@@ -87,6 +88,11 @@ def create_candidate(
 
 def _idem() -> str:
     return str(uuid4())
+
+
+@pytest.fixture(autouse=True)
+def ensure_user_device_tokens_table(db):
+    UserDeviceToken.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def test_tracking_start_idempotency_and_conflict(client, db, test_user, auth_as):
@@ -520,3 +526,61 @@ def test_run_idempotent_mutation_maps_business_integrity_race_to_conflict(db, te
 
     assert exc.value.status_code == 409
     assert exc.value.detail == "Tracking session already active for trip"
+
+
+def test_device_token_register_and_deactivate_idempotent(client, db, test_user, auth_as):
+    auth_as(test_user)
+    push_token = f"token-{uuid4().hex}-abcdef123456"
+    register_key = _idem()
+
+    register_body = {
+        "client_event_id": str(uuid4()),
+        "platform": "android",
+        "push_token": push_token,
+        "device_id": "pixel-8-pro",
+        "app_version": "1.2.3",
+        "locale": "en-US",
+        "seen_at": _iso_now(),
+    }
+
+    first = client.post(
+        "/api/v1/notifications/device-tokens/register",
+        json=register_body,
+        headers={"X-Idempotency-Key": register_key},
+    )
+    assert first.status_code == 200
+    assert first.json()["token"]["is_active"] is True
+    assert first.json()["idempotency_replayed"] is False
+
+    replay = client.post(
+        "/api/v1/notifications/device-tokens/register",
+        json=register_body,
+        headers={"X-Idempotency-Key": register_key},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["idempotency_replayed"] is True
+
+    deactivate_key = _idem()
+    deactivate_body = {
+        "client_event_id": str(uuid4()),
+        "push_token": push_token,
+        "deactivated_at": _iso_now(1),
+    }
+
+    deactivate = client.post(
+        "/api/v1/notifications/device-tokens/deactivate",
+        json=deactivate_body,
+        headers={"X-Idempotency-Key": deactivate_key},
+    )
+    assert deactivate.status_code == 200
+    assert deactivate.json()["token"]["is_active"] is False
+    assert deactivate.json()["idempotency_replayed"] is False
+
+    deactivate_replay = client.post(
+        "/api/v1/notifications/device-tokens/deactivate",
+        json=deactivate_body,
+        headers={"X-Idempotency-Key": deactivate_key},
+    )
+    assert deactivate_replay.status_code == 200
+    assert deactivate_replay.json()["token"]["is_active"] is False
+    assert deactivate_replay.json()["idempotency_replayed"] is True

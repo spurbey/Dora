@@ -8,6 +8,7 @@ Never commit .env file to git.
 import os
 import sys
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -97,8 +98,28 @@ class Settings(BaseSettings):
     TRACKING_STAY_RADIUS_M: float = 120.0
     TRACKING_STAY_MIN_DURATION_MINUTES: int = 10
     TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD: float = 0.65
+    TRACKING_NOTIFICATION_MAX_ATTEMPTS: int = 3
+    TRACKING_NOTIFICATION_BACKOFF_SECONDS: str = "30,120,480"
     TRACKING_AUTO_END_INACTIVITY_HOURS: int = 6
     TRACKING_AUTO_END_PROMPT_GRACE_MINUTES: int = 30
+
+    # Push notifications (Firebase)
+    FIREBASE_PUSH_ENABLED: bool = False
+    FIREBASE_PROJECT_ID: Optional[str] = None
+    FIREBASE_CREDENTIALS_PATH: Optional[str] = None
+    FIREBASE_CREDENTIALS_JSON: Optional[str] = None
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def _coerce_debug(cls, value: object) -> object:
+        """Support common profile-style values used by tooling in this monorepo."""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "profile"}:
+                return False
+            if normalized == "debug":
+                return True
+        return value
 
 
 settings = Settings()

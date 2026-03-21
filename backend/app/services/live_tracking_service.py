@@ -25,6 +25,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_session import TripTrackingSession
+from app.models.user_device_token import UserDeviceToken
 
 
 IDEMPOTENCY_TTL_HOURS = 72
@@ -269,6 +270,24 @@ class LiveTrackingService:
             "locked_fields": moment.locked_fields or {},
             "created_at": moment.created_at,
             "updated_at": moment.updated_at,
+        }
+
+    def _device_token_payload(self, token_row: UserDeviceToken) -> dict[str, Any]:
+        hint = token_row.push_token[-8:] if token_row.push_token and len(token_row.push_token) >= 8 else token_row.push_token
+        return {
+            "id": token_row.id,
+            "user_id": token_row.user_id,
+            "platform": token_row.platform,
+            "device_id": token_row.device_id,
+            "app_version": token_row.app_version,
+            "locale": token_row.locale,
+            "is_active": token_row.is_active,
+            "failure_count": token_row.failure_count,
+            "last_seen_at": token_row.last_seen_at,
+            "last_sent_at": token_row.last_sent_at,
+            "created_at": token_row.created_at,
+            "updated_at": token_row.updated_at,
+            "token_hint": hint,
         }
 
     def _get_event_session(
@@ -882,3 +901,72 @@ class LiveTrackingService:
             "tracking_started_at": trip.tracking_started_at,
             "tracking_ended_at": trip.tracking_ended_at,
         }
+
+    def register_device_token(
+        self,
+        *,
+        user_id: UUID,
+        platform: str,
+        push_token: str,
+        device_id: Optional[str],
+        app_version: Optional[str],
+        locale: Optional[str],
+        seen_at: datetime,
+    ) -> tuple[int, dict[str, Any]]:
+        token_row = (
+            self.db.query(UserDeviceToken)
+            .filter(
+                UserDeviceToken.user_id == user_id,
+                UserDeviceToken.push_token == push_token,
+            )
+            .first()
+        )
+        seen_at_utc = self._to_utc(seen_at)
+
+        if token_row is None:
+            token_row = UserDeviceToken(
+                user_id=user_id,
+                platform=platform,
+                push_token=push_token,
+                device_id=device_id,
+                app_version=app_version,
+                locale=locale,
+                is_active=True,
+                last_seen_at=seen_at_utc,
+                failure_count=0,
+            )
+            self.db.add(token_row)
+        else:
+            token_row.platform = platform
+            token_row.device_id = device_id
+            token_row.app_version = app_version
+            token_row.locale = locale
+            token_row.is_active = True
+            token_row.last_seen_at = seen_at_utc
+            token_row.failure_count = 0
+
+        self.db.flush()
+        return status.HTTP_200_OK, self._device_token_payload(token_row)
+
+    def deactivate_device_token(
+        self,
+        *,
+        user_id: UUID,
+        push_token: str,
+        deactivated_at: datetime,
+    ) -> tuple[int, dict[str, Any]]:
+        token_row = (
+            self.db.query(UserDeviceToken)
+            .filter(
+                UserDeviceToken.user_id == user_id,
+                UserDeviceToken.push_token == push_token,
+            )
+            .first()
+        )
+        if token_row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device token not found")
+
+        token_row.is_active = False
+        token_row.last_seen_at = self._to_utc(deactivated_at)
+        self.db.flush()
+        return status.HTTP_200_OK, self._device_token_payload(token_row)

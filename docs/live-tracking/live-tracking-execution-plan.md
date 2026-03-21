@@ -66,7 +66,7 @@ Important current baseline:
 | 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
-| 3 | Async Processing | In Progress | Workers for scoring/auto-end/moments | Phase 3 worker foundations shipped; duplicate suppression + auto-end + handoff tests green |
+| 3 | Async Processing | In Progress | Workers for scoring/auto-end/moments | Phase 3 worker foundations + push dispatch shipped; duplicate suppression + auto-end + notification retry tests green |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
@@ -210,6 +210,7 @@ Phase 3 queue/job and retry snapshot (2026-03-21):
 
 - Job type: `inference_scan` over `trip_tracking_sessions` rows (row-lock claim with `FOR UPDATE SKIP LOCKED`).
 - Job type: `candidate_notification_handoff` over pending candidates above confidence threshold.
+- Job type: `candidate_notification_dispatch` over handed-off candidates with retry/backoff state in candidate payload.
 - Job type: `auto_end_pass` over active/paused sessions using inactivity + trip end-date policies.
 - Retry policy: worker loop backoff `5s -> 20s -> 60s` on unhandled cycle failures, then repeat.
 - Duplicate suppression: candidate fingerprint checks + cooldown/tombstone checks + moment-by-candidate existence checks + notification handoff marker in candidate payload.
@@ -570,6 +571,52 @@ Use this section after each phase with dated entries:
   - None new; this change reduces Phase 2 correctness risk and narrows replay/race ambiguity.
 - Next action:
   - Continue Phase 3 notification transport integration and queue hardening.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Implemented: Fixed Alembic runtime reliability issue where migrations appeared to run but did not persist, and hardened backend settings parsing for shared monorepo env variables.
+- Key files:
+  - `backend/alembic/env.py`
+  - `backend/app/config.py`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes:
+  - No live-tracking API contract changes in this entry.
+  - Alembic migration boundary now commits pre-migration implicit transaction opened by `SHOW/SET search_path`, so `upgrade head` persists revision and schema updates.
+  - Backend `DEBUG` now accepts profile-style string values (`release`/`profile`/`debug`) to prevent settings boot crashes during CLI/test tooling.
+- Decisions made:
+  - Keep the search_path guard but explicitly reset transaction boundary before Alembic begins migration transaction handling.
+  - Normalize `DEBUG` parsing at config layer instead of requiring per-command env overrides.
+- Risks introduced:
+  - None new; this reduces migration tooling instability risk.
+- Next action:
+  - Keep migration validation in standard loop (`upgrade head` + `check`) without ad-hoc env patching.
+- Date: 2026-03-21
+- Phase: 3 (Async Processing)
+- Implemented: Added push notification transport slice with Firebase-backed dispatch, per-user device token persistence, token lifecycle APIs, and worker retry/backoff state transitions.
+- Key files:
+  - `backend/alembic/versions/c2d4f6a8b0e1_add_user_device_tokens_for_push.py`
+  - `backend/app/models/user_device_token.py`
+  - `backend/app/models/__init__.py`
+  - `backend/app/services/push_service.py`
+  - `backend/app/services/live_tracking_service.py`
+  - `backend/app/schemas/live_tracking.py`
+  - `backend/app/api/v1/live_tracking.py`
+  - `backend/app/workers/live_tracking_worker.py`
+  - `backend/tests/test_live_tracking_endpoints.py`
+  - `backend/tests/test_live_tracking_worker.py`
+  - `backend/requirements.txt`
+- API or schema changes:
+  - Added `user_device_tokens` table with ownership FK, platform/failure constraints, and active-token lookup indexes.
+  - Added `POST /api/v1/notifications/device-tokens/register` and `POST /api/v1/notifications/device-tokens/deactivate` (idempotent mutation contract).
+  - Worker now executes `candidate_notification_dispatch` with persisted attempt counters, backoff schedule, status markers, and error/sent timestamps in candidate payload.
+- Decisions made:
+  - Push transport remains optional and environment-driven (`FIREBASE_PUSH_ENABLED` + credentials), with deterministic fallback statuses when unavailable.
+  - Invalid token responses deactivate token rows; retryable transport failures use configurable backoff and max-attempt limits.
+  - Notification dispatch state is persisted on candidates for crash-safe resume and retry determinism.
+- Risks introduced:
+  - Inbox fallback delivery path is still separate from this transport slice.
+  - Firebase credential/runtime misconfiguration degrades to retryable/terminal dispatch statuses until corrected.
+- Next action:
+  - Add inbox parity + operational alerting for retry saturation, then continue queue-scaling hardening.
 
 ## 11. Test Evidence Log
 
@@ -688,6 +735,39 @@ Use this section after each phase:
   - Endpoint suite increased from 8 to 11 passing tests with added safety checks.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `f3a7b8c9d0e1` before fix (observed non-persisting upgrade symptom)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass after `env.py` transaction-boundary fix)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `c2d4f6a8b0e1 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+- Manual checks run:
+  - Verified `alembic_version` now advances to head and `user_device_tokens` schema is persisted post-upgrade.
+  - Verified backend config bootstrap no longer crashes when shell exports `DEBUG=release`.
+- Result summary:
+  - Root Alembic reliability blocker resolved; migration chain is now deterministic under standard backend venv commands.
+- Known failures/waivers:
+  - `alembic check` still emits non-blocking comment-diff info logs, but these are stripped from generated ops and do not fail check.
+- Date: 2026-03-21
+- Phase: 3 (Async Processing)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/config.py alembic/env.py app/models/user_device_token.py app/services/push_service.py app/services/live_tracking_service.py app/api/v1/live_tracking.py app/schemas/live_tracking.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/config.py alembic/env.py app/models/user_device_token.py app/services/push_service.py app/services/live_tracking_service.py app/api/v1/live_tracking.py app/schemas/live_tracking.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_endpoints.py` (pass: 12 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py` (pass: 8 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `c2d4f6a8b0e1 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `c2d4f6a8b0e1 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+- Manual checks run:
+  - Verified device token register/deactivate endpoints are idempotent and token ownership-scoped.
+  - Verified worker dispatch updates notification status/attempt/backoff/sent metadata on candidates deterministically.
+  - Verified optional Firebase transport fallback returns non-crashing status paths when not configured.
+- Result summary:
+  - Phase 3 notification transport slice is integrated and regression-covered.
+  - Remaining hardening scope is inbox parity and scale/ops tuning.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 
@@ -698,6 +778,7 @@ Track only active risks:
 | Duplicate point ingestion under retries | High | Medium | idempotency keys + dedup window | Open |
 | Session stuck active after app/system interruption | High | Medium | restart reconciliation + auto-end worker | In Progress |
 | Auto-inference overriding manual edits | High | Low | strict precedence + tombstone cooldown | Open |
+| Notification delivery gaps when push transport is unavailable or tokens are inactive | Medium | Medium | dispatch retries + token lifecycle APIs + planned inbox fallback/alerts | In Progress |
 | Queue backlog growth during weak network | Medium | Medium | adaptive batching + backpressure + observability | Open |
 
 ## 13. Implementation Workflow and Codegen Discipline

@@ -17,6 +17,9 @@ from app.schemas.live_tracking import (
     CheckinConfirmRequest,
     CheckinRejectRequest,
     CheckinSnoozeRequest,
+    DeviceTokenActionResponse,
+    DeviceTokenDeactivateRequest,
+    DeviceTokenRegisterRequest,
     MomentCreateRequest,
     MomentListResponse,
     MomentResponse,
@@ -399,6 +402,74 @@ async def commit_auto_finalize(
     )
     payload = dict(result.body)
     payload["idempotency_replayed"] = result.replayed
+    response.status_code = result.status_code
+    _set_replay_header(response, result.replayed)
+    return payload
+
+
+@router.post(
+    "/notifications/device-tokens/register",
+    response_model=DeviceTokenActionResponse,
+)
+async def register_device_token(
+    request: DeviceTokenRegisterRequest,
+    response: Response,
+    x_idempotency_key: str = Header(..., alias="X-Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingService(db)
+    result = service.run_idempotent_mutation(
+        user_id=current_user.id,
+        endpoint_signature="POST:/notifications/device-tokens/register",
+        idempotency_key=x_idempotency_key,
+        request_payload=_idempotency_payload(request.model_dump(mode="json")),
+        operation=lambda: service.register_device_token(
+            user_id=current_user.id,
+            platform=request.platform,
+            push_token=request.push_token,
+            device_id=request.device_id,
+            app_version=request.app_version,
+            locale=request.locale,
+            seen_at=request.seen_at,
+        ),
+    )
+    payload = {
+        "token": result.body,
+        "idempotency_replayed": result.replayed,
+    }
+    response.status_code = result.status_code
+    _set_replay_header(response, result.replayed)
+    return payload
+
+
+@router.post(
+    "/notifications/device-tokens/deactivate",
+    response_model=DeviceTokenActionResponse,
+)
+async def deactivate_device_token(
+    request: DeviceTokenDeactivateRequest,
+    response: Response,
+    x_idempotency_key: str = Header(..., alias="X-Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingService(db)
+    result = service.run_idempotent_mutation(
+        user_id=current_user.id,
+        endpoint_signature="POST:/notifications/device-tokens/deactivate",
+        idempotency_key=x_idempotency_key,
+        request_payload=_idempotency_payload(request.model_dump(mode="json")),
+        operation=lambda: service.deactivate_device_token(
+            user_id=current_user.id,
+            push_token=request.push_token,
+            deactivated_at=request.deactivated_at,
+        ),
+    )
+    payload = {
+        "token": result.body,
+        "idempotency_replayed": result.replayed,
+    }
     response.status_code = result.status_code
     _set_replay_header(response, result.replayed)
     return payload

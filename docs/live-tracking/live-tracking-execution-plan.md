@@ -550,6 +550,26 @@ Use this section after each phase with dated entries:
   - Inference queue is DB-scan based in this phase and may require dedicated queue infrastructure under high volume.
 - Next action:
   - Wire notification transport dispatch and production worker process rollout hooks.
+- Date: 2026-03-21
+- Phase: 2 (Backend APIs/Services)
+- Implemented: Hardened Phase 2 idempotency/lifecycle/concurrency behaviors based on review findings.
+- Key files:
+  - `backend/app/api/v1/live_tracking.py`
+  - `backend/app/services/live_tracking_service.py`
+  - `backend/tests/test_live_tracking_endpoints.py`
+- API or schema changes:
+  - No schema changes.
+  - Idempotency hash scope now includes concrete path params (`trip_id`/`candidate_id`/`moment_id`) to prevent cross-resource replay with same key/body.
+  - `start_tracking` transition gate tightened to allow new starts only from `planned` trip status (contract-aligned).
+  - Constraint-aware `IntegrityError` mapping added for deterministic `409` behavior on known business uniqueness races.
+- Decisions made:
+  - Keep template endpoint signatures but make payload hash resource-scoped via path-param inclusion.
+  - Preserve idempotent active-session replay while enforcing lifecycle transition contract for new starts.
+  - Treat known business constraint races as conflict responses, not generic server failures.
+- Risks introduced:
+  - None new; this change reduces Phase 2 correctness risk and narrows replay/race ambiguity.
+- Next action:
+  - Continue Phase 3 notification transport integration and queue hardening.
 
 ## 11. Test Evidence Log
 
@@ -649,6 +669,23 @@ Use this section after each phase:
 - Result summary:
   - Phase 3 worker foundation is implemented and validated for scoring/moment/auto-end/handoff core flows.
   - Notification transport integration and higher-volume queue hardening remain for next iteration.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-21
+- Phase: 2 (Backend APIs/Services)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m py_compile app/api/v1/live_tracking.py app/services/live_tracking_service.py tests/test_live_tracking_endpoints.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/api/v1/live_tracking.py app/services/live_tracking_service.py tests/test_live_tracking_endpoints.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_live_tracking_endpoints.py` (pass: 11 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_live_tracking_worker.py` (pass: 6 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic check` (pass: `No new upgrade operations detected.`)
+- Manual checks run:
+  - Verified idempotency behavior no longer replays across different resource IDs with same key/body.
+  - Verified `start_tracking` rejects non-`planned` statuses for new starts.
+  - Verified known business uniqueness races are mapped to deterministic conflict responses.
+- Result summary:
+  - Phase 2 hardening findings are addressed and regression-covered.
+  - Endpoint suite increased from 8 to 11 passing tests with added safety checks.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
 

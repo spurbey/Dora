@@ -50,6 +50,14 @@ class TripTrackingSession(Base):
     ended_at = Column(DateTime(timezone=True))
     abandoned_at = Column(DateTime(timezone=True))
     last_point_at = Column(DateTime(timezone=True), comment="Latest ingested point timestamp")
+    inference_cursor_at = Column(
+        DateTime(timezone=True),
+        comment="Latest point timestamp processed by inference worker",
+    )
+    inference_updated_at = Column(
+        DateTime(timezone=True),
+        comment="Last successful inference processing timestamp",
+    )
 
     timezone = Column(String(64), comment="IANA timezone")
     device_context = Column(
@@ -74,6 +82,12 @@ class TripTrackingSession(Base):
         ),
         Index("idx_tracking_sessions_trip_state", "trip_id", "state"),
         Index("idx_tracking_sessions_user_state", "user_id", "state"),
+        Index(
+            "idx_tracking_sessions_inference_progress",
+            "state",
+            "last_point_at",
+            "inference_cursor_at",
+        ),
         Index(
             "uq_tracking_session_active_trip_user",
             "trip_id",

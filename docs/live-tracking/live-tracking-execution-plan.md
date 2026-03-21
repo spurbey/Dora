@@ -617,6 +617,29 @@ Use this section after each phase with dated entries:
   - Firebase credential/runtime misconfiguration degrades to retryable/terminal dispatch statuses until corrected.
 - Next action:
   - Add inbox parity + operational alerting for retry saturation, then continue queue-scaling hardening.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing)
+- Implemented: Hardened worker scalability and failure-isolation paths based on Phase 3 review findings.
+- Key files:
+  - `backend/app/models/trip_tracking_session.py`
+  - `backend/alembic/versions/b7c2e1d4f9a3_add_inference_progress_to_tracking_sessions.py`
+  - `backend/app/workers/live_tracking_worker.py`
+  - `backend/tests/test_live_tracking_worker.py`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes:
+  - Added `trip_tracking_sessions.inference_cursor_at` and `trip_tracking_sessions.inference_updated_at` for incremental inference progress tracking.
+  - Added `idx_tracking_sessions_inference_progress` index for claim/query efficiency.
+  - Session claim now skips fully processed sessions and prioritizes fresh work.
+  - Notification handoff now filters eligible candidates in SQL before `LIMIT` to avoid backlog starvation.
+  - Worker cycle now isolates per-session and per-phase failures using nested transaction boundaries.
+- Decisions made:
+  - Kept ended sessions eligible only when unprocessed data exists (`last_point_at > inference_cursor_at`) so final trailing points can still be inferred.
+  - Added overlap-window incremental rescans at cursor boundaries to preserve stay detection continuity.
+  - Flush handoff payload updates before dispatch query to guarantee same-cycle visibility.
+- Risks introduced:
+  - Inference cursor strategy adds statefulness to sessions and requires migration compatibility checks in future schema refactors.
+- Next action:
+  - Continue with inbox fallback parity and queue/throughput hardening under production-like data volume.
 
 ## 11. Test Evidence Log
 
@@ -766,6 +789,26 @@ Use this section after each phase:
 - Result summary:
   - Phase 3 notification transport slice is integrated and regression-covered.
   - Remaining hardening scope is inbox parity and scale/ops tuning.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/models/trip_tracking_session.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py alembic/versions/b7c2e1d4f9a3_add_inference_progress_to_tracking_sessions.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/models/trip_tracking_session.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py alembic/versions/b7c2e1d4f9a3_add_inference_progress_to_tracking_sessions.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; upgraded `c2d4f6a8b0e1 -> b7c2e1d4f9a3`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `b7c2e1d4f9a3 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `b7c2e1d4f9a3 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py` (pass: 12 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_endpoints.py` (pass: 12 passed)
+- Manual checks run:
+  - Verified claim query only pulls sessions with unprocessed points and deprioritizes ended sessions.
+  - Verified handoff/dispatch no longer stalls when older already-handed-off rows dominate pending backlog.
+  - Verified a single session-level inference exception is isolated and does not abort all worker progress for the cycle.
+- Result summary:
+  - All three review findings are addressed with code + regression coverage.
+  - Worker behavior is now safer for backlog growth and poison-record scenarios.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
 

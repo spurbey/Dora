@@ -25,6 +25,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
+from sqlalchemy import case, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -383,25 +384,44 @@ def process_session_inference(
     if not session:
         raise ValueError(f"Tracking session not found: {session_id}")
 
-    rows = (
-        db.query(TripLocationPoint)
-        .filter(TripLocationPoint.session_id == session_id)
-        .order_by(TripLocationPoint.recorded_at.asc())
-        .all()
-    )
+    result = SessionInferenceResult(session_id=session_id)
+    if session.last_point_at is None:
+        return result
 
-    result = SessionInferenceResult(session_id=session_id, scanned_points=len(rows))
+    session_last_point_at = _to_utc(session.last_point_at)
+    cursor = _to_utc(session.inference_cursor_at) if session.inference_cursor_at is not None else None
+    if cursor is not None and session_last_point_at <= cursor:
+        return result
+
+    points_query = db.query(TripLocationPoint).filter(TripLocationPoint.session_id == session_id)
+    if cursor is not None:
+        # Keep a small overlap so stays spanning the cursor boundary are still inferred.
+        overlap_minutes = max(1, int(settings.TRACKING_STAY_MIN_DURATION_MINUTES))
+        overlap_start = cursor - timedelta(minutes=overlap_minutes)
+        points_query = points_query.filter(TripLocationPoint.recorded_at >= overlap_start)
+
+    rows = points_query.order_by(TripLocationPoint.recorded_at.asc()).all()
+    result.scanned_points = len(rows)
     if not rows:
+        session.inference_cursor_at = session_last_point_at
+        session.inference_updated_at = as_of
+        db.flush()
         return result
 
     points = _dedupe_points(_to_points(rows))
     result.filtered_points = len(points)
     if len(points) < 2:
+        session.inference_cursor_at = session_last_point_at
+        session.inference_updated_at = as_of
+        db.flush()
         return result
 
     clusters = _build_stay_clusters(points)
     result.clusters_found = len(clusters)
     if not clusters:
+        session.inference_cursor_at = session_last_point_at
+        session.inference_updated_at = as_of
+        db.flush()
         return result
 
     service = LiveTrackingService(db)
@@ -505,6 +525,9 @@ def process_session_inference(
         if candidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD):
             result.notification_candidate_ids.append(candidate.id)
 
+    session.inference_cursor_at = session_last_point_at
+    session.inference_updated_at = as_of
+    db.flush()
     return result
 
 
@@ -520,6 +543,12 @@ def handoff_candidate_notifications(
     query = db.query(TripCheckinCandidate).filter(
         TripCheckinCandidate.status == "pending",
         TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+    )
+    query = query.filter(
+        or_(
+            TripCheckinCandidate.payload.is_(None),
+            TripCheckinCandidate.payload["notification_handoff_at"].astext.is_(None),
+        )
     )
     if trip_id is not None:
         query = query.filter(TripCheckinCandidate.trip_id == trip_id)
@@ -546,6 +575,9 @@ def handoff_candidate_notifications(
         candidate.payload = payload
         dispatched.append(candidate.id)
 
+    if dispatched:
+        db.flush()
+
     return NotificationHandoffResult(
         dispatched_count=len(dispatched),
         candidate_ids=dispatched,
@@ -561,12 +593,20 @@ def dispatch_candidate_notifications(
 ) -> NotificationDispatchResult:
     as_of = _to_utc(now or utcnow())
     max_attempts = int(settings.TRACKING_NOTIFICATION_MAX_ATTEMPTS)
+    notification_status = TripCheckinCandidate.payload["notification_status"].astext
 
     candidates = (
         db.query(TripCheckinCandidate)
         .filter(
             TripCheckinCandidate.status == "pending",
             TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        )
+        .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
+        .filter(
+            or_(
+                notification_status.is_(None),
+                notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens"]),
+            )
         )
         .order_by(TripCheckinCandidate.created_at.asc())
         .limit(limit)
@@ -708,11 +748,18 @@ def _claim_sessions_for_inference(db: Session, *, batch_size: int) -> list[TripT
     Uses row-locking with SKIP LOCKED so multiple worker processes can run
     without double-processing the same session in the same loop.
     """
+    state_priority = case((TripTrackingSession.state == "ended", 1), else_=0)
     return (
         db.query(TripTrackingSession)
         .filter(TripTrackingSession.last_point_at.is_not(None))
         .filter(TripTrackingSession.state.in_(["active", "paused", "ended"]))
-        .order_by(TripTrackingSession.last_point_at.asc())
+        .filter(
+            or_(
+                TripTrackingSession.inference_cursor_at.is_(None),
+                TripTrackingSession.last_point_at > TripTrackingSession.inference_cursor_at,
+            )
+        )
+        .order_by(state_priority.asc(), TripTrackingSession.last_point_at.desc())
         .with_for_update(skip_locked=True)
         .limit(batch_size)
         .all()
@@ -725,23 +772,62 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
     sessions = _claim_sessions_for_inference(db, batch_size=batch_size)
     candidates_created = 0
     moments_created = 0
+    session_errors = 0
 
     for session in sessions:
-        result = process_session_inference(db, session_id=session.id)
-        candidates_created += result.candidates_created
-        moments_created += result.moments_created
+        try:
+            with db.begin_nested():
+                result = process_session_inference(db, session_id=session.id)
+                candidates_created += result.candidates_created
+                moments_created += result.moments_created
+        except Exception:
+            session_errors += 1
+            logger.exception(
+                "[LIVE_TRACKING_WORKER] session_inference_failed session_id=%s",
+                session.id,
+            )
 
-    handoff = handoff_candidate_notifications(db, limit=batch_size * 2)
-    push_service = PushNotificationService(db)
-    dispatch = dispatch_candidate_notifications(
-        db,
-        push_service=push_service,
-        limit=batch_size * 2,
+    handoff = NotificationHandoffResult(dispatched_count=0, candidate_ids=[])
+    try:
+        with db.begin_nested():
+            handoff = handoff_candidate_notifications(db, limit=batch_size * 2)
+    except Exception:
+        logger.exception("[LIVE_TRACKING_WORKER] notification_handoff_failed")
+
+    dispatch = NotificationDispatchResult(
+        attempted_count=0,
+        sent_count=0,
+        retryable_failures=0,
+        terminal_failures=0,
+        skipped_no_tokens=0,
+        transport_unavailable=0,
     )
-    auto_end = run_auto_end_pass(db)
+    try:
+        with db.begin_nested():
+            push_service = PushNotificationService(db)
+            dispatch = dispatch_candidate_notifications(
+                db,
+                push_service=push_service,
+                limit=batch_size * 2,
+            )
+    except Exception:
+        logger.exception("[LIVE_TRACKING_WORKER] notification_dispatch_failed")
+
+    auto_end = AutoEndPassResult(
+        scanned_sessions=0,
+        auto_ended_sessions=0,
+        ended_session_ids=[],
+        ended_trip_ids=[],
+    )
+    try:
+        with db.begin_nested():
+            auto_end = run_auto_end_pass(db)
+    except Exception:
+        logger.exception("[LIVE_TRACKING_WORKER] auto_end_pass_failed")
 
     summary = {
         "sessions_scanned": len(sessions),
+        "session_errors": session_errors,
         "candidates_created": candidates_created,
         "moments_created": moments_created,
         "notifications_handed_off": handoff.dispatched_count,

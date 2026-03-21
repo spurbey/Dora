@@ -21,11 +21,10 @@ import os
 import pytest
 from uuid import uuid4
 
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-from app.database import get_db
+from app.database import create_db_engine, get_db
 from app.main import app
 from app.models.user import User
 from app.config import settings
@@ -40,7 +39,7 @@ TEST_DATABASE_URL = os.getenv(
 )
 
 #: SQLAlchemy engine for test database
-engine = create_engine(TEST_DATABASE_URL)
+engine = create_db_engine(TEST_DATABASE_URL)
 
 #: Session factory for test database
 TestingSessionLocal = sessionmaker(

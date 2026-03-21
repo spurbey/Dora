@@ -6,10 +6,10 @@ Run: python tests/test_session14_search.py
 
 import asyncio
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.database import create_db_engine
 from app.services.search_service import SearchService
 from app.utils.search_normalizer import normalize_query, normalize_coords, normalize_radius
 from app.utils.cache_keys import make_search_key
@@ -59,7 +59,7 @@ async def test_search_service():
     print("\n=== Testing SearchService ===")
     
     # Create DB session
-    engine = create_engine(settings.SUPABASE_DB_URL)
+    engine = create_db_engine(settings.SUPABASE_DB_URL)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
     
@@ -87,7 +87,7 @@ async def test_database():
     
     from sqlalchemy import inspect, text
     
-    engine = create_engine(settings.SUPABASE_DB_URL)
+    engine = create_db_engine(settings.SUPABASE_DB_URL)
     inspector = inspect(engine)
     
     # Check search_vector column

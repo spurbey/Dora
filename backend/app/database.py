@@ -3,13 +3,26 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
-engine = create_engine(
+# Keep schema resolution deterministic across local/dev/clone connections.
+DEFAULT_DB_CONNECT_ARGS = {
+    "connect_timeout": 10,
+    "options": "-c search_path=public,extensions",
+}
+
+
+def create_db_engine(database_url: str, **kwargs):
+    connect_args = dict(DEFAULT_DB_CONNECT_ARGS)
+    extra_connect_args = kwargs.pop("connect_args", None)
+    if extra_connect_args:
+        connect_args.update(extra_connect_args)
+    return create_engine(database_url, connect_args=connect_args, **kwargs)
+
+
+engine = create_db_engine(
     settings.SUPABASE_DB_URL,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
-    # Fail fast on unreachable DB instead of hanging for 7+ minutes
-    connect_args={"connect_timeout": 10},
     pool_recycle=300,
 )
 

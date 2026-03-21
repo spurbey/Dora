@@ -45,6 +45,18 @@ jobs:
       - name: Lint
         run: ruff check app/
 
+      - name: Apply migrations
+        env:
+          SUPABASE_URL: http://localhost:fake
+          SUPABASE_ANON_KEY: fake-anon-key
+          SUPABASE_DB_URL: postgresql://test:test@localhost:5432/dora_test
+          SUPABASE_SERVICE_ROLE_KEY: fake-service-role-key
+          FOURSQUARE_API_KEY: fake-fsq-key
+          MAPBOX_API_KEY: fake-mapbox-key
+          SECRET_KEY: ci-test-secret-key-not-default
+          DEBUG: "true"
+        run: alembic upgrade head
+
       - name: Check migrations
         env:
           SUPABASE_URL: http://localhost:fake

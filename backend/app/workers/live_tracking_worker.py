@@ -325,13 +325,13 @@ def _notification_backoff_seconds(attempt_count: int) -> int:
     return intervals[index]
 
 
-def _parse_iso_dt(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        return _to_utc(datetime.fromisoformat(value))
-    except Exception:
-        return None
+def _notification_due_filter(*, as_of: datetime):
+    cutoff_iso = _to_utc(as_of).isoformat()
+    next_attempt = TripCheckinCandidate.payload["notification_next_attempt_at"].astext
+    return or_(
+        next_attempt.is_(None),
+        next_attempt <= cutoff_iso,
+    )
 
 
 def _ensure_auto_moment(
@@ -566,6 +566,7 @@ def handoff_candidate_notifications(
 
     candidates = (
         query.order_by(TripCheckinCandidate.created_at.asc())
+        .with_for_update(skip_locked=True)
         .limit(limit)
         .all()
     )
@@ -573,8 +574,6 @@ def handoff_candidate_notifications(
     dispatched: list[UUID] = []
     for candidate in candidates:
         payload = dict(candidate.payload or {})
-        if payload.get("notification_handoff_at"):
-            continue
 
         payload["notification_handoff_at"] = as_of.isoformat()
         payload["notification_handoff_id"] = str(uuid4())
@@ -619,7 +618,9 @@ def dispatch_candidate_notifications(
                 notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens"]),
             )
         )
+        .filter(_notification_due_filter(as_of=as_of))
         .order_by(TripCheckinCandidate.created_at.asc())
+        .with_for_update(skip_locked=True)
         .limit(limit)
         .all()
     )
@@ -642,10 +643,6 @@ def dispatch_candidate_notifications(
             continue
 
         attempt_count = int(payload.get("notification_attempt_count") or 0)
-        next_attempt_at = _parse_iso_dt(payload.get("notification_next_attempt_at"))
-        if next_attempt_at is not None and next_attempt_at > as_of:
-            continue
-
         if attempt_count >= max_attempts:
             payload["notification_status"] = "terminal_failure"
             payload["notification_last_error"] = "retry_limit_exceeded"

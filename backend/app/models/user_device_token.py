@@ -93,9 +93,8 @@ class UserDeviceToken(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "user_id",
             "push_token",
-            name="uq_user_device_tokens_user_token",
+            name="uq_user_device_tokens_push_token",
         ),
         CheckConstraint(
             "platform IN ('ios', 'android', 'web')",

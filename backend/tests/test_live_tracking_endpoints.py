@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_tracking_session import TripTrackingSession
+from app.models.user import User
 from app.models.user_device_token import UserDeviceToken
 from app.services.live_tracking_service import LiveTrackingService
 
@@ -528,6 +529,29 @@ def test_run_idempotent_mutation_maps_business_integrity_race_to_conflict(db, te
     assert exc.value.detail == "Tracking session already active for trip"
 
 
+def test_run_idempotent_mutation_maps_device_token_integrity_race_to_conflict(db, test_user):
+    service = LiveTrackingService(db)
+
+    def _operation():
+        raise IntegrityError(
+            "insert into user_device_tokens",
+            {"user_id": str(test_user.id)},
+            _FakeIntegrityOrig("uq_user_device_tokens_push_token"),
+        )
+
+    with pytest.raises(HTTPException) as exc:
+        service.run_idempotent_mutation(
+            user_id=test_user.id,
+            endpoint_signature="POST:/notifications/device-tokens/register",
+            idempotency_key=_idem(),
+            request_payload={"platform": "android", "push_token": "sample-token"},
+            operation=_operation,
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "Concurrent mutation conflict, retry with a new idempotency key"
+
+
 def test_device_token_register_and_deactivate_idempotent(client, db, test_user, auth_as):
     auth_as(test_user)
     push_token = f"token-{uuid4().hex}-abcdef123456"
@@ -584,6 +608,55 @@ def test_device_token_register_and_deactivate_idempotent(client, db, test_user, 
     assert deactivate_replay.status_code == 200
     assert deactivate_replay.json()["token"]["is_active"] is False
     assert deactivate_replay.json()["idempotency_replayed"] is True
+
+
+def test_device_token_register_transfers_ownership_between_accounts(client, db, test_user, auth_as):
+    replacement_user = User(
+        id=uuid4(),
+        email=f"switch_{uuid4().hex[:8]}@example.com",
+        username=f"switch_{uuid4().hex[:8]}",
+        hashed_password="hashed",
+        is_premium=False,
+        is_verified=True,
+    )
+    db.add(replacement_user)
+    db.commit()
+    db.refresh(replacement_user)
+
+    push_token = f"token-{uuid4().hex}-abcdef123456"
+    body = {
+        "client_event_id": str(uuid4()),
+        "platform": "android",
+        "push_token": push_token,
+        "device_id": "pixel-switch",
+        "app_version": "2.0.0",
+        "locale": "en-US",
+        "seen_at": _iso_now(),
+    }
+
+    auth_as(test_user)
+    first = client.post(
+        "/api/v1/notifications/device-tokens/register",
+        json=body,
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert first.status_code == 200
+    token_id = first.json()["token"]["id"]
+
+    auth_as(replacement_user)
+    second = client.post(
+        "/api/v1/notifications/device-tokens/register",
+        json={**body, "client_event_id": str(uuid4()), "seen_at": _iso_now(5)},
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert second.status_code == 200
+    assert second.json()["token"]["id"] == token_id
+    assert second.json()["token"]["user_id"] == str(replacement_user.id)
+
+    rows = db.query(UserDeviceToken).filter(UserDeviceToken.push_token == push_token).all()
+    assert len(rows) == 1
+    assert rows[0].user_id == replacement_user.id
+    assert rows[0].is_active is True
 
 
 def test_ingest_points_marks_uninferred_marker_for_late_points(db, test_user):

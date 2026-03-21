@@ -549,6 +549,68 @@ def test_dispatch_candidate_notifications_sets_retryable_backoff(db, test_user):
     assert payload.get("notification_last_error") == "timeout"
 
 
+def test_dispatch_candidate_notifications_filters_due_before_limit(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    now = datetime.now(timezone.utc)
+
+    not_due_rows: list[TripCheckinCandidate] = []
+    for _ in range(3):
+        row = TripCheckinCandidate(
+            id=uuid4(),
+            trip_id=trip.id,
+            user_id=test_user.id,
+            session_id=session.id,
+            fingerprint=f"fp-{uuid4()}",
+            status="pending",
+            confidence=0.95,
+            suggested_name="Retry later",
+            payload={
+                "notification_handoff_at": (now - timedelta(minutes=5)).isoformat(),
+                "notification_status": "retryable_failure",
+                "notification_attempt_count": 1,
+                "notification_next_attempt_at": (now + timedelta(hours=2)).isoformat(),
+            },
+        )
+        db.add(row)
+        not_due_rows.append(row)
+
+    due = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.96,
+        suggested_name="Dispatch now",
+        payload={
+            "notification_handoff_at": (now - timedelta(minutes=1)).isoformat(),
+            "notification_status": "retryable_failure",
+            "notification_attempt_count": 1,
+            "notification_next_attempt_at": (now - timedelta(seconds=1)).isoformat(),
+        },
+    )
+    db.add(due)
+    db.flush()
+
+    fake_service = _FakePushService(status="sent")
+    result = dispatch_candidate_notifications(
+        db,
+        push_service=fake_service,
+        limit=2,
+        now=now,
+    )
+    db.flush()
+
+    assert result.attempted_count == 1
+    assert result.sent_count == 1
+    assert fake_service.calls == 1
+    assert (due.payload or {}).get("notification_status") == "sent"
+    for row in not_due_rows:
+        assert (row.payload or {}).get("notification_status") == "retryable_failure"
+
+
 def test_run_auto_end_pass_closes_stale_inactive_sessions(db, test_user):
     now = datetime.now(timezone.utc)
     trip = _create_trip(db, user_id=test_user.id, status="tracking_active")

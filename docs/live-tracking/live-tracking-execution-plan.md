@@ -853,6 +853,26 @@ Use this section after each phase:
   - Late-arriving-point data-loss path is closed without regressing starvation protections from previous hardening.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing) + Push Notification Hardening
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/models/user_device_token.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py alembic/versions/f1c5a9e2d4b6_harden_user_device_token_ownership.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/models/user_device_token.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py alembic/versions/f1c5a9e2d4b6_harden_user_device_token_ownership.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; upgraded `d4e9c2a1b7f0 -> f1c5a9e2d4b6`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `f1c5a9e2d4b6 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `f1c5a9e2d4b6 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py` (pass: 30 passed)
+- Manual checks run:
+  - Verified device token registration now enforces single-owner semantics globally by `push_token`, including account-switch reassignment.
+  - Verified worker handoff/dispatch queries now claim rows with `FOR UPDATE SKIP LOCKED` to reduce duplicate concurrent sends.
+  - Verified dispatch eligibility (`notification_next_attempt_at`) is filtered in SQL before `LIMIT`, so not-due backlog rows do not starve ready candidates.
+  - Verified idempotency integrity mapping includes token uniqueness constraints for deterministic conflict behavior under race paths.
+- Result summary:
+  - Closed remaining production blockers from push notification review: cross-account token leakage risk, duplicate-send concurrency gap, dispatch starvation path, and token registration race ambiguity.
+  - Existing session-level worker fault isolation remains intact from prior hardening.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 

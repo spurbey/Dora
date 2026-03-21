@@ -14,6 +14,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -85,6 +86,8 @@ class LiveTrackingService:
             "uq_tracking_session_active_trip_user",
             "uq_tracking_point_session_point",
             "uq_checkin_candidate_active_fingerprint",
+            "uq_user_device_tokens_push_token",
+            "uq_user_device_tokens_user_token",
         )
         for constraint in known_constraints:
             if constraint in message:
@@ -192,7 +195,12 @@ class LiveTrackingService:
                     detail="Tracking session already active for trip",
                 )
 
-            if constraint_name in {"uq_tracking_point_session_point", "uq_checkin_candidate_active_fingerprint"}:
+            if constraint_name in {
+                "uq_tracking_point_session_point",
+                "uq_checkin_candidate_active_fingerprint",
+                "uq_user_device_tokens_push_token",
+                "uq_user_device_tokens_user_token",
+            }:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Concurrent mutation conflict, retry with a new idempotency key",
@@ -920,18 +928,10 @@ class LiveTrackingService:
         locale: Optional[str],
         seen_at: datetime,
     ) -> tuple[int, dict[str, Any]]:
-        token_row = (
-            self.db.query(UserDeviceToken)
-            .filter(
-                UserDeviceToken.user_id == user_id,
-                UserDeviceToken.push_token == push_token,
-            )
-            .first()
-        )
         seen_at_utc = self._to_utc(seen_at)
-
-        if token_row is None:
-            token_row = UserDeviceToken(
+        upsert = (
+            pg_insert(UserDeviceToken)
+            .values(
                 user_id=user_id,
                 platform=platform,
                 push_token=push_token,
@@ -942,17 +942,26 @@ class LiveTrackingService:
                 last_seen_at=seen_at_utc,
                 failure_count=0,
             )
-            self.db.add(token_row)
-        else:
-            token_row.platform = platform
-            token_row.device_id = device_id
-            token_row.app_version = app_version
-            token_row.locale = locale
-            token_row.is_active = True
-            token_row.last_seen_at = seen_at_utc
-            token_row.failure_count = 0
-
-        self.db.flush()
+            .on_conflict_do_update(
+                index_elements=[UserDeviceToken.push_token],
+                set_={
+                    "user_id": user_id,
+                    "platform": platform,
+                    "device_id": device_id,
+                    "app_version": app_version,
+                    "locale": locale,
+                    "is_active": True,
+                    "last_seen_at": seen_at_utc,
+                    "failure_count": 0,
+                    "updated_at": func.now(),
+                },
+            )
+            .returning(UserDeviceToken.id)
+        )
+        token_id = self.db.execute(upsert).scalar_one()
+        token_row = self.db.query(UserDeviceToken).filter(UserDeviceToken.id == token_id).first()
+        if token_row is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Device token upsert failed")
         return status.HTTP_200_OK, self._device_token_payload(token_row)
 
     def deactivate_device_token(

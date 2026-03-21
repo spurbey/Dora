@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
+from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user import User
 from app.models.user_device_token import UserDeviceToken
@@ -94,6 +95,7 @@ def _idem() -> str:
 @pytest.fixture(autouse=True)
 def ensure_user_device_tokens_table(db):
     UserDeviceToken.__table__.create(bind=db.bind, checkfirst=True)
+    TripTrackingNotification.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def test_tracking_start_idempotency_and_conflict(client, db, test_user, auth_as):
@@ -405,6 +407,49 @@ def test_candidate_actions_reject_snooze_confirm(client, db, test_user, auth_as)
     payload = confirm.json()["candidate"]
     assert payload["status"] == "confirmed"
     assert payload["confirmed_trip_place_id"] is not None
+
+
+def test_candidate_action_marks_inbox_notification_acted(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Inbox Action")
+    session = create_session(db, trip.id, test_user.id)
+    candidate = create_candidate(db, trip.id, test_user.id, session_id=session.id, status="pending")
+    db.add(
+        TripTrackingNotification(
+            id=uuid4(),
+            trip_id=trip.id,
+            user_id=test_user.id,
+            candidate_id=candidate.id,
+            channel="inbox",
+            delivery_state="pending",
+            payload={"seeded": True},
+        )
+    )
+    db.commit()
+
+    reject = client.post(
+        f"/api/v1/checkins/{candidate.id}/reject",
+        json={
+            "client_event_id": str(uuid4()),
+            "rejected_at": _iso_now(),
+            "reason": "not this one",
+        },
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert reject.status_code == 200
+
+    row = (
+        db.query(TripTrackingNotification)
+        .filter(
+            TripTrackingNotification.candidate_id == candidate.id,
+            TripTrackingNotification.channel == "inbox",
+        )
+        .first()
+    )
+    assert row is not None
+    assert row.delivery_state == "acted"
+    assert row.acknowledged_at is not None
+    assert (row.payload or {}).get("candidate_status") == "rejected"
 
 
 def test_moment_create_update_list(client, db, test_user, auth_as):

@@ -38,6 +38,7 @@ from app.models.trip_moment import TripMoment
 from app.models.trip_auto_entity_tombstone import TripAutoEntityTombstone
 from app.models.api_idempotency_record import ApiIdempotencyRecord
 from app.models.user_device_token import UserDeviceToken
+from app.models.trip_tracking_notification import TripTrackingNotification
 
 __all__ = [
     "User",
@@ -61,4 +62,5 @@ __all__ = [
     "TripAutoEntityTombstone",
     "ApiIdempotencyRecord",
     "UserDeviceToken",
+    "TripTrackingNotification",
 ]

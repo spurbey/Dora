@@ -36,6 +36,7 @@ from app.models.trip_auto_entity_tombstone import TripAutoEntityTombstone
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
+from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_session import TripTrackingSession
 from app.services.live_tracking_service import LiveTrackingService
 from app.services.push_service import PushNotificationService
@@ -334,6 +335,76 @@ def _notification_due_filter(*, as_of: datetime):
     )
 
 
+def _notification_snapshot(*, candidate: TripCheckinCandidate, payload: dict) -> dict:
+    return {
+        "candidate_status": candidate.status,
+        "notification_status": payload.get("notification_status"),
+        "notification_handoff_at": payload.get("notification_handoff_at"),
+        "notification_handoff_id": payload.get("notification_handoff_id"),
+        "notification_next_attempt_at": payload.get("notification_next_attempt_at"),
+        "notification_sent_at": payload.get("notification_sent_at"),
+    }
+
+
+def _upsert_tracking_notification(
+    db: Session,
+    *,
+    candidate: TripCheckinCandidate,
+    channel: str,
+    delivery_state: str,
+    as_of: datetime,
+    attempt_count: Optional[int] = None,
+    last_error: Optional[str] = None,
+    payload_patch: Optional[dict] = None,
+    mark_delivered: bool = False,
+) -> TripTrackingNotification:
+    notification = (
+        db.query(TripTrackingNotification)
+        .filter(
+            TripTrackingNotification.candidate_id == candidate.id,
+            TripTrackingNotification.channel == channel,
+        )
+        .first()
+    )
+
+    merged_payload = dict(payload_patch or {})
+    if notification is None:
+        notification = TripTrackingNotification(
+            trip_id=candidate.trip_id,
+            user_id=candidate.user_id,
+            candidate_id=candidate.id,
+            channel=channel,
+            delivery_state=delivery_state,
+            attempt_count=max(0, int(attempt_count or 0)),
+            last_error=last_error,
+            payload=merged_payload,
+        )
+        if channel == "push":
+            notification.last_attempt_at = as_of
+        if mark_delivered:
+            notification.delivered_at = as_of
+        db.add(notification)
+        return notification
+
+    notification.delivery_state = delivery_state
+    if attempt_count is not None:
+        notification.attempt_count = max(int(notification.attempt_count or 0), int(attempt_count))
+    if channel == "push":
+        notification.last_attempt_at = as_of
+    if mark_delivered:
+        notification.delivered_at = as_of
+
+    if last_error is not None:
+        notification.last_error = last_error
+    elif delivery_state in {"sent", "acted", "no_tokens"}:
+        notification.last_error = None
+
+    payload = dict(notification.payload or {})
+    payload.update(merged_payload)
+    notification.payload = payload
+    return notification
+
+
 def _ensure_auto_moment(
     db: Session,
     *,
@@ -583,6 +654,14 @@ def handoff_candidate_notifications(
         payload["notification_last_error"] = None
         payload["notification_sent_at"] = None
         candidate.payload = payload
+        _upsert_tracking_notification(
+            db,
+            candidate=candidate,
+            channel="inbox",
+            delivery_state="pending",
+            as_of=as_of,
+            payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+        )
         dispatched.append(candidate.id)
 
     if dispatched:
@@ -642,11 +721,30 @@ def dispatch_candidate_notifications(
         if status_value in {"sent", "terminal_failure", "skipped_no_tokens"}:
             continue
 
+        _upsert_tracking_notification(
+            db,
+            candidate=candidate,
+            channel="inbox",
+            delivery_state="pending",
+            as_of=as_of,
+            payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+        )
+
         attempt_count = int(payload.get("notification_attempt_count") or 0)
         if attempt_count >= max_attempts:
             payload["notification_status"] = "terminal_failure"
             payload["notification_last_error"] = "retry_limit_exceeded"
             candidate.payload = payload
+            _upsert_tracking_notification(
+                db,
+                candidate=candidate,
+                channel="push",
+                delivery_state="terminal_failure",
+                as_of=as_of,
+                attempt_count=attempt_count,
+                last_error="retry_limit_exceeded",
+                payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+            )
             terminal += 1
             continue
 
@@ -660,17 +758,26 @@ def dispatch_candidate_notifications(
             payload["notification_sent_at"] = as_of.isoformat()
             payload["notification_last_error"] = None
             payload["notification_next_attempt_at"] = None
+            push_state = "sent"
+            push_error = None
+            push_delivered = True
             sent += 1
         elif dispatch.status == "no_tokens":
             payload["notification_status"] = "skipped_no_tokens"
             payload["notification_last_error"] = "no_active_tokens"
             payload["notification_next_attempt_at"] = None
+            push_state = "no_tokens"
+            push_error = "no_active_tokens"
+            push_delivered = False
             skipped_no_tokens += 1
         elif dispatch.status == "transport_unavailable":
             delay = _notification_backoff_seconds(attempt_count)
             payload["notification_status"] = "retryable_failure"
             payload["notification_last_error"] = dispatch.error_message or "transport_unavailable"
             payload["notification_next_attempt_at"] = (as_of + timedelta(seconds=delay)).isoformat()
+            push_state = "transport_unavailable"
+            push_error = dispatch.error_message or "transport_unavailable"
+            push_delivered = False
             retryable += 1
             transport_unavailable += 1
         elif dispatch.status == "retryable_failure":
@@ -678,14 +785,31 @@ def dispatch_candidate_notifications(
             payload["notification_status"] = "retryable_failure"
             payload["notification_last_error"] = dispatch.error_message or "retryable_failure"
             payload["notification_next_attempt_at"] = (as_of + timedelta(seconds=delay)).isoformat()
+            push_state = "retryable_failure"
+            push_error = dispatch.error_message or "retryable_failure"
+            push_delivered = False
             retryable += 1
         else:
             payload["notification_status"] = "terminal_failure"
             payload["notification_last_error"] = dispatch.error_message or "terminal_failure"
             payload["notification_next_attempt_at"] = None
+            push_state = "terminal_failure"
+            push_error = dispatch.error_message or "terminal_failure"
+            push_delivered = False
             terminal += 1
 
         candidate.payload = payload
+        _upsert_tracking_notification(
+            db,
+            candidate=candidate,
+            channel="push",
+            delivery_state=push_state,
+            as_of=as_of,
+            attempt_count=attempt_count,
+            last_error=push_error,
+            payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+            mark_delivered=push_delivered,
+        )
 
     return NotificationDispatchResult(
         attempted_count=attempted,
@@ -843,6 +967,9 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         "notifications_attempted": dispatch.attempted_count,
         "notifications_sent": dispatch.sent_count,
         "notifications_retryable_failures": dispatch.retryable_failures,
+        "notifications_terminal_failures": dispatch.terminal_failures,
+        "notifications_skipped_no_tokens": dispatch.skipped_no_tokens,
+        "notifications_transport_unavailable": dispatch.transport_unavailable,
         "auto_ended_sessions": auto_end.auto_ended_sessions,
     }
     return summary

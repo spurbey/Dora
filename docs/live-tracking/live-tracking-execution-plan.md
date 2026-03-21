@@ -873,6 +873,27 @@ Use this section after each phase:
   - Existing session-level worker fault isolation remains intact from prior hardening.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing) + Inbox Fallback Parity
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/models/trip_tracking_notification.py app/models/__init__.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py alembic/versions/a7d9c4e1f2b3_add_trip_tracking_notifications_table.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/models/trip_tracking_notification.py app/models/__init__.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_endpoints.py tests/test_live_tracking_worker.py alembic/versions/a7d9c4e1f2b3_add_trip_tracking_notifications_table.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; upgraded `f1c5a9e2d4b6 -> a7d9c4e1f2b3`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `a7d9c4e1f2b3 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `a7d9c4e1f2b3 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 32 passed)
+- Manual checks run:
+  - Added `trip_tracking_notifications` table (`inbox|push` channels) as durable audit/log + inbox parity state store per candidate.
+  - Worker handoff now upserts inbox rows (`pending`) so candidates always have in-app inbox representation independent of push transport success.
+  - Worker dispatch now upserts push channel status (`sent`, `retryable_failure`, `transport_unavailable`, `no_tokens`, `terminal_failure`) with attempts/errors.
+  - Candidate actions (`confirm|reject|snooze`) now mark inbox channel notifications as `acted` with acknowledgment timestamp.
+  - Worker cycle summary now exposes `notifications_terminal_failures`, `notifications_skipped_no_tokens`, and `notifications_transport_unavailable` for operational visibility.
+- Result summary:
+  - Backend parity for contract rule `push + inbox entry` is implemented with deterministic state transitions and regression coverage.
+  - Canonical actionable queue remains `/checkins/pending`; notification table provides delivery/audit state and fallback guarantees.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 
@@ -883,7 +904,7 @@ Track only active risks:
 | Duplicate point ingestion under retries | High | Medium | idempotency keys + dedup window | Open |
 | Session stuck active after app/system interruption | High | Medium | restart reconciliation + auto-end worker | In Progress |
 | Auto-inference overriding manual edits | High | Low | strict precedence + tombstone cooldown | Open |
-| Notification delivery gaps when push transport is unavailable or tokens are inactive | Medium | Medium | dispatch retries + token lifecycle APIs + planned inbox fallback/alerts | In Progress |
+| Notification delivery gaps when push transport is unavailable or tokens are inactive | Medium | Medium | dispatch retries + token lifecycle APIs + `trip_tracking_notifications` inbox fallback + planned alerting | In Progress |
 | Queue backlog growth during weak network | Medium | Medium | adaptive batching + backpressure + observability | Open |
 
 ## 13. Implementation Workflow and Codegen Discipline

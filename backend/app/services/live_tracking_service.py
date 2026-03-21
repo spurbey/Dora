@@ -25,6 +25,7 @@ from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
+from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
 
@@ -297,6 +298,30 @@ class LiveTrackingService:
             "updated_at": token_row.updated_at,
             "token_hint": hint,
         }
+
+    def _mark_candidate_inbox_acted(
+        self,
+        *,
+        candidate: TripCheckinCandidate,
+        acted_at: datetime,
+    ) -> None:
+        acted_at_utc = self._to_utc(acted_at)
+        notifications = (
+            self.db.query(TripTrackingNotification)
+            .filter(
+                TripTrackingNotification.candidate_id == candidate.id,
+                TripTrackingNotification.channel == "inbox",
+            )
+            .all()
+        )
+        for notification in notifications:
+            notification.delivery_state = "acted"
+            notification.acknowledged_at = acted_at_utc
+            notification.last_error = None
+            payload = dict(notification.payload or {})
+            payload["candidate_status"] = candidate.status
+            payload["acted_at"] = acted_at_utc.isoformat()
+            notification.payload = payload
 
     def _get_event_session(
         self,
@@ -707,12 +732,14 @@ class LiveTrackingService:
             self.db.flush()
             place_id = place.id
 
+        confirmed_at_utc = self._to_utc(confirmed_at)
         candidate.status = "confirmed"
         candidate.confirmed_trip_place_id = place_id
         candidate.rejected_reason = None
         candidate.snoozed_until = None
         candidate.cooldown_until = None
-        candidate.updated_at = self._to_utc(confirmed_at)
+        candidate.updated_at = confirmed_at_utc
+        self._mark_candidate_inbox_acted(candidate=candidate, acted_at=confirmed_at_utc)
 
         self.db.flush()
         return status.HTTP_200_OK, {"candidate": self._candidate_payload(candidate)}
@@ -738,6 +765,7 @@ class LiveTrackingService:
         candidate.snoozed_until = None
         candidate.cooldown_until = rejected_at_utc + timedelta(hours=REJECT_COOLDOWN_HOURS)
         candidate.updated_at = rejected_at_utc
+        self._mark_candidate_inbox_acted(candidate=candidate, acted_at=rejected_at_utc)
 
         self.db.flush()
         return status.HTTP_200_OK, {"candidate": self._candidate_payload(candidate)}
@@ -761,9 +789,11 @@ class LiveTrackingService:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="snoozed_until must be in the future",
             )
+        acted_at = self._utcnow()
         candidate.status = "snoozed"
         candidate.snoozed_until = snooze_utc
-        candidate.updated_at = self._utcnow()
+        candidate.updated_at = acted_at
+        self._mark_candidate_inbox_acted(candidate=candidate, acted_at=acted_at)
 
         self.db.flush()
         return status.HTTP_200_OK, {"candidate": self._candidate_payload(candidate)}

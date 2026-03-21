@@ -56,13 +56,15 @@ Important current baseline:
 8. Treat `workmanager` as supplementary scheduling, not the sole continuous-location runtime.
 9. Apply explicit backfill/mapping for legacy trip status values to live-tracking lifecycle states.
 10. Use numeric rollout gates for canary progression and rollback decisions.
+11. Treat candidate cooldown as mandatory service-level invariant backed by explicit tests.
+12. Support manual-only trip completion path (`planned -> completed`) with explicit transition handling/tests.
 
 ## 5. Phase Board
 
 | Phase | Name | Status | Planned Output | Validation Evidence |
 |---|---|---|---|---|
 | 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
-| 1 | Backend Data Model | In Progress | Migrations + ORM updates | Migration/model patch authored; runtime DB checks pending dependency-ready environment |
+| 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Not Started | Tracking/check-in/moment endpoints | API tests + auth/idempotency checks |
 | 3 | Async Processing | Not Started | Workers for scoring/auto-end/moments | Retry/recovery tests + duplicate suppression |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
@@ -161,12 +163,16 @@ Work:
   - `client_event_id` required for confirm/reject/snooze and create-moment operations.
 - Implement idempotency and dedup in services.
 - Implement manual-over-auto conflict protection.
+- Enforce candidate cooldown checks before candidate recreation and action side effects.
+- Implement trip completion transition policy for both tracked and manual-only flows.
 
 Exit criteria:
 
 - Endpoint auth and ownership tests pass.
 - Idempotent retries behave correctly.
 - Contract generation stable for Flutter client use.
+- Candidate cooldown invariant tests pass (no recreation before cooldown expiry).
+- Trip completion transition tests pass for both `review_pending -> completed` and `planned -> completed`.
 
 Doc updates required:
 
@@ -362,7 +368,7 @@ Schema invariants:
 1. Enforce one active session via DB partial unique index on `trip_tracking_sessions(trip_id, user_id)` where state is active.
 2. Persist manual-lock semantics on auto-capable entities (place/route/moment linkage fields).
 3. Persist tombstones for deleted auto entities with cooldown metadata to prevent immediate regeneration.
-4. Enforce dedup uniqueness for per-batch and per-point ingestion identities.
+4. Enforce DB dedup uniqueness for per-point identity (`session_id`, `point_id`); enforce per-batch replay safety via idempotency/service logic on `client_batch_id`.
 
 Idempotency wire format:
 
@@ -474,6 +480,24 @@ Use this section after each phase with dated entries:
   - `alembic check` drift prevents strict migration-signoff in current repository baseline.
 - Next action:
   - Triage `alembic check` drift policy (baseline vs required cleanup) and resolve failing trip endpoint tests before Phase 1 validation signoff.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Implemented: Revalidated Phase 1 after Alembic recovery changes merged; migration baseline is now clean.
+- Key files:
+  - `backend/alembic/env.py`
+  - `backend/alembic/versions/*` (reconciliation revisions through current head)
+  - `.github/workflows/backend-ci.yml`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes:
+  - No new live-tracking API surface in this entry.
+  - Validation baseline moved from drift-failing to drift-clean (`alembic check` pass).
+- Decisions made:
+  - Phase 1 status moved to `Validated`.
+  - Carry cooldown/manual-completion edge cases as explicit Phase 2 service-test gates.
+- Risks introduced:
+  - None new; primary risk moved from migration drift to Phase 2 service-logic correctness.
+- Next action:
+  - Start Phase 2 backend APIs/services.
 
 ## 11. Test Evidence Log
 
@@ -530,6 +554,20 @@ Use this section after each phase:
   - Remaining blocker for strict Phase 1 signoff is `alembic check` repository drift baseline.
 - Known failures/waivers:
   - `alembic check` still reports broad pre-existing drift unrelated to only this phase's new schema.
+- Date: 2026-03-21
+- Phase: 1 (Backend Data Model)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic heads` -> `f3a7b8c9d0e1 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic current` -> `f3a7b8c9d0e1 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic upgrade head` (pass; no-op at head)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_trip_endpoints.py` (pass: 31 passed)
+- Manual checks run:
+  - Verified previous Phase 1 blocker is cleared and migration baseline is stable for Phase 2 work.
+- Result summary:
+  - Phase 1 blocker is closed; phase moved to `Validated`.
+- Known failures/waivers:
+  - Non-blocking deprecation warnings (Pydantic/FastAPI) remain in test output.
 
 ## 12. Risk Register
 

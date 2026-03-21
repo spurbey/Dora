@@ -61,7 +61,8 @@ Trip status:
 3. `tracking_paused -> tracking_active` (resume)
 4. `tracking_active|tracking_paused -> review_pending` (stop/auto-end with draft)
 5. `review_pending -> completed` (user finalize)
-6. `completed -> shared` (visibility/share action)
+6. `planned -> completed` (manual-only finalize when tracking was never started)
+7. `completed -> shared` (visibility/share action)
 
 Session state:
 
@@ -72,9 +73,9 @@ Session state:
 
 Disallowed:
 
-1. direct `planned -> completed`
-2. direct `ended -> active`
-3. parallel `active` sessions for same `(trip_id, user_id)`
+1. direct `ended -> active`
+2. parallel `active` sessions for same `(trip_id, user_id)`
+3. direct `planned -> shared` (must pass through `completed`)
 
 ## 4.4 State Transition Diagram
 
@@ -82,6 +83,7 @@ Disallowed:
 stateDiagram-v2
   [*] --> planned
   planned --> tracking_active: start
+  planned --> completed: manual finalize
   tracking_active --> tracking_paused: pause
   tracking_paused --> tracking_active: resume
   tracking_active --> review_pending: stop/auto-end
@@ -212,8 +214,8 @@ Error payload baseline:
 ## 6.1 Session and Point Invariants
 
 1. `trip_tracking_sessions`: partial unique index on `(trip_id, user_id)` where `state='active'`.
-2. `trip_location_points`: unique `(session_id, point_id)`.
-3. `trip_location_points`: unique `(session_id, client_batch_id, point_id)` is acceptable if storage model requires.
+2. `trip_location_points`: unique `(session_id, point_id)` (canonical DB dedup invariant).
+3. `trip_location_points`: batch replay protection is service/idempotency enforced via `client_batch_id`; no second DB unique index is required in v1.
 4. `trip_checkin_candidates`: dedup fingerprint index to avoid immediate duplicate candidates.
 5. `api_idempotency_records`: unique `(user_id, endpoint_signature, idempotency_key)`.
 
@@ -256,8 +258,10 @@ ON trip_auto_entity_tombstones (trip_id, user_id, entity_type, entity_fingerprin
 
 1. Manual field edits lock that field; auto pipeline may append but cannot silently overwrite locked values.
 2. Rejecting a candidate sets cooldown; same candidate fingerprint cannot be recreated during cooldown.
-3. Deleting auto place/route writes tombstone and prevents immediate regeneration.
-4. If user edits auto-generated entity manually, `source` moves to `edited_auto`.
+3. Cooldown is a service-enforced temporal invariant and must be validated before candidate creation/recreation.
+4. Candidate partial unique index on `status IN ('pending', 'snoozed')` prevents concurrent active duplicates but does not replace cooldown checks.
+5. Deleting auto place/route writes tombstone and prevents immediate regeneration.
+6. If user edits auto-generated entity manually, `source` moves to `edited_auto`.
 
 ## 8) Legacy Status Migration and Backfill Contract (Frozen)
 
@@ -378,6 +382,7 @@ sequenceDiagram
 4. Migration/backfill mapping accepted.
 5. Background runtime contract accepted.
 6. Rollout numeric gates accepted.
-7. Product decisions in section 12 accepted as implementation defaults.
+7. Phase 2 test plan explicitly covers cooldown enforcement and manual-only completion path.
+8. Product decisions in section 12 accepted as implementation defaults.
 
-If all seven are accepted, Phase 1 implementation can start.
+If all eight are accepted, Phase 1 implementation can start.

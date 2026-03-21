@@ -37,6 +37,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_notification import TripTrackingNotification
+from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.services.live_tracking_service import LiveTrackingService
 from app.services.push_service import PushNotificationService
@@ -357,6 +358,7 @@ def _upsert_tracking_notification(
     last_error: Optional[str] = None,
     payload_patch: Optional[dict] = None,
     mark_delivered: bool = False,
+    event_type: str = "dispatch",
 ) -> TripTrackingNotification:
     notification = (
         db.query(TripTrackingNotification)
@@ -368,8 +370,10 @@ def _upsert_tracking_notification(
     )
 
     merged_payload = dict(payload_patch or {})
+    changed = False
     if notification is None:
         notification = TripTrackingNotification(
+            id=uuid4(),
             trip_id=candidate.trip_id,
             user_id=candidate.user_id,
             candidate_id=candidate.id,
@@ -384,24 +388,57 @@ def _upsert_tracking_notification(
         if mark_delivered:
             notification.delivered_at = as_of
         db.add(notification)
-        return notification
+        changed = True
+    else:
+        if notification.delivery_state != delivery_state:
+            notification.delivery_state = delivery_state
+            changed = True
 
-    notification.delivery_state = delivery_state
     if attempt_count is not None:
-        notification.attempt_count = max(int(notification.attempt_count or 0), int(attempt_count))
+        next_attempt_count = max(int(notification.attempt_count or 0), int(attempt_count))
+        if int(notification.attempt_count or 0) != next_attempt_count:
+            notification.attempt_count = next_attempt_count
+            changed = True
     if channel == "push":
-        notification.last_attempt_at = as_of
+        if notification.last_attempt_at != as_of:
+            notification.last_attempt_at = as_of
+            changed = True
     if mark_delivered:
-        notification.delivered_at = as_of
+        if notification.delivered_at != as_of:
+            notification.delivered_at = as_of
+            changed = True
 
     if last_error is not None:
-        notification.last_error = last_error
+        if notification.last_error != last_error:
+            notification.last_error = last_error
+            changed = True
     elif delivery_state in {"sent", "acted", "no_tokens"}:
-        notification.last_error = None
+        if notification.last_error is not None:
+            notification.last_error = None
+            changed = True
 
     payload = dict(notification.payload or {})
     payload.update(merged_payload)
-    notification.payload = payload
+    if payload != (notification.payload or {}):
+        notification.payload = payload
+        changed = True
+
+    if changed:
+        db.add(
+            TripTrackingNotificationEvent(
+                notification_id=notification.id,
+                trip_id=notification.trip_id,
+                user_id=notification.user_id,
+                candidate_id=notification.candidate_id,
+                channel=notification.channel,
+                event_type=event_type,
+                delivery_state=notification.delivery_state,
+                attempt_count=int(notification.attempt_count or 0),
+                last_error=notification.last_error,
+                payload=dict(notification.payload or {}),
+                created_at=as_of,
+            )
+        )
     return notification
 
 
@@ -661,6 +698,7 @@ def handoff_candidate_notifications(
             delivery_state="pending",
             as_of=as_of,
             payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+            event_type="handoff",
         )
         dispatched.append(candidate.id)
 
@@ -728,6 +766,7 @@ def dispatch_candidate_notifications(
             delivery_state="pending",
             as_of=as_of,
             payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+            event_type="dispatch",
         )
 
         attempt_count = int(payload.get("notification_attempt_count") or 0)
@@ -744,6 +783,7 @@ def dispatch_candidate_notifications(
                 attempt_count=attempt_count,
                 last_error="retry_limit_exceeded",
                 payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
+                event_type="dispatch",
             )
             terminal += 1
             continue
@@ -809,6 +849,7 @@ def dispatch_candidate_notifications(
             last_error=push_error,
             payload_patch=_notification_snapshot(candidate=candidate, payload=payload),
             mark_delivered=push_delivered,
+            event_type="dispatch",
         )
 
     return NotificationDispatchResult(

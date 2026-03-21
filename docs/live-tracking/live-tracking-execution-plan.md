@@ -894,6 +894,26 @@ Use this section after each phase:
   - Canonical actionable queue remains `/checkins/pending`; notification table provides delivery/audit state and fallback guarantees.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-22
+- Phase: 3 (Async Processing) + Notification History & Policy Lock
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m py_compile app/models/trip_tracking_notification_event.py app/models/__init__.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py alembic/versions/b3f1d8c7e2a4_add_trip_tracking_notification_events_table.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/models/trip_tracking_notification_event.py app/models/__init__.py app/services/live_tracking_service.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py alembic/versions/b3f1d8c7e2a4_add_trip_tracking_notification_events_table.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic upgrade head` (pass; upgraded `a7d9c4e1f2b3 -> b3f1d8c7e2a4`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic heads` -> `b3f1d8c7e2a4 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic current` -> `b3f1d8c7e2a4 (head)` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m alembic check` (pass: `No new upgrade operations detected.`)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 34 passed)
+- Manual checks run:
+  - Added append-only `trip_tracking_notification_events` table so per-attempt/per-transition timeline is durable and queryable.
+  - Worker now emits transition events on notification state changes (`handoff`, `dispatch`) for both inbox and push channels.
+  - Candidate actions emit `action` notification events while marking inbox snapshot rows as `acted`.
+  - Locked current product behavior for `no_tokens`: candidate push state is terminal (`skipped_no_tokens`) for that candidate unless future product policy introduces explicit requeue semantics.
+- Result summary:
+  - Previous design ambiguity is removed: snapshot table remains current-state view, and events table is immutable history.
+  - `no_tokens` behavior is now explicitly tested and documented to avoid future implementation divergence.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 
@@ -904,7 +924,7 @@ Track only active risks:
 | Duplicate point ingestion under retries | High | Medium | idempotency keys + dedup window | Open |
 | Session stuck active after app/system interruption | High | Medium | restart reconciliation + auto-end worker | In Progress |
 | Auto-inference overriding manual edits | High | Low | strict precedence + tombstone cooldown | Open |
-| Notification delivery gaps when push transport is unavailable or tokens are inactive | Medium | Medium | dispatch retries + token lifecycle APIs + `trip_tracking_notifications` inbox fallback + planned alerting | In Progress |
+| Notification delivery gaps when push transport is unavailable or tokens are inactive | Medium | Medium | dispatch retries + token lifecycle APIs + `trip_tracking_notifications` inbox fallback + notification event history + planned alerting | In Progress |
 | Queue backlog growth during weak network | Medium | Medium | adaptive batching + backpressure + observability | Open |
 
 ## 13. Implementation Workflow and Codegen Discipline

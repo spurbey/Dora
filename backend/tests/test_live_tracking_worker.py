@@ -13,6 +13,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_notification import TripTrackingNotification
+from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
 from app.workers.live_tracking_worker import (
@@ -47,6 +48,7 @@ def _create_trip(db, *, user_id, status="tracking_active", end_date=None):
 def ensure_user_device_tokens_table(db):
     UserDeviceToken.__table__.create(bind=db.bind, checkfirst=True)
     TripTrackingNotification.__table__.create(bind=db.bind, checkfirst=True)
+    TripTrackingNotificationEvent.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def _create_session(db, *, trip_id, user_id, state="active", started_at=None, last_point_at=None):
@@ -570,6 +572,15 @@ def test_dispatch_candidate_notifications_sets_retryable_backoff(db, test_user):
     assert push_row is not None
     assert push_row.delivery_state == "retryable_failure"
     assert push_row.attempt_count == 1
+    push_events = (
+        db.query(TripTrackingNotificationEvent)
+        .filter(TripTrackingNotificationEvent.notification_id == push_row.id)
+        .order_by(TripTrackingNotificationEvent.created_at.asc())
+        .all()
+    )
+    assert len(push_events) == 1
+    assert push_events[0].event_type == "dispatch"
+    assert push_events[0].delivery_state == "retryable_failure"
 
 
 def test_dispatch_candidate_notifications_records_inbox_when_push_has_no_tokens(db, test_user):
@@ -623,6 +634,118 @@ def test_dispatch_candidate_notifications_records_inbox_when_push_has_no_tokens(
     assert push_row is not None
     assert push_row.delivery_state == "no_tokens"
     assert push_row.attempt_count == 1
+
+
+def test_no_tokens_policy_is_terminal_for_candidate_push(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.92,
+        suggested_name="Terminal no-token",
+        payload={},
+    )
+    db.add(candidate)
+    db.flush()
+
+    handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    no_token_service = _FakePushService(status="no_tokens")
+    first = dispatch_candidate_notifications(
+        db,
+        push_service=no_token_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+    assert first.skipped_no_tokens == 1
+
+    db.add(
+        UserDeviceToken(
+            id=uuid4(),
+            user_id=test_user.id,
+            platform="android",
+            push_token=f"token-{uuid4().hex}-abcdef123456",
+            is_active=True,
+        )
+    )
+    db.flush()
+
+    sent_service = _FakePushService(status="sent")
+    second = dispatch_candidate_notifications(
+        db,
+        push_service=sent_service,
+        now=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    db.flush()
+
+    assert second.attempted_count == 0
+    assert second.sent_count == 0
+    assert sent_service.calls == 0
+    assert (candidate.payload or {}).get("notification_status") == "skipped_no_tokens"
+
+
+def test_push_notification_events_are_append_only_across_attempts(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.95,
+        suggested_name="Event history",
+        payload={},
+    )
+    db.add(candidate)
+    db.flush()
+
+    handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    retry_service = _FakePushService(status="retryable_failure", error_message="timeout")
+    dispatch_candidate_notifications(
+        db,
+        push_service=retry_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+
+    payload = dict(candidate.payload or {})
+    payload["notification_next_attempt_at"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    candidate.payload = payload
+    db.flush()
+
+    sent_service = _FakePushService(status="sent")
+    dispatch_candidate_notifications(
+        db,
+        push_service=sent_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+
+    push_row = (
+        db.query(TripTrackingNotification)
+        .filter(
+            TripTrackingNotification.candidate_id == candidate.id,
+            TripTrackingNotification.channel == "push",
+        )
+        .first()
+    )
+    assert push_row is not None
+
+    events = (
+        db.query(TripTrackingNotificationEvent)
+        .filter(TripTrackingNotificationEvent.notification_id == push_row.id)
+        .order_by(TripTrackingNotificationEvent.created_at.asc())
+        .all()
+    )
+    assert len(events) == 2
+    assert [event.delivery_state for event in events] == ["retryable_failure", "sent"]
+    assert [event.attempt_count for event in events] == [1, 2]
 
 
 def test_dispatch_candidate_notifications_filters_due_before_limit(db, test_user):

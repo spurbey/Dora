@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_tracking_notification import TripTrackingNotification
+from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user import User
 from app.models.user_device_token import UserDeviceToken
@@ -96,6 +97,7 @@ def _idem() -> str:
 def ensure_user_device_tokens_table(db):
     UserDeviceToken.__table__.create(bind=db.bind, checkfirst=True)
     TripTrackingNotification.__table__.create(bind=db.bind, checkfirst=True)
+    TripTrackingNotificationEvent.__table__.create(bind=db.bind, checkfirst=True)
 
 
 def test_tracking_start_idempotency_and_conflict(client, db, test_user, auth_as):
@@ -450,6 +452,15 @@ def test_candidate_action_marks_inbox_notification_acted(client, db, test_user, 
     assert row.delivery_state == "acted"
     assert row.acknowledged_at is not None
     assert (row.payload or {}).get("candidate_status") == "rejected"
+    events = (
+        db.query(TripTrackingNotificationEvent)
+        .filter(TripTrackingNotificationEvent.notification_id == row.id)
+        .order_by(TripTrackingNotificationEvent.created_at.asc())
+        .all()
+    )
+    assert len(events) >= 1
+    assert events[-1].event_type == "action"
+    assert events[-1].delivery_state == "acted"
 
 
 def test_moment_create_update_list(client, db, test_user, auth_as):

@@ -26,6 +26,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
 from app.models.trip_tracking_notification import TripTrackingNotification
+from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
 
@@ -322,6 +323,21 @@ class LiveTrackingService:
             payload["candidate_status"] = candidate.status
             payload["acted_at"] = acted_at_utc.isoformat()
             notification.payload = payload
+            self.db.add(
+                TripTrackingNotificationEvent(
+                    notification_id=notification.id,
+                    trip_id=notification.trip_id,
+                    user_id=notification.user_id,
+                    candidate_id=notification.candidate_id,
+                    channel=notification.channel,
+                    event_type="action",
+                    delivery_state=notification.delivery_state,
+                    attempt_count=int(notification.attempt_count or 0),
+                    last_error=notification.last_error,
+                    payload=dict(notification.payload or {}),
+                    created_at=acted_at_utc,
+                )
+            )
 
     def _get_event_session(
         self,

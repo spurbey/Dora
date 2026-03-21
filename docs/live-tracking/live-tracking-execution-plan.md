@@ -65,8 +65,8 @@ Important current baseline:
 |---|---|---|---|---|
 | 0 | Contract Freeze | Validated | Final API/state contracts | Accepted Phase 0 contract freeze with state/API/DB/idempotency/decision locks |
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
-| 2 | Backend APIs/Services | In Progress | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests green |
-| 3 | Async Processing | Not Started | Workers for scoring/auto-end/moments | Retry/recovery tests + duplicate suppression |
+| 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
+| 3 | Async Processing | In Progress | Workers for scoring/auto-end/moments | Phase 3 worker foundations shipped; duplicate suppression + auto-end + handoff tests green |
 | 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
@@ -205,6 +205,14 @@ Doc updates required:
 
 - Record queue names/job types and retry policy.
 - Log failure-mode test outcomes.
+
+Phase 3 queue/job and retry snapshot (2026-03-21):
+
+- Job type: `inference_scan` over `trip_tracking_sessions` rows (row-lock claim with `FOR UPDATE SKIP LOCKED`).
+- Job type: `candidate_notification_handoff` over pending candidates above confidence threshold.
+- Job type: `auto_end_pass` over active/paused sessions using inactivity + trip end-date policies.
+- Retry policy: worker loop backoff `5s -> 20s -> 60s` on unhandled cycle failures, then repeat.
+- Duplicate suppression: candidate fingerprint checks + cooldown/tombstone checks + moment-by-candidate existence checks + notification handoff marker in candidate payload.
 
 ## Phase 4: Flutter Storage and Sync Wiring
 
@@ -522,6 +530,26 @@ Use this section after each phase with dated entries:
   - Some contract-matrix endpoints remain intentionally deferred outside this phase slice.
 - Next action:
   - Continue Phase 2 completion pass (remaining contract endpoints) or move to Phase 3 worker pipelines per release scope.
+- Date: 2026-03-21
+- Phase: 3 (Async Processing)
+- Implemented: Added Phase 3 live-tracking worker foundation for stay inference, candidate scoring, auto moment generation, notification handoff marking, and auto-end lifecycle automation.
+- Key files:
+  - `backend/app/config.py`
+  - `backend/app/workers/live_tracking_worker.py`
+  - `backend/tests/test_live_tracking_worker.py`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+- API or schema changes:
+  - No new API endpoints in this phase slice.
+  - Added worker/runtime settings for inference thresholds, notification threshold, auto-end inactivity, and worker poll cadence.
+- Decisions made:
+  - Worker uses DB row-lock claim (`FOR UPDATE SKIP LOCKED`) on tracking sessions for concurrency-safe scan loops.
+  - Candidate pipeline remains retry-safe through fingerprint/cooldown/tombstone checks and DB uniqueness enforcement.
+  - Notification stage currently performs durable handoff marking; transport dispatch integration remains decoupled for next slice.
+- Risks introduced:
+  - Push transport delivery is not wired yet; only handoff markers are persisted.
+  - Inference queue is DB-scan based in this phase and may require dedicated queue infrastructure under high volume.
+- Next action:
+  - Wire notification transport dispatch and production worker process rollout hooks.
 
 ## 11. Test Evidence Log
 
@@ -606,6 +634,23 @@ Use this section after each phase:
   - Phase 2 foundation endpoints/services are implemented and validated with targeted suite coverage.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-21
+- Phase: 3 (Async Processing)
+- Automated tests run:
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m py_compile app/config.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_live_tracking_worker.py` (pass: 6 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m pytest -q tests/test_live_tracking_endpoints.py` (pass: 8 passed)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; python -m ruff check app/config.py app/workers/live_tracking_worker.py tests/test_live_tracking_worker.py` (pass)
+  - `cd backend; . .\venv\Scripts\Activate.ps1; $env:DEBUG='false'; python -m alembic check` (pass: `No new upgrade operations detected.`)
+- Manual checks run:
+  - Verified inference retry safety by rerunning identical session inference and confirming no duplicate candidate/moment insertion.
+  - Verified cooldown and tombstone suppression behavior blocks candidate recreation.
+  - Verified auto-end pass updates `trip_tracking_sessions.state`, `trips.status`, and `trips.auto_end_reason` as expected.
+- Result summary:
+  - Phase 3 worker foundation is implemented and validated for scoring/moment/auto-end/handoff core flows.
+  - Notification transport integration and higher-volume queue hardening remain for next iteration.
+- Known failures/waivers:
+  - Non-blocking framework deprecation warnings remain in shared backend stack.
 
 ## 12. Risk Register
 
@@ -614,7 +659,7 @@ Track only active risks:
 | Risk | Impact | Likelihood | Mitigation | Status |
 |---|---|---|---|---|
 | Duplicate point ingestion under retries | High | Medium | idempotency keys + dedup window | Open |
-| Session stuck active after app/system interruption | High | Medium | restart reconciliation + auto-end worker | Open |
+| Session stuck active after app/system interruption | High | Medium | restart reconciliation + auto-end worker | In Progress |
 | Auto-inference overriding manual edits | High | Low | strict precedence + tombstone cooldown | Open |
 | Queue backlog growth during weak network | Medium | Medium | adaptive batching + backpressure + observability | Open |
 

@@ -14,6 +14,7 @@ Backend service for Dora, built on FastAPI + PostgreSQL/PostGIS + Supabase auth/
 
 - API process: `app.main:app`
 - Worker process: `python -m app.workers.export_worker`
+- Live-tracking worker process: `python -m app.workers.live_tracking_worker`
 - Renderer process (separate service): `video-renderer/` over HTTP
 - Database: PostgreSQL with PostGIS
 - Storage: Supabase Storage for media, S3/presigned URL flow for cloud export artifacts
@@ -164,6 +165,13 @@ In a second terminal:
 ```bash
 cd backend
 python -m app.workers.export_worker
+```
+
+Optional live-tracking worker terminal:
+
+```bash
+cd backend
+python -m app.workers.live_tracking_worker
 ```
 
 ### Docker run (from repo root)

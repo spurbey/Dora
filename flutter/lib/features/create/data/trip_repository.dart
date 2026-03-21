@@ -7,6 +7,7 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/domain/trip.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
@@ -498,7 +499,7 @@ class TripRepository {
         final remoteUpdatedAt =
             await _tryFetchRemoteTripUpdatedAt(remoteTripId) ?? DateTime.now();
         return EntitySyncReceipt(
-          entityType: 'trip',
+          entityType: SyncEntityTypes.trip,
           localEntityId: localTripId,
           remoteEntityId: remoteTripId,
           serverUpdatedAt: remoteUpdatedAt,
@@ -562,7 +563,7 @@ class TripRepository {
       tripUpdate: payload,
     );
     return EntitySyncReceipt(
-      entityType: 'trip',
+      entityType: SyncEntityTypes.trip,
       localEntityId: localTripId,
       remoteEntityId: remoteTripId,
       serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
@@ -633,7 +634,7 @@ class TripRepository {
   }) async {
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
-      entityType: 'trip',
+      entityType: SyncEntityTypes.trip,
       entityId: localTripId,
       operation: operation,
       remoteEntityId: remoteEntityId,

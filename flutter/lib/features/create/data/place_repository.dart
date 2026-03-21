@@ -7,6 +7,7 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
@@ -542,11 +543,11 @@ class PlaceRepository {
   }) async {
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
-      entityType: 'place',
+      entityType: SyncEntityTypes.place,
       entityId: placeId,
       operation: operation,
       remoteEntityId: remoteEntityId,
-      dependsOnEntityType: 'trip',
+      dependsOnEntityType: SyncEntityTypes.trip,
       dependsOnEntityId: tripId,
     );
   }
@@ -709,7 +710,7 @@ class PlaceRepository {
             await _tryFetchRemotePlaceUpdatedAt(remotePlaceId) ??
                 DateTime.now();
         return EntitySyncReceipt(
-          entityType: 'place',
+          entityType: SyncEntityTypes.place,
           localEntityId: localPlaceId,
           remoteEntityId: remotePlaceId,
           serverUpdatedAt: remoteUpdatedAt,
@@ -779,7 +780,7 @@ class PlaceRepository {
       placeUpdate: payload,
     );
     return EntitySyncReceipt(
-      entityType: 'place',
+      entityType: SyncEntityTypes.place,
       localEntityId: localPlaceId,
       remoteEntityId: remotePlaceId,
       serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),

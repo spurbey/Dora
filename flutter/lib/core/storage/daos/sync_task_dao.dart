@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/storage/tables/sync_tasks_table.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 
 part 'sync_task_dao.g.dart';
 
@@ -127,12 +128,15 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
               AND dependency.status <> 'completed'
           )
         )
-      ORDER BY t.created_at
+      ORDER BY
+        CASE WHEN t.entity_type = ? THEN 1 ELSE 0 END,
+        t.created_at
       LIMIT ?
       ''',
       variables: [
         Variable<DateTime>(staleInProgressBefore),
         Variable<DateTime>(currentTime),
+        Variable<String>(SyncEntityTypes.trackingPointBatch),
         Variable<int>(limit),
       ],
       readsFrom: {syncTasks},

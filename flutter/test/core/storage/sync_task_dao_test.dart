@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 
 void main() {
   group('SyncTaskDao', () {
@@ -520,6 +521,87 @@ void main() {
       expect(secondClaim, isEmpty);
     });
 
+    test(
+        'claimRunnableTasks prioritizes interactive lane over tracking batch lane',
+        () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final older = now - const Duration(minutes: 5).inMilliseconds;
+
+      await database.customInsert(
+        '''
+        INSERT INTO sync_tasks (
+          id,
+          entity_type,
+          entity_id,
+          operation,
+          status,
+          retry_count,
+          next_attempt_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        ''',
+        variables: [
+          Variable<String>('task-tracking-batch-priority'),
+          Variable<String>(SyncEntityTypes.trackingPointBatch),
+          Variable<String>('tracking-batch-1'),
+          Variable<String>('update'),
+          Variable<String>('queued'),
+          Variable<int>(0),
+          Variable<int>(older),
+          Variable<int>(older),
+        ],
+      );
+
+      await database.customInsert(
+        '''
+        INSERT INTO sync_tasks (
+          id,
+          entity_type,
+          entity_id,
+          operation,
+          status,
+          retry_count,
+          next_attempt_at,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        ''',
+        variables: [
+          Variable<String>('task-trip-priority'),
+          Variable<String>(SyncEntityTypes.trip),
+          Variable<String>('trip-priority-1'),
+          Variable<String>('update'),
+          Variable<String>('queued'),
+          Variable<int>(0),
+          Variable<int>(now),
+          Variable<int>(now),
+        ],
+      );
+
+      final firstClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-priority-1',
+        limit: 1,
+      );
+
+      expect(firstClaim.length, 1);
+      expect(firstClaim.first.id, 'task-trip-priority');
+
+      await dao.markCompleted(
+        taskId: 'task-trip-priority',
+        expectedSessionId: 'worker-priority-1',
+      );
+
+      final secondClaim = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-priority-2',
+        limit: 1,
+      );
+
+      expect(secondClaim.length, 1);
+      expect(secondClaim.first.id, 'task-tracking-batch-priority');
+    });
     test('claimRunnableTasks recovers stale in-progress task locks', () async {
       await dao.upsertQueuedTask(
         id: 'task-stale-lock',

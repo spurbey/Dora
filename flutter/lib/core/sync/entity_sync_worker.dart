@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/route_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -72,13 +73,13 @@ class EntitySyncWorker {
     try {
       EntitySyncReceipt? receipt;
       switch (task.entityType) {
-        case 'trip':
+        case SyncEntityTypes.trip:
           receipt = await _processTripTask(task);
           break;
-        case 'place':
+        case SyncEntityTypes.place:
           receipt = await _processPlaceTask(task);
           break;
-        case 'route':
+        case SyncEntityTypes.route:
           receipt = await _processRouteTask(task);
           break;
         default:
@@ -303,19 +304,19 @@ class EntitySyncWorker {
     required bool shouldMarkEntitySynced,
   }) async {
     switch (receipt.entityType) {
-      case 'trip':
+      case SyncEntityTypes.trip:
         await _applyTripReceipt(
           receipt: receipt,
           shouldMarkEntitySynced: shouldMarkEntitySynced,
         );
         return;
-      case 'place':
+      case SyncEntityTypes.place:
         await _applyPlaceReceipt(
           receipt: receipt,
           shouldMarkEntitySynced: shouldMarkEntitySynced,
         );
         return;
-      case 'route':
+      case SyncEntityTypes.route:
         await _applyRouteReceipt(
           receipt: receipt,
           shouldMarkEntitySynced: shouldMarkEntitySynced,

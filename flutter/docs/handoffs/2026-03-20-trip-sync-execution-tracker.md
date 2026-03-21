@@ -2,7 +2,7 @@
 
 Date: 2026-03-20  
 Owner: Codex + Backend + Flutter + QA  
-Status: Active (M0-M5 Completed, M6 Not Started)  
+Status: Active (M0-M6 Completed, M7 Not Started)  
 Related Docs:
 1. `flutter/docs/handoffs/2026-03-19-trip-feed-sync-state-audit.md`
 2. `docs/live-tracking/live-tracking-prd.md`
@@ -130,21 +130,21 @@ Completion Gate:
 
 ## M6: Live-Tracking Compatibility Layer
 
-Status: Not Started  
+Status: Completed  
 Target: 2 days
 
 Work Items:
-1. [ ] Finalize shared sync primitives to support upcoming entities:
+1. [x] Finalize shared sync primitives to support upcoming entities:
    - tracking sessions
    - tracking points (batch lane)
    - check-in decisions
    - moments
-2. [ ] Define manual-lock + provenance + tombstone rules now for auto-generated entities.
-3. [ ] Validate that tracking batch lane cannot starve trip/place/route user edits.
+2. [x] Define manual-lock + provenance + tombstone rules now for auto-generated entities.
+3. [x] Validate that tracking batch lane cannot starve trip/place/route user edits.
 
 Completion Gate:
-1. [ ] Sync primitives accepted as reusable for live-tracking Phase 1.
-2. [ ] Provenance and tombstone behavior validated in test cases.
+1. [x] Sync primitives accepted as reusable for live-tracking Phase 1.
+2. [x] Provenance and tombstone behavior validated in test cases.
 
 ## M7: Test, Canary, Rollout
 
@@ -210,3 +210,9 @@ Completion Gate:
 24. 2026-03-20: Trips sync semantics unified via shared mapper (`sync_status_ui.dart`) across grid/list badges and My Trips banner (`Saved locally`, `Syncing...`, `Sync failed`, `Sync blocked`, `Synced`).
 25. 2026-03-20: M5 validation passed (elevated): `flutter test test/features/create/editor_sync_status_provider_test.dart test/features/trips/sync_status_ui_test.dart test/features/feed/feed_api_test.dart test/features/feed/feed_repository_test.dart test/features/trips/trips_api_test.dart test/features/create/media_upload_integration_test.dart test/core/sync/entity_sync_worker_test.dart --reporter compact`.
 26. 2026-03-20: M5 marked Completed; next executable milestone is M6 (Live-Tracking Compatibility Layer).
+27. 2026-03-21: M6 started; introduced shared live-tracking sync primitives (SyncEntityTypes, lane mapping, worker support contract) to prevent entity-type drift across upcoming tracking entities.
+28. 2026-03-21: DAO claim ordering hardened to prioritize interactive trip/place/route work before `tracking_point_batch`, preventing high-volume batch starvation of user edits.
+29. 2026-03-21: M6 validation passed (elevated): `flutter test test/core/sync/live_tracking_sync_primitives_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/entity_sync_worker_test.dart test/features/create/route_repository_dependency_test.dart test/features/create/media_upload_integration_test.dart --reporter compact`; includes provenance/manual-lock/tombstone policy coverage and DAO lane-priority claim test.
+30. 2026-03-21: M6 marked Completed; next executable milestone is M7 (Test, Canary, Rollout).
+
+

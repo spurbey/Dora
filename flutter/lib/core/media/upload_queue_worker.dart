@@ -13,6 +13,7 @@ import 'package:dora/core/media/models/queued_media_task.dart';
 import 'package:dora/core/media/thumbnail_generator.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 
 class UploadQueueWorker {
@@ -354,7 +355,7 @@ class UploadQueueWorker {
     }
 
     final tripTask = await _syncTaskDao.getTaskByEntity(
-      entityType: 'trip',
+      entityType: SyncEntityTypes.trip,
       entityId: task.tripId,
     );
     _throwIfDependencyNotReady(
@@ -364,7 +365,7 @@ class UploadQueueWorker {
     );
 
     final placeTask = await _syncTaskDao.getTaskByEntity(
-      entityType: 'place',
+      entityType: SyncEntityTypes.place,
       entityId: task.placeId,
     );
     _throwIfDependencyNotReady(

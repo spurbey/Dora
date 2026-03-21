@@ -11,6 +11,7 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/arc_generator.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -401,7 +402,7 @@ class RouteRepository {
             await _tryFetchRemoteRouteUpdatedAt(remoteRouteId) ??
                 DateTime.now();
         return EntitySyncReceipt(
-          entityType: 'route',
+          entityType: SyncEntityTypes.route,
           localEntityId: localRouteId,
           remoteEntityId: remoteRouteId,
           serverUpdatedAt: remoteUpdatedAt,
@@ -602,7 +603,7 @@ class RouteRepository {
       routeUpdate: payload,
     );
     return EntitySyncReceipt(
-      entityType: 'route',
+      entityType: SyncEntityTypes.route,
       localEntityId: localRouteId,
       remoteEntityId: remoteRouteId,
       serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
@@ -653,7 +654,7 @@ class RouteRepository {
     }
 
     final placeTask = await _syncTaskDao.getTaskByEntity(
-      entityType: 'place',
+      entityType: SyncEntityTypes.place,
       entityId: localPlaceId,
     );
     _throwIfPlaceDependencyNotReady(
@@ -762,7 +763,7 @@ class RouteRepository {
 
     await _syncTaskDao.upsertQueuedTask(
       id: const Uuid().v4(),
-      entityType: 'route',
+      entityType: SyncEntityTypes.route,
       entityId: routeId,
       operation: operation,
       remoteEntityId: remoteEntityId,
@@ -778,18 +779,18 @@ class RouteRepository {
   }) async {
     if (operation == 'delete') {
       return _SyncTaskDependency(
-        entityType: 'trip',
+        entityType: SyncEntityTypes.trip,
         entityId: tripId,
       );
     }
 
     final tripTask = await _syncTaskDao.getTaskByEntity(
-      entityType: 'trip',
+      entityType: SyncEntityTypes.trip,
       entityId: tripId,
     );
     if (_isDependencyPending(tripTask)) {
       return _SyncTaskDependency(
-        entityType: 'trip',
+        entityType: SyncEntityTypes.trip,
         entityId: tripId,
       );
     }
@@ -797,7 +798,7 @@ class RouteRepository {
     final route = await _db.routeDao.getRouteById(routeId);
     if (route == null) {
       return _SyncTaskDependency(
-        entityType: 'trip',
+        entityType: SyncEntityTypes.trip,
         entityId: tripId,
       );
     }
@@ -811,12 +812,12 @@ class RouteRepository {
 
     for (final placeId in placeIds) {
       final placeTask = await _syncTaskDao.getTaskByEntity(
-        entityType: 'place',
+        entityType: SyncEntityTypes.place,
         entityId: placeId,
       );
       if (_isDependencyPending(placeTask)) {
         return _SyncTaskDependency(
-          entityType: 'place',
+          entityType: SyncEntityTypes.place,
           entityId: placeId,
         );
       }
@@ -825,14 +826,14 @@ class RouteRepository {
       final serverPlaceId = place?.serverPlaceId;
       if (serverPlaceId == null || serverPlaceId.trim().isEmpty) {
         return _SyncTaskDependency(
-          entityType: 'place',
+          entityType: SyncEntityTypes.place,
           entityId: placeId,
         );
       }
     }
 
     return _SyncTaskDependency(
-      entityType: 'trip',
+      entityType: SyncEntityTypes.trip,
       entityId: tripId,
     );
   }

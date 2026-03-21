@@ -40,6 +40,18 @@ def _set_replay_header(response: Response, replayed: bool) -> None:
     response.headers["Idempotency-Replayed"] = "true" if replayed else "false"
 
 
+def _idempotency_payload(body_payload: dict, **path_params: UUID) -> dict:
+    """
+    Include concrete path params in idempotency hash material.
+
+    Prevents key replay collisions across different resource IDs that share
+    the same template endpoint signature.
+    """
+    payload = dict(body_payload)
+    payload["_path_params"] = {key: str(value) for key, value in path_params.items()}
+    return payload
+
+
 @router.post("/trips/{trip_id}/tracking/start", response_model=TrackingSessionResponse)
 async def start_tracking(
     trip_id: UUID,
@@ -54,7 +66,7 @@ async def start_tracking(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/tracking/start",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.start_tracking(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -83,7 +95,7 @@ async def pause_tracking(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/tracking/pause",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.pause_tracking(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -110,7 +122,7 @@ async def resume_tracking(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/tracking/resume",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.resume_tracking(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -137,7 +149,7 @@ async def stop_tracking(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/tracking/stop",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.stop_tracking(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -167,7 +179,7 @@ async def ingest_points_batch(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/tracking/points:batch",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.ingest_points_batch(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -207,7 +219,10 @@ async def confirm_checkin_candidate(
         user_id=current_user.id,
         endpoint_signature="POST:/checkins/{candidate_id}/confirm",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(
+            request.model_dump(mode="json"),
+            candidate_id=candidate_id,
+        ),
         operation=lambda: service.confirm_candidate(
             candidate_id=candidate_id,
             user_id=current_user.id,
@@ -236,7 +251,10 @@ async def reject_checkin_candidate(
         user_id=current_user.id,
         endpoint_signature="POST:/checkins/{candidate_id}/reject",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(
+            request.model_dump(mode="json"),
+            candidate_id=candidate_id,
+        ),
         operation=lambda: service.reject_candidate(
             candidate_id=candidate_id,
             user_id=current_user.id,
@@ -265,7 +283,10 @@ async def snooze_checkin_candidate(
         user_id=current_user.id,
         endpoint_signature="POST:/checkins/{candidate_id}/snooze",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(
+            request.model_dump(mode="json"),
+            candidate_id=candidate_id,
+        ),
         operation=lambda: service.snooze_candidate(
             candidate_id=candidate_id,
             user_id=current_user.id,
@@ -303,7 +324,7 @@ async def create_trip_moment(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/moments",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.create_moment(
             trip_id=trip_id,
             user_id=current_user.id,
@@ -340,7 +361,7 @@ async def update_trip_moment(
         user_id=current_user.id,
         endpoint_signature="PATCH:/moments/{moment_id}",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), moment_id=moment_id),
         operation=lambda: service.update_moment(
             moment_id=moment_id,
             user_id=current_user.id,
@@ -369,7 +390,7 @@ async def commit_auto_finalize(
         user_id=current_user.id,
         endpoint_signature="POST:/trips/{trip_id}/auto-finalize/commit",
         idempotency_key=x_idempotency_key,
-        request_payload=request.model_dump(mode="json"),
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
         operation=lambda: service.commit_auto_finalize(
             trip_id=trip_id,
             user_id=current_user.id,

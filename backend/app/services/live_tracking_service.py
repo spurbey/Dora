@@ -69,6 +69,27 @@ class LiveTrackingService:
             },
         )
 
+    @staticmethod
+    def _extract_constraint_name(error: IntegrityError) -> Optional[str]:
+        orig = getattr(error, "orig", None)
+        diag = getattr(orig, "diag", None)
+        if diag is not None:
+            constraint_name = getattr(diag, "constraint_name", None)
+            if constraint_name:
+                return constraint_name
+
+        message = str(orig or error)
+        known_constraints = (
+            "uq_idempotency_user_endpoint_key",
+            "uq_tracking_session_active_trip_user",
+            "uq_tracking_point_session_point",
+            "uq_checkin_candidate_active_fingerprint",
+        )
+        for constraint in known_constraints:
+            if constraint in message:
+                return constraint
+        return None
+
     def run_idempotent_mutation(
         self,
         *,
@@ -133,30 +154,50 @@ class LiveTrackingService:
         except HTTPException:
             self.db.rollback()
             raise
-        except IntegrityError:
-            # Race on idempotency key insert. Replay canonical record.
+        except IntegrityError as exc:
+            constraint_name = self._extract_constraint_name(exc)
             self.db.rollback()
-            replay = (
-                self.db.query(ApiIdempotencyRecord)
-                .filter(
-                    ApiIdempotencyRecord.user_id == user_id,
-                    ApiIdempotencyRecord.endpoint_signature == endpoint_signature,
-                    ApiIdempotencyRecord.idempotency_key == idempotency_key,
+
+            if constraint_name == "uq_idempotency_user_endpoint_key":
+                # Race on idempotency key insert. Replay canonical record.
+                replay = (
+                    self.db.query(ApiIdempotencyRecord)
+                    .filter(
+                        ApiIdempotencyRecord.user_id == user_id,
+                        ApiIdempotencyRecord.endpoint_signature == endpoint_signature,
+                        ApiIdempotencyRecord.idempotency_key == idempotency_key,
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if not replay:
-                raise
-            if replay.request_hash != request_hash:
-                self._idempotency_conflict()
-            replay.replay_count += 1
-            replay.last_replayed_at = now
-            self.db.commit()
-            return IdempotencyResult(
-                status_code=replay.response_status,
-                body=replay.response_body or {},
-                replayed=True,
-            )
+                if not replay:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Idempotent request is still being resolved, retry shortly",
+                    )
+                if replay.request_hash != request_hash:
+                    self._idempotency_conflict()
+                replay.replay_count += 1
+                replay.last_replayed_at = now
+                self.db.commit()
+                return IdempotencyResult(
+                    status_code=replay.response_status,
+                    body=replay.response_body or {},
+                    replayed=True,
+                )
+
+            if constraint_name == "uq_tracking_session_active_trip_user":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Tracking session already active for trip",
+                )
+
+            if constraint_name in {"uq_tracking_point_session_point", "uq_checkin_candidate_active_fingerprint"}:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Concurrent mutation conflict, retry with a new idempotency key",
+                )
+
+            raise
 
     def _get_owned_trip(self, *, trip_id: UUID, user_id: UUID) -> Trip:
         trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
@@ -270,11 +311,6 @@ class LiveTrackingService:
         device_context: dict[str, Any],
     ) -> tuple[int, dict[str, Any]]:
         trip = self._get_owned_trip(trip_id=trip_id, user_id=user_id)
-        if trip.status in {"completed", "shared"}:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot start tracking for completed/shared trip",
-            )
 
         active = (
             self.db.query(TripTrackingSession)
@@ -287,6 +323,12 @@ class LiveTrackingService:
         )
         if active:
             return status.HTTP_200_OK, self._session_payload(session=active, trip=trip)
+
+        if trip.status != "planned":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Tracking can only be started from planned trip status",
+            )
 
         started_at_utc = self._to_utc(started_at)
         session = TripTrackingSession(

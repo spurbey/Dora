@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
@@ -126,6 +127,54 @@ def test_tracking_start_idempotency_and_conflict(client, db, test_user, auth_as)
     )
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["error_code"] == "idempotency_conflict"
+
+
+def test_idempotency_key_cannot_be_reused_across_different_trip_resources(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip_a = create_trip(db, test_user.id, title="Trip A")
+    trip_b = create_trip(db, test_user.id, title="Trip B")
+
+    body = {
+        "client_session_id": "shared-key-session",
+        "started_at": _iso_now(),
+        "timezone": "UTC",
+        "device_context": {"platform": "android"},
+    }
+    key = _idem()
+
+    first = client.post(
+        f"/api/v1/trips/{trip_a.id}/tracking/start",
+        json=body,
+        headers={"X-Idempotency-Key": key},
+    )
+    assert first.status_code == 200
+    assert first.headers["Idempotency-Replayed"] == "false"
+
+    second = client.post(
+        f"/api/v1/trips/{trip_b.id}/tracking/start",
+        json=body,
+        headers={"X-Idempotency-Key": key},
+    )
+    assert second.status_code == 409
+    assert second.json()["detail"]["error_code"] == "idempotency_conflict"
+
+
+def test_tracking_start_rejects_non_planned_trip_status(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Review Pending", status="review_pending")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/start",
+        json={
+            "client_session_id": "restart-attempt",
+            "started_at": _iso_now(),
+            "timezone": "UTC",
+            "device_context": {"platform": "ios"},
+        },
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Tracking can only be started from planned trip status"
 
 
 def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
@@ -436,3 +485,38 @@ def test_candidate_cooldown_helper_enforced(db, test_user):
         )
 
     assert exc.value.status_code == 409
+
+
+class _FakeConstraintDiag:
+    def __init__(self, constraint_name: str):
+        self.constraint_name = constraint_name
+
+
+class _FakeIntegrityOrig(Exception):
+    def __init__(self, constraint_name: str):
+        super().__init__(constraint_name)
+        self.diag = _FakeConstraintDiag(constraint_name)
+
+
+def test_run_idempotent_mutation_maps_business_integrity_race_to_conflict(db, test_user):
+    service = LiveTrackingService(db)
+    trip = create_trip(db, test_user.id, title="Integrity Race")
+
+    def _operation():
+        raise IntegrityError(
+            "insert into trip_tracking_sessions",
+            {"trip_id": str(trip.id)},
+            _FakeIntegrityOrig("uq_tracking_session_active_trip_user"),
+        )
+
+    with pytest.raises(HTTPException) as exc:
+        service.run_idempotent_mutation(
+            user_id=test_user.id,
+            endpoint_signature="POST:/trips/{trip_id}/tracking/start",
+            idempotency_key=_idem(),
+            request_payload={"trip_id": str(trip.id), "client_session_id": "abc"},
+            operation=_operation,
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail == "Tracking session already active for trip"

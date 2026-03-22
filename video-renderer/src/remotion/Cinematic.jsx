@@ -118,7 +118,7 @@ function RouteTrail({ projectedRoutes, segments, journeyFrame, mapWidth, mapHeig
           const segFrames = travelSeg.endFrame - travelSeg.startFrame + 1;
           const local = (journeyFrame - travelSeg.startFrame) / Math.max(1, segFrames - 1);
           drawProgress = interpolate(local, [0, 1], [0.01, 1], {
-            easing: Easing.out(Easing.cubic),
+            easing: Easing.inOut(Easing.cubic),
             extrapolateLeft: 'clamp',
             extrapolateRight: 'clamp',
           });

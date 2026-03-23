@@ -71,4 +71,21 @@ class TrackingMomentDao extends DatabaseAccessor<AppDatabase>
       ),
     );
   }
+
+  Future<int> replaceMomentId({
+    required String oldMomentId,
+    required String newMomentId,
+  }) async {
+    if (oldMomentId == newMomentId) {
+      return 0;
+    }
+    return customUpdate(
+      'UPDATE tracking_moments SET id = ? WHERE id = ?',
+      variables: [
+        Variable<String>(newMomentId),
+        Variable<String>(oldMomentId),
+      ],
+      updates: {trackingMoments},
+    );
+  }
 }

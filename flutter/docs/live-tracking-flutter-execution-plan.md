@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-23  
-Status: In Progress (Phase 4 foundation in flight)  
+Status: In Progress (Phase 4 worker path wired; closeout pending)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -367,3 +367,32 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Dedicated tracking sync worker remains a follow-up in Phase 4 completion.
   - Current behavior avoids silent task idling while tracking execution wiring is still being implemented.
+
+- Date: 2026-03-23
+- Slice: Phase 4 dedicated tracking sync worker wiring
+- Implemented:
+  - Added `lib/core/network/live_tracking_api.dart` transport contract and Dio implementation for:
+    - tracking session lifecycle (`start/pause/resume/stop`)
+    - point batch upload
+    - check-in decisions (`confirm/reject/snooze`)
+    - moments (`create/update`)
+  - Added `lib/core/sync/tracking_sync_worker.dart`:
+    - lane-scoped claims to `tracking_session/tracking_point_batch/checkin_decision/moment`
+    - retry/backoff and blocked/deferred handling
+    - dependency block when point batch lacks remote session id
+    - local moment-ID replacement when server returns canonical ID after create
+  - Added worker bootstrap/provider wiring:
+    - `lib/core/sync/tracking_sync_bootstrap.dart`
+    - `lib/features/create/presentation/providers/tracking_sync_provider.dart`
+    - `lib/core/network/api_providers.dart` (`liveTrackingApiProvider`)
+    - `lib/app.dart` bootstraps tracking worker start heartbeat
+  - Added `TrackingMomentDao.replaceMomentId` helper for create-response ID reconciliation.
+  - Added/updated tests:
+    - `test/core/sync/tracking_sync_worker_test.dart`
+    - existing sync/DAO suites revalidated for lane boundaries and queue semantics.
+- Validation:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart lib/core/network/live_tracking_api.dart lib/core/sync/tracking_sync_bootstrap.dart lib/features/create/presentation/providers/tracking_sync_provider.dart lib/core/network/api_providers.dart lib/core/storage/daos/tracking_moment_dao.dart lib/app.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart test/core/sync/entity_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/core/storage/live_tracking_storage_dao_test.dart` (pass: 33 passed)
+- Decision notes:
+  - Phase 4 no longer leaves tracking tasks as queue-only; execution path is now explicit and isolated from `EntitySyncWorker`.
+  - Remaining Phase 4 closeout is evidence completion and any last migration/backfill checks before Phase 5 runtime capture internals.

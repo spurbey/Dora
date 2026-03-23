@@ -69,7 +69,7 @@ Important current baseline:
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
-| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; targeted storage/sync tests green |
+| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; dedicated tracking sync worker path wired; targeted storage/sync/worker tests green |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
@@ -973,12 +973,35 @@ Use this section after each phase:
   - Added secondary indexes for high-volume tracking query patterns (trip/state/order + claim/retry paths).
   - Hardened point-batch recovery so cleared/stale `in_progress` rows become runnable again.
   - Marked session lifecycle updates as `syncStatus='pending'` to prevent missed transitions.
-  - Scoped `EntitySyncWorker` claims to `trip/place/route` only; tracking task types remain queued (not blocked as unsupported) until dedicated tracking worker wiring is completed.
+  - Scoped `EntitySyncWorker` claims to `trip/place/route` only; in this foundation slice, tracking task types were intentionally left queued (not blocked as unsupported) pending dedicated tracking worker wiring.
 - Result summary:
   - Phase 4 has started with storage/sync foundation and regression tests in place.
   - Next slice is to wire tracking task execution paths (session, point batch, decisions, moments) end-to-end.
 - Known failures/waivers:
   - Analyzer still reports pre-existing info-level lint hints in older storage/test files; no new analyzer errors in this slice.
+
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) tracking worker slice
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart lib/core/network/live_tracking_api.dart lib/core/sync/tracking_sync_bootstrap.dart lib/features/create/presentation/providers/tracking_sync_provider.dart lib/core/network/api_providers.dart lib/core/storage/daos/tracking_moment_dao.dart lib/app.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart test/core/sync/entity_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/core/storage/live_tracking_storage_dao_test.dart` (pass: 33 passed)
+- Manual checks run:
+  - Added `LiveTrackingApi` transport wrapper for session lifecycle, point batch upload, check-in decisions, and moment create/update endpoints with idempotency header support.
+  - Added dedicated `TrackingSyncWorker` lane that only claims tracking entity types and executes:
+    - session `start/pause/resume/stop`
+    - point batch upload with remote-session dependency blocking
+    - check-in `confirm/reject/snooze`
+    - moment `create/update`
+  - Added tracking bootstrap/provider wiring so worker heartbeat starts with app lifecycle (`app.dart` + provider bootstrap).
+  - Added moment ID reconciliation helper (`replaceMomentId`) so local temporary IDs can be replaced by server IDs after create.
+  - Added worker-focused tests for successful processing, dependency-block behavior, entity-type lane isolation, and decision sync transitions.
+  - Updated worker UUID namespace generation to non-deprecated `Namespace.url.value`.
+- Result summary:
+  - Tracking tasks are now processed intentionally by a dedicated worker path, not merely queued.
+  - `EntitySyncWorker` remains scoped to `trip/place/route`, preventing cross-lane contention and unsupported-entity churn.
+  - Phase 4 now has both schema foundation and executable tracking sync path in place; remaining work is closeout validation and transition to Phase 5 runtime capture.
+- Known failures/waivers:
+  - None in this slice.
 
 ## 12. Risk Register
 

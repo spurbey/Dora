@@ -6,6 +6,7 @@ import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/theme/app_theme.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
+import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
 
 class DoraApp extends ConsumerWidget {
   const DoraApp({super.key});
@@ -14,6 +15,7 @@ class DoraApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(appDatabaseInitProvider);
     ref.watch(entitySyncBootstrapProvider);
+    ref.watch(trackingSyncBootstrapProvider);
     ref.watch(mediaQueueBootstrapProvider);
     final router = ref.watch(appRouterProvider);
 

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/config/env_config.dart';
 import 'package:dora/core/network/api_client.dart';
+import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora_api/dora_api.dart';
 
@@ -48,4 +49,9 @@ final usersApiProvider = Provider<UsersApi>((ref) {
 final exportsApiProvider = Provider<ExportsApi>((ref) {
   final client = ref.watch(apiClientProvider);
   return ExportsApi(client.dio, standardSerializers);
+});
+
+final liveTrackingApiProvider = Provider<LiveTrackingApi>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return DioLiveTrackingApi(client.dio);
 });

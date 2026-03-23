@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-23  
-Status: In Progress (Phase 4 worker path wired; closeout pending)  
+Status: In Progress (Phase 4 worker path + hardening landed; closeout pending)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -396,3 +396,36 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Phase 4 no longer leaves tracking tasks as queue-only; execution path is now explicit and isolated from `EntitySyncWorker`.
   - Remaining Phase 4 closeout is evidence completion and any last migration/backfill checks before Phase 5 runtime capture internals.
+
+- Date: 2026-03-23
+- Slice: Phase 4 tracking sync hardening (post-review)
+- Implemented:
+  - Fixed live-tracking transport route prefixing:
+    - `lib/core/network/live_tracking_api.dart` now uses `/api/v1/...` endpoint paths.
+  - Hardened tracking worker completion semantics:
+    - `lib/core/sync/tracking_sync_worker.dart` now uses transactional success finalization with `shouldMarkEntitySynced`.
+    - Prevents local `syncStatus='synced'` writes when `sync_tasks.pending_requeue=1`.
+  - Hardened deferred dependency handling:
+    - deferred point-batch path now writes `sync_tasks.status='pending'` (not terminal `blocked`) with delayed `nextAttemptAt`.
+    - avoids both permanent dead-end blocking and hot-loop immediate retries when dependency task is absent.
+  - Added sync-task utility methods:
+    - `markPending(...)`
+    - `replaceTaskEntityId(...)`
+    - file: `lib/core/storage/daos/sync_task_dao.dart`
+  - Added moment create remap safety:
+    - when server returns canonical moment ID, worker now updates both local moment row ID and queued task `entityId` consistently.
+- Tests/validation:
+  - Added `test/core/network/live_tracking_api_test.dart` to lock `/api/v1` path prefix behavior.
+  - Updated `test/core/sync/tracking_sync_worker_test.dart`:
+    - deferred point batch -> `pending`
+    - requeue-in-progress session sync keeps local `syncStatus='pending'` before follow-up completion
+  - Updated `test/core/storage/sync_task_dao_test.dart`:
+    - `markPending` runnable behavior
+    - `replaceTaskEntityId` remap behavior
+  - Commands:
+    - `cd flutter; flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+    - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass)
+    - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/entity_sync_worker_test.dart` (pass)
+- Decision notes:
+  - Trip-sync review findings were accepted as valid and addressed in this slice.
+  - No scope deferrals for the reported high-severity items.

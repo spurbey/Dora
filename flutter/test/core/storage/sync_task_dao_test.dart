@@ -667,5 +667,61 @@ void main() {
       expect(claimed.first.status, 'in_progress');
       expect(claimed.first.workerSessionId, 'worker-new');
     });
+
+    test('markPending keeps task runnable after dependency completion',
+        () async {
+      await dao.upsertQueuedTask(
+        id: 'task-pending-1',
+        entityType: SyncEntityTypes.trackingPointBatch,
+        entityId: 'batch-pending-1',
+        operation: 'upload',
+      );
+      await dao.claimRunnableTasks(
+        workerSessionId: 'worker-pending-1',
+        limit: 10,
+      );
+
+      await dao.markPending(
+        taskId: 'task-pending-1',
+        errorCode: 'tracking_session_remote_id_missing',
+        errorMessage: 'Missing remote session id',
+        expectedSessionId: 'worker-pending-1',
+        dependsOnEntityType: SyncEntityTypes.trackingSession,
+        dependsOnEntityId: 'session-1',
+      );
+
+      final task = await dao.getTaskById('task-pending-1');
+      expect(task, isNot(equals(null)));
+      expect(task!.status, 'pending');
+      expect(task.dependsOnEntityType, SyncEntityTypes.trackingSession);
+      expect(task.dependsOnEntityId, 'session-1');
+
+      final claimed = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-pending-2',
+        limit: 10,
+      );
+      expect(claimed, isNotEmpty);
+      expect(claimed.first.id, 'task-pending-1');
+    });
+
+    test('replaceTaskEntityId remaps queued task entity id', () async {
+      await dao.upsertQueuedTask(
+        id: 'task-remap-1',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-local-1',
+        operation: 'create',
+      );
+
+      final affected = await dao.replaceTaskEntityId(
+        taskId: 'task-remap-1',
+        previousEntityId: 'moment-local-1',
+        newEntityId: 'moment-remote-1',
+      );
+
+      expect(affected, 1);
+      final task = await dao.getTaskById('task-remap-1');
+      expect(task, isNot(equals(null)));
+      expect(task!.entityId, 'moment-remote-1');
+    });
   });
 }

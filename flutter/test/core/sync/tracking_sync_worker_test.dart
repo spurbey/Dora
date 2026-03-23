@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,9 +16,12 @@ import 'package:dora/core/sync/tracking_sync_worker.dart';
 
 class _FakeLiveTrackingApi implements LiveTrackingApi {
   int startCalls = 0;
+  int pauseCalls = 0;
   int batchCalls = 0;
   int decisionCalls = 0;
   int momentCalls = 0;
+  Completer<void>? startTrackingGate;
+  Completer<void>? pauseTrackingGate;
 
   @override
   Future<Map<String, dynamic>> startTracking({
@@ -28,6 +33,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? deviceContext,
   }) async {
     startCalls += 1;
+    final gate = startTrackingGate;
+    if (gate != null && !gate.isCompleted) {
+      await gate.future;
+    }
     return <String, dynamic>{
       'session_id': 'remote-session-1',
       'state': 'active',
@@ -45,6 +54,11 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? sessionId,
     String? reason,
   }) async {
+    pauseCalls += 1;
+    final gate = pauseTrackingGate;
+    if (gate != null && !gate.isCompleted) {
+      await gate.future;
+    }
     return <String, dynamic>{
       'session_id': sessionId ?? 'remote-session-1',
       'state': 'paused',
@@ -229,6 +243,35 @@ void main() {
       };
     }
 
+    Future<void> waitForTaskStatus({
+      required String taskId,
+      required String status,
+      int maxAttempts = 30,
+    }) async {
+      for (var i = 0; i < maxAttempts; i += 1) {
+        final task = await readTask(taskId);
+        if (task['status'] == status) {
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      fail('Task $taskId did not reach status $status');
+    }
+
+    Future<void> waitForCondition({
+      required bool Function() condition,
+      String description = 'condition',
+      int maxAttempts = 30,
+    }) async {
+      for (var i = 0; i < maxAttempts; i += 1) {
+        if (condition()) {
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      fail('Timed out waiting for $description');
+    }
+
     setUp(() async {
       database = AppDatabase(NativeDatabase.memory());
       syncTaskDao = SyncTaskDao(database);
@@ -307,7 +350,8 @@ void main() {
       expect(fakeApi.batchCalls, 1);
     });
 
-    test('blocks point batch when remote session id is missing', () async {
+    test('keeps point batch task pending when remote session id is missing',
+        () async {
       final now = DateTime.now().toUtc();
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
@@ -346,11 +390,78 @@ void main() {
       await worker.startIfIdle();
 
       final task = await readTask('task-tracking-batch-2');
-      expect(task['status'], 'blocked');
+      expect(task['status'], 'pending');
       expect(task['error_code'], 'tracking_session_remote_id_missing');
       expect(task['depends_on_entity_type'], SyncEntityTypes.trackingSession);
       expect(task['depends_on_entity_id'], 'session-local-2');
       expect(task['worker_session_id'], isNull);
+    });
+
+    test(
+        'keeps tracking session syncStatus pending when task is requeued mid-flight',
+        () async {
+      final now = DateTime.now().toUtc();
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-local-requeue-1',
+          tripId: 'trip-requeue-1',
+          clientSessionId: 'client-session-requeue-1',
+          state: const Value('planned'),
+          startedAt: Value(now),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-requeue-1',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-local-requeue-1',
+        operation: 'start',
+      );
+
+      fakeApi.startTrackingGate = Completer<void>();
+      fakeApi.pauseTrackingGate = Completer<void>();
+      final runFuture = worker.startIfIdle();
+      await waitForTaskStatus(
+        taskId: 'task-tracking-session-requeue-1',
+        status: 'in_progress',
+      );
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-requeue-2',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-local-requeue-1',
+        operation: 'pause',
+      );
+
+      fakeApi.startTrackingGate!.complete();
+      await waitForCondition(
+        condition: () => fakeApi.pauseCalls == 1,
+        description: 'pause sync call',
+      );
+
+      final task = await readTask('task-tracking-session-requeue-1');
+      expect(task['status'], 'in_progress');
+      final queuedTask = await syncTaskDao.getTaskById(
+        'task-tracking-session-requeue-1',
+      );
+      expect(queuedTask, isNotNull);
+      expect(queuedTask!.operation, 'pause');
+
+      final session =
+          await sessionDao.getSessionById('session-local-requeue-1');
+      expect(session, isNotNull);
+      expect(session!.syncStatus, 'pending');
+      expect(fakeApi.startCalls, 1);
+
+      fakeApi.pauseTrackingGate!.complete();
+      await runFuture;
+      final completedTask = await readTask('task-tracking-session-requeue-1');
+      expect(completedTask['status'], 'completed');
+      expect(fakeApi.pauseCalls, 1);
     });
 
     test('keeps non-tracking tasks unclaimed', () async {

@@ -125,7 +125,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
       Variable<DateTime>(staleInProgressBefore),
       Variable<DateTime>(currentTime),
       ...?allowedTypes?.map((type) => Variable<String>(type)),
-      Variable<String>(SyncEntityTypes.trackingPointBatch),
+      const Variable<String>(SyncEntityTypes.trackingPointBatch),
       Variable<int>(limit),
     ];
 
@@ -307,6 +307,33 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<int> markPending({
+    required String taskId,
+    required String errorCode,
+    required String errorMessage,
+    String? expectedSessionId,
+    String? dependsOnEntityType,
+    String? dependsOnEntityId,
+    DateTime? nextAttemptAt,
+  }) {
+    return _updateTaskState(
+      taskId: taskId,
+      expectedSessionId: expectedSessionId,
+      companion: SyncTasksCompanion(
+        status: const Value('pending'),
+        pendingRequeue: const Value(false),
+        retryCount: const Value(0),
+        nextAttemptAt: Value(nextAttemptAt),
+        errorCode: Value(errorCode),
+        errorMessage: Value(errorMessage),
+        dependsOnEntityType: Value(dependsOnEntityType),
+        dependsOnEntityId: Value(dependsOnEntityId),
+        workerSessionId: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<int> markFailed({
     required String taskId,
     required int retryCount,
@@ -375,6 +402,29 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
   Future<SyncTaskRow?> getTaskById(String taskId) {
     return (select(syncTasks)..where((t) => t.id.equals(taskId)))
         .getSingleOrNull();
+  }
+
+  Future<int> replaceTaskEntityId({
+    required String taskId,
+    required String previousEntityId,
+    required String newEntityId,
+    String? expectedSessionId,
+  }) {
+    if (previousEntityId == newEntityId) {
+      return Future<int>.value(0);
+    }
+    var predicate = syncTasks.id.equals(taskId) &
+        syncTasks.entityId.equals(previousEntityId);
+    if (expectedSessionId != null) {
+      predicate =
+          predicate & syncTasks.workerSessionId.equals(expectedSessionId);
+    }
+    return (update(syncTasks)..where((_) => predicate)).write(
+      SyncTasksCompanion(
+        entityId: Value(newEntityId),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<int> _updateTaskState({

@@ -98,6 +98,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
   DioLiveTrackingApi(this._dio);
 
   final Dio _dio;
+  static const String _apiV1Prefix = '/api/v1';
 
   static DateTime _toUtc(DateTime value) => value.toUtc();
 
@@ -128,6 +129,8 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     );
   }
 
+  static String _v1Path(String path) => '$_apiV1Prefix$path';
+
   @override
   Future<Map<String, dynamic>> startTracking({
     required String tripId,
@@ -138,7 +141,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? deviceContext,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/tracking/start',
+      _v1Path('/trips/$tripId/tracking/start'),
       data: <String, dynamic>{
         'client_session_id': clientSessionId,
         'started_at': _toUtc(startedAt).toIso8601String(),
@@ -160,7 +163,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? reason,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/tracking/pause',
+      _v1Path('/trips/$tripId/tracking/pause'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
@@ -181,7 +184,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? sessionId,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/tracking/resume',
+      _v1Path('/trips/$tripId/tracking/resume'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
@@ -202,7 +205,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? reason,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/tracking/stop',
+      _v1Path('/trips/$tripId/tracking/stop'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
@@ -224,7 +227,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required List<Map<String, dynamic>> points,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/tracking/points:batch',
+      _v1Path('/trips/$tripId/tracking/points:batch'),
       data: <String, dynamic>{
         'session_id': sessionId,
         'client_batch_id': clientBatchId,
@@ -244,7 +247,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required DateTime confirmedAt,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/checkins/$candidateId/confirm',
+      _v1Path('/checkins/$candidateId/confirm'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         'confirmed_at': _toUtc(confirmedAt).toIso8601String(),
@@ -263,7 +266,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? reason,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/checkins/$candidateId/reject',
+      _v1Path('/checkins/$candidateId/reject'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         'rejected_at': _toUtc(rejectedAt).toIso8601String(),
@@ -282,7 +285,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required DateTime snoozedUntil,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/checkins/$candidateId/snooze',
+      _v1Path('/checkins/$candidateId/snooze'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         'snoozed_until': _toUtc(snoozedUntil).toIso8601String(),
@@ -305,7 +308,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? extraPayload,
   }) async {
     final response = await _dio.post<dynamic>(
-      '/trips/$tripId/moments',
+      _v1Path('/trips/$tripId/moments'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
         'captured_at': _toUtc(capturedAt).toIso8601String(),
@@ -334,10 +337,11 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? extraPayload,
   }) async {
     final response = await _dio.patch<dynamic>(
-      '/moments/$momentId',
+      _v1Path('/moments/$momentId'),
       data: <String, dynamic>{
         'client_event_id': clientEventId,
-        if (capturedAt != null) 'captured_at': _toUtc(capturedAt).toIso8601String(),
+        if (capturedAt != null)
+          'captured_at': _toUtc(capturedAt).toIso8601String(),
         if (note != null) 'note': note,
         if (location != null) 'location': location,
         if (mediaRefs != null) 'media_refs': mediaRefs,

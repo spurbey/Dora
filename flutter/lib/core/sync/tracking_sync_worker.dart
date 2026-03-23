@@ -85,16 +85,28 @@ class TrackingSyncWorker {
     try {
       switch (task.entityType) {
         case SyncEntityTypes.trackingSession:
-          await _processTrackingSessionTask(task);
+          await _processTrackingSessionTask(
+            task: task,
+            sessionId: sessionId,
+          );
           break;
         case SyncEntityTypes.trackingPointBatch:
-          await _processTrackingPointBatchTask(task);
+          await _processTrackingPointBatchTask(
+            task: task,
+            sessionId: sessionId,
+          );
           break;
         case SyncEntityTypes.checkinDecision:
-          await _processCheckinDecisionTask(task);
+          await _processCheckinDecisionTask(
+            task: task,
+            sessionId: sessionId,
+          );
           break;
         case SyncEntityTypes.moment:
-          await _processMomentTask(task);
+          await _processMomentTask(
+            task: task,
+            sessionId: sessionId,
+          );
           break;
         default:
           throw _TrackingSyncTerminalException(
@@ -102,18 +114,6 @@ class TrackingSyncWorker {
             message:
                 'Unsupported tracking sync entity type: ${task.entityType}',
           );
-      }
-
-      final completed = await _syncTaskDao.markCompleted(
-        taskId: task.id,
-        expectedSessionId: sessionId,
-      );
-      if (completed != 1) {
-        throw const _TrackingSyncRetryableException(
-          code: 'sync_task_completion_conflict',
-          message:
-              'Failed to complete tracking sync task due to session mismatch.',
-        );
       }
       debugPrint(
         '[TRACKING_SYNC] success entity=${task.entityType} entityId=${task.entityId} taskId=${task.id}',
@@ -129,16 +129,17 @@ class TrackingSyncWorker {
         '[TRACKING_SYNC] blocked taskId=${task.id} reason=${error.code}',
       );
     } on _TrackingSyncDeferredException catch (error) {
-      await _syncTaskDao.markBlocked(
+      await _syncTaskDao.markPending(
         taskId: task.id,
         errorCode: error.code,
         errorMessage: error.message,
         expectedSessionId: sessionId,
         dependsOnEntityType: error.dependsOnEntityType,
         dependsOnEntityId: error.dependsOnEntityId,
+        nextAttemptAt: DateTime.now().add(_firstRetryDelay),
       );
       debugPrint(
-        '[TRACKING_SYNC] deferred taskId=${task.id} reason=${error.code}',
+        '[TRACKING_SYNC] pending taskId=${task.id} reason=${error.code}',
       );
     } on _TrackingSyncRetryableException catch (error) {
       await _handleRecoverableFailure(
@@ -190,9 +191,17 @@ class TrackingSyncWorker {
     }
   }
 
-  Future<void> _processTrackingSessionTask(SyncTaskRow task) async {
+  Future<void> _processTrackingSessionTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
     final row = await _trackingSessionDao.getSessionById(task.entityId);
     if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
       return;
     }
 
@@ -247,32 +256,48 @@ class TrackingSyncWorker {
     final state = (response['state'] as String?) ?? row.state;
     final remoteSessionId =
         response['session_id']?.toString() ?? row.remoteSessionId;
-    await (_db.update(_db.trackingSessions)..where((t) => t.id.equals(row.id)))
-        .write(
-      TrackingSessionsCompanion(
-        remoteSessionId: Value(remoteSessionId),
-        state: Value(state),
-        startedAt:
-            Value(_parseDateTime(response['started_at']) ?? row.startedAt),
-        pausedAt: Value(_parseDateTime(response['paused_at']) ?? row.pausedAt),
-        resumedAt:
-            Value(_parseDateTime(response['resumed_at']) ?? row.resumedAt),
-        endedAt: Value(_parseDateTime(response['ended_at']) ?? row.endedAt),
-        abandonedAt:
-            Value(_parseDateTime(response['abandoned_at']) ?? row.abandonedAt),
-        lastPointAt:
-            Value(_parseDateTime(response['last_point_at']) ?? row.lastPointAt),
-        syncStatus: const Value('synced'),
-        serverUpdatedAt: Value(now),
-        localUpdatedAt: Value(now),
-        updatedAt: Value(now),
-      ),
+    await _persistSuccessAndCompleteTask(
+      task: task,
+      sessionId: sessionId,
+      applyLocalMutation: (shouldMarkEntitySynced) async {
+        await (_db.update(_db.trackingSessions)
+              ..where((t) => t.id.equals(row.id)))
+            .write(
+          TrackingSessionsCompanion(
+            remoteSessionId: Value(remoteSessionId),
+            state: Value(state),
+            startedAt:
+                Value(_parseDateTime(response['started_at']) ?? row.startedAt),
+            pausedAt:
+                Value(_parseDateTime(response['paused_at']) ?? row.pausedAt),
+            resumedAt:
+                Value(_parseDateTime(response['resumed_at']) ?? row.resumedAt),
+            endedAt: Value(_parseDateTime(response['ended_at']) ?? row.endedAt),
+            abandonedAt: Value(
+                _parseDateTime(response['abandoned_at']) ?? row.abandonedAt),
+            lastPointAt: Value(
+                _parseDateTime(response['last_point_at']) ?? row.lastPointAt),
+            syncStatus: Value(shouldMarkEntitySynced ? 'synced' : 'pending'),
+            serverUpdatedAt: Value(now),
+            localUpdatedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _processTrackingPointBatchTask(SyncTaskRow task) async {
+  Future<void> _processTrackingPointBatchTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
     final row = await _trackingPointBatchDao.getBatchById(task.entityId);
     if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
       return;
     }
 
@@ -295,8 +320,20 @@ class TrackingSyncWorker {
     final points = _decodeJsonList(row.pointsJson)
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
+    final now = DateTime.now().toUtc();
     if (points.isEmpty) {
-      await _trackingPointBatchDao.markCompleted(batchId: row.id);
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (shouldMarkEntitySynced) async {
+          await _applyPointBatchSuccessMutation(
+            row: row,
+            resolvedRemoteSessionId: remoteSessionId!,
+            now: now,
+            shouldMarkEntitySynced: shouldMarkEntitySynced,
+          );
+        },
+      );
       return;
     }
 
@@ -309,22 +346,31 @@ class TrackingSyncWorker {
       points: points,
     );
 
-    final now = DateTime.now().toUtc();
-    await _trackingPointBatchDao.markCompleted(
-      batchId: row.id,
-      serverUpdatedAt: now,
+    await _persistSuccessAndCompleteTask(
+      task: task,
+      sessionId: sessionId,
+      applyLocalMutation: (shouldMarkEntitySynced) async {
+        await _applyPointBatchSuccessMutation(
+          row: row,
+          resolvedRemoteSessionId: remoteSessionId!,
+          now: now,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+        );
+      },
     );
-    if (row.remoteSessionId == null || row.remoteSessionId!.isEmpty) {
-      await (_db.update(_db.trackingPointBatches)
-            ..where((b) => b.id.equals(row.id)))
-          .write(TrackingPointBatchesCompanion(
-              remoteSessionId: Value(remoteSessionId)));
-    }
   }
 
-  Future<void> _processCheckinDecisionTask(SyncTaskRow task) async {
+  Future<void> _processCheckinDecisionTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
     final row = await _trackingCandidateDao.getCandidateById(task.entityId);
     if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
       return;
     }
 
@@ -373,16 +419,33 @@ class TrackingSyncWorker {
       nextStatus = mapped['status']?.toString() ?? nextStatus;
     }
 
-    await _trackingCandidateDao.markDecisionSynced(
-      candidateId: row.id,
-      status: nextStatus,
-      syncedAt: now,
+    await _persistSuccessAndCompleteTask(
+      task: task,
+      sessionId: sessionId,
+      applyLocalMutation: (shouldMarkEntitySynced) async {
+        if (!shouldMarkEntitySynced) {
+          return;
+        }
+        await _trackingCandidateDao.markDecisionSynced(
+          candidateId: row.id,
+          status: nextStatus,
+          syncedAt: now,
+        );
+      },
     );
   }
 
-  Future<void> _processMomentTask(SyncTaskRow task) async {
+  Future<void> _processMomentTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
     final row = await _trackingMomentDao.getMomentById(task.entityId);
     if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
       return;
     }
 
@@ -413,19 +476,50 @@ class TrackingSyncWorker {
           extraPayload: extraPayload,
         );
         final responseId = response['id']?.toString();
-        var localMomentId = row.id;
-        if (responseId != null &&
-            responseId.isNotEmpty &&
-            responseId != row.id) {
-          await _trackingMomentDao.replaceMomentId(
-            oldMomentId: row.id,
-            newMomentId: responseId,
-          );
-          localMomentId = responseId;
-        }
-        await _trackingMomentDao.markSynced(
-          momentId: localMomentId,
-          serverUpdatedAt: now,
+        await _persistSuccessAndCompleteTask(
+          task: task,
+          sessionId: sessionId,
+          applyLocalMutation: (shouldMarkEntitySynced) async {
+            var localMomentId = row.id;
+            if (responseId != null &&
+                responseId.isNotEmpty &&
+                responseId != row.id) {
+              await _trackingMomentDao.replaceMomentId(
+                oldMomentId: row.id,
+                newMomentId: responseId,
+              );
+              final replacedTaskEntity = await _syncTaskDao.replaceTaskEntityId(
+                taskId: task.id,
+                previousEntityId: row.id,
+                newEntityId: responseId,
+                expectedSessionId: sessionId,
+              );
+              if (replacedTaskEntity != 1) {
+                throw const _TrackingSyncRetryableException(
+                  code: 'sync_task_entity_id_conflict',
+                  message:
+                      'Failed to remap sync task entity id after moment create.',
+                );
+              }
+              localMomentId = responseId;
+            }
+            if (shouldMarkEntitySynced) {
+              await _trackingMomentDao.markSynced(
+                momentId: localMomentId,
+                serverUpdatedAt: now,
+              );
+              return;
+            }
+            await (_db.update(_db.trackingMoments)
+                  ..where((m) => m.id.equals(localMomentId)))
+                .write(
+              TrackingMomentsCompanion(
+                syncStatus: const Value('pending'),
+                localUpdatedAt: Value(now),
+                updatedAt: Value(now),
+              ),
+            );
+          },
         );
         break;
       case 'update':
@@ -440,9 +534,18 @@ class TrackingSyncWorker {
           linkedTripPlaceId: row.linkedTripPlaceId,
           extraPayload: extraPayload,
         );
-        await _trackingMomentDao.markSynced(
-          momentId: row.id,
-          serverUpdatedAt: now,
+        await _persistSuccessAndCompleteTask(
+          task: task,
+          sessionId: sessionId,
+          applyLocalMutation: (shouldMarkEntitySynced) async {
+            if (!shouldMarkEntitySynced) {
+              return;
+            }
+            await _trackingMomentDao.markSynced(
+              momentId: row.id,
+              serverUpdatedAt: now,
+            );
+          },
         );
         break;
       default:
@@ -451,6 +554,77 @@ class TrackingSyncWorker {
           message: 'Unsupported moment operation: $operation',
         );
     }
+  }
+
+  Future<void> _persistSuccessAndCompleteTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+    required Future<void> Function(bool shouldMarkEntitySynced)
+        applyLocalMutation,
+  }) async {
+    await _db.transaction(() async {
+      final currentTask = await _syncTaskDao.getTaskById(task.id);
+      if (currentTask == null) {
+        throw const _TrackingSyncRetryableException(
+          code: 'sync_task_missing',
+          message: 'Tracking sync task disappeared before completion.',
+        );
+      }
+      final shouldMarkEntitySynced = !currentTask.pendingRequeue;
+      await applyLocalMutation(shouldMarkEntitySynced);
+
+      final completed = await _syncTaskDao.markCompleted(
+        taskId: task.id,
+        expectedSessionId: sessionId,
+      );
+      if (completed != 1) {
+        throw const _TrackingSyncRetryableException(
+          code: 'sync_task_completion_conflict',
+          message:
+              'Failed to complete tracking sync task due to session mismatch.',
+        );
+      }
+    });
+  }
+
+  Future<void> _applyPointBatchSuccessMutation({
+    required TrackingPointBatchRow row,
+    required String resolvedRemoteSessionId,
+    required DateTime now,
+    required bool shouldMarkEntitySynced,
+  }) async {
+    if (shouldMarkEntitySynced) {
+      await _trackingPointBatchDao.markCompleted(
+        batchId: row.id,
+        serverUpdatedAt: now,
+      );
+      if (row.remoteSessionId == null || row.remoteSessionId!.isEmpty) {
+        await (_db.update(_db.trackingPointBatches)
+              ..where((b) => b.id.equals(row.id)))
+            .write(
+          TrackingPointBatchesCompanion(
+            remoteSessionId: Value(resolvedRemoteSessionId),
+          ),
+        );
+      }
+      return;
+    }
+
+    await (_db.update(_db.trackingPointBatches)
+          ..where((b) => b.id.equals(row.id)))
+        .write(
+      TrackingPointBatchesCompanion(
+        remoteSessionId: Value(resolvedRemoteSessionId),
+        status: const Value('queued'),
+        syncStatus: const Value('pending'),
+        retryCount: const Value(0),
+        nextAttemptAt: const Value(null),
+        lastError: const Value(null),
+        workerSessionId: const Value(null),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
   }
 
   Future<void> _handleRecoverableFailure({

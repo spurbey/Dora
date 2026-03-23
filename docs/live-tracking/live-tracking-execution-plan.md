@@ -69,7 +69,7 @@ Important current baseline:
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
-| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; dedicated tracking sync worker path wired; targeted storage/sync/worker tests green |
+| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; dedicated tracking sync worker path wired + hardened (`/api/v1` paths, requeue-safe completion, deferred-pending retry scheduling); targeted storage/sync/worker tests green |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
@@ -1000,6 +1000,25 @@ Use this section after each phase:
   - Tracking tasks are now processed intentionally by a dedicated worker path, not merely queued.
   - `EntitySyncWorker` remains scoped to `trip/place/route`, preventing cross-lane contention and unsupported-entity churn.
   - Phase 4 now has both schema foundation and executable tracking sync path in place; remaining work is closeout validation and transition to Phase 5 runtime capture.
+- Known failures/waivers:
+  - None in this slice.
+
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) hardening slice
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 5 passed)
+  - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/entity_sync_worker_test.dart` (pass: 27 passed)
+- Manual checks run:
+  - Updated live-tracking Dio routes to use `/api/v1` prefix parity with existing direct Dio repositories and backend router mounting.
+  - Refactored `TrackingSyncWorker` success handling to transactional `shouldMarkEntitySynced` semantics so local rows are not marked `synced` when `pending_requeue=1`.
+  - Added deferred-task handling via `markPending` (instead of terminal `blocked`) with `nextAttemptAt` delay to avoid both dead-end blocking and tight retry loops.
+  - Added task entity-id remap support for moment create responses (`replaceTaskEntityId`) to keep requeued tasks consistent after local ID -> server ID replacement.
+- Result summary:
+  - The two high-severity review findings are resolved:
+    - `/api/v1` routing mismatch
+    - requeue-safe local sync-state consistency
+  - Deferred point-batch flow is now retryable and dependency-aware without worker starvation loops.
 - Known failures/waivers:
   - None in this slice.
 

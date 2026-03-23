@@ -12,6 +12,10 @@ import 'package:dora/core/storage/daos/place_dao.dart';
 import 'package:dora/core/storage/daos/public_trips_dao.dart';
 import 'package:dora/core/storage/daos/route_dao.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
+import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
+import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
+import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
+import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/daos/trip_dao.dart';
 import 'package:dora/core/storage/daos/user_trips_dao.dart';
 import 'package:dora/core/storage/tables/media_table.dart';
@@ -19,13 +23,29 @@ import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
 import 'package:dora/core/storage/tables/routes_table.dart';
 import 'package:dora/core/storage/tables/sync_tasks_table.dart';
+import 'package:dora/core/storage/tables/tracking_candidates_table.dart';
+import 'package:dora/core/storage/tables/tracking_moments_table.dart';
+import 'package:dora/core/storage/tables/tracking_point_batches_table.dart';
+import 'package:dora/core/storage/tables/tracking_sessions_table.dart';
 import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
 
 part 'drift_database.g.dart';
 
 @DriftDatabase(
-  tables: [Trips, Places, Routes, Media, PublicTrips, UserTrips, SyncTasks],
+  tables: [
+    Trips,
+    Places,
+    Routes,
+    Media,
+    PublicTrips,
+    UserTrips,
+    SyncTasks,
+    TrackingSessions,
+    TrackingPointBatches,
+    TrackingCandidates,
+    TrackingMoments,
+  ],
   daos: [
     TripDao,
     PlaceDao,
@@ -34,13 +54,17 @@ part 'drift_database.g.dart';
     PublicTripsDao,
     UserTripsDao,
     SyncTaskDao,
+    TrackingSessionDao,
+    TrackingPointBatchDao,
+    TrackingCandidateDao,
+    TrackingMomentDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -132,6 +156,12 @@ class AppDatabase extends _$AppDatabase {
               columnName: 'pending_requeue',
               definition: 'INTEGER NOT NULL DEFAULT 0',
             );
+          }
+          if (from < 13) {
+            await m.createTable(trackingSessions);
+            await m.createTable(trackingPointBatches);
+            await m.createTable(trackingCandidates);
+            await m.createTable(trackingMoments);
           }
         },
       );
@@ -386,7 +416,8 @@ class AppDatabase extends _$AppDatabase {
   Future<void> _backfillMediaUploadState() async {
     if (!await _tableExists('media') ||
         !await _columnExists(tableName: 'media', columnName: 'upload_status') ||
-        !await _columnExists(tableName: 'media', columnName: 'upload_progress') ||
+        !await _columnExists(
+            tableName: 'media', columnName: 'upload_progress') ||
         !await _columnExists(tableName: 'media', columnName: 'uploaded_at') ||
         !await _columnExists(tableName: 'media', columnName: 'url')) {
       return;

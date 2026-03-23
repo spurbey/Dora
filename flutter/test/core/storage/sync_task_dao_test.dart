@@ -602,6 +602,32 @@ void main() {
       expect(secondClaim.length, 1);
       expect(secondClaim.first.id, 'task-tracking-batch-priority');
     });
+
+    test('claimRunnableTasks respects allowedEntityTypes filter', () async {
+      await dao.upsertQueuedTask(
+        id: 'trip-task-filter',
+        entityType: SyncEntityTypes.trip,
+        entityId: 'trip-filter-1',
+        operation: 'update',
+      );
+      await dao.upsertQueuedTask(
+        id: 'tracking-task-filter',
+        entityType: SyncEntityTypes.trackingPointBatch,
+        entityId: 'tracking-filter-1',
+        operation: 'update',
+      );
+
+      final claimed = await dao.claimRunnableTasks(
+        workerSessionId: 'worker-filter',
+        limit: 10,
+        allowedEntityTypes: SyncEntityTypes.supportedByEntitySyncWorker,
+      );
+
+      expect(claimed.length, 1);
+      expect(claimed.first.id, 'trip-task-filter');
+      expect(claimed.first.entityType, SyncEntityTypes.trip);
+    });
+
     test('claimRunnableTasks recovers stale in-progress task locks', () async {
       await dao.upsertQueuedTask(
         id: 'task-stale-lock',

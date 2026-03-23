@@ -105,9 +105,30 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
   Future<List<SyncTaskRow>> getRunnableTasks({
     DateTime? now,
     int limit = 20,
+    Set<String>? allowedEntityTypes,
   }) async {
     final currentTime = now ?? DateTime.now();
     final staleInProgressBefore = currentTime.subtract(_staleInProgressTimeout);
+    final allowedTypes = allowedEntityTypes?.toList();
+    allowedTypes?.sort();
+    if (allowedTypes != null && allowedTypes.isEmpty) {
+      return const <SyncTaskRow>[];
+    }
+
+    final entityTypeFilterSql = allowedTypes == null
+        ? ''
+        : '''
+        AND t.entity_type IN (${List.filled(allowedTypes.length, '?').join(', ')})
+      ''';
+
+    final variables = <Variable>[
+      Variable<DateTime>(staleInProgressBefore),
+      Variable<DateTime>(currentTime),
+      ...?allowedTypes?.map((type) => Variable<String>(type)),
+      Variable<String>(SyncEntityTypes.trackingPointBatch),
+      Variable<int>(limit),
+    ];
+
     final rows = await customSelect(
       '''
       SELECT t.*
@@ -128,17 +149,13 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
               AND dependency.status <> 'completed'
           )
         )
+      $entityTypeFilterSql
       ORDER BY
         CASE WHEN t.entity_type = ? THEN 1 ELSE 0 END,
         t.created_at
       LIMIT ?
       ''',
-      variables: [
-        Variable<DateTime>(staleInProgressBefore),
-        Variable<DateTime>(currentTime),
-        Variable<String>(SyncEntityTypes.trackingPointBatch),
-        Variable<int>(limit),
-      ],
+      variables: variables,
       readsFrom: {syncTasks},
     ).get();
     return rows.map((row) => syncTasks.map(row.data)).toList();
@@ -148,11 +165,16 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     required String workerSessionId,
     DateTime? now,
     int limit = 10,
+    Set<String>? allowedEntityTypes,
   }) async {
     final claimTime = now ?? DateTime.now();
     final staleInProgressBefore = claimTime.subtract(_staleInProgressTimeout);
     return transaction(() async {
-      final runnable = await getRunnableTasks(now: claimTime, limit: limit);
+      final runnable = await getRunnableTasks(
+        now: claimTime,
+        limit: limit,
+        allowedEntityTypes: allowedEntityTypes,
+      );
       if (runnable.isEmpty) {
         return const <SyncTaskRow>[];
       }

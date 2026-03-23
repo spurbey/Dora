@@ -69,7 +69,7 @@ Important current baseline:
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
-| 4 | Flutter Storage/Sync | Not Started | Drift tables/DAOs + sync task wiring | DAO/queue tests + migration tests |
+| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; targeted storage/sync tests green |
 | 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
@@ -961,6 +961,24 @@ Use this section after each phase:
   - Phase 3 status moved to `Validated`.
 - Known failures/waivers:
   - Non-blocking framework deprecation warnings remain in shared backend stack.
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) foundation slice
+- Automated tests run:
+  - `cd flutter; dart run build_runner build --delete-conflicting-outputs` (pass)
+  - `cd flutter; flutter analyze --no-pub lib/core/storage lib/core/sync test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart` (no errors; info-level lint hints remain)
+  - `cd flutter; flutter test test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart` (pass)
+- Manual checks run:
+  - Added local Drift schema for tracking sessions, point batches, candidates, and moments (schema version `13`).
+  - Added DAO coverage for session lifecycle, point batch claiming/retry/recovery, candidate decision queue state, and moment pending-write state.
+  - Added secondary indexes for high-volume tracking query patterns (trip/state/order + claim/retry paths).
+  - Hardened point-batch recovery so cleared/stale `in_progress` rows become runnable again.
+  - Marked session lifecycle updates as `syncStatus='pending'` to prevent missed transitions.
+  - Scoped `EntitySyncWorker` claims to `trip/place/route` only; tracking task types remain queued (not blocked as unsupported) until dedicated tracking worker wiring is completed.
+- Result summary:
+  - Phase 4 has started with storage/sync foundation and regression tests in place.
+  - Next slice is to wire tracking task execution paths (session, point batch, decisions, moments) end-to-end.
+- Known failures/waivers:
+  - Analyzer still reports pre-existing info-level lint hints in older storage/test files; no new analyzer errors in this slice.
 
 ## 12. Risk Register
 

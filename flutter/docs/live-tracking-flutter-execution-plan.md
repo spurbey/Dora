@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-23  
-Status: Ready for implementation  
+Status: In Progress (Phase 4 foundation in flight)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -338,3 +338,32 @@ After each Flutter live-tracking slice:
 2. Update this doc with file-level changes and validation evidence.
 3. Record any new invariants or contract deltas in both places.
 4. Do not start next phase until current phase evidence is recorded.
+
+## 11. Execution Log
+
+- Date: 2026-03-23
+- Slice: Phase 4 storage/sync foundation
+- Implemented:
+  - Added Drift schema entities for:
+    - `tracking_sessions`
+    - `tracking_point_batches`
+    - `tracking_candidates`
+    - `tracking_moments`
+  - Bumped local schema version to `13` and wired migration create steps.
+  - Added DAOs for sessions, point batches, candidates, and moments.
+  - Added query-path secondary indexes for high-volume tracking workload.
+  - Hardened batch recovery:
+    - stale `in_progress` batches become claimable
+    - `clearWorkerSession()` requeues `in_progress` rows instead of leaving them unrunnable
+  - Marked session lifecycle updates as `syncStatus='pending'` to keep later sync selectors accurate.
+  - Added/updated tests for:
+    - new live-tracking DAOs
+    - sync task filtering support
+    - sync primitive worker-support sets
+- Validation:
+  - `cd flutter; dart run build_runner build --delete-conflicting-outputs` (pass)
+  - `cd flutter; flutter test test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter analyze --no-pub lib/core/storage lib/core/sync test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart` (no analyzer errors; info-level lint hints remain)
+- Decision notes:
+  - Dedicated tracking sync worker remains a follow-up in Phase 4 completion.
+  - Current behavior avoids silent task idling while tracking execution wiring is still being implemented.

@@ -55,6 +55,7 @@ class EntitySyncWorker {
         final claimed = await _syncTaskDao.claimRunnableTasks(
           workerSessionId: sessionId,
           limit: _maxConcurrency,
+          allowedEntityTypes: SyncEntityTypes.supportedByEntitySyncWorker,
         );
         if (claimed.isEmpty) {
           break;

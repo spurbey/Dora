@@ -48,6 +48,19 @@ void main() {
         SyncEntityTypes.supportedByEntitySyncWorker,
         isNot(contains(SyncEntityTypes.trackingPointBatch)),
       );
+      expect(
+        SyncEntityTypes.supportedByTrackingSyncWorker,
+        containsAll(<String>[
+          SyncEntityTypes.trackingSession,
+          SyncEntityTypes.trackingPointBatch,
+          SyncEntityTypes.checkinDecision,
+          SyncEntityTypes.moment,
+        ]),
+      );
+      expect(
+        SyncEntityTypes.supportedByTrackingSyncWorker,
+        isNot(contains(SyncEntityTypes.trip)),
+      );
     });
   });
 

@@ -11,6 +11,7 @@ import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/core/sync/entity_sync_worker.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/route_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -495,7 +496,7 @@ void main() {
       expect(tripRepository.deleteCalls, 0);
     });
 
-    test('blocks unsupported entity types with explicit error code', () async {
+    test('leaves unknown entity types unclaimed', () async {
       await syncTaskDao.upsertQueuedTask(
         id: 'task-unsupported-entity',
         entityType: 'unknown',
@@ -506,14 +507,37 @@ void main() {
       await worker.startIfIdle();
 
       final task = await readTask('task-unsupported-entity');
-      expect(task['status'], 'blocked');
+      expect(task['status'], 'queued');
       expect(task['retry_count'], 0);
-      expect(task['error_code'], 'unsupported_entity_type');
-      expect(
-        task['error_message'],
-        contains('Unsupported sync entity type'),
-      );
+      expect(task['error_code'], isNull);
+      expect(task['error_message'], isNull);
       expect(task['worker_session_id'], isNull);
+    });
+
+    test('does not claim tracking queue entity types', () async {
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-trip-allowed',
+        entityType: SyncEntityTypes.trip,
+        entityId: 'trip-allowed-1',
+        operation: 'create',
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-batch-idle',
+        entityType: SyncEntityTypes.trackingPointBatch,
+        entityId: 'tracking-batch-idle-1',
+        operation: 'update',
+      );
+
+      await worker.startIfIdle();
+
+      final allowedTask = await readTask('task-trip-allowed');
+      expect(allowedTask['status'], 'completed');
+      expect(allowedTask['error_code'], isNull);
+
+      final trackingTask = await readTask('task-tracking-batch-idle');
+      expect(trackingTask['status'], 'queued');
+      expect(trackingTask['error_code'], isNull);
+      expect(trackingTask['worker_session_id'], isNull);
     });
 
     test('marks non-retryable place identity failures as blocked', () async {

@@ -21,6 +21,13 @@ class SyncEntityTypes {
     route,
   };
 
+  static const Set<String> supportedByTrackingSyncWorker = {
+    trackingSession,
+    trackingPointBatch,
+    checkinDecision,
+    moment,
+  };
+
   // Tracking point uploads are high-volume and should never block user-edit
   // entities from being claimed by the sync worker.
   static const Set<String> _trackingBatchTypes = {

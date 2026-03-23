@@ -5732,6 +5732,4090 @@ class SyncTasksCompanion extends UpdateCompanion<SyncTaskRow> {
   }
 }
 
+class $TrackingSessionsTable extends TrackingSessions
+    with TableInfo<$TrackingSessionsTable, TrackingSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackingSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+      'trip_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _remoteSessionIdMeta =
+      const VerificationMeta('remoteSessionId');
+  @override
+  late final GeneratedColumn<String> remoteSessionId = GeneratedColumn<String>(
+      'remote_session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _clientSessionIdMeta =
+      const VerificationMeta('clientSessionId');
+  @override
+  late final GeneratedColumn<String> clientSessionId = GeneratedColumn<String>(
+      'client_session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('planned'));
+  static const VerificationMeta _timezoneMeta =
+      const VerificationMeta('timezone');
+  @override
+  late final GeneratedColumn<String> timezone = GeneratedColumn<String>(
+      'timezone', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deviceContextJsonMeta =
+      const VerificationMeta('deviceContextJson');
+  @override
+  late final GeneratedColumn<String> deviceContextJson =
+      GeneratedColumn<String>('device_context_json', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('{}'));
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+      'started_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _pausedAtMeta =
+      const VerificationMeta('pausedAt');
+  @override
+  late final GeneratedColumn<DateTime> pausedAt = GeneratedColumn<DateTime>(
+      'paused_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _resumedAtMeta =
+      const VerificationMeta('resumedAt');
+  @override
+  late final GeneratedColumn<DateTime> resumedAt = GeneratedColumn<DateTime>(
+      'resumed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _endedAtMeta =
+      const VerificationMeta('endedAt');
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+      'ended_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _abandonedAtMeta =
+      const VerificationMeta('abandonedAt');
+  @override
+  late final GeneratedColumn<DateTime> abandonedAt = GeneratedColumn<DateTime>(
+      'abandoned_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastPointAtMeta =
+      const VerificationMeta('lastPointAt');
+  @override
+  late final GeneratedColumn<DateTime> lastPointAt = GeneratedColumn<DateTime>(
+      'last_point_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastFlushAtMeta =
+      const VerificationMeta('lastFlushAt');
+  @override
+  late final GeneratedColumn<DateTime> lastFlushAt = GeneratedColumn<DateTime>(
+      'last_flush_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tripId,
+        remoteSessionId,
+        clientSessionId,
+        state,
+        timezone,
+        deviceContextJson,
+        startedAt,
+        pausedAt,
+        resumedAt,
+        endedAt,
+        abandonedAt,
+        lastPointAt,
+        lastFlushAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tracking_sessions';
+  @override
+  VerificationContext validateIntegrity(Insertable<TrackingSessionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(_tripIdMeta,
+          tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('remote_session_id')) {
+      context.handle(
+          _remoteSessionIdMeta,
+          remoteSessionId.isAcceptableOrUnknown(
+              data['remote_session_id']!, _remoteSessionIdMeta));
+    }
+    if (data.containsKey('client_session_id')) {
+      context.handle(
+          _clientSessionIdMeta,
+          clientSessionId.isAcceptableOrUnknown(
+              data['client_session_id']!, _clientSessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_clientSessionIdMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('timezone')) {
+      context.handle(_timezoneMeta,
+          timezone.isAcceptableOrUnknown(data['timezone']!, _timezoneMeta));
+    }
+    if (data.containsKey('device_context_json')) {
+      context.handle(
+          _deviceContextJsonMeta,
+          deviceContextJson.isAcceptableOrUnknown(
+              data['device_context_json']!, _deviceContextJsonMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    }
+    if (data.containsKey('paused_at')) {
+      context.handle(_pausedAtMeta,
+          pausedAt.isAcceptableOrUnknown(data['paused_at']!, _pausedAtMeta));
+    }
+    if (data.containsKey('resumed_at')) {
+      context.handle(_resumedAtMeta,
+          resumedAt.isAcceptableOrUnknown(data['resumed_at']!, _resumedAtMeta));
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(_endedAtMeta,
+          endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
+    }
+    if (data.containsKey('abandoned_at')) {
+      context.handle(
+          _abandonedAtMeta,
+          abandonedAt.isAcceptableOrUnknown(
+              data['abandoned_at']!, _abandonedAtMeta));
+    }
+    if (data.containsKey('last_point_at')) {
+      context.handle(
+          _lastPointAtMeta,
+          lastPointAt.isAcceptableOrUnknown(
+              data['last_point_at']!, _lastPointAtMeta));
+    }
+    if (data.containsKey('last_flush_at')) {
+      context.handle(
+          _lastFlushAtMeta,
+          lastFlushAt.isAcceptableOrUnknown(
+              data['last_flush_at']!, _lastFlushAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {tripId, clientSessionId},
+      ];
+  @override
+  TrackingSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackingSessionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
+      remoteSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}remote_session_id']),
+      clientSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}client_session_id'])!,
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      timezone: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}timezone']),
+      deviceContextJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}device_context_json'])!,
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}started_at']),
+      pausedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}paused_at']),
+      resumedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}resumed_at']),
+      endedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}ended_at']),
+      abandonedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}abandoned_at']),
+      lastPointAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_point_at']),
+      lastFlushAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_flush_at']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TrackingSessionsTable createAlias(String alias) {
+    return $TrackingSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class TrackingSessionRow extends DataClass
+    implements Insertable<TrackingSessionRow> {
+  final String id;
+  final String tripId;
+  final String? remoteSessionId;
+  final String clientSessionId;
+  final String state;
+  final String? timezone;
+  final String deviceContextJson;
+  final DateTime? startedAt;
+  final DateTime? pausedAt;
+  final DateTime? resumedAt;
+  final DateTime? endedAt;
+  final DateTime? abandonedAt;
+  final DateTime? lastPointAt;
+  final DateTime? lastFlushAt;
+  final String syncStatus;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TrackingSessionRow(
+      {required this.id,
+      required this.tripId,
+      this.remoteSessionId,
+      required this.clientSessionId,
+      required this.state,
+      this.timezone,
+      required this.deviceContextJson,
+      this.startedAt,
+      this.pausedAt,
+      this.resumedAt,
+      this.endedAt,
+      this.abandonedAt,
+      this.lastPointAt,
+      this.lastFlushAt,
+      required this.syncStatus,
+      required this.localUpdatedAt,
+      this.serverUpdatedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['trip_id'] = Variable<String>(tripId);
+    if (!nullToAbsent || remoteSessionId != null) {
+      map['remote_session_id'] = Variable<String>(remoteSessionId);
+    }
+    map['client_session_id'] = Variable<String>(clientSessionId);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || timezone != null) {
+      map['timezone'] = Variable<String>(timezone);
+    }
+    map['device_context_json'] = Variable<String>(deviceContextJson);
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<DateTime>(startedAt);
+    }
+    if (!nullToAbsent || pausedAt != null) {
+      map['paused_at'] = Variable<DateTime>(pausedAt);
+    }
+    if (!nullToAbsent || resumedAt != null) {
+      map['resumed_at'] = Variable<DateTime>(resumedAt);
+    }
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || abandonedAt != null) {
+      map['abandoned_at'] = Variable<DateTime>(abandonedAt);
+    }
+    if (!nullToAbsent || lastPointAt != null) {
+      map['last_point_at'] = Variable<DateTime>(lastPointAt);
+    }
+    if (!nullToAbsent || lastFlushAt != null) {
+      map['last_flush_at'] = Variable<DateTime>(lastFlushAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TrackingSessionsCompanion toCompanion(bool nullToAbsent) {
+    return TrackingSessionsCompanion(
+      id: Value(id),
+      tripId: Value(tripId),
+      remoteSessionId: remoteSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteSessionId),
+      clientSessionId: Value(clientSessionId),
+      state: Value(state),
+      timezone: timezone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(timezone),
+      deviceContextJson: Value(deviceContextJson),
+      startedAt: startedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startedAt),
+      pausedAt: pausedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pausedAt),
+      resumedAt: resumedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resumedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      abandonedAt: abandonedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(abandonedAt),
+      lastPointAt: lastPointAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPointAt),
+      lastFlushAt: lastFlushAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastFlushAt),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TrackingSessionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackingSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      remoteSessionId: serializer.fromJson<String?>(json['remoteSessionId']),
+      clientSessionId: serializer.fromJson<String>(json['clientSessionId']),
+      state: serializer.fromJson<String>(json['state']),
+      timezone: serializer.fromJson<String?>(json['timezone']),
+      deviceContextJson: serializer.fromJson<String>(json['deviceContextJson']),
+      startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
+      pausedAt: serializer.fromJson<DateTime?>(json['pausedAt']),
+      resumedAt: serializer.fromJson<DateTime?>(json['resumedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      abandonedAt: serializer.fromJson<DateTime?>(json['abandonedAt']),
+      lastPointAt: serializer.fromJson<DateTime?>(json['lastPointAt']),
+      lastFlushAt: serializer.fromJson<DateTime?>(json['lastFlushAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tripId': serializer.toJson<String>(tripId),
+      'remoteSessionId': serializer.toJson<String?>(remoteSessionId),
+      'clientSessionId': serializer.toJson<String>(clientSessionId),
+      'state': serializer.toJson<String>(state),
+      'timezone': serializer.toJson<String?>(timezone),
+      'deviceContextJson': serializer.toJson<String>(deviceContextJson),
+      'startedAt': serializer.toJson<DateTime?>(startedAt),
+      'pausedAt': serializer.toJson<DateTime?>(pausedAt),
+      'resumedAt': serializer.toJson<DateTime?>(resumedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'abandonedAt': serializer.toJson<DateTime?>(abandonedAt),
+      'lastPointAt': serializer.toJson<DateTime?>(lastPointAt),
+      'lastFlushAt': serializer.toJson<DateTime?>(lastFlushAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TrackingSessionRow copyWith(
+          {String? id,
+          String? tripId,
+          Value<String?> remoteSessionId = const Value.absent(),
+          String? clientSessionId,
+          String? state,
+          Value<String?> timezone = const Value.absent(),
+          String? deviceContextJson,
+          Value<DateTime?> startedAt = const Value.absent(),
+          Value<DateTime?> pausedAt = const Value.absent(),
+          Value<DateTime?> resumedAt = const Value.absent(),
+          Value<DateTime?> endedAt = const Value.absent(),
+          Value<DateTime?> abandonedAt = const Value.absent(),
+          Value<DateTime?> lastPointAt = const Value.absent(),
+          Value<DateTime?> lastFlushAt = const Value.absent(),
+          String? syncStatus,
+          DateTime? localUpdatedAt,
+          Value<DateTime?> serverUpdatedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      TrackingSessionRow(
+        id: id ?? this.id,
+        tripId: tripId ?? this.tripId,
+        remoteSessionId: remoteSessionId.present
+            ? remoteSessionId.value
+            : this.remoteSessionId,
+        clientSessionId: clientSessionId ?? this.clientSessionId,
+        state: state ?? this.state,
+        timezone: timezone.present ? timezone.value : this.timezone,
+        deviceContextJson: deviceContextJson ?? this.deviceContextJson,
+        startedAt: startedAt.present ? startedAt.value : this.startedAt,
+        pausedAt: pausedAt.present ? pausedAt.value : this.pausedAt,
+        resumedAt: resumedAt.present ? resumedAt.value : this.resumedAt,
+        endedAt: endedAt.present ? endedAt.value : this.endedAt,
+        abandonedAt: abandonedAt.present ? abandonedAt.value : this.abandonedAt,
+        lastPointAt: lastPointAt.present ? lastPointAt.value : this.lastPointAt,
+        lastFlushAt: lastFlushAt.present ? lastFlushAt.value : this.lastFlushAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TrackingSessionRow copyWithCompanion(TrackingSessionsCompanion data) {
+    return TrackingSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      remoteSessionId: data.remoteSessionId.present
+          ? data.remoteSessionId.value
+          : this.remoteSessionId,
+      clientSessionId: data.clientSessionId.present
+          ? data.clientSessionId.value
+          : this.clientSessionId,
+      state: data.state.present ? data.state.value : this.state,
+      timezone: data.timezone.present ? data.timezone.value : this.timezone,
+      deviceContextJson: data.deviceContextJson.present
+          ? data.deviceContextJson.value
+          : this.deviceContextJson,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      pausedAt: data.pausedAt.present ? data.pausedAt.value : this.pausedAt,
+      resumedAt: data.resumedAt.present ? data.resumedAt.value : this.resumedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      abandonedAt:
+          data.abandonedAt.present ? data.abandonedAt.value : this.abandonedAt,
+      lastPointAt:
+          data.lastPointAt.present ? data.lastPointAt.value : this.lastPointAt,
+      lastFlushAt:
+          data.lastFlushAt.present ? data.lastFlushAt.value : this.lastFlushAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingSessionRow(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('remoteSessionId: $remoteSessionId, ')
+          ..write('clientSessionId: $clientSessionId, ')
+          ..write('state: $state, ')
+          ..write('timezone: $timezone, ')
+          ..write('deviceContextJson: $deviceContextJson, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('pausedAt: $pausedAt, ')
+          ..write('resumedAt: $resumedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('abandonedAt: $abandonedAt, ')
+          ..write('lastPointAt: $lastPointAt, ')
+          ..write('lastFlushAt: $lastFlushAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tripId,
+      remoteSessionId,
+      clientSessionId,
+      state,
+      timezone,
+      deviceContextJson,
+      startedAt,
+      pausedAt,
+      resumedAt,
+      endedAt,
+      abandonedAt,
+      lastPointAt,
+      lastFlushAt,
+      syncStatus,
+      localUpdatedAt,
+      serverUpdatedAt,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackingSessionRow &&
+          other.id == this.id &&
+          other.tripId == this.tripId &&
+          other.remoteSessionId == this.remoteSessionId &&
+          other.clientSessionId == this.clientSessionId &&
+          other.state == this.state &&
+          other.timezone == this.timezone &&
+          other.deviceContextJson == this.deviceContextJson &&
+          other.startedAt == this.startedAt &&
+          other.pausedAt == this.pausedAt &&
+          other.resumedAt == this.resumedAt &&
+          other.endedAt == this.endedAt &&
+          other.abandonedAt == this.abandonedAt &&
+          other.lastPointAt == this.lastPointAt &&
+          other.lastFlushAt == this.lastFlushAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TrackingSessionsCompanion extends UpdateCompanion<TrackingSessionRow> {
+  final Value<String> id;
+  final Value<String> tripId;
+  final Value<String?> remoteSessionId;
+  final Value<String> clientSessionId;
+  final Value<String> state;
+  final Value<String?> timezone;
+  final Value<String> deviceContextJson;
+  final Value<DateTime?> startedAt;
+  final Value<DateTime?> pausedAt;
+  final Value<DateTime?> resumedAt;
+  final Value<DateTime?> endedAt;
+  final Value<DateTime?> abandonedAt;
+  final Value<DateTime?> lastPointAt;
+  final Value<DateTime?> lastFlushAt;
+  final Value<String> syncStatus;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TrackingSessionsCompanion({
+    this.id = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.remoteSessionId = const Value.absent(),
+    this.clientSessionId = const Value.absent(),
+    this.state = const Value.absent(),
+    this.timezone = const Value.absent(),
+    this.deviceContextJson = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.pausedAt = const Value.absent(),
+    this.resumedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.abandonedAt = const Value.absent(),
+    this.lastPointAt = const Value.absent(),
+    this.lastFlushAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackingSessionsCompanion.insert({
+    required String id,
+    required String tripId,
+    this.remoteSessionId = const Value.absent(),
+    required String clientSessionId,
+    this.state = const Value.absent(),
+    this.timezone = const Value.absent(),
+    this.deviceContextJson = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.pausedAt = const Value.absent(),
+    this.resumedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.abandonedAt = const Value.absent(),
+    this.lastPointAt = const Value.absent(),
+    this.lastFlushAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    required DateTime localUpdatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tripId = Value(tripId),
+        clientSessionId = Value(clientSessionId),
+        localUpdatedAt = Value(localUpdatedAt),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TrackingSessionRow> custom({
+    Expression<String>? id,
+    Expression<String>? tripId,
+    Expression<String>? remoteSessionId,
+    Expression<String>? clientSessionId,
+    Expression<String>? state,
+    Expression<String>? timezone,
+    Expression<String>? deviceContextJson,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? pausedAt,
+    Expression<DateTime>? resumedAt,
+    Expression<DateTime>? endedAt,
+    Expression<DateTime>? abandonedAt,
+    Expression<DateTime>? lastPointAt,
+    Expression<DateTime>? lastFlushAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tripId != null) 'trip_id': tripId,
+      if (remoteSessionId != null) 'remote_session_id': remoteSessionId,
+      if (clientSessionId != null) 'client_session_id': clientSessionId,
+      if (state != null) 'state': state,
+      if (timezone != null) 'timezone': timezone,
+      if (deviceContextJson != null) 'device_context_json': deviceContextJson,
+      if (startedAt != null) 'started_at': startedAt,
+      if (pausedAt != null) 'paused_at': pausedAt,
+      if (resumedAt != null) 'resumed_at': resumedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (abandonedAt != null) 'abandoned_at': abandonedAt,
+      if (lastPointAt != null) 'last_point_at': lastPointAt,
+      if (lastFlushAt != null) 'last_flush_at': lastFlushAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackingSessionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tripId,
+      Value<String?>? remoteSessionId,
+      Value<String>? clientSessionId,
+      Value<String>? state,
+      Value<String?>? timezone,
+      Value<String>? deviceContextJson,
+      Value<DateTime?>? startedAt,
+      Value<DateTime?>? pausedAt,
+      Value<DateTime?>? resumedAt,
+      Value<DateTime?>? endedAt,
+      Value<DateTime?>? abandonedAt,
+      Value<DateTime?>? lastPointAt,
+      Value<DateTime?>? lastFlushAt,
+      Value<String>? syncStatus,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TrackingSessionsCompanion(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      remoteSessionId: remoteSessionId ?? this.remoteSessionId,
+      clientSessionId: clientSessionId ?? this.clientSessionId,
+      state: state ?? this.state,
+      timezone: timezone ?? this.timezone,
+      deviceContextJson: deviceContextJson ?? this.deviceContextJson,
+      startedAt: startedAt ?? this.startedAt,
+      pausedAt: pausedAt ?? this.pausedAt,
+      resumedAt: resumedAt ?? this.resumedAt,
+      endedAt: endedAt ?? this.endedAt,
+      abandonedAt: abandonedAt ?? this.abandonedAt,
+      lastPointAt: lastPointAt ?? this.lastPointAt,
+      lastFlushAt: lastFlushAt ?? this.lastFlushAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (remoteSessionId.present) {
+      map['remote_session_id'] = Variable<String>(remoteSessionId.value);
+    }
+    if (clientSessionId.present) {
+      map['client_session_id'] = Variable<String>(clientSessionId.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (timezone.present) {
+      map['timezone'] = Variable<String>(timezone.value);
+    }
+    if (deviceContextJson.present) {
+      map['device_context_json'] = Variable<String>(deviceContextJson.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (pausedAt.present) {
+      map['paused_at'] = Variable<DateTime>(pausedAt.value);
+    }
+    if (resumedAt.present) {
+      map['resumed_at'] = Variable<DateTime>(resumedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (abandonedAt.present) {
+      map['abandoned_at'] = Variable<DateTime>(abandonedAt.value);
+    }
+    if (lastPointAt.present) {
+      map['last_point_at'] = Variable<DateTime>(lastPointAt.value);
+    }
+    if (lastFlushAt.present) {
+      map['last_flush_at'] = Variable<DateTime>(lastFlushAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('remoteSessionId: $remoteSessionId, ')
+          ..write('clientSessionId: $clientSessionId, ')
+          ..write('state: $state, ')
+          ..write('timezone: $timezone, ')
+          ..write('deviceContextJson: $deviceContextJson, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('pausedAt: $pausedAt, ')
+          ..write('resumedAt: $resumedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('abandonedAt: $abandonedAt, ')
+          ..write('lastPointAt: $lastPointAt, ')
+          ..write('lastFlushAt: $lastFlushAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TrackingPointBatchesTable extends TrackingPointBatches
+    with TableInfo<$TrackingPointBatchesTable, TrackingPointBatchRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackingPointBatchesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+      'trip_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _remoteSessionIdMeta =
+      const VerificationMeta('remoteSessionId');
+  @override
+  late final GeneratedColumn<String> remoteSessionId = GeneratedColumn<String>(
+      'remote_session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _clientBatchIdMeta =
+      const VerificationMeta('clientBatchId');
+  @override
+  late final GeneratedColumn<String> clientBatchId = GeneratedColumn<String>(
+      'client_batch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _firstRecordedAtMeta =
+      const VerificationMeta('firstRecordedAt');
+  @override
+  late final GeneratedColumn<DateTime> firstRecordedAt =
+      GeneratedColumn<DateTime>('first_recorded_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastRecordedAtMeta =
+      const VerificationMeta('lastRecordedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastRecordedAt =
+      GeneratedColumn<DateTime>('last_recorded_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _pointCountMeta =
+      const VerificationMeta('pointCount');
+  @override
+  late final GeneratedColumn<int> pointCount = GeneratedColumn<int>(
+      'point_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _pointsJsonMeta =
+      const VerificationMeta('pointsJson');
+  @override
+  late final GeneratedColumn<String> pointsJson = GeneratedColumn<String>(
+      'points_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('queued'));
+  static const VerificationMeta _retryCountMeta =
+      const VerificationMeta('retryCount');
+  @override
+  late final GeneratedColumn<int> retryCount = GeneratedColumn<int>(
+      'retry_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _nextAttemptAtMeta =
+      const VerificationMeta('nextAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>('next_attempt_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _workerSessionIdMeta =
+      const VerificationMeta('workerSessionId');
+  @override
+  late final GeneratedColumn<String> workerSessionId = GeneratedColumn<String>(
+      'worker_session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tripId,
+        sessionId,
+        remoteSessionId,
+        clientBatchId,
+        firstRecordedAt,
+        lastRecordedAt,
+        pointCount,
+        pointsJson,
+        status,
+        retryCount,
+        nextAttemptAt,
+        workerSessionId,
+        lastError,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tracking_point_batches';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TrackingPointBatchRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(_tripIdMeta,
+          tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('remote_session_id')) {
+      context.handle(
+          _remoteSessionIdMeta,
+          remoteSessionId.isAcceptableOrUnknown(
+              data['remote_session_id']!, _remoteSessionIdMeta));
+    }
+    if (data.containsKey('client_batch_id')) {
+      context.handle(
+          _clientBatchIdMeta,
+          clientBatchId.isAcceptableOrUnknown(
+              data['client_batch_id']!, _clientBatchIdMeta));
+    } else if (isInserting) {
+      context.missing(_clientBatchIdMeta);
+    }
+    if (data.containsKey('first_recorded_at')) {
+      context.handle(
+          _firstRecordedAtMeta,
+          firstRecordedAt.isAcceptableOrUnknown(
+              data['first_recorded_at']!, _firstRecordedAtMeta));
+    }
+    if (data.containsKey('last_recorded_at')) {
+      context.handle(
+          _lastRecordedAtMeta,
+          lastRecordedAt.isAcceptableOrUnknown(
+              data['last_recorded_at']!, _lastRecordedAtMeta));
+    }
+    if (data.containsKey('point_count')) {
+      context.handle(
+          _pointCountMeta,
+          pointCount.isAcceptableOrUnknown(
+              data['point_count']!, _pointCountMeta));
+    }
+    if (data.containsKey('points_json')) {
+      context.handle(
+          _pointsJsonMeta,
+          pointsJson.isAcceptableOrUnknown(
+              data['points_json']!, _pointsJsonMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('retry_count')) {
+      context.handle(
+          _retryCountMeta,
+          retryCount.isAcceptableOrUnknown(
+              data['retry_count']!, _retryCountMeta));
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+          _nextAttemptAtMeta,
+          nextAttemptAt.isAcceptableOrUnknown(
+              data['next_attempt_at']!, _nextAttemptAtMeta));
+    }
+    if (data.containsKey('worker_session_id')) {
+      context.handle(
+          _workerSessionIdMeta,
+          workerSessionId.isAcceptableOrUnknown(
+              data['worker_session_id']!, _workerSessionIdMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {clientBatchId},
+      ];
+  @override
+  TrackingPointBatchRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackingPointBatchRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      remoteSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}remote_session_id']),
+      clientBatchId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}client_batch_id'])!,
+      firstRecordedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}first_recorded_at']),
+      lastRecordedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_recorded_at']),
+      pointCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}point_count'])!,
+      pointsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}points_json'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      retryCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}next_attempt_at']),
+      workerSessionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}worker_session_id']),
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TrackingPointBatchesTable createAlias(String alias) {
+    return $TrackingPointBatchesTable(attachedDatabase, alias);
+  }
+}
+
+class TrackingPointBatchRow extends DataClass
+    implements Insertable<TrackingPointBatchRow> {
+  final String id;
+  final String tripId;
+  final String sessionId;
+  final String? remoteSessionId;
+  final String clientBatchId;
+  final DateTime? firstRecordedAt;
+  final DateTime? lastRecordedAt;
+  final int pointCount;
+  final String pointsJson;
+  final String status;
+  final int retryCount;
+  final DateTime? nextAttemptAt;
+  final String? workerSessionId;
+  final String? lastError;
+  final String syncStatus;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TrackingPointBatchRow(
+      {required this.id,
+      required this.tripId,
+      required this.sessionId,
+      this.remoteSessionId,
+      required this.clientBatchId,
+      this.firstRecordedAt,
+      this.lastRecordedAt,
+      required this.pointCount,
+      required this.pointsJson,
+      required this.status,
+      required this.retryCount,
+      this.nextAttemptAt,
+      this.workerSessionId,
+      this.lastError,
+      required this.syncStatus,
+      required this.localUpdatedAt,
+      this.serverUpdatedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['trip_id'] = Variable<String>(tripId);
+    map['session_id'] = Variable<String>(sessionId);
+    if (!nullToAbsent || remoteSessionId != null) {
+      map['remote_session_id'] = Variable<String>(remoteSessionId);
+    }
+    map['client_batch_id'] = Variable<String>(clientBatchId);
+    if (!nullToAbsent || firstRecordedAt != null) {
+      map['first_recorded_at'] = Variable<DateTime>(firstRecordedAt);
+    }
+    if (!nullToAbsent || lastRecordedAt != null) {
+      map['last_recorded_at'] = Variable<DateTime>(lastRecordedAt);
+    }
+    map['point_count'] = Variable<int>(pointCount);
+    map['points_json'] = Variable<String>(pointsJson);
+    map['status'] = Variable<String>(status);
+    map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
+    if (!nullToAbsent || workerSessionId != null) {
+      map['worker_session_id'] = Variable<String>(workerSessionId);
+    }
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TrackingPointBatchesCompanion toCompanion(bool nullToAbsent) {
+    return TrackingPointBatchesCompanion(
+      id: Value(id),
+      tripId: Value(tripId),
+      sessionId: Value(sessionId),
+      remoteSessionId: remoteSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteSessionId),
+      clientBatchId: Value(clientBatchId),
+      firstRecordedAt: firstRecordedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(firstRecordedAt),
+      lastRecordedAt: lastRecordedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRecordedAt),
+      pointCount: Value(pointCount),
+      pointsJson: Value(pointsJson),
+      status: Value(status),
+      retryCount: Value(retryCount),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
+      workerSessionId: workerSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workerSessionId),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TrackingPointBatchRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackingPointBatchRow(
+      id: serializer.fromJson<String>(json['id']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      remoteSessionId: serializer.fromJson<String?>(json['remoteSessionId']),
+      clientBatchId: serializer.fromJson<String>(json['clientBatchId']),
+      firstRecordedAt: serializer.fromJson<DateTime?>(json['firstRecordedAt']),
+      lastRecordedAt: serializer.fromJson<DateTime?>(json['lastRecordedAt']),
+      pointCount: serializer.fromJson<int>(json['pointCount']),
+      pointsJson: serializer.fromJson<String>(json['pointsJson']),
+      status: serializer.fromJson<String>(json['status']),
+      retryCount: serializer.fromJson<int>(json['retryCount']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
+      workerSessionId: serializer.fromJson<String?>(json['workerSessionId']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tripId': serializer.toJson<String>(tripId),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'remoteSessionId': serializer.toJson<String?>(remoteSessionId),
+      'clientBatchId': serializer.toJson<String>(clientBatchId),
+      'firstRecordedAt': serializer.toJson<DateTime?>(firstRecordedAt),
+      'lastRecordedAt': serializer.toJson<DateTime?>(lastRecordedAt),
+      'pointCount': serializer.toJson<int>(pointCount),
+      'pointsJson': serializer.toJson<String>(pointsJson),
+      'status': serializer.toJson<String>(status),
+      'retryCount': serializer.toJson<int>(retryCount),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
+      'workerSessionId': serializer.toJson<String?>(workerSessionId),
+      'lastError': serializer.toJson<String?>(lastError),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TrackingPointBatchRow copyWith(
+          {String? id,
+          String? tripId,
+          String? sessionId,
+          Value<String?> remoteSessionId = const Value.absent(),
+          String? clientBatchId,
+          Value<DateTime?> firstRecordedAt = const Value.absent(),
+          Value<DateTime?> lastRecordedAt = const Value.absent(),
+          int? pointCount,
+          String? pointsJson,
+          String? status,
+          int? retryCount,
+          Value<DateTime?> nextAttemptAt = const Value.absent(),
+          Value<String?> workerSessionId = const Value.absent(),
+          Value<String?> lastError = const Value.absent(),
+          String? syncStatus,
+          DateTime? localUpdatedAt,
+          Value<DateTime?> serverUpdatedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      TrackingPointBatchRow(
+        id: id ?? this.id,
+        tripId: tripId ?? this.tripId,
+        sessionId: sessionId ?? this.sessionId,
+        remoteSessionId: remoteSessionId.present
+            ? remoteSessionId.value
+            : this.remoteSessionId,
+        clientBatchId: clientBatchId ?? this.clientBatchId,
+        firstRecordedAt: firstRecordedAt.present
+            ? firstRecordedAt.value
+            : this.firstRecordedAt,
+        lastRecordedAt:
+            lastRecordedAt.present ? lastRecordedAt.value : this.lastRecordedAt,
+        pointCount: pointCount ?? this.pointCount,
+        pointsJson: pointsJson ?? this.pointsJson,
+        status: status ?? this.status,
+        retryCount: retryCount ?? this.retryCount,
+        nextAttemptAt:
+            nextAttemptAt.present ? nextAttemptAt.value : this.nextAttemptAt,
+        workerSessionId: workerSessionId.present
+            ? workerSessionId.value
+            : this.workerSessionId,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TrackingPointBatchRow copyWithCompanion(TrackingPointBatchesCompanion data) {
+    return TrackingPointBatchRow(
+      id: data.id.present ? data.id.value : this.id,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      remoteSessionId: data.remoteSessionId.present
+          ? data.remoteSessionId.value
+          : this.remoteSessionId,
+      clientBatchId: data.clientBatchId.present
+          ? data.clientBatchId.value
+          : this.clientBatchId,
+      firstRecordedAt: data.firstRecordedAt.present
+          ? data.firstRecordedAt.value
+          : this.firstRecordedAt,
+      lastRecordedAt: data.lastRecordedAt.present
+          ? data.lastRecordedAt.value
+          : this.lastRecordedAt,
+      pointCount:
+          data.pointCount.present ? data.pointCount.value : this.pointCount,
+      pointsJson:
+          data.pointsJson.present ? data.pointsJson.value : this.pointsJson,
+      status: data.status.present ? data.status.value : this.status,
+      retryCount:
+          data.retryCount.present ? data.retryCount.value : this.retryCount,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
+      workerSessionId: data.workerSessionId.present
+          ? data.workerSessionId.value
+          : this.workerSessionId,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingPointBatchRow(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('remoteSessionId: $remoteSessionId, ')
+          ..write('clientBatchId: $clientBatchId, ')
+          ..write('firstRecordedAt: $firstRecordedAt, ')
+          ..write('lastRecordedAt: $lastRecordedAt, ')
+          ..write('pointCount: $pointCount, ')
+          ..write('pointsJson: $pointsJson, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('workerSessionId: $workerSessionId, ')
+          ..write('lastError: $lastError, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tripId,
+      sessionId,
+      remoteSessionId,
+      clientBatchId,
+      firstRecordedAt,
+      lastRecordedAt,
+      pointCount,
+      pointsJson,
+      status,
+      retryCount,
+      nextAttemptAt,
+      workerSessionId,
+      lastError,
+      syncStatus,
+      localUpdatedAt,
+      serverUpdatedAt,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackingPointBatchRow &&
+          other.id == this.id &&
+          other.tripId == this.tripId &&
+          other.sessionId == this.sessionId &&
+          other.remoteSessionId == this.remoteSessionId &&
+          other.clientBatchId == this.clientBatchId &&
+          other.firstRecordedAt == this.firstRecordedAt &&
+          other.lastRecordedAt == this.lastRecordedAt &&
+          other.pointCount == this.pointCount &&
+          other.pointsJson == this.pointsJson &&
+          other.status == this.status &&
+          other.retryCount == this.retryCount &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.workerSessionId == this.workerSessionId &&
+          other.lastError == this.lastError &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TrackingPointBatchesCompanion
+    extends UpdateCompanion<TrackingPointBatchRow> {
+  final Value<String> id;
+  final Value<String> tripId;
+  final Value<String> sessionId;
+  final Value<String?> remoteSessionId;
+  final Value<String> clientBatchId;
+  final Value<DateTime?> firstRecordedAt;
+  final Value<DateTime?> lastRecordedAt;
+  final Value<int> pointCount;
+  final Value<String> pointsJson;
+  final Value<String> status;
+  final Value<int> retryCount;
+  final Value<DateTime?> nextAttemptAt;
+  final Value<String?> workerSessionId;
+  final Value<String?> lastError;
+  final Value<String> syncStatus;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TrackingPointBatchesCompanion({
+    this.id = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.remoteSessionId = const Value.absent(),
+    this.clientBatchId = const Value.absent(),
+    this.firstRecordedAt = const Value.absent(),
+    this.lastRecordedAt = const Value.absent(),
+    this.pointCount = const Value.absent(),
+    this.pointsJson = const Value.absent(),
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackingPointBatchesCompanion.insert({
+    required String id,
+    required String tripId,
+    required String sessionId,
+    this.remoteSessionId = const Value.absent(),
+    required String clientBatchId,
+    this.firstRecordedAt = const Value.absent(),
+    this.lastRecordedAt = const Value.absent(),
+    this.pointCount = const Value.absent(),
+    this.pointsJson = const Value.absent(),
+    this.status = const Value.absent(),
+    this.retryCount = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.workerSessionId = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    required DateTime localUpdatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tripId = Value(tripId),
+        sessionId = Value(sessionId),
+        clientBatchId = Value(clientBatchId),
+        localUpdatedAt = Value(localUpdatedAt),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TrackingPointBatchRow> custom({
+    Expression<String>? id,
+    Expression<String>? tripId,
+    Expression<String>? sessionId,
+    Expression<String>? remoteSessionId,
+    Expression<String>? clientBatchId,
+    Expression<DateTime>? firstRecordedAt,
+    Expression<DateTime>? lastRecordedAt,
+    Expression<int>? pointCount,
+    Expression<String>? pointsJson,
+    Expression<String>? status,
+    Expression<int>? retryCount,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<String>? workerSessionId,
+    Expression<String>? lastError,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tripId != null) 'trip_id': tripId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (remoteSessionId != null) 'remote_session_id': remoteSessionId,
+      if (clientBatchId != null) 'client_batch_id': clientBatchId,
+      if (firstRecordedAt != null) 'first_recorded_at': firstRecordedAt,
+      if (lastRecordedAt != null) 'last_recorded_at': lastRecordedAt,
+      if (pointCount != null) 'point_count': pointCount,
+      if (pointsJson != null) 'points_json': pointsJson,
+      if (status != null) 'status': status,
+      if (retryCount != null) 'retry_count': retryCount,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (workerSessionId != null) 'worker_session_id': workerSessionId,
+      if (lastError != null) 'last_error': lastError,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackingPointBatchesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tripId,
+      Value<String>? sessionId,
+      Value<String?>? remoteSessionId,
+      Value<String>? clientBatchId,
+      Value<DateTime?>? firstRecordedAt,
+      Value<DateTime?>? lastRecordedAt,
+      Value<int>? pointCount,
+      Value<String>? pointsJson,
+      Value<String>? status,
+      Value<int>? retryCount,
+      Value<DateTime?>? nextAttemptAt,
+      Value<String?>? workerSessionId,
+      Value<String?>? lastError,
+      Value<String>? syncStatus,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TrackingPointBatchesCompanion(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      sessionId: sessionId ?? this.sessionId,
+      remoteSessionId: remoteSessionId ?? this.remoteSessionId,
+      clientBatchId: clientBatchId ?? this.clientBatchId,
+      firstRecordedAt: firstRecordedAt ?? this.firstRecordedAt,
+      lastRecordedAt: lastRecordedAt ?? this.lastRecordedAt,
+      pointCount: pointCount ?? this.pointCount,
+      pointsJson: pointsJson ?? this.pointsJson,
+      status: status ?? this.status,
+      retryCount: retryCount ?? this.retryCount,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      workerSessionId: workerSessionId ?? this.workerSessionId,
+      lastError: lastError ?? this.lastError,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (remoteSessionId.present) {
+      map['remote_session_id'] = Variable<String>(remoteSessionId.value);
+    }
+    if (clientBatchId.present) {
+      map['client_batch_id'] = Variable<String>(clientBatchId.value);
+    }
+    if (firstRecordedAt.present) {
+      map['first_recorded_at'] = Variable<DateTime>(firstRecordedAt.value);
+    }
+    if (lastRecordedAt.present) {
+      map['last_recorded_at'] = Variable<DateTime>(lastRecordedAt.value);
+    }
+    if (pointCount.present) {
+      map['point_count'] = Variable<int>(pointCount.value);
+    }
+    if (pointsJson.present) {
+      map['points_json'] = Variable<String>(pointsJson.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (retryCount.present) {
+      map['retry_count'] = Variable<int>(retryCount.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (workerSessionId.present) {
+      map['worker_session_id'] = Variable<String>(workerSessionId.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingPointBatchesCompanion(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('remoteSessionId: $remoteSessionId, ')
+          ..write('clientBatchId: $clientBatchId, ')
+          ..write('firstRecordedAt: $firstRecordedAt, ')
+          ..write('lastRecordedAt: $lastRecordedAt, ')
+          ..write('pointCount: $pointCount, ')
+          ..write('pointsJson: $pointsJson, ')
+          ..write('status: $status, ')
+          ..write('retryCount: $retryCount, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('workerSessionId: $workerSessionId, ')
+          ..write('lastError: $lastError, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TrackingCandidatesTable extends TrackingCandidates
+    with TableInfo<$TrackingCandidatesTable, TrackingCandidateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackingCandidatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+      'trip_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fingerprintMeta =
+      const VerificationMeta('fingerprint');
+  @override
+  late final GeneratedColumn<String> fingerprint = GeneratedColumn<String>(
+      'fingerprint', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _confidenceMeta =
+      const VerificationMeta('confidence');
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+      'confidence', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _suggestedNameMeta =
+      const VerificationMeta('suggestedName');
+  @override
+  late final GeneratedColumn<String> suggestedName = GeneratedColumn<String>(
+      'suggested_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _suggestedLatitudeMeta =
+      const VerificationMeta('suggestedLatitude');
+  @override
+  late final GeneratedColumn<double> suggestedLatitude =
+      GeneratedColumn<double>('suggested_latitude', aliasedName, true,
+          type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _suggestedLongitudeMeta =
+      const VerificationMeta('suggestedLongitude');
+  @override
+  late final GeneratedColumn<double> suggestedLongitude =
+      GeneratedColumn<double>('suggested_longitude', aliasedName, true,
+          type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+      'started_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _endedAtMeta =
+      const VerificationMeta('endedAt');
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+      'ended_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _confirmedTripPlaceIdMeta =
+      const VerificationMeta('confirmedTripPlaceId');
+  @override
+  late final GeneratedColumn<String> confirmedTripPlaceId =
+      GeneratedColumn<String>('confirmed_trip_place_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rejectedReasonMeta =
+      const VerificationMeta('rejectedReason');
+  @override
+  late final GeneratedColumn<String> rejectedReason = GeneratedColumn<String>(
+      'rejected_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _snoozedUntilMeta =
+      const VerificationMeta('snoozedUntil');
+  @override
+  late final GeneratedColumn<DateTime> snoozedUntil = GeneratedColumn<DateTime>(
+      'snoozed_until', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _cooldownUntilMeta =
+      const VerificationMeta('cooldownUntil');
+  @override
+  late final GeneratedColumn<DateTime> cooldownUntil =
+      GeneratedColumn<DateTime>('cooldown_until', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _notificationStateMeta =
+      const VerificationMeta('notificationState');
+  @override
+  late final GeneratedColumn<String> notificationState =
+      GeneratedColumn<String>('notification_state', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _actionStateMeta =
+      const VerificationMeta('actionState');
+  @override
+  late final GeneratedColumn<String> actionState = GeneratedColumn<String>(
+      'action_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('none'));
+  static const VerificationMeta _actionTypeMeta =
+      const VerificationMeta('actionType');
+  @override
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+      'action_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _actionClientEventIdMeta =
+      const VerificationMeta('actionClientEventId');
+  @override
+  late final GeneratedColumn<String> actionClientEventId =
+      GeneratedColumn<String>('action_client_event_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _actionQueuedAtMeta =
+      const VerificationMeta('actionQueuedAt');
+  @override
+  late final GeneratedColumn<DateTime> actionQueuedAt =
+      GeneratedColumn<DateTime>('action_queued_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _actionSyncedAtMeta =
+      const VerificationMeta('actionSyncedAt');
+  @override
+  late final GeneratedColumn<DateTime> actionSyncedAt =
+      GeneratedColumn<DateTime>('action_synced_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('synced'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tripId,
+        sessionId,
+        fingerprint,
+        status,
+        confidence,
+        suggestedName,
+        suggestedLatitude,
+        suggestedLongitude,
+        startedAt,
+        endedAt,
+        confirmedTripPlaceId,
+        rejectedReason,
+        snoozedUntil,
+        cooldownUntil,
+        payloadJson,
+        notificationState,
+        actionState,
+        actionType,
+        actionClientEventId,
+        actionQueuedAt,
+        actionSyncedAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tracking_candidates';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TrackingCandidateRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(_tripIdMeta,
+          tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    }
+    if (data.containsKey('fingerprint')) {
+      context.handle(
+          _fingerprintMeta,
+          fingerprint.isAcceptableOrUnknown(
+              data['fingerprint']!, _fingerprintMeta));
+    } else if (isInserting) {
+      context.missing(_fingerprintMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+          _confidenceMeta,
+          confidence.isAcceptableOrUnknown(
+              data['confidence']!, _confidenceMeta));
+    }
+    if (data.containsKey('suggested_name')) {
+      context.handle(
+          _suggestedNameMeta,
+          suggestedName.isAcceptableOrUnknown(
+              data['suggested_name']!, _suggestedNameMeta));
+    }
+    if (data.containsKey('suggested_latitude')) {
+      context.handle(
+          _suggestedLatitudeMeta,
+          suggestedLatitude.isAcceptableOrUnknown(
+              data['suggested_latitude']!, _suggestedLatitudeMeta));
+    }
+    if (data.containsKey('suggested_longitude')) {
+      context.handle(
+          _suggestedLongitudeMeta,
+          suggestedLongitude.isAcceptableOrUnknown(
+              data['suggested_longitude']!, _suggestedLongitudeMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(_endedAtMeta,
+          endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
+    }
+    if (data.containsKey('confirmed_trip_place_id')) {
+      context.handle(
+          _confirmedTripPlaceIdMeta,
+          confirmedTripPlaceId.isAcceptableOrUnknown(
+              data['confirmed_trip_place_id']!, _confirmedTripPlaceIdMeta));
+    }
+    if (data.containsKey('rejected_reason')) {
+      context.handle(
+          _rejectedReasonMeta,
+          rejectedReason.isAcceptableOrUnknown(
+              data['rejected_reason']!, _rejectedReasonMeta));
+    }
+    if (data.containsKey('snoozed_until')) {
+      context.handle(
+          _snoozedUntilMeta,
+          snoozedUntil.isAcceptableOrUnknown(
+              data['snoozed_until']!, _snoozedUntilMeta));
+    }
+    if (data.containsKey('cooldown_until')) {
+      context.handle(
+          _cooldownUntilMeta,
+          cooldownUntil.isAcceptableOrUnknown(
+              data['cooldown_until']!, _cooldownUntilMeta));
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    }
+    if (data.containsKey('notification_state')) {
+      context.handle(
+          _notificationStateMeta,
+          notificationState.isAcceptableOrUnknown(
+              data['notification_state']!, _notificationStateMeta));
+    }
+    if (data.containsKey('action_state')) {
+      context.handle(
+          _actionStateMeta,
+          actionState.isAcceptableOrUnknown(
+              data['action_state']!, _actionStateMeta));
+    }
+    if (data.containsKey('action_type')) {
+      context.handle(
+          _actionTypeMeta,
+          actionType.isAcceptableOrUnknown(
+              data['action_type']!, _actionTypeMeta));
+    }
+    if (data.containsKey('action_client_event_id')) {
+      context.handle(
+          _actionClientEventIdMeta,
+          actionClientEventId.isAcceptableOrUnknown(
+              data['action_client_event_id']!, _actionClientEventIdMeta));
+    }
+    if (data.containsKey('action_queued_at')) {
+      context.handle(
+          _actionQueuedAtMeta,
+          actionQueuedAt.isAcceptableOrUnknown(
+              data['action_queued_at']!, _actionQueuedAtMeta));
+    }
+    if (data.containsKey('action_synced_at')) {
+      context.handle(
+          _actionSyncedAtMeta,
+          actionSyncedAt.isAcceptableOrUnknown(
+              data['action_synced_at']!, _actionSyncedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TrackingCandidateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackingCandidateRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id']),
+      fingerprint: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fingerprint'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      confidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}confidence']),
+      suggestedName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}suggested_name']),
+      suggestedLatitude: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}suggested_latitude']),
+      suggestedLongitude: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}suggested_longitude']),
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}started_at']),
+      endedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}ended_at']),
+      confirmedTripPlaceId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}confirmed_trip_place_id']),
+      rejectedReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rejected_reason']),
+      snoozedUntil: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}snoozed_until']),
+      cooldownUntil: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}cooldown_until']),
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
+      notificationState: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}notification_state']),
+      actionState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action_state'])!,
+      actionType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action_type']),
+      actionClientEventId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}action_client_event_id']),
+      actionQueuedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}action_queued_at']),
+      actionSyncedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}action_synced_at']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TrackingCandidatesTable createAlias(String alias) {
+    return $TrackingCandidatesTable(attachedDatabase, alias);
+  }
+}
+
+class TrackingCandidateRow extends DataClass
+    implements Insertable<TrackingCandidateRow> {
+  final String id;
+  final String tripId;
+  final String? sessionId;
+  final String fingerprint;
+  final String status;
+  final double? confidence;
+  final String? suggestedName;
+  final double? suggestedLatitude;
+  final double? suggestedLongitude;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final String? confirmedTripPlaceId;
+  final String? rejectedReason;
+  final DateTime? snoozedUntil;
+  final DateTime? cooldownUntil;
+  final String payloadJson;
+  final String? notificationState;
+  final String actionState;
+  final String? actionType;
+  final String? actionClientEventId;
+  final DateTime? actionQueuedAt;
+  final DateTime? actionSyncedAt;
+  final String syncStatus;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TrackingCandidateRow(
+      {required this.id,
+      required this.tripId,
+      this.sessionId,
+      required this.fingerprint,
+      required this.status,
+      this.confidence,
+      this.suggestedName,
+      this.suggestedLatitude,
+      this.suggestedLongitude,
+      this.startedAt,
+      this.endedAt,
+      this.confirmedTripPlaceId,
+      this.rejectedReason,
+      this.snoozedUntil,
+      this.cooldownUntil,
+      required this.payloadJson,
+      this.notificationState,
+      required this.actionState,
+      this.actionType,
+      this.actionClientEventId,
+      this.actionQueuedAt,
+      this.actionSyncedAt,
+      required this.syncStatus,
+      required this.localUpdatedAt,
+      this.serverUpdatedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['trip_id'] = Variable<String>(tripId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    map['fingerprint'] = Variable<String>(fingerprint);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || confidence != null) {
+      map['confidence'] = Variable<double>(confidence);
+    }
+    if (!nullToAbsent || suggestedName != null) {
+      map['suggested_name'] = Variable<String>(suggestedName);
+    }
+    if (!nullToAbsent || suggestedLatitude != null) {
+      map['suggested_latitude'] = Variable<double>(suggestedLatitude);
+    }
+    if (!nullToAbsent || suggestedLongitude != null) {
+      map['suggested_longitude'] = Variable<double>(suggestedLongitude);
+    }
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<DateTime>(startedAt);
+    }
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || confirmedTripPlaceId != null) {
+      map['confirmed_trip_place_id'] = Variable<String>(confirmedTripPlaceId);
+    }
+    if (!nullToAbsent || rejectedReason != null) {
+      map['rejected_reason'] = Variable<String>(rejectedReason);
+    }
+    if (!nullToAbsent || snoozedUntil != null) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil);
+    }
+    if (!nullToAbsent || cooldownUntil != null) {
+      map['cooldown_until'] = Variable<DateTime>(cooldownUntil);
+    }
+    map['payload_json'] = Variable<String>(payloadJson);
+    if (!nullToAbsent || notificationState != null) {
+      map['notification_state'] = Variable<String>(notificationState);
+    }
+    map['action_state'] = Variable<String>(actionState);
+    if (!nullToAbsent || actionType != null) {
+      map['action_type'] = Variable<String>(actionType);
+    }
+    if (!nullToAbsent || actionClientEventId != null) {
+      map['action_client_event_id'] = Variable<String>(actionClientEventId);
+    }
+    if (!nullToAbsent || actionQueuedAt != null) {
+      map['action_queued_at'] = Variable<DateTime>(actionQueuedAt);
+    }
+    if (!nullToAbsent || actionSyncedAt != null) {
+      map['action_synced_at'] = Variable<DateTime>(actionSyncedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TrackingCandidatesCompanion toCompanion(bool nullToAbsent) {
+    return TrackingCandidatesCompanion(
+      id: Value(id),
+      tripId: Value(tripId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      fingerprint: Value(fingerprint),
+      status: Value(status),
+      confidence: confidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confidence),
+      suggestedName: suggestedName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedName),
+      suggestedLatitude: suggestedLatitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedLatitude),
+      suggestedLongitude: suggestedLongitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedLongitude),
+      startedAt: startedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      confirmedTripPlaceId: confirmedTripPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confirmedTripPlaceId),
+      rejectedReason: rejectedReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rejectedReason),
+      snoozedUntil: snoozedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozedUntil),
+      cooldownUntil: cooldownUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cooldownUntil),
+      payloadJson: Value(payloadJson),
+      notificationState: notificationState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationState),
+      actionState: Value(actionState),
+      actionType: actionType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionType),
+      actionClientEventId: actionClientEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionClientEventId),
+      actionQueuedAt: actionQueuedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionQueuedAt),
+      actionSyncedAt: actionSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actionSyncedAt),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TrackingCandidateRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackingCandidateRow(
+      id: serializer.fromJson<String>(json['id']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      fingerprint: serializer.fromJson<String>(json['fingerprint']),
+      status: serializer.fromJson<String>(json['status']),
+      confidence: serializer.fromJson<double?>(json['confidence']),
+      suggestedName: serializer.fromJson<String?>(json['suggestedName']),
+      suggestedLatitude:
+          serializer.fromJson<double?>(json['suggestedLatitude']),
+      suggestedLongitude:
+          serializer.fromJson<double?>(json['suggestedLongitude']),
+      startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      confirmedTripPlaceId:
+          serializer.fromJson<String?>(json['confirmedTripPlaceId']),
+      rejectedReason: serializer.fromJson<String?>(json['rejectedReason']),
+      snoozedUntil: serializer.fromJson<DateTime?>(json['snoozedUntil']),
+      cooldownUntil: serializer.fromJson<DateTime?>(json['cooldownUntil']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      notificationState:
+          serializer.fromJson<String?>(json['notificationState']),
+      actionState: serializer.fromJson<String>(json['actionState']),
+      actionType: serializer.fromJson<String?>(json['actionType']),
+      actionClientEventId:
+          serializer.fromJson<String?>(json['actionClientEventId']),
+      actionQueuedAt: serializer.fromJson<DateTime?>(json['actionQueuedAt']),
+      actionSyncedAt: serializer.fromJson<DateTime?>(json['actionSyncedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tripId': serializer.toJson<String>(tripId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'fingerprint': serializer.toJson<String>(fingerprint),
+      'status': serializer.toJson<String>(status),
+      'confidence': serializer.toJson<double?>(confidence),
+      'suggestedName': serializer.toJson<String?>(suggestedName),
+      'suggestedLatitude': serializer.toJson<double?>(suggestedLatitude),
+      'suggestedLongitude': serializer.toJson<double?>(suggestedLongitude),
+      'startedAt': serializer.toJson<DateTime?>(startedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'confirmedTripPlaceId': serializer.toJson<String?>(confirmedTripPlaceId),
+      'rejectedReason': serializer.toJson<String?>(rejectedReason),
+      'snoozedUntil': serializer.toJson<DateTime?>(snoozedUntil),
+      'cooldownUntil': serializer.toJson<DateTime?>(cooldownUntil),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'notificationState': serializer.toJson<String?>(notificationState),
+      'actionState': serializer.toJson<String>(actionState),
+      'actionType': serializer.toJson<String?>(actionType),
+      'actionClientEventId': serializer.toJson<String?>(actionClientEventId),
+      'actionQueuedAt': serializer.toJson<DateTime?>(actionQueuedAt),
+      'actionSyncedAt': serializer.toJson<DateTime?>(actionSyncedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TrackingCandidateRow copyWith(
+          {String? id,
+          String? tripId,
+          Value<String?> sessionId = const Value.absent(),
+          String? fingerprint,
+          String? status,
+          Value<double?> confidence = const Value.absent(),
+          Value<String?> suggestedName = const Value.absent(),
+          Value<double?> suggestedLatitude = const Value.absent(),
+          Value<double?> suggestedLongitude = const Value.absent(),
+          Value<DateTime?> startedAt = const Value.absent(),
+          Value<DateTime?> endedAt = const Value.absent(),
+          Value<String?> confirmedTripPlaceId = const Value.absent(),
+          Value<String?> rejectedReason = const Value.absent(),
+          Value<DateTime?> snoozedUntil = const Value.absent(),
+          Value<DateTime?> cooldownUntil = const Value.absent(),
+          String? payloadJson,
+          Value<String?> notificationState = const Value.absent(),
+          String? actionState,
+          Value<String?> actionType = const Value.absent(),
+          Value<String?> actionClientEventId = const Value.absent(),
+          Value<DateTime?> actionQueuedAt = const Value.absent(),
+          Value<DateTime?> actionSyncedAt = const Value.absent(),
+          String? syncStatus,
+          DateTime? localUpdatedAt,
+          Value<DateTime?> serverUpdatedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      TrackingCandidateRow(
+        id: id ?? this.id,
+        tripId: tripId ?? this.tripId,
+        sessionId: sessionId.present ? sessionId.value : this.sessionId,
+        fingerprint: fingerprint ?? this.fingerprint,
+        status: status ?? this.status,
+        confidence: confidence.present ? confidence.value : this.confidence,
+        suggestedName:
+            suggestedName.present ? suggestedName.value : this.suggestedName,
+        suggestedLatitude: suggestedLatitude.present
+            ? suggestedLatitude.value
+            : this.suggestedLatitude,
+        suggestedLongitude: suggestedLongitude.present
+            ? suggestedLongitude.value
+            : this.suggestedLongitude,
+        startedAt: startedAt.present ? startedAt.value : this.startedAt,
+        endedAt: endedAt.present ? endedAt.value : this.endedAt,
+        confirmedTripPlaceId: confirmedTripPlaceId.present
+            ? confirmedTripPlaceId.value
+            : this.confirmedTripPlaceId,
+        rejectedReason:
+            rejectedReason.present ? rejectedReason.value : this.rejectedReason,
+        snoozedUntil:
+            snoozedUntil.present ? snoozedUntil.value : this.snoozedUntil,
+        cooldownUntil:
+            cooldownUntil.present ? cooldownUntil.value : this.cooldownUntil,
+        payloadJson: payloadJson ?? this.payloadJson,
+        notificationState: notificationState.present
+            ? notificationState.value
+            : this.notificationState,
+        actionState: actionState ?? this.actionState,
+        actionType: actionType.present ? actionType.value : this.actionType,
+        actionClientEventId: actionClientEventId.present
+            ? actionClientEventId.value
+            : this.actionClientEventId,
+        actionQueuedAt:
+            actionQueuedAt.present ? actionQueuedAt.value : this.actionQueuedAt,
+        actionSyncedAt:
+            actionSyncedAt.present ? actionSyncedAt.value : this.actionSyncedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TrackingCandidateRow copyWithCompanion(TrackingCandidatesCompanion data) {
+    return TrackingCandidateRow(
+      id: data.id.present ? data.id.value : this.id,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      fingerprint:
+          data.fingerprint.present ? data.fingerprint.value : this.fingerprint,
+      status: data.status.present ? data.status.value : this.status,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      suggestedName: data.suggestedName.present
+          ? data.suggestedName.value
+          : this.suggestedName,
+      suggestedLatitude: data.suggestedLatitude.present
+          ? data.suggestedLatitude.value
+          : this.suggestedLatitude,
+      suggestedLongitude: data.suggestedLongitude.present
+          ? data.suggestedLongitude.value
+          : this.suggestedLongitude,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      confirmedTripPlaceId: data.confirmedTripPlaceId.present
+          ? data.confirmedTripPlaceId.value
+          : this.confirmedTripPlaceId,
+      rejectedReason: data.rejectedReason.present
+          ? data.rejectedReason.value
+          : this.rejectedReason,
+      snoozedUntil: data.snoozedUntil.present
+          ? data.snoozedUntil.value
+          : this.snoozedUntil,
+      cooldownUntil: data.cooldownUntil.present
+          ? data.cooldownUntil.value
+          : this.cooldownUntil,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      notificationState: data.notificationState.present
+          ? data.notificationState.value
+          : this.notificationState,
+      actionState:
+          data.actionState.present ? data.actionState.value : this.actionState,
+      actionType:
+          data.actionType.present ? data.actionType.value : this.actionType,
+      actionClientEventId: data.actionClientEventId.present
+          ? data.actionClientEventId.value
+          : this.actionClientEventId,
+      actionQueuedAt: data.actionQueuedAt.present
+          ? data.actionQueuedAt.value
+          : this.actionQueuedAt,
+      actionSyncedAt: data.actionSyncedAt.present
+          ? data.actionSyncedAt.value
+          : this.actionSyncedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingCandidateRow(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('status: $status, ')
+          ..write('confidence: $confidence, ')
+          ..write('suggestedName: $suggestedName, ')
+          ..write('suggestedLatitude: $suggestedLatitude, ')
+          ..write('suggestedLongitude: $suggestedLongitude, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('confirmedTripPlaceId: $confirmedTripPlaceId, ')
+          ..write('rejectedReason: $rejectedReason, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
+          ..write('cooldownUntil: $cooldownUntil, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('notificationState: $notificationState, ')
+          ..write('actionState: $actionState, ')
+          ..write('actionType: $actionType, ')
+          ..write('actionClientEventId: $actionClientEventId, ')
+          ..write('actionQueuedAt: $actionQueuedAt, ')
+          ..write('actionSyncedAt: $actionSyncedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        tripId,
+        sessionId,
+        fingerprint,
+        status,
+        confidence,
+        suggestedName,
+        suggestedLatitude,
+        suggestedLongitude,
+        startedAt,
+        endedAt,
+        confirmedTripPlaceId,
+        rejectedReason,
+        snoozedUntil,
+        cooldownUntil,
+        payloadJson,
+        notificationState,
+        actionState,
+        actionType,
+        actionClientEventId,
+        actionQueuedAt,
+        actionSyncedAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt,
+        createdAt,
+        updatedAt
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackingCandidateRow &&
+          other.id == this.id &&
+          other.tripId == this.tripId &&
+          other.sessionId == this.sessionId &&
+          other.fingerprint == this.fingerprint &&
+          other.status == this.status &&
+          other.confidence == this.confidence &&
+          other.suggestedName == this.suggestedName &&
+          other.suggestedLatitude == this.suggestedLatitude &&
+          other.suggestedLongitude == this.suggestedLongitude &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.confirmedTripPlaceId == this.confirmedTripPlaceId &&
+          other.rejectedReason == this.rejectedReason &&
+          other.snoozedUntil == this.snoozedUntil &&
+          other.cooldownUntil == this.cooldownUntil &&
+          other.payloadJson == this.payloadJson &&
+          other.notificationState == this.notificationState &&
+          other.actionState == this.actionState &&
+          other.actionType == this.actionType &&
+          other.actionClientEventId == this.actionClientEventId &&
+          other.actionQueuedAt == this.actionQueuedAt &&
+          other.actionSyncedAt == this.actionSyncedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TrackingCandidatesCompanion
+    extends UpdateCompanion<TrackingCandidateRow> {
+  final Value<String> id;
+  final Value<String> tripId;
+  final Value<String?> sessionId;
+  final Value<String> fingerprint;
+  final Value<String> status;
+  final Value<double?> confidence;
+  final Value<String?> suggestedName;
+  final Value<double?> suggestedLatitude;
+  final Value<double?> suggestedLongitude;
+  final Value<DateTime?> startedAt;
+  final Value<DateTime?> endedAt;
+  final Value<String?> confirmedTripPlaceId;
+  final Value<String?> rejectedReason;
+  final Value<DateTime?> snoozedUntil;
+  final Value<DateTime?> cooldownUntil;
+  final Value<String> payloadJson;
+  final Value<String?> notificationState;
+  final Value<String> actionState;
+  final Value<String?> actionType;
+  final Value<String?> actionClientEventId;
+  final Value<DateTime?> actionQueuedAt;
+  final Value<DateTime?> actionSyncedAt;
+  final Value<String> syncStatus;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TrackingCandidatesCompanion({
+    this.id = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.fingerprint = const Value.absent(),
+    this.status = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.suggestedName = const Value.absent(),
+    this.suggestedLatitude = const Value.absent(),
+    this.suggestedLongitude = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.confirmedTripPlaceId = const Value.absent(),
+    this.rejectedReason = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
+    this.cooldownUntil = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.notificationState = const Value.absent(),
+    this.actionState = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.actionClientEventId = const Value.absent(),
+    this.actionQueuedAt = const Value.absent(),
+    this.actionSyncedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackingCandidatesCompanion.insert({
+    required String id,
+    required String tripId,
+    this.sessionId = const Value.absent(),
+    required String fingerprint,
+    this.status = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.suggestedName = const Value.absent(),
+    this.suggestedLatitude = const Value.absent(),
+    this.suggestedLongitude = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.confirmedTripPlaceId = const Value.absent(),
+    this.rejectedReason = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
+    this.cooldownUntil = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.notificationState = const Value.absent(),
+    this.actionState = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.actionClientEventId = const Value.absent(),
+    this.actionQueuedAt = const Value.absent(),
+    this.actionSyncedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    required DateTime localUpdatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tripId = Value(tripId),
+        fingerprint = Value(fingerprint),
+        localUpdatedAt = Value(localUpdatedAt),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TrackingCandidateRow> custom({
+    Expression<String>? id,
+    Expression<String>? tripId,
+    Expression<String>? sessionId,
+    Expression<String>? fingerprint,
+    Expression<String>? status,
+    Expression<double>? confidence,
+    Expression<String>? suggestedName,
+    Expression<double>? suggestedLatitude,
+    Expression<double>? suggestedLongitude,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<String>? confirmedTripPlaceId,
+    Expression<String>? rejectedReason,
+    Expression<DateTime>? snoozedUntil,
+    Expression<DateTime>? cooldownUntil,
+    Expression<String>? payloadJson,
+    Expression<String>? notificationState,
+    Expression<String>? actionState,
+    Expression<String>? actionType,
+    Expression<String>? actionClientEventId,
+    Expression<DateTime>? actionQueuedAt,
+    Expression<DateTime>? actionSyncedAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tripId != null) 'trip_id': tripId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (fingerprint != null) 'fingerprint': fingerprint,
+      if (status != null) 'status': status,
+      if (confidence != null) 'confidence': confidence,
+      if (suggestedName != null) 'suggested_name': suggestedName,
+      if (suggestedLatitude != null) 'suggested_latitude': suggestedLatitude,
+      if (suggestedLongitude != null) 'suggested_longitude': suggestedLongitude,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (confirmedTripPlaceId != null)
+        'confirmed_trip_place_id': confirmedTripPlaceId,
+      if (rejectedReason != null) 'rejected_reason': rejectedReason,
+      if (snoozedUntil != null) 'snoozed_until': snoozedUntil,
+      if (cooldownUntil != null) 'cooldown_until': cooldownUntil,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (notificationState != null) 'notification_state': notificationState,
+      if (actionState != null) 'action_state': actionState,
+      if (actionType != null) 'action_type': actionType,
+      if (actionClientEventId != null)
+        'action_client_event_id': actionClientEventId,
+      if (actionQueuedAt != null) 'action_queued_at': actionQueuedAt,
+      if (actionSyncedAt != null) 'action_synced_at': actionSyncedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackingCandidatesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tripId,
+      Value<String?>? sessionId,
+      Value<String>? fingerprint,
+      Value<String>? status,
+      Value<double?>? confidence,
+      Value<String?>? suggestedName,
+      Value<double?>? suggestedLatitude,
+      Value<double?>? suggestedLongitude,
+      Value<DateTime?>? startedAt,
+      Value<DateTime?>? endedAt,
+      Value<String?>? confirmedTripPlaceId,
+      Value<String?>? rejectedReason,
+      Value<DateTime?>? snoozedUntil,
+      Value<DateTime?>? cooldownUntil,
+      Value<String>? payloadJson,
+      Value<String?>? notificationState,
+      Value<String>? actionState,
+      Value<String?>? actionType,
+      Value<String?>? actionClientEventId,
+      Value<DateTime?>? actionQueuedAt,
+      Value<DateTime?>? actionSyncedAt,
+      Value<String>? syncStatus,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TrackingCandidatesCompanion(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      sessionId: sessionId ?? this.sessionId,
+      fingerprint: fingerprint ?? this.fingerprint,
+      status: status ?? this.status,
+      confidence: confidence ?? this.confidence,
+      suggestedName: suggestedName ?? this.suggestedName,
+      suggestedLatitude: suggestedLatitude ?? this.suggestedLatitude,
+      suggestedLongitude: suggestedLongitude ?? this.suggestedLongitude,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      confirmedTripPlaceId: confirmedTripPlaceId ?? this.confirmedTripPlaceId,
+      rejectedReason: rejectedReason ?? this.rejectedReason,
+      snoozedUntil: snoozedUntil ?? this.snoozedUntil,
+      cooldownUntil: cooldownUntil ?? this.cooldownUntil,
+      payloadJson: payloadJson ?? this.payloadJson,
+      notificationState: notificationState ?? this.notificationState,
+      actionState: actionState ?? this.actionState,
+      actionType: actionType ?? this.actionType,
+      actionClientEventId: actionClientEventId ?? this.actionClientEventId,
+      actionQueuedAt: actionQueuedAt ?? this.actionQueuedAt,
+      actionSyncedAt: actionSyncedAt ?? this.actionSyncedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (fingerprint.present) {
+      map['fingerprint'] = Variable<String>(fingerprint.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (suggestedName.present) {
+      map['suggested_name'] = Variable<String>(suggestedName.value);
+    }
+    if (suggestedLatitude.present) {
+      map['suggested_latitude'] = Variable<double>(suggestedLatitude.value);
+    }
+    if (suggestedLongitude.present) {
+      map['suggested_longitude'] = Variable<double>(suggestedLongitude.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (confirmedTripPlaceId.present) {
+      map['confirmed_trip_place_id'] =
+          Variable<String>(confirmedTripPlaceId.value);
+    }
+    if (rejectedReason.present) {
+      map['rejected_reason'] = Variable<String>(rejectedReason.value);
+    }
+    if (snoozedUntil.present) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil.value);
+    }
+    if (cooldownUntil.present) {
+      map['cooldown_until'] = Variable<DateTime>(cooldownUntil.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (notificationState.present) {
+      map['notification_state'] = Variable<String>(notificationState.value);
+    }
+    if (actionState.present) {
+      map['action_state'] = Variable<String>(actionState.value);
+    }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (actionClientEventId.present) {
+      map['action_client_event_id'] =
+          Variable<String>(actionClientEventId.value);
+    }
+    if (actionQueuedAt.present) {
+      map['action_queued_at'] = Variable<DateTime>(actionQueuedAt.value);
+    }
+    if (actionSyncedAt.present) {
+      map['action_synced_at'] = Variable<DateTime>(actionSyncedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingCandidatesCompanion(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('status: $status, ')
+          ..write('confidence: $confidence, ')
+          ..write('suggestedName: $suggestedName, ')
+          ..write('suggestedLatitude: $suggestedLatitude, ')
+          ..write('suggestedLongitude: $suggestedLongitude, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('confirmedTripPlaceId: $confirmedTripPlaceId, ')
+          ..write('rejectedReason: $rejectedReason, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
+          ..write('cooldownUntil: $cooldownUntil, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('notificationState: $notificationState, ')
+          ..write('actionState: $actionState, ')
+          ..write('actionType: $actionType, ')
+          ..write('actionClientEventId: $actionClientEventId, ')
+          ..write('actionQueuedAt: $actionQueuedAt, ')
+          ..write('actionSyncedAt: $actionSyncedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TrackingMomentsTable extends TrackingMoments
+    with TableInfo<$TrackingMomentsTable, TrackingMomentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TrackingMomentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+      'trip_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _candidateIdMeta =
+      const VerificationMeta('candidateId');
+  @override
+  late final GeneratedColumn<String> candidateId = GeneratedColumn<String>(
+      'candidate_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _linkedTripPlaceIdMeta =
+      const VerificationMeta('linkedTripPlaceId');
+  @override
+  late final GeneratedColumn<String> linkedTripPlaceId =
+      GeneratedColumn<String>('linked_trip_place_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('manual'));
+  static const VerificationMeta _confidenceMeta =
+      const VerificationMeta('confidence');
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+      'confidence', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _latitudeMeta =
+      const VerificationMeta('latitude');
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+      'latitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _longitudeMeta =
+      const VerificationMeta('longitude');
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+      'longitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mediaRefsJsonMeta =
+      const VerificationMeta('mediaRefsJson');
+  @override
+  late final GeneratedColumn<String> mediaRefsJson = GeneratedColumn<String>(
+      'media_refs_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _extraPayloadJsonMeta =
+      const VerificationMeta('extraPayloadJson');
+  @override
+  late final GeneratedColumn<String> extraPayloadJson = GeneratedColumn<String>(
+      'extra_payload_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _lockedFieldsJsonMeta =
+      const VerificationMeta('lockedFieldsJson');
+  @override
+  late final GeneratedColumn<String> lockedFieldsJson = GeneratedColumn<String>(
+      'locked_fields_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _pendingOperationMeta =
+      const VerificationMeta('pendingOperation');
+  @override
+  late final GeneratedColumn<String> pendingOperation = GeneratedColumn<String>(
+      'pending_operation', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _clientEventIdMeta =
+      const VerificationMeta('clientEventId');
+  @override
+  late final GeneratedColumn<String> clientEventId = GeneratedColumn<String>(
+      'client_event_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tripId,
+        candidateId,
+        linkedTripPlaceId,
+        source,
+        confidence,
+        capturedAt,
+        latitude,
+        longitude,
+        note,
+        mediaRefsJson,
+        extraPayloadJson,
+        lockedFieldsJson,
+        pendingOperation,
+        clientEventId,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tracking_moments';
+  @override
+  VerificationContext validateIntegrity(Insertable<TrackingMomentRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(_tripIdMeta,
+          tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('candidate_id')) {
+      context.handle(
+          _candidateIdMeta,
+          candidateId.isAcceptableOrUnknown(
+              data['candidate_id']!, _candidateIdMeta));
+    }
+    if (data.containsKey('linked_trip_place_id')) {
+      context.handle(
+          _linkedTripPlaceIdMeta,
+          linkedTripPlaceId.isAcceptableOrUnknown(
+              data['linked_trip_place_id']!, _linkedTripPlaceIdMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+          _confidenceMeta,
+          confidence.isAcceptableOrUnknown(
+              data['confidence']!, _confidenceMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(_latitudeMeta,
+          latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta));
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(_longitudeMeta,
+          longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('media_refs_json')) {
+      context.handle(
+          _mediaRefsJsonMeta,
+          mediaRefsJson.isAcceptableOrUnknown(
+              data['media_refs_json']!, _mediaRefsJsonMeta));
+    }
+    if (data.containsKey('extra_payload_json')) {
+      context.handle(
+          _extraPayloadJsonMeta,
+          extraPayloadJson.isAcceptableOrUnknown(
+              data['extra_payload_json']!, _extraPayloadJsonMeta));
+    }
+    if (data.containsKey('locked_fields_json')) {
+      context.handle(
+          _lockedFieldsJsonMeta,
+          lockedFieldsJson.isAcceptableOrUnknown(
+              data['locked_fields_json']!, _lockedFieldsJsonMeta));
+    }
+    if (data.containsKey('pending_operation')) {
+      context.handle(
+          _pendingOperationMeta,
+          pendingOperation.isAcceptableOrUnknown(
+              data['pending_operation']!, _pendingOperationMeta));
+    }
+    if (data.containsKey('client_event_id')) {
+      context.handle(
+          _clientEventIdMeta,
+          clientEventId.isAcceptableOrUnknown(
+              data['client_event_id']!, _clientEventIdMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_localUpdatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TrackingMomentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TrackingMomentRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
+      candidateId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}candidate_id']),
+      linkedTripPlaceId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}linked_trip_place_id']),
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      confidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}confidence']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}captured_at'])!,
+      latitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}latitude']),
+      longitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}longitude']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      mediaRefsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}media_refs_json'])!,
+      extraPayloadJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}extra_payload_json'])!,
+      lockedFieldsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}locked_fields_json'])!,
+      pendingOperation: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}pending_operation']),
+      clientEventId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}client_event_id']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TrackingMomentsTable createAlias(String alias) {
+    return $TrackingMomentsTable(attachedDatabase, alias);
+  }
+}
+
+class TrackingMomentRow extends DataClass
+    implements Insertable<TrackingMomentRow> {
+  final String id;
+  final String tripId;
+  final String? candidateId;
+  final String? linkedTripPlaceId;
+  final String source;
+  final double? confidence;
+  final DateTime capturedAt;
+  final double? latitude;
+  final double? longitude;
+  final String? note;
+  final String mediaRefsJson;
+  final String extraPayloadJson;
+  final String lockedFieldsJson;
+  final String? pendingOperation;
+  final String? clientEventId;
+  final String syncStatus;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TrackingMomentRow(
+      {required this.id,
+      required this.tripId,
+      this.candidateId,
+      this.linkedTripPlaceId,
+      required this.source,
+      this.confidence,
+      required this.capturedAt,
+      this.latitude,
+      this.longitude,
+      this.note,
+      required this.mediaRefsJson,
+      required this.extraPayloadJson,
+      required this.lockedFieldsJson,
+      this.pendingOperation,
+      this.clientEventId,
+      required this.syncStatus,
+      required this.localUpdatedAt,
+      this.serverUpdatedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['trip_id'] = Variable<String>(tripId);
+    if (!nullToAbsent || candidateId != null) {
+      map['candidate_id'] = Variable<String>(candidateId);
+    }
+    if (!nullToAbsent || linkedTripPlaceId != null) {
+      map['linked_trip_place_id'] = Variable<String>(linkedTripPlaceId);
+    }
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || confidence != null) {
+      map['confidence'] = Variable<double>(confidence);
+    }
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['media_refs_json'] = Variable<String>(mediaRefsJson);
+    map['extra_payload_json'] = Variable<String>(extraPayloadJson);
+    map['locked_fields_json'] = Variable<String>(lockedFieldsJson);
+    if (!nullToAbsent || pendingOperation != null) {
+      map['pending_operation'] = Variable<String>(pendingOperation);
+    }
+    if (!nullToAbsent || clientEventId != null) {
+      map['client_event_id'] = Variable<String>(clientEventId);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TrackingMomentsCompanion toCompanion(bool nullToAbsent) {
+    return TrackingMomentsCompanion(
+      id: Value(id),
+      tripId: Value(tripId),
+      candidateId: candidateId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(candidateId),
+      linkedTripPlaceId: linkedTripPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedTripPlaceId),
+      source: Value(source),
+      confidence: confidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confidence),
+      capturedAt: Value(capturedAt),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      mediaRefsJson: Value(mediaRefsJson),
+      extraPayloadJson: Value(extraPayloadJson),
+      lockedFieldsJson: Value(lockedFieldsJson),
+      pendingOperation: pendingOperation == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pendingOperation),
+      clientEventId: clientEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientEventId),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TrackingMomentRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TrackingMomentRow(
+      id: serializer.fromJson<String>(json['id']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      candidateId: serializer.fromJson<String?>(json['candidateId']),
+      linkedTripPlaceId:
+          serializer.fromJson<String?>(json['linkedTripPlaceId']),
+      source: serializer.fromJson<String>(json['source']),
+      confidence: serializer.fromJson<double?>(json['confidence']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      note: serializer.fromJson<String?>(json['note']),
+      mediaRefsJson: serializer.fromJson<String>(json['mediaRefsJson']),
+      extraPayloadJson: serializer.fromJson<String>(json['extraPayloadJson']),
+      lockedFieldsJson: serializer.fromJson<String>(json['lockedFieldsJson']),
+      pendingOperation: serializer.fromJson<String?>(json['pendingOperation']),
+      clientEventId: serializer.fromJson<String?>(json['clientEventId']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tripId': serializer.toJson<String>(tripId),
+      'candidateId': serializer.toJson<String?>(candidateId),
+      'linkedTripPlaceId': serializer.toJson<String?>(linkedTripPlaceId),
+      'source': serializer.toJson<String>(source),
+      'confidence': serializer.toJson<double?>(confidence),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'note': serializer.toJson<String?>(note),
+      'mediaRefsJson': serializer.toJson<String>(mediaRefsJson),
+      'extraPayloadJson': serializer.toJson<String>(extraPayloadJson),
+      'lockedFieldsJson': serializer.toJson<String>(lockedFieldsJson),
+      'pendingOperation': serializer.toJson<String?>(pendingOperation),
+      'clientEventId': serializer.toJson<String?>(clientEventId),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TrackingMomentRow copyWith(
+          {String? id,
+          String? tripId,
+          Value<String?> candidateId = const Value.absent(),
+          Value<String?> linkedTripPlaceId = const Value.absent(),
+          String? source,
+          Value<double?> confidence = const Value.absent(),
+          DateTime? capturedAt,
+          Value<double?> latitude = const Value.absent(),
+          Value<double?> longitude = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          String? mediaRefsJson,
+          String? extraPayloadJson,
+          String? lockedFieldsJson,
+          Value<String?> pendingOperation = const Value.absent(),
+          Value<String?> clientEventId = const Value.absent(),
+          String? syncStatus,
+          DateTime? localUpdatedAt,
+          Value<DateTime?> serverUpdatedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      TrackingMomentRow(
+        id: id ?? this.id,
+        tripId: tripId ?? this.tripId,
+        candidateId: candidateId.present ? candidateId.value : this.candidateId,
+        linkedTripPlaceId: linkedTripPlaceId.present
+            ? linkedTripPlaceId.value
+            : this.linkedTripPlaceId,
+        source: source ?? this.source,
+        confidence: confidence.present ? confidence.value : this.confidence,
+        capturedAt: capturedAt ?? this.capturedAt,
+        latitude: latitude.present ? latitude.value : this.latitude,
+        longitude: longitude.present ? longitude.value : this.longitude,
+        note: note.present ? note.value : this.note,
+        mediaRefsJson: mediaRefsJson ?? this.mediaRefsJson,
+        extraPayloadJson: extraPayloadJson ?? this.extraPayloadJson,
+        lockedFieldsJson: lockedFieldsJson ?? this.lockedFieldsJson,
+        pendingOperation: pendingOperation.present
+            ? pendingOperation.value
+            : this.pendingOperation,
+        clientEventId:
+            clientEventId.present ? clientEventId.value : this.clientEventId,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TrackingMomentRow copyWithCompanion(TrackingMomentsCompanion data) {
+    return TrackingMomentRow(
+      id: data.id.present ? data.id.value : this.id,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      candidateId:
+          data.candidateId.present ? data.candidateId.value : this.candidateId,
+      linkedTripPlaceId: data.linkedTripPlaceId.present
+          ? data.linkedTripPlaceId.value
+          : this.linkedTripPlaceId,
+      source: data.source.present ? data.source.value : this.source,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      note: data.note.present ? data.note.value : this.note,
+      mediaRefsJson: data.mediaRefsJson.present
+          ? data.mediaRefsJson.value
+          : this.mediaRefsJson,
+      extraPayloadJson: data.extraPayloadJson.present
+          ? data.extraPayloadJson.value
+          : this.extraPayloadJson,
+      lockedFieldsJson: data.lockedFieldsJson.present
+          ? data.lockedFieldsJson.value
+          : this.lockedFieldsJson,
+      pendingOperation: data.pendingOperation.present
+          ? data.pendingOperation.value
+          : this.pendingOperation,
+      clientEventId: data.clientEventId.present
+          ? data.clientEventId.value
+          : this.clientEventId,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingMomentRow(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('candidateId: $candidateId, ')
+          ..write('linkedTripPlaceId: $linkedTripPlaceId, ')
+          ..write('source: $source, ')
+          ..write('confidence: $confidence, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('note: $note, ')
+          ..write('mediaRefsJson: $mediaRefsJson, ')
+          ..write('extraPayloadJson: $extraPayloadJson, ')
+          ..write('lockedFieldsJson: $lockedFieldsJson, ')
+          ..write('pendingOperation: $pendingOperation, ')
+          ..write('clientEventId: $clientEventId, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tripId,
+      candidateId,
+      linkedTripPlaceId,
+      source,
+      confidence,
+      capturedAt,
+      latitude,
+      longitude,
+      note,
+      mediaRefsJson,
+      extraPayloadJson,
+      lockedFieldsJson,
+      pendingOperation,
+      clientEventId,
+      syncStatus,
+      localUpdatedAt,
+      serverUpdatedAt,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TrackingMomentRow &&
+          other.id == this.id &&
+          other.tripId == this.tripId &&
+          other.candidateId == this.candidateId &&
+          other.linkedTripPlaceId == this.linkedTripPlaceId &&
+          other.source == this.source &&
+          other.confidence == this.confidence &&
+          other.capturedAt == this.capturedAt &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.note == this.note &&
+          other.mediaRefsJson == this.mediaRefsJson &&
+          other.extraPayloadJson == this.extraPayloadJson &&
+          other.lockedFieldsJson == this.lockedFieldsJson &&
+          other.pendingOperation == this.pendingOperation &&
+          other.clientEventId == this.clientEventId &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TrackingMomentsCompanion extends UpdateCompanion<TrackingMomentRow> {
+  final Value<String> id;
+  final Value<String> tripId;
+  final Value<String?> candidateId;
+  final Value<String?> linkedTripPlaceId;
+  final Value<String> source;
+  final Value<double?> confidence;
+  final Value<DateTime> capturedAt;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<String?> note;
+  final Value<String> mediaRefsJson;
+  final Value<String> extraPayloadJson;
+  final Value<String> lockedFieldsJson;
+  final Value<String?> pendingOperation;
+  final Value<String?> clientEventId;
+  final Value<String> syncStatus;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TrackingMomentsCompanion({
+    this.id = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.candidateId = const Value.absent(),
+    this.linkedTripPlaceId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.note = const Value.absent(),
+    this.mediaRefsJson = const Value.absent(),
+    this.extraPayloadJson = const Value.absent(),
+    this.lockedFieldsJson = const Value.absent(),
+    this.pendingOperation = const Value.absent(),
+    this.clientEventId = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TrackingMomentsCompanion.insert({
+    required String id,
+    required String tripId,
+    this.candidateId = const Value.absent(),
+    this.linkedTripPlaceId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.confidence = const Value.absent(),
+    required DateTime capturedAt,
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.note = const Value.absent(),
+    this.mediaRefsJson = const Value.absent(),
+    this.extraPayloadJson = const Value.absent(),
+    this.lockedFieldsJson = const Value.absent(),
+    this.pendingOperation = const Value.absent(),
+    this.clientEventId = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    required DateTime localUpdatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tripId = Value(tripId),
+        capturedAt = Value(capturedAt),
+        localUpdatedAt = Value(localUpdatedAt),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TrackingMomentRow> custom({
+    Expression<String>? id,
+    Expression<String>? tripId,
+    Expression<String>? candidateId,
+    Expression<String>? linkedTripPlaceId,
+    Expression<String>? source,
+    Expression<double>? confidence,
+    Expression<DateTime>? capturedAt,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<String>? note,
+    Expression<String>? mediaRefsJson,
+    Expression<String>? extraPayloadJson,
+    Expression<String>? lockedFieldsJson,
+    Expression<String>? pendingOperation,
+    Expression<String>? clientEventId,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tripId != null) 'trip_id': tripId,
+      if (candidateId != null) 'candidate_id': candidateId,
+      if (linkedTripPlaceId != null) 'linked_trip_place_id': linkedTripPlaceId,
+      if (source != null) 'source': source,
+      if (confidence != null) 'confidence': confidence,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (note != null) 'note': note,
+      if (mediaRefsJson != null) 'media_refs_json': mediaRefsJson,
+      if (extraPayloadJson != null) 'extra_payload_json': extraPayloadJson,
+      if (lockedFieldsJson != null) 'locked_fields_json': lockedFieldsJson,
+      if (pendingOperation != null) 'pending_operation': pendingOperation,
+      if (clientEventId != null) 'client_event_id': clientEventId,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TrackingMomentsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tripId,
+      Value<String?>? candidateId,
+      Value<String?>? linkedTripPlaceId,
+      Value<String>? source,
+      Value<double?>? confidence,
+      Value<DateTime>? capturedAt,
+      Value<double?>? latitude,
+      Value<double?>? longitude,
+      Value<String?>? note,
+      Value<String>? mediaRefsJson,
+      Value<String>? extraPayloadJson,
+      Value<String>? lockedFieldsJson,
+      Value<String?>? pendingOperation,
+      Value<String?>? clientEventId,
+      Value<String>? syncStatus,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TrackingMomentsCompanion(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      candidateId: candidateId ?? this.candidateId,
+      linkedTripPlaceId: linkedTripPlaceId ?? this.linkedTripPlaceId,
+      source: source ?? this.source,
+      confidence: confidence ?? this.confidence,
+      capturedAt: capturedAt ?? this.capturedAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      note: note ?? this.note,
+      mediaRefsJson: mediaRefsJson ?? this.mediaRefsJson,
+      extraPayloadJson: extraPayloadJson ?? this.extraPayloadJson,
+      lockedFieldsJson: lockedFieldsJson ?? this.lockedFieldsJson,
+      pendingOperation: pendingOperation ?? this.pendingOperation,
+      clientEventId: clientEventId ?? this.clientEventId,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (candidateId.present) {
+      map['candidate_id'] = Variable<String>(candidateId.value);
+    }
+    if (linkedTripPlaceId.present) {
+      map['linked_trip_place_id'] = Variable<String>(linkedTripPlaceId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (mediaRefsJson.present) {
+      map['media_refs_json'] = Variable<String>(mediaRefsJson.value);
+    }
+    if (extraPayloadJson.present) {
+      map['extra_payload_json'] = Variable<String>(extraPayloadJson.value);
+    }
+    if (lockedFieldsJson.present) {
+      map['locked_fields_json'] = Variable<String>(lockedFieldsJson.value);
+    }
+    if (pendingOperation.present) {
+      map['pending_operation'] = Variable<String>(pendingOperation.value);
+    }
+    if (clientEventId.present) {
+      map['client_event_id'] = Variable<String>(clientEventId.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TrackingMomentsCompanion(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('candidateId: $candidateId, ')
+          ..write('linkedTripPlaceId: $linkedTripPlaceId, ')
+          ..write('source: $source, ')
+          ..write('confidence: $confidence, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('note: $note, ')
+          ..write('mediaRefsJson: $mediaRefsJson, ')
+          ..write('extraPayloadJson: $extraPayloadJson, ')
+          ..write('lockedFieldsJson: $lockedFieldsJson, ')
+          ..write('pendingOperation: $pendingOperation, ')
+          ..write('clientEventId: $clientEventId, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5742,6 +9826,44 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PublicTripsTable publicTrips = $PublicTripsTable(this);
   late final $UserTripsTable userTrips = $UserTripsTable(this);
   late final $SyncTasksTable syncTasks = $SyncTasksTable(this);
+  late final $TrackingSessionsTable trackingSessions =
+      $TrackingSessionsTable(this);
+  late final $TrackingPointBatchesTable trackingPointBatches =
+      $TrackingPointBatchesTable(this);
+  late final $TrackingCandidatesTable trackingCandidates =
+      $TrackingCandidatesTable(this);
+  late final $TrackingMomentsTable trackingMoments =
+      $TrackingMomentsTable(this);
+  late final Index trackingSessionsTripStateUpdatedIdx = Index(
+      'tracking_sessions_trip_state_updated_idx',
+      'CREATE INDEX tracking_sessions_trip_state_updated_idx ON tracking_sessions (trip_id, state, local_updated_at)');
+  late final Index trackingSessionsTripUpdatedIdx = Index(
+      'tracking_sessions_trip_updated_idx',
+      'CREATE INDEX tracking_sessions_trip_updated_idx ON tracking_sessions (trip_id, updated_at)');
+  late final Index trackingPointBatchesClaimIdx = Index(
+      'tracking_point_batches_claim_idx',
+      'CREATE INDEX tracking_point_batches_claim_idx ON tracking_point_batches (status, next_attempt_at, worker_session_id, created_at)');
+  late final Index trackingPointBatchesTripCreatedIdx = Index(
+      'tracking_point_batches_trip_created_idx',
+      'CREATE INDEX tracking_point_batches_trip_created_idx ON tracking_point_batches (trip_id, created_at)');
+  late final Index trackingPointBatchesSessionCreatedIdx = Index(
+      'tracking_point_batches_session_created_idx',
+      'CREATE INDEX tracking_point_batches_session_created_idx ON tracking_point_batches (session_id, created_at)');
+  late final Index trackingCandidatesTripCreatedIdx = Index(
+      'tracking_candidates_trip_created_idx',
+      'CREATE INDEX tracking_candidates_trip_created_idx ON tracking_candidates (trip_id, created_at)');
+  late final Index trackingCandidatesTripStatusUpdatedIdx = Index(
+      'tracking_candidates_trip_status_updated_idx',
+      'CREATE INDEX tracking_candidates_trip_status_updated_idx ON tracking_candidates (trip_id, status, updated_at)');
+  late final Index trackingCandidatesActionQueueIdx = Index(
+      'tracking_candidates_action_queue_idx',
+      'CREATE INDEX tracking_candidates_action_queue_idx ON tracking_candidates (action_state, sync_status, action_queued_at)');
+  late final Index trackingMomentsTripCapturedIdx = Index(
+      'tracking_moments_trip_captured_idx',
+      'CREATE INDEX tracking_moments_trip_captured_idx ON tracking_moments (trip_id, captured_at)');
+  late final Index trackingMomentsSyncPendingIdx = Index(
+      'tracking_moments_sync_pending_idx',
+      'CREATE INDEX tracking_moments_sync_pending_idx ON tracking_moments (sync_status, pending_operation, updated_at)');
   late final TripDao tripDao = TripDao(this as AppDatabase);
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
@@ -5750,12 +9872,41 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       PublicTripsDao(this as AppDatabase);
   late final UserTripsDao userTripsDao = UserTripsDao(this as AppDatabase);
   late final SyncTaskDao syncTaskDao = SyncTaskDao(this as AppDatabase);
+  late final TrackingSessionDao trackingSessionDao =
+      TrackingSessionDao(this as AppDatabase);
+  late final TrackingPointBatchDao trackingPointBatchDao =
+      TrackingPointBatchDao(this as AppDatabase);
+  late final TrackingCandidateDao trackingCandidateDao =
+      TrackingCandidateDao(this as AppDatabase);
+  late final TrackingMomentDao trackingMomentDao =
+      TrackingMomentDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [trips, places, routes, media, publicTrips, userTrips, syncTasks];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        trips,
+        places,
+        routes,
+        media,
+        publicTrips,
+        userTrips,
+        syncTasks,
+        trackingSessions,
+        trackingPointBatches,
+        trackingCandidates,
+        trackingMoments,
+        trackingSessionsTripStateUpdatedIdx,
+        trackingSessionsTripUpdatedIdx,
+        trackingPointBatchesClaimIdx,
+        trackingPointBatchesTripCreatedIdx,
+        trackingPointBatchesSessionCreatedIdx,
+        trackingCandidatesTripCreatedIdx,
+        trackingCandidatesTripStatusUpdatedIdx,
+        trackingCandidatesActionQueueIdx,
+        trackingMomentsTripCapturedIdx,
+        trackingMomentsSyncPendingIdx
+      ];
 }
 
 typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
@@ -8238,6 +12389,1746 @@ typedef $$SyncTasksTableProcessedTableManager = ProcessedTableManager<
     (SyncTaskRow, BaseReferences<_$AppDatabase, $SyncTasksTable, SyncTaskRow>),
     SyncTaskRow,
     PrefetchHooks Function()>;
+typedef $$TrackingSessionsTableCreateCompanionBuilder
+    = TrackingSessionsCompanion Function({
+  required String id,
+  required String tripId,
+  Value<String?> remoteSessionId,
+  required String clientSessionId,
+  Value<String> state,
+  Value<String?> timezone,
+  Value<String> deviceContextJson,
+  Value<DateTime?> startedAt,
+  Value<DateTime?> pausedAt,
+  Value<DateTime?> resumedAt,
+  Value<DateTime?> endedAt,
+  Value<DateTime?> abandonedAt,
+  Value<DateTime?> lastPointAt,
+  Value<DateTime?> lastFlushAt,
+  Value<String> syncStatus,
+  required DateTime localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TrackingSessionsTableUpdateCompanionBuilder
+    = TrackingSessionsCompanion Function({
+  Value<String> id,
+  Value<String> tripId,
+  Value<String?> remoteSessionId,
+  Value<String> clientSessionId,
+  Value<String> state,
+  Value<String?> timezone,
+  Value<String> deviceContextJson,
+  Value<DateTime?> startedAt,
+  Value<DateTime?> pausedAt,
+  Value<DateTime?> resumedAt,
+  Value<DateTime?> endedAt,
+  Value<DateTime?> abandonedAt,
+  Value<DateTime?> lastPointAt,
+  Value<DateTime?> lastFlushAt,
+  Value<String> syncStatus,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TrackingSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackingSessionsTable> {
+  $$TrackingSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get clientSessionId => $composableBuilder(
+      column: $table.clientSessionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get timezone => $composableBuilder(
+      column: $table.timezone, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deviceContextJson => $composableBuilder(
+      column: $table.deviceContextJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get pausedAt => $composableBuilder(
+      column: $table.pausedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get resumedAt => $composableBuilder(
+      column: $table.resumedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get abandonedAt => $composableBuilder(
+      column: $table.abandonedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastPointAt => $composableBuilder(
+      column: $table.lastPointAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastFlushAt => $composableBuilder(
+      column: $table.lastFlushAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TrackingSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackingSessionsTable> {
+  $$TrackingSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get clientSessionId => $composableBuilder(
+      column: $table.clientSessionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get timezone => $composableBuilder(
+      column: $table.timezone, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deviceContextJson => $composableBuilder(
+      column: $table.deviceContextJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get pausedAt => $composableBuilder(
+      column: $table.pausedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get resumedAt => $composableBuilder(
+      column: $table.resumedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get abandonedAt => $composableBuilder(
+      column: $table.abandonedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastPointAt => $composableBuilder(
+      column: $table.lastPointAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastFlushAt => $composableBuilder(
+      column: $table.lastFlushAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TrackingSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackingSessionsTable> {
+  $$TrackingSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get clientSessionId => $composableBuilder(
+      column: $table.clientSessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get timezone =>
+      $composableBuilder(column: $table.timezone, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceContextJson => $composableBuilder(
+      column: $table.deviceContextJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get pausedAt =>
+      $composableBuilder(column: $table.pausedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resumedAt =>
+      $composableBuilder(column: $table.resumedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get abandonedAt => $composableBuilder(
+      column: $table.abandonedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPointAt => $composableBuilder(
+      column: $table.lastPointAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastFlushAt => $composableBuilder(
+      column: $table.lastFlushAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TrackingSessionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TrackingSessionsTable,
+    TrackingSessionRow,
+    $$TrackingSessionsTableFilterComposer,
+    $$TrackingSessionsTableOrderingComposer,
+    $$TrackingSessionsTableAnnotationComposer,
+    $$TrackingSessionsTableCreateCompanionBuilder,
+    $$TrackingSessionsTableUpdateCompanionBuilder,
+    (
+      TrackingSessionRow,
+      BaseReferences<_$AppDatabase, $TrackingSessionsTable, TrackingSessionRow>
+    ),
+    TrackingSessionRow,
+    PrefetchHooks Function()> {
+  $$TrackingSessionsTableTableManager(
+      _$AppDatabase db, $TrackingSessionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackingSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackingSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackingSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tripId = const Value.absent(),
+            Value<String?> remoteSessionId = const Value.absent(),
+            Value<String> clientSessionId = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<String?> timezone = const Value.absent(),
+            Value<String> deviceContextJson = const Value.absent(),
+            Value<DateTime?> startedAt = const Value.absent(),
+            Value<DateTime?> pausedAt = const Value.absent(),
+            Value<DateTime?> resumedAt = const Value.absent(),
+            Value<DateTime?> endedAt = const Value.absent(),
+            Value<DateTime?> abandonedAt = const Value.absent(),
+            Value<DateTime?> lastPointAt = const Value.absent(),
+            Value<DateTime?> lastFlushAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingSessionsCompanion(
+            id: id,
+            tripId: tripId,
+            remoteSessionId: remoteSessionId,
+            clientSessionId: clientSessionId,
+            state: state,
+            timezone: timezone,
+            deviceContextJson: deviceContextJson,
+            startedAt: startedAt,
+            pausedAt: pausedAt,
+            resumedAt: resumedAt,
+            endedAt: endedAt,
+            abandonedAt: abandonedAt,
+            lastPointAt: lastPointAt,
+            lastFlushAt: lastFlushAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tripId,
+            Value<String?> remoteSessionId = const Value.absent(),
+            required String clientSessionId,
+            Value<String> state = const Value.absent(),
+            Value<String?> timezone = const Value.absent(),
+            Value<String> deviceContextJson = const Value.absent(),
+            Value<DateTime?> startedAt = const Value.absent(),
+            Value<DateTime?> pausedAt = const Value.absent(),
+            Value<DateTime?> resumedAt = const Value.absent(),
+            Value<DateTime?> endedAt = const Value.absent(),
+            Value<DateTime?> abandonedAt = const Value.absent(),
+            Value<DateTime?> lastPointAt = const Value.absent(),
+            Value<DateTime?> lastFlushAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            required DateTime localUpdatedAt,
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingSessionsCompanion.insert(
+            id: id,
+            tripId: tripId,
+            remoteSessionId: remoteSessionId,
+            clientSessionId: clientSessionId,
+            state: state,
+            timezone: timezone,
+            deviceContextJson: deviceContextJson,
+            startedAt: startedAt,
+            pausedAt: pausedAt,
+            resumedAt: resumedAt,
+            endedAt: endedAt,
+            abandonedAt: abandonedAt,
+            lastPointAt: lastPointAt,
+            lastFlushAt: lastFlushAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TrackingSessionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TrackingSessionsTable,
+    TrackingSessionRow,
+    $$TrackingSessionsTableFilterComposer,
+    $$TrackingSessionsTableOrderingComposer,
+    $$TrackingSessionsTableAnnotationComposer,
+    $$TrackingSessionsTableCreateCompanionBuilder,
+    $$TrackingSessionsTableUpdateCompanionBuilder,
+    (
+      TrackingSessionRow,
+      BaseReferences<_$AppDatabase, $TrackingSessionsTable, TrackingSessionRow>
+    ),
+    TrackingSessionRow,
+    PrefetchHooks Function()>;
+typedef $$TrackingPointBatchesTableCreateCompanionBuilder
+    = TrackingPointBatchesCompanion Function({
+  required String id,
+  required String tripId,
+  required String sessionId,
+  Value<String?> remoteSessionId,
+  required String clientBatchId,
+  Value<DateTime?> firstRecordedAt,
+  Value<DateTime?> lastRecordedAt,
+  Value<int> pointCount,
+  Value<String> pointsJson,
+  Value<String> status,
+  Value<int> retryCount,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> workerSessionId,
+  Value<String?> lastError,
+  Value<String> syncStatus,
+  required DateTime localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TrackingPointBatchesTableUpdateCompanionBuilder
+    = TrackingPointBatchesCompanion Function({
+  Value<String> id,
+  Value<String> tripId,
+  Value<String> sessionId,
+  Value<String?> remoteSessionId,
+  Value<String> clientBatchId,
+  Value<DateTime?> firstRecordedAt,
+  Value<DateTime?> lastRecordedAt,
+  Value<int> pointCount,
+  Value<String> pointsJson,
+  Value<String> status,
+  Value<int> retryCount,
+  Value<DateTime?> nextAttemptAt,
+  Value<String?> workerSessionId,
+  Value<String?> lastError,
+  Value<String> syncStatus,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TrackingPointBatchesTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackingPointBatchesTable> {
+  $$TrackingPointBatchesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get clientBatchId => $composableBuilder(
+      column: $table.clientBatchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get firstRecordedAt => $composableBuilder(
+      column: $table.firstRecordedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastRecordedAt => $composableBuilder(
+      column: $table.lastRecordedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get pointCount => $composableBuilder(
+      column: $table.pointCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get pointsJson => $composableBuilder(
+      column: $table.pointsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TrackingPointBatchesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackingPointBatchesTable> {
+  $$TrackingPointBatchesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get clientBatchId => $composableBuilder(
+      column: $table.clientBatchId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get firstRecordedAt => $composableBuilder(
+      column: $table.firstRecordedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastRecordedAt => $composableBuilder(
+      column: $table.lastRecordedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get pointCount => $composableBuilder(
+      column: $table.pointCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get pointsJson => $composableBuilder(
+      column: $table.pointsJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TrackingPointBatchesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackingPointBatchesTable> {
+  $$TrackingPointBatchesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteSessionId => $composableBuilder(
+      column: $table.remoteSessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get clientBatchId => $composableBuilder(
+      column: $table.clientBatchId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get firstRecordedAt => $composableBuilder(
+      column: $table.firstRecordedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastRecordedAt => $composableBuilder(
+      column: $table.lastRecordedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get pointCount => $composableBuilder(
+      column: $table.pointCount, builder: (column) => column);
+
+  GeneratedColumn<String> get pointsJson => $composableBuilder(
+      column: $table.pointsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get retryCount => $composableBuilder(
+      column: $table.retryCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => column);
+
+  GeneratedColumn<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TrackingPointBatchesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TrackingPointBatchesTable,
+    TrackingPointBatchRow,
+    $$TrackingPointBatchesTableFilterComposer,
+    $$TrackingPointBatchesTableOrderingComposer,
+    $$TrackingPointBatchesTableAnnotationComposer,
+    $$TrackingPointBatchesTableCreateCompanionBuilder,
+    $$TrackingPointBatchesTableUpdateCompanionBuilder,
+    (
+      TrackingPointBatchRow,
+      BaseReferences<_$AppDatabase, $TrackingPointBatchesTable,
+          TrackingPointBatchRow>
+    ),
+    TrackingPointBatchRow,
+    PrefetchHooks Function()> {
+  $$TrackingPointBatchesTableTableManager(
+      _$AppDatabase db, $TrackingPointBatchesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackingPointBatchesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackingPointBatchesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackingPointBatchesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tripId = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<String?> remoteSessionId = const Value.absent(),
+            Value<String> clientBatchId = const Value.absent(),
+            Value<DateTime?> firstRecordedAt = const Value.absent(),
+            Value<DateTime?> lastRecordedAt = const Value.absent(),
+            Value<int> pointCount = const Value.absent(),
+            Value<String> pointsJson = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingPointBatchesCompanion(
+            id: id,
+            tripId: tripId,
+            sessionId: sessionId,
+            remoteSessionId: remoteSessionId,
+            clientBatchId: clientBatchId,
+            firstRecordedAt: firstRecordedAt,
+            lastRecordedAt: lastRecordedAt,
+            pointCount: pointCount,
+            pointsJson: pointsJson,
+            status: status,
+            retryCount: retryCount,
+            nextAttemptAt: nextAttemptAt,
+            workerSessionId: workerSessionId,
+            lastError: lastError,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tripId,
+            required String sessionId,
+            Value<String?> remoteSessionId = const Value.absent(),
+            required String clientBatchId,
+            Value<DateTime?> firstRecordedAt = const Value.absent(),
+            Value<DateTime?> lastRecordedAt = const Value.absent(),
+            Value<int> pointCount = const Value.absent(),
+            Value<String> pointsJson = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> retryCount = const Value.absent(),
+            Value<DateTime?> nextAttemptAt = const Value.absent(),
+            Value<String?> workerSessionId = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            required DateTime localUpdatedAt,
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingPointBatchesCompanion.insert(
+            id: id,
+            tripId: tripId,
+            sessionId: sessionId,
+            remoteSessionId: remoteSessionId,
+            clientBatchId: clientBatchId,
+            firstRecordedAt: firstRecordedAt,
+            lastRecordedAt: lastRecordedAt,
+            pointCount: pointCount,
+            pointsJson: pointsJson,
+            status: status,
+            retryCount: retryCount,
+            nextAttemptAt: nextAttemptAt,
+            workerSessionId: workerSessionId,
+            lastError: lastError,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TrackingPointBatchesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $TrackingPointBatchesTable,
+        TrackingPointBatchRow,
+        $$TrackingPointBatchesTableFilterComposer,
+        $$TrackingPointBatchesTableOrderingComposer,
+        $$TrackingPointBatchesTableAnnotationComposer,
+        $$TrackingPointBatchesTableCreateCompanionBuilder,
+        $$TrackingPointBatchesTableUpdateCompanionBuilder,
+        (
+          TrackingPointBatchRow,
+          BaseReferences<_$AppDatabase, $TrackingPointBatchesTable,
+              TrackingPointBatchRow>
+        ),
+        TrackingPointBatchRow,
+        PrefetchHooks Function()>;
+typedef $$TrackingCandidatesTableCreateCompanionBuilder
+    = TrackingCandidatesCompanion Function({
+  required String id,
+  required String tripId,
+  Value<String?> sessionId,
+  required String fingerprint,
+  Value<String> status,
+  Value<double?> confidence,
+  Value<String?> suggestedName,
+  Value<double?> suggestedLatitude,
+  Value<double?> suggestedLongitude,
+  Value<DateTime?> startedAt,
+  Value<DateTime?> endedAt,
+  Value<String?> confirmedTripPlaceId,
+  Value<String?> rejectedReason,
+  Value<DateTime?> snoozedUntil,
+  Value<DateTime?> cooldownUntil,
+  Value<String> payloadJson,
+  Value<String?> notificationState,
+  Value<String> actionState,
+  Value<String?> actionType,
+  Value<String?> actionClientEventId,
+  Value<DateTime?> actionQueuedAt,
+  Value<DateTime?> actionSyncedAt,
+  Value<String> syncStatus,
+  required DateTime localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TrackingCandidatesTableUpdateCompanionBuilder
+    = TrackingCandidatesCompanion Function({
+  Value<String> id,
+  Value<String> tripId,
+  Value<String?> sessionId,
+  Value<String> fingerprint,
+  Value<String> status,
+  Value<double?> confidence,
+  Value<String?> suggestedName,
+  Value<double?> suggestedLatitude,
+  Value<double?> suggestedLongitude,
+  Value<DateTime?> startedAt,
+  Value<DateTime?> endedAt,
+  Value<String?> confirmedTripPlaceId,
+  Value<String?> rejectedReason,
+  Value<DateTime?> snoozedUntil,
+  Value<DateTime?> cooldownUntil,
+  Value<String> payloadJson,
+  Value<String?> notificationState,
+  Value<String> actionState,
+  Value<String?> actionType,
+  Value<String?> actionClientEventId,
+  Value<DateTime?> actionQueuedAt,
+  Value<DateTime?> actionSyncedAt,
+  Value<String> syncStatus,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TrackingCandidatesTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackingCandidatesTable> {
+  $$TrackingCandidatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fingerprint => $composableBuilder(
+      column: $table.fingerprint, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get suggestedName => $composableBuilder(
+      column: $table.suggestedName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get suggestedLatitude => $composableBuilder(
+      column: $table.suggestedLatitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get suggestedLongitude => $composableBuilder(
+      column: $table.suggestedLongitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get confirmedTripPlaceId => $composableBuilder(
+      column: $table.confirmedTripPlaceId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rejectedReason => $composableBuilder(
+      column: $table.rejectedReason,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get snoozedUntil => $composableBuilder(
+      column: $table.snoozedUntil, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get cooldownUntil => $composableBuilder(
+      column: $table.cooldownUntil, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notificationState => $composableBuilder(
+      column: $table.notificationState,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get actionState => $composableBuilder(
+      column: $table.actionState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get actionClientEventId => $composableBuilder(
+      column: $table.actionClientEventId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get actionQueuedAt => $composableBuilder(
+      column: $table.actionQueuedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get actionSyncedAt => $composableBuilder(
+      column: $table.actionSyncedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TrackingCandidatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackingCandidatesTable> {
+  $$TrackingCandidatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fingerprint => $composableBuilder(
+      column: $table.fingerprint, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get suggestedName => $composableBuilder(
+      column: $table.suggestedName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get suggestedLatitude => $composableBuilder(
+      column: $table.suggestedLatitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get suggestedLongitude => $composableBuilder(
+      column: $table.suggestedLongitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get confirmedTripPlaceId => $composableBuilder(
+      column: $table.confirmedTripPlaceId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rejectedReason => $composableBuilder(
+      column: $table.rejectedReason,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get snoozedUntil => $composableBuilder(
+      column: $table.snoozedUntil,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get cooldownUntil => $composableBuilder(
+      column: $table.cooldownUntil,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notificationState => $composableBuilder(
+      column: $table.notificationState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get actionState => $composableBuilder(
+      column: $table.actionState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get actionClientEventId => $composableBuilder(
+      column: $table.actionClientEventId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get actionQueuedAt => $composableBuilder(
+      column: $table.actionQueuedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get actionSyncedAt => $composableBuilder(
+      column: $table.actionSyncedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TrackingCandidatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackingCandidatesTable> {
+  $$TrackingCandidatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get fingerprint => $composableBuilder(
+      column: $table.fingerprint, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => column);
+
+  GeneratedColumn<String> get suggestedName => $composableBuilder(
+      column: $table.suggestedName, builder: (column) => column);
+
+  GeneratedColumn<double> get suggestedLatitude => $composableBuilder(
+      column: $table.suggestedLatitude, builder: (column) => column);
+
+  GeneratedColumn<double> get suggestedLongitude => $composableBuilder(
+      column: $table.suggestedLongitude, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get confirmedTripPlaceId => $composableBuilder(
+      column: $table.confirmedTripPlaceId, builder: (column) => column);
+
+  GeneratedColumn<String> get rejectedReason => $composableBuilder(
+      column: $table.rejectedReason, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get snoozedUntil => $composableBuilder(
+      column: $table.snoozedUntil, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get cooldownUntil => $composableBuilder(
+      column: $table.cooldownUntil, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<String> get notificationState => $composableBuilder(
+      column: $table.notificationState, builder: (column) => column);
+
+  GeneratedColumn<String> get actionState => $composableBuilder(
+      column: $table.actionState, builder: (column) => column);
+
+  GeneratedColumn<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => column);
+
+  GeneratedColumn<String> get actionClientEventId => $composableBuilder(
+      column: $table.actionClientEventId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get actionQueuedAt => $composableBuilder(
+      column: $table.actionQueuedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get actionSyncedAt => $composableBuilder(
+      column: $table.actionSyncedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TrackingCandidatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TrackingCandidatesTable,
+    TrackingCandidateRow,
+    $$TrackingCandidatesTableFilterComposer,
+    $$TrackingCandidatesTableOrderingComposer,
+    $$TrackingCandidatesTableAnnotationComposer,
+    $$TrackingCandidatesTableCreateCompanionBuilder,
+    $$TrackingCandidatesTableUpdateCompanionBuilder,
+    (
+      TrackingCandidateRow,
+      BaseReferences<_$AppDatabase, $TrackingCandidatesTable,
+          TrackingCandidateRow>
+    ),
+    TrackingCandidateRow,
+    PrefetchHooks Function()> {
+  $$TrackingCandidatesTableTableManager(
+      _$AppDatabase db, $TrackingCandidatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackingCandidatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackingCandidatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackingCandidatesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tripId = const Value.absent(),
+            Value<String?> sessionId = const Value.absent(),
+            Value<String> fingerprint = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            Value<String?> suggestedName = const Value.absent(),
+            Value<double?> suggestedLatitude = const Value.absent(),
+            Value<double?> suggestedLongitude = const Value.absent(),
+            Value<DateTime?> startedAt = const Value.absent(),
+            Value<DateTime?> endedAt = const Value.absent(),
+            Value<String?> confirmedTripPlaceId = const Value.absent(),
+            Value<String?> rejectedReason = const Value.absent(),
+            Value<DateTime?> snoozedUntil = const Value.absent(),
+            Value<DateTime?> cooldownUntil = const Value.absent(),
+            Value<String> payloadJson = const Value.absent(),
+            Value<String?> notificationState = const Value.absent(),
+            Value<String> actionState = const Value.absent(),
+            Value<String?> actionType = const Value.absent(),
+            Value<String?> actionClientEventId = const Value.absent(),
+            Value<DateTime?> actionQueuedAt = const Value.absent(),
+            Value<DateTime?> actionSyncedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingCandidatesCompanion(
+            id: id,
+            tripId: tripId,
+            sessionId: sessionId,
+            fingerprint: fingerprint,
+            status: status,
+            confidence: confidence,
+            suggestedName: suggestedName,
+            suggestedLatitude: suggestedLatitude,
+            suggestedLongitude: suggestedLongitude,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            confirmedTripPlaceId: confirmedTripPlaceId,
+            rejectedReason: rejectedReason,
+            snoozedUntil: snoozedUntil,
+            cooldownUntil: cooldownUntil,
+            payloadJson: payloadJson,
+            notificationState: notificationState,
+            actionState: actionState,
+            actionType: actionType,
+            actionClientEventId: actionClientEventId,
+            actionQueuedAt: actionQueuedAt,
+            actionSyncedAt: actionSyncedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tripId,
+            Value<String?> sessionId = const Value.absent(),
+            required String fingerprint,
+            Value<String> status = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            Value<String?> suggestedName = const Value.absent(),
+            Value<double?> suggestedLatitude = const Value.absent(),
+            Value<double?> suggestedLongitude = const Value.absent(),
+            Value<DateTime?> startedAt = const Value.absent(),
+            Value<DateTime?> endedAt = const Value.absent(),
+            Value<String?> confirmedTripPlaceId = const Value.absent(),
+            Value<String?> rejectedReason = const Value.absent(),
+            Value<DateTime?> snoozedUntil = const Value.absent(),
+            Value<DateTime?> cooldownUntil = const Value.absent(),
+            Value<String> payloadJson = const Value.absent(),
+            Value<String?> notificationState = const Value.absent(),
+            Value<String> actionState = const Value.absent(),
+            Value<String?> actionType = const Value.absent(),
+            Value<String?> actionClientEventId = const Value.absent(),
+            Value<DateTime?> actionQueuedAt = const Value.absent(),
+            Value<DateTime?> actionSyncedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            required DateTime localUpdatedAt,
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingCandidatesCompanion.insert(
+            id: id,
+            tripId: tripId,
+            sessionId: sessionId,
+            fingerprint: fingerprint,
+            status: status,
+            confidence: confidence,
+            suggestedName: suggestedName,
+            suggestedLatitude: suggestedLatitude,
+            suggestedLongitude: suggestedLongitude,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            confirmedTripPlaceId: confirmedTripPlaceId,
+            rejectedReason: rejectedReason,
+            snoozedUntil: snoozedUntil,
+            cooldownUntil: cooldownUntil,
+            payloadJson: payloadJson,
+            notificationState: notificationState,
+            actionState: actionState,
+            actionType: actionType,
+            actionClientEventId: actionClientEventId,
+            actionQueuedAt: actionQueuedAt,
+            actionSyncedAt: actionSyncedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TrackingCandidatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TrackingCandidatesTable,
+    TrackingCandidateRow,
+    $$TrackingCandidatesTableFilterComposer,
+    $$TrackingCandidatesTableOrderingComposer,
+    $$TrackingCandidatesTableAnnotationComposer,
+    $$TrackingCandidatesTableCreateCompanionBuilder,
+    $$TrackingCandidatesTableUpdateCompanionBuilder,
+    (
+      TrackingCandidateRow,
+      BaseReferences<_$AppDatabase, $TrackingCandidatesTable,
+          TrackingCandidateRow>
+    ),
+    TrackingCandidateRow,
+    PrefetchHooks Function()>;
+typedef $$TrackingMomentsTableCreateCompanionBuilder = TrackingMomentsCompanion
+    Function({
+  required String id,
+  required String tripId,
+  Value<String?> candidateId,
+  Value<String?> linkedTripPlaceId,
+  Value<String> source,
+  Value<double?> confidence,
+  required DateTime capturedAt,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> note,
+  Value<String> mediaRefsJson,
+  Value<String> extraPayloadJson,
+  Value<String> lockedFieldsJson,
+  Value<String?> pendingOperation,
+  Value<String?> clientEventId,
+  Value<String> syncStatus,
+  required DateTime localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TrackingMomentsTableUpdateCompanionBuilder = TrackingMomentsCompanion
+    Function({
+  Value<String> id,
+  Value<String> tripId,
+  Value<String?> candidateId,
+  Value<String?> linkedTripPlaceId,
+  Value<String> source,
+  Value<double?> confidence,
+  Value<DateTime> capturedAt,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> note,
+  Value<String> mediaRefsJson,
+  Value<String> extraPayloadJson,
+  Value<String> lockedFieldsJson,
+  Value<String?> pendingOperation,
+  Value<String?> clientEventId,
+  Value<String> syncStatus,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TrackingMomentsTableFilterComposer
+    extends Composer<_$AppDatabase, $TrackingMomentsTable> {
+  $$TrackingMomentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get candidateId => $composableBuilder(
+      column: $table.candidateId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get linkedTripPlaceId => $composableBuilder(
+      column: $table.linkedTripPlaceId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mediaRefsJson => $composableBuilder(
+      column: $table.mediaRefsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get extraPayloadJson => $composableBuilder(
+      column: $table.extraPayloadJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lockedFieldsJson => $composableBuilder(
+      column: $table.lockedFieldsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get pendingOperation => $composableBuilder(
+      column: $table.pendingOperation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get clientEventId => $composableBuilder(
+      column: $table.clientEventId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TrackingMomentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TrackingMomentsTable> {
+  $$TrackingMomentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripId => $composableBuilder(
+      column: $table.tripId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get candidateId => $composableBuilder(
+      column: $table.candidateId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get linkedTripPlaceId => $composableBuilder(
+      column: $table.linkedTripPlaceId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mediaRefsJson => $composableBuilder(
+      column: $table.mediaRefsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get extraPayloadJson => $composableBuilder(
+      column: $table.extraPayloadJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lockedFieldsJson => $composableBuilder(
+      column: $table.lockedFieldsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get pendingOperation => $composableBuilder(
+      column: $table.pendingOperation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get clientEventId => $composableBuilder(
+      column: $table.clientEventId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TrackingMomentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TrackingMomentsTable> {
+  $$TrackingMomentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get candidateId => $composableBuilder(
+      column: $table.candidateId, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedTripPlaceId => $composableBuilder(
+      column: $table.linkedTripPlaceId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaRefsJson => $composableBuilder(
+      column: $table.mediaRefsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get extraPayloadJson => $composableBuilder(
+      column: $table.extraPayloadJson, builder: (column) => column);
+
+  GeneratedColumn<String> get lockedFieldsJson => $composableBuilder(
+      column: $table.lockedFieldsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get pendingOperation => $composableBuilder(
+      column: $table.pendingOperation, builder: (column) => column);
+
+  GeneratedColumn<String> get clientEventId => $composableBuilder(
+      column: $table.clientEventId, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TrackingMomentsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TrackingMomentsTable,
+    TrackingMomentRow,
+    $$TrackingMomentsTableFilterComposer,
+    $$TrackingMomentsTableOrderingComposer,
+    $$TrackingMomentsTableAnnotationComposer,
+    $$TrackingMomentsTableCreateCompanionBuilder,
+    $$TrackingMomentsTableUpdateCompanionBuilder,
+    (
+      TrackingMomentRow,
+      BaseReferences<_$AppDatabase, $TrackingMomentsTable, TrackingMomentRow>
+    ),
+    TrackingMomentRow,
+    PrefetchHooks Function()> {
+  $$TrackingMomentsTableTableManager(
+      _$AppDatabase db, $TrackingMomentsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TrackingMomentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TrackingMomentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TrackingMomentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tripId = const Value.absent(),
+            Value<String?> candidateId = const Value.absent(),
+            Value<String?> linkedTripPlaceId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            Value<DateTime> capturedAt = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> mediaRefsJson = const Value.absent(),
+            Value<String> extraPayloadJson = const Value.absent(),
+            Value<String> lockedFieldsJson = const Value.absent(),
+            Value<String?> pendingOperation = const Value.absent(),
+            Value<String?> clientEventId = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingMomentsCompanion(
+            id: id,
+            tripId: tripId,
+            candidateId: candidateId,
+            linkedTripPlaceId: linkedTripPlaceId,
+            source: source,
+            confidence: confidence,
+            capturedAt: capturedAt,
+            latitude: latitude,
+            longitude: longitude,
+            note: note,
+            mediaRefsJson: mediaRefsJson,
+            extraPayloadJson: extraPayloadJson,
+            lockedFieldsJson: lockedFieldsJson,
+            pendingOperation: pendingOperation,
+            clientEventId: clientEventId,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tripId,
+            Value<String?> candidateId = const Value.absent(),
+            Value<String?> linkedTripPlaceId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            required DateTime capturedAt,
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> mediaRefsJson = const Value.absent(),
+            Value<String> extraPayloadJson = const Value.absent(),
+            Value<String> lockedFieldsJson = const Value.absent(),
+            Value<String?> pendingOperation = const Value.absent(),
+            Value<String?> clientEventId = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            required DateTime localUpdatedAt,
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TrackingMomentsCompanion.insert(
+            id: id,
+            tripId: tripId,
+            candidateId: candidateId,
+            linkedTripPlaceId: linkedTripPlaceId,
+            source: source,
+            confidence: confidence,
+            capturedAt: capturedAt,
+            latitude: latitude,
+            longitude: longitude,
+            note: note,
+            mediaRefsJson: mediaRefsJson,
+            extraPayloadJson: extraPayloadJson,
+            lockedFieldsJson: lockedFieldsJson,
+            pendingOperation: pendingOperation,
+            clientEventId: clientEventId,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TrackingMomentsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TrackingMomentsTable,
+    TrackingMomentRow,
+    $$TrackingMomentsTableFilterComposer,
+    $$TrackingMomentsTableOrderingComposer,
+    $$TrackingMomentsTableAnnotationComposer,
+    $$TrackingMomentsTableCreateCompanionBuilder,
+    $$TrackingMomentsTableUpdateCompanionBuilder,
+    (
+      TrackingMomentRow,
+      BaseReferences<_$AppDatabase, $TrackingMomentsTable, TrackingMomentRow>
+    ),
+    TrackingMomentRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8256,4 +14147,12 @@ class $AppDatabaseManager {
       $$UserTripsTableTableManager(_db, _db.userTrips);
   $$SyncTasksTableTableManager get syncTasks =>
       $$SyncTasksTableTableManager(_db, _db.syncTasks);
+  $$TrackingSessionsTableTableManager get trackingSessions =>
+      $$TrackingSessionsTableTableManager(_db, _db.trackingSessions);
+  $$TrackingPointBatchesTableTableManager get trackingPointBatches =>
+      $$TrackingPointBatchesTableTableManager(_db, _db.trackingPointBatches);
+  $$TrackingCandidatesTableTableManager get trackingCandidates =>
+      $$TrackingCandidatesTableTableManager(_db, _db.trackingCandidates);
+  $$TrackingMomentsTableTableManager get trackingMoments =>
+      $$TrackingMomentsTableTableManager(_db, _db.trackingMoments);
 }

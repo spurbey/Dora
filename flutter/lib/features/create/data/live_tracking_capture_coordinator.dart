@@ -30,18 +30,27 @@ class LiveTrackingCaptureCoordinator {
     required TrackingSessionDao trackingSessionDao,
     required EnsureLocationAccess ensureLocationAccess,
     required TrackingPointStreamFactory pointStreamFactory,
+    Duration restartInitialDelay = const Duration(seconds: 1),
+    Duration restartMaxDelay = const Duration(seconds: 30),
   })  : _repository = repository,
         _trackingSessionDao = trackingSessionDao,
         _ensureLocationAccess = ensureLocationAccess,
-        _pointStreamFactory = pointStreamFactory;
+        _pointStreamFactory = pointStreamFactory,
+        _restartInitialDelay = restartInitialDelay,
+        _restartMaxDelay = restartMaxDelay;
 
   final LiveTrackingRuntimeRepository _repository;
   final TrackingSessionDao _trackingSessionDao;
   final EnsureLocationAccess _ensureLocationAccess;
   final TrackingPointStreamFactory _pointStreamFactory;
+  final Duration _restartInitialDelay;
+  final Duration _restartMaxDelay;
 
   final Map<String, _ActiveTrackingSession> _activeSessions = {};
   StreamSubscription<TrackingPointSample>? _pointSubscription;
+  Future<void> _ingestTail = Future<void>.value();
+  Timer? _restartTimer;
+  int _restartAttempt = 0;
   bool _disposed = false;
 
   bool get isCapturing =>
@@ -129,8 +138,15 @@ class LiveTrackingCaptureCoordinator {
     }
     _disposed = true;
     _activeSessions.clear();
+    _restartTimer?.cancel();
+    _restartTimer = null;
     await _pointSubscription?.cancel();
     _pointSubscription = null;
+    try {
+      await _ingestTail;
+    } catch (_) {
+      // no-op: pending ingestion failures should not fail dispose.
+    }
   }
 
   Future<void> _syncCaptureSubscription() async {
@@ -140,34 +156,81 @@ class LiveTrackingCaptureCoordinator {
     if (_activeSessions.isEmpty) {
       await _pointSubscription?.cancel();
       _pointSubscription = null;
+      _restartTimer?.cancel();
+      _restartTimer = null;
+      _restartAttempt = 0;
       return;
     }
     if (_pointSubscription != null) {
       return;
     }
+    _restartTimer?.cancel();
+    _restartTimer = null;
     _pointSubscription = _pointStreamFactory().listen(
       (sample) {
-        final sessions = _activeSessions.values.toList(growable: false);
-        for (final session in sessions) {
-          unawaited(
-            _repository.ingestPoint(
-              tripId: session.tripId,
-              sessionId: session.sessionId,
-              point: sample,
-            ),
-          );
-        }
+        _restartAttempt = 0;
+        _enqueuePointIngestion(sample);
       },
       onError: (_, __) {
+        final currentSubscription = _pointSubscription;
         _pointSubscription = null;
-        unawaited(_syncCaptureSubscription());
+        if (currentSubscription != null) {
+          unawaited(currentSubscription.cancel());
+        }
+        _scheduleResubscribe();
       },
       onDone: () {
         _pointSubscription = null;
-        unawaited(_syncCaptureSubscription());
+        _scheduleResubscribe();
       },
       cancelOnError: false,
     );
+  }
+
+  void _enqueuePointIngestion(TrackingPointSample sample) {
+    final sessions = _activeSessions.values.toList(growable: false);
+    if (sessions.isEmpty) {
+      return;
+    }
+    _ingestTail = _ingestTail.catchError((_, __) {}).then((_) async {
+      for (final session in sessions) {
+        await _repository.ingestPoint(
+          tripId: session.tripId,
+          sessionId: session.sessionId,
+          point: sample,
+        );
+      }
+    });
+  }
+
+  void _scheduleResubscribe() {
+    if (_disposed || _activeSessions.isEmpty || _pointSubscription != null) {
+      return;
+    }
+    if (_restartTimer != null) {
+      return;
+    }
+    final delay = _computeRestartDelay();
+    _restartTimer = Timer(delay, () {
+      _restartTimer = null;
+      if (_disposed || _activeSessions.isEmpty || _pointSubscription != null) {
+        return;
+      }
+      unawaited(_syncCaptureSubscription());
+    });
+  }
+
+  Duration _computeRestartDelay() {
+    final clampedAttempt = _restartAttempt > 8 ? 8 : _restartAttempt;
+    final multiplier = 1 << clampedAttempt;
+    final delay = Duration(
+      milliseconds: _restartInitialDelay.inMilliseconds * multiplier,
+    );
+    _restartAttempt += 1;
+    if (delay > _restartMaxDelay) {
+      return _restartMaxDelay;
+    }
+    return delay;
   }
 
   Future<void> _requireLocationAccess({

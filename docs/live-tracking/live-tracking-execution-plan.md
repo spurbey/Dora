@@ -1138,6 +1138,27 @@ Use this section after each phase:
 - Known failures/waivers:
   - Background capture runtime specifics (platform background modes, restart reconciliation under terminated state, and cadence throttling policy) remain for next Phase 5 slices.
 
+- Date: 2026-03-24
+- Phase: 5 (Flutter Runtime) slice 2 hardening follow-up (capture race + restart backoff)
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/features/create/data/live_tracking_capture_coordinator.dart lib/features/create/data/live_tracking_runtime_repository.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass: 11 passed)
+- Manual checks run:
+  - Hardened runtime repository mutations with DB transactions:
+    - `startSession`, `pauseSession`, `resumeSession`, `stopSession`, and `ingestPoint` now execute atomically to reduce race windows for idempotent session creation and point batching.
+  - Hardened capture coordinator ingestion path:
+    - replaced per-session `unawaited(...)` fanout with serialized ingestion queue to avoid overlapping read-modify-write batch updates.
+  - Added bounded resubscribe backoff:
+    - capture stream failures now schedule restart with bounded exponential delay instead of immediate hot-loop retry.
+  - Added regression coverage:
+    - burst sample ingestion test to lock no-drop behavior under rapid point events.
+    - restart backoff timing test to lock anti-spin behavior after repeated stream failures.
+- Result summary:
+  - Addressed the trip-sync review risks for capture ingestion races, start-session concurrency safety, and retry hot-loop risk.
+  - Phase 5 slice 2 is now hardened for higher-load foreground capture behavior.
+- Known failures/waivers:
+  - Full background capture/terminated-state runtime policy is still pending later Phase 5 slices.
+
 ## 12. Risk Register
 
 Track only active risks:

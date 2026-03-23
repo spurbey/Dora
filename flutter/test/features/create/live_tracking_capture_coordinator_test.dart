@@ -118,6 +118,35 @@ void main() {
       expect(batches.first.pointCount, 1);
     });
 
+    test('serializes burst points without dropping samples', () async {
+      final session = await coordinator.startTracking(tripId: 'trip-burst-1');
+
+      for (var i = 0; i < 6; i += 1) {
+        pointController.add(
+          TrackingPointSample(
+            recordedAt: clock.current.add(Duration(seconds: i * 6)),
+            latitude: 27.7000 + (i / 1000),
+            longitude: 85.3000 + (i / 1000),
+          ),
+        );
+      }
+
+      await waitForCondition(
+        attempts: 80,
+        predicate: () async {
+          final batches = await batchDao.getBatchesForSession(session.id);
+          final totalCount =
+              batches.fold<int>(0, (sum, batch) => sum + batch.pointCount);
+          return totalCount == 6;
+        },
+      );
+
+      final batches = await batchDao.getBatchesForSession(session.id);
+      final totalCount =
+          batches.fold<int>(0, (sum, batch) => sum + batch.pointCount);
+      expect(totalCount, 6);
+    });
+
     test('pauseTracking stops ingestion for paused session', () async {
       final session = await coordinator.startTracking(tripId: 'trip-capture-2');
       pointController.add(
@@ -243,6 +272,41 @@ void main() {
         ),
       );
       expect(streamFactoryCalls, 0);
+    });
+
+    test('restarts capture stream with bounded backoff after failures',
+        () async {
+      await coordinator.dispose();
+      streamFactoryCalls = 0;
+      coordinator = LiveTrackingCaptureCoordinator(
+        repository: repository,
+        trackingSessionDao: sessionDao,
+        ensureLocationAccess: ({required bool requestIfDenied}) async {
+          lastPermissionRequested = requestIfDenied;
+          return permissionState;
+        },
+        pointStreamFactory: () {
+          streamFactoryCalls += 1;
+          return Stream<TrackingPointSample>.error(StateError('stream failed'));
+        },
+        restartInitialDelay: const Duration(milliseconds: 100),
+        restartMaxDelay: const Duration(milliseconds: 200),
+      );
+
+      await coordinator.startTracking(tripId: 'trip-backoff-1');
+      expect(streamFactoryCalls, 1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 70));
+      expect(streamFactoryCalls, 1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(streamFactoryCalls, 2);
+
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(streamFactoryCalls, 2);
+
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(streamFactoryCalls, 3);
     });
   });
 }

@@ -553,3 +553,26 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This slice intentionally focuses on foreground capture orchestration + startup recovery.
   - Dedicated background capture behavior and terminated-state continuation remain for next Phase 5 slices.
+
+- Date: 2026-03-24
+- Slice: Phase 5 runtime capture hardening (post-review: race + retry loop)
+- Implemented:
+  - Hardened runtime repository writes with transactional boundaries in:
+    - `lib/features/create/data/live_tracking_runtime_repository.dart`
+    - `startSession`, `pauseSession`, `resumeSession`, `stopSession`, and `ingestPoint` now run atomically.
+  - Hardened capture coordinator ingestion path in:
+    - `lib/features/create/data/live_tracking_capture_coordinator.dart`
+    - replaced per-session `unawaited(...)` ingest fanout with serialized queueing to prevent overlapping read-modify-write batch updates.
+  - Added bounded stream restart backoff in capture coordinator:
+    - restart now uses bounded exponential delay rather than immediate re-subscribe on `onError`/`onDone`.
+    - prevents hot-loop retry churn on persistent stream failures.
+  - Added regression tests in:
+    - `test/features/create/live_tracking_capture_coordinator_test.dart`
+    - burst-ingestion test to lock no-drop behavior under rapid sample flow.
+    - bounded restart-backoff test to lock anti-spin behavior.
+- Validation:
+  - `cd flutter; flutter analyze lib/features/create/data/live_tracking_capture_coordinator.dart lib/features/create/data/live_tracking_runtime_repository.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass: 11 passed)
+- Decision notes:
+  - Addresses trip-sync findings on ingestion race risk, start-session concurrency safety, and stream retry hot-loop risk.
+  - Background capture policy for terminated-state continuation still belongs to later Phase 5 slices.

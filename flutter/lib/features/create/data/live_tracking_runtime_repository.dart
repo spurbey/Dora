@@ -80,7 +80,8 @@ class LiveTrackingRuntimeRepository {
     LiveTrackingBatchingPolicy policy = const LiveTrackingBatchingPolicy(),
     DateTime Function()? now,
     Uuid? uuid,
-  })  : _trackingSessionDao = trackingSessionDao ?? TrackingSessionDao(db),
+  })  : _db = db,
+        _trackingSessionDao = trackingSessionDao ?? TrackingSessionDao(db),
         _trackingPointBatchDao =
             trackingPointBatchDao ?? TrackingPointBatchDao(db),
         _syncTaskDao = syncTaskDao ?? SyncTaskDao(db),
@@ -88,6 +89,7 @@ class LiveTrackingRuntimeRepository {
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
+  final AppDatabase _db;
   final TrackingSessionDao _trackingSessionDao;
   final TrackingPointBatchDao _trackingPointBatchDao;
   final SyncTaskDao _syncTaskDao;
@@ -111,102 +113,110 @@ class LiveTrackingRuntimeRepository {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-    final existing =
-        await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-    if (existing != null) {
-      return existing;
-    }
+    return _db.transaction(() async {
+      final existing =
+          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
+      if (existing != null) {
+        return existing;
+      }
 
-    final now = _now().toUtc();
-    final sessionId = _uuid.v4();
-    final clientSessionId = _uuid.v4();
-    await _trackingSessionDao.upsertSession(
-      TrackingSessionsCompanion.insert(
-        id: sessionId,
-        tripId: tripId,
-        clientSessionId: clientSessionId,
-        state: const Value('active'),
-        timezone: Value(timezone),
-        deviceContextJson: Value(_encodeJson(deviceContext ?? const {})),
-        startedAt: Value(now),
-        syncStatus: const Value('pending'),
-        localUpdatedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
-    await _enqueueSessionTask(sessionId: sessionId, operation: 'start');
-    final persisted = await _trackingSessionDao.getSessionById(sessionId);
-    if (persisted == null) {
-      throw StateError('Failed to persist tracking session: $sessionId');
-    }
-    return persisted;
+      final now = _now().toUtc();
+      final sessionId = _uuid.v4();
+      final clientSessionId = _uuid.v4();
+      await _trackingSessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: sessionId,
+          tripId: tripId,
+          clientSessionId: clientSessionId,
+          state: const Value('active'),
+          timezone: Value(timezone),
+          deviceContextJson: Value(_encodeJson(deviceContext ?? const {})),
+          startedAt: Value(now),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await _enqueueSessionTask(sessionId: sessionId, operation: 'start');
+      final persisted = await _trackingSessionDao.getSessionById(sessionId);
+      if (persisted == null) {
+        throw StateError('Failed to persist tracking session: $sessionId');
+      }
+      return persisted;
+    });
   }
 
   Future<TrackingSessionRow?> pauseSession({
     required String tripId,
   }) async {
-    final session =
-        await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-    if (session == null) {
-      return null;
-    }
-    if (session.state != 'active') {
-      return session;
-    }
+    return _db.transaction(() async {
+      final session =
+          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
+      if (session == null) {
+        return null;
+      }
+      if (session.state != 'active') {
+        return session;
+      }
 
-    final now = _now().toUtc();
-    await _trackingSessionDao.updateLifecycle(
-      sessionId: session.id,
-      state: 'paused',
-      pausedAt: now,
-    );
-    await _enqueueSessionTask(sessionId: session.id, operation: 'pause');
-    return _trackingSessionDao.getSessionById(session.id);
+      final now = _now().toUtc();
+      await _trackingSessionDao.updateLifecycle(
+        sessionId: session.id,
+        state: 'paused',
+        pausedAt: now,
+      );
+      await _enqueueSessionTask(sessionId: session.id, operation: 'pause');
+      return _trackingSessionDao.getSessionById(session.id);
+    });
   }
 
   Future<TrackingSessionRow?> resumeSession({
     required String tripId,
   }) async {
-    final session =
-        await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-    if (session == null) {
-      return null;
-    }
-    if (session.state == 'active') {
-      return session;
-    }
-    if (session.state != 'paused') {
-      return null;
-    }
+    return _db.transaction(() async {
+      final session =
+          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
+      if (session == null) {
+        return null;
+      }
+      if (session.state == 'active') {
+        return session;
+      }
+      if (session.state != 'paused') {
+        return null;
+      }
 
-    final now = _now().toUtc();
-    await _trackingSessionDao.updateLifecycle(
-      sessionId: session.id,
-      state: 'active',
-      resumedAt: now,
-    );
-    await _enqueueSessionTask(sessionId: session.id, operation: 'resume');
-    return _trackingSessionDao.getSessionById(session.id);
+      final now = _now().toUtc();
+      await _trackingSessionDao.updateLifecycle(
+        sessionId: session.id,
+        state: 'active',
+        resumedAt: now,
+      );
+      await _enqueueSessionTask(sessionId: session.id, operation: 'resume');
+      return _trackingSessionDao.getSessionById(session.id);
+    });
   }
 
   Future<TrackingSessionRow?> stopSession({
     required String tripId,
   }) async {
-    final session =
-        await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-    if (session == null) {
-      return null;
-    }
+    return _db.transaction(() async {
+      final session =
+          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
+      if (session == null) {
+        return null;
+      }
 
-    final now = _now().toUtc();
-    await _trackingSessionDao.updateLifecycle(
-      sessionId: session.id,
-      state: 'ended',
-      endedAt: now,
-    );
-    await _enqueueSessionTask(sessionId: session.id, operation: 'stop');
-    return _trackingSessionDao.getSessionById(session.id);
+      final now = _now().toUtc();
+      await _trackingSessionDao.updateLifecycle(
+        sessionId: session.id,
+        state: 'ended',
+        endedAt: now,
+      );
+      await _enqueueSessionTask(sessionId: session.id, operation: 'stop');
+      return _trackingSessionDao.getSessionById(session.id);
+    });
   }
 
   Future<bool> ingestPoint({
@@ -214,100 +224,102 @@ class LiveTrackingRuntimeRepository {
     required String sessionId,
     required TrackingPointSample point,
   }) async {
-    final session = await _trackingSessionDao.getSessionById(sessionId);
-    if (session == null ||
-        session.tripId != tripId ||
-        session.state != 'active') {
-      return false;
-    }
+    return _db.transaction(() async {
+      final session = await _trackingSessionDao.getSessionById(sessionId);
+      if (session == null ||
+          session.tripId != tripId ||
+          session.state != 'active') {
+        return false;
+      }
 
-    final recordedAt = point.recordedAt.toUtc();
-    final mutableBatch =
-        await _trackingPointBatchDao.getLatestMutableBatchForSession(sessionId);
-    final lastPoint =
-        mutableBatch == null ? null : _lastPointInBatch(mutableBatch);
-    if (_isDuplicatePoint(lastPoint: lastPoint, sample: point)) {
-      return false;
-    }
+      final recordedAt = point.recordedAt.toUtc();
+      final mutableBatch = await _trackingPointBatchDao
+          .getLatestMutableBatchForSession(sessionId);
+      final lastPoint =
+          mutableBatch == null ? null : _lastPointInBatch(mutableBatch);
+      if (_isDuplicatePoint(lastPoint: lastPoint, sample: point)) {
+        return false;
+      }
 
-    final now = _now().toUtc();
-    late final String targetBatchId;
-    if (mutableBatch != null &&
-        _canAppendToBatch(batch: mutableBatch, recordedAt: recordedAt)) {
-      final points = _decodePointList(mutableBatch.pointsJson)
-        ..add(_pointPayload(sample: point));
-      final firstRecordedAt = mutableBatch.firstRecordedAt ?? recordedAt;
-      final existingLast = mutableBatch.lastRecordedAt;
-      final lastRecordedAt =
-          existingLast == null || recordedAt.isAfter(existingLast)
-              ? recordedAt
-              : existingLast;
-      await _trackingPointBatchDao.upsertBatch(
-        TrackingPointBatchesCompanion.insert(
-          id: mutableBatch.id,
-          tripId: mutableBatch.tripId,
-          sessionId: mutableBatch.sessionId,
-          remoteSessionId: Value(mutableBatch.remoteSessionId),
-          clientBatchId: mutableBatch.clientBatchId,
-          firstRecordedAt: Value(firstRecordedAt),
-          lastRecordedAt: Value(lastRecordedAt),
-          pointCount: Value(points.length),
-          pointsJson: Value(_encodeJson(points)),
-          status: const Value('queued'),
-          retryCount: const Value(0),
-          nextAttemptAt: const Value(null),
-          workerSessionId: const Value(null),
-          lastError: const Value(null),
-          syncStatus: const Value('pending'),
-          localUpdatedAt: now,
-          serverUpdatedAt: Value(mutableBatch.serverUpdatedAt),
-          createdAt: mutableBatch.createdAt,
-          updatedAt: now,
-        ),
-      );
-      targetBatchId = mutableBatch.id;
-    } else {
-      final batchId = _uuid.v4();
-      await _trackingPointBatchDao.upsertBatch(
-        TrackingPointBatchesCompanion.insert(
-          id: batchId,
-          tripId: tripId,
-          sessionId: session.id,
-          remoteSessionId: Value(session.remoteSessionId),
-          clientBatchId: _uuid.v4(),
-          firstRecordedAt: Value(recordedAt),
-          lastRecordedAt: Value(recordedAt),
-          pointCount: const Value(1),
-          pointsJson: Value(
-            _encodeJson(<Map<String, dynamic>>[_pointPayload(sample: point)]),
+      final now = _now().toUtc();
+      late final String targetBatchId;
+      if (mutableBatch != null &&
+          _canAppendToBatch(batch: mutableBatch, recordedAt: recordedAt)) {
+        final points = _decodePointList(mutableBatch.pointsJson)
+          ..add(_pointPayload(sample: point));
+        final firstRecordedAt = mutableBatch.firstRecordedAt ?? recordedAt;
+        final existingLast = mutableBatch.lastRecordedAt;
+        final lastRecordedAt =
+            existingLast == null || recordedAt.isAfter(existingLast)
+                ? recordedAt
+                : existingLast;
+        await _trackingPointBatchDao.upsertBatch(
+          TrackingPointBatchesCompanion.insert(
+            id: mutableBatch.id,
+            tripId: mutableBatch.tripId,
+            sessionId: mutableBatch.sessionId,
+            remoteSessionId: Value(mutableBatch.remoteSessionId),
+            clientBatchId: mutableBatch.clientBatchId,
+            firstRecordedAt: Value(firstRecordedAt),
+            lastRecordedAt: Value(lastRecordedAt),
+            pointCount: Value(points.length),
+            pointsJson: Value(_encodeJson(points)),
+            status: const Value('queued'),
+            retryCount: const Value(0),
+            nextAttemptAt: const Value(null),
+            workerSessionId: const Value(null),
+            lastError: const Value(null),
+            syncStatus: const Value('pending'),
+            localUpdatedAt: now,
+            serverUpdatedAt: Value(mutableBatch.serverUpdatedAt),
+            createdAt: mutableBatch.createdAt,
+            updatedAt: now,
           ),
-          status: const Value('queued'),
-          retryCount: const Value(0),
-          nextAttemptAt: const Value(null),
-          workerSessionId: const Value(null),
-          lastError: const Value(null),
-          syncStatus: const Value('pending'),
-          localUpdatedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-      targetBatchId = batchId;
-    }
+        );
+        targetBatchId = mutableBatch.id;
+      } else {
+        final batchId = _uuid.v4();
+        await _trackingPointBatchDao.upsertBatch(
+          TrackingPointBatchesCompanion.insert(
+            id: batchId,
+            tripId: tripId,
+            sessionId: session.id,
+            remoteSessionId: Value(session.remoteSessionId),
+            clientBatchId: _uuid.v4(),
+            firstRecordedAt: Value(recordedAt),
+            lastRecordedAt: Value(recordedAt),
+            pointCount: const Value(1),
+            pointsJson: Value(
+              _encodeJson(<Map<String, dynamic>>[_pointPayload(sample: point)]),
+            ),
+            status: const Value('queued'),
+            retryCount: const Value(0),
+            nextAttemptAt: const Value(null),
+            workerSessionId: const Value(null),
+            lastError: const Value(null),
+            syncStatus: const Value('pending'),
+            localUpdatedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        targetBatchId = batchId;
+      }
 
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trackingPointBatch,
-      entityId: targetBatchId,
-      operation: 'upload',
-      dependsOnEntityType: SyncEntityTypes.trackingSession,
-      dependsOnEntityId: session.id,
-    );
-    await _trackingSessionDao.markLastPointAt(
-      sessionId: session.id,
-      lastPointAt: recordedAt,
-    );
-    return true;
+      await _syncTaskDao.upsertQueuedTask(
+        id: _uuid.v4(),
+        entityType: SyncEntityTypes.trackingPointBatch,
+        entityId: targetBatchId,
+        operation: 'upload',
+        dependsOnEntityType: SyncEntityTypes.trackingSession,
+        dependsOnEntityId: session.id,
+      );
+      await _trackingSessionDao.markLastPointAt(
+        sessionId: session.id,
+        lastPointAt: recordedAt,
+      );
+      return true;
+    });
   }
 
   Future<void> _enqueueSessionTask({

@@ -16,8 +16,7 @@ class LocationResult {
   bool get isServiceDisabled =>
       accessState == LocationAccessState.serviceDisabled;
 
-  bool get isPermissionDenied =>
-      accessState == LocationAccessState.denied;
+  bool get isPermissionDenied => accessState == LocationAccessState.denied;
 
   bool get isPermissionDeniedForever =>
       accessState == LocationAccessState.deniedForever;
@@ -25,7 +24,8 @@ class LocationResult {
 
 class LocationService {
   LocationService({LocationPermissionService? permissionService})
-      : _permissionService = permissionService ?? const LocationPermissionService();
+      : _permissionService =
+            permissionService ?? const LocationPermissionService();
 
   final LocationPermissionService _permissionService;
 
@@ -67,6 +67,17 @@ class LocationService {
       requestPermission: requestPermission,
     );
     return result.position;
+  }
+
+  Stream<Position> watchPosition({
+    LocationAccuracy accuracy = LocationAccuracy.best,
+    int distanceFilterMeters = 8,
+  }) {
+    final settings = LocationSettings(
+      accuracy: accuracy,
+      distanceFilter: distanceFilterMeters,
+    );
+    return Geolocator.getPositionStream(locationSettings: settings);
   }
 
   Future<Position?> _getLastKnownPositionSafely() async {

@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
-Last updated: 2026-03-23  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slice 1 started)  
+Last updated: 2026-03-24  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -520,3 +520,36 @@ After each Flutter live-tracking slice:
   - `cd flutter; flutter test test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 49 passed)
 - Decision notes:
   - This slice intentionally stops before background capture orchestration; that remains in upcoming Phase 5 slices.
+
+- Date: 2026-03-24
+- Slice: Phase 5 runtime capture orchestration + recovery bootstrap (slice 2)
+- Implemented:
+  - Added `lib/features/create/data/live_tracking_capture_coordinator.dart`:
+    - permission-gated runtime control methods:
+      - `startTracking`
+      - `pauseTracking`
+      - `resumeTracking`
+      - `stopTracking`
+    - shared foreground point stream fanout for active sessions (single stream subscription; avoids per-session stream duplication)
+    - explicit capture exception model for location denied/disabled states
+    - startup recovery hook: `recoverActiveSessions()` for active local sessions
+  - Extended location runtime API:
+    - `lib/core/location/location_service.dart` adds `watchPosition(...)`
+  - Extended session DAO for recovery:
+    - `lib/core/storage/daos/tracking_session_dao.dart` adds `getSessionsByStates(...)`
+  - Updated runtime provider wiring:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart` now exposes:
+      - `liveTrackingCaptureCoordinatorProvider`
+      - `liveTrackingCaptureBootstrapProvider`
+    - maps location stream `Position` payloads into runtime `TrackingPointSample` objects
+  - App bootstrap integration:
+    - `lib/app.dart` now watches `liveTrackingCaptureBootstrapProvider` to recover active capture on app start.
+  - Added coordinator test coverage:
+    - `test/features/create/live_tracking_capture_coordinator_test.dart`
+    - validates permission gating, pause ingestion stop, shared stream reuse, recovery behavior, and denied-state exceptions
+- Validation:
+  - `cd flutter; flutter analyze lib/app.dart lib/core/location/location_service.dart lib/core/storage/daos/tracking_session_dao.dart lib/features/create/data/live_tracking_capture_coordinator.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 55 passed)
+- Decision notes:
+  - This slice intentionally focuses on foreground capture orchestration + startup recovery.
+  - Dedicated background capture behavior and terminated-state continuation remain for next Phase 5 slices.

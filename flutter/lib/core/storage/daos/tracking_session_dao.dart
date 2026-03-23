@@ -25,6 +25,22 @@ class TrackingSessionDao extends DatabaseAccessor<AppDatabase>
             ]))
           .get();
 
+  Future<List<TrackingSessionRow>> getSessionsByStates(Set<String> states) {
+    if (states.isEmpty) {
+      return Future<List<TrackingSessionRow>>.value(
+          const <TrackingSessionRow>[]);
+    }
+    return (select(trackingSessions)
+          ..where((t) => t.state.isIn(states))
+          ..orderBy([
+            (t) => OrderingTerm(
+                  expression: t.localUpdatedAt,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .get();
+  }
+
   Future<TrackingSessionRow?> getLatestSessionForTrip(String tripId) =>
       (select(trackingSessions)
             ..where((t) => t.tripId.equals(tripId))

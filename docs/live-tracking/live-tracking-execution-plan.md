@@ -1,6 +1,6 @@
 # Live Tracking Detailed Execution Plan
 
-Last updated: 2026-03-23  
+Last updated: 2026-03-24  
 Status: Active execution plan (phase-gated)
 
 ## 1. Purpose
@@ -70,7 +70,7 @@ Important current baseline:
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
-| 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1 landed: local runtime lifecycle repository + point batching/dedup + task enqueue orchestration with targeted tests green |
+| 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
@@ -1110,6 +1110,33 @@ Use this section after each phase:
   - Phase 5 runtime work has started with deterministic local lifecycle and point-batching foundation, while preserving Phase 4 storage/sync guarantees.
 - Known failures/waivers:
   - Background continuous capture runtime (foreground stream + background worker orchestration) is still pending in later Phase 5 slices.
+
+- Date: 2026-03-24
+- Phase: 5 (Flutter Runtime) slice 2 capture orchestration + recovery bootstrap
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/app.dart lib/core/location/location_service.dart lib/core/storage/daos/tracking_session_dao.dart lib/features/create/data/live_tracking_capture_coordinator.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 55 passed)
+- Manual checks run:
+  - Added foreground capture coordinator:
+    - permission-gated `startTracking/pauseTracking/resumeTracking/stopTracking`
+    - shared point-stream fanout to active sessions (single stream subscription, multi-session support)
+    - explicit error contract for denied/disabled location states
+  - Added startup recovery path:
+    - app bootstrap now triggers `recoverActiveSessions()`
+    - active local sessions reattach to capture stream without forcing permission prompt on app launch
+  - Extended location service:
+    - added `watchPosition(...)` stream API for continuous capture runtime
+  - Extended runtime session DAO support:
+    - added `getSessionsByStates(...)` for active-session recovery query
+  - Added dedicated coordinator tests:
+    - permission gating behavior
+    - pause stops ingestion
+    - shared stream behavior across multiple active sessions
+    - recovery bootstrap behavior
+- Result summary:
+  - Phase 5 now has both deterministic local lifecycle/batching (slice 1) and foreground capture orchestration with recovery bootstrap (slice 2).
+- Known failures/waivers:
+  - Background capture runtime specifics (platform background modes, restart reconciliation under terminated state, and cadence throttling policy) remain for next Phase 5 slices.
 
 ## 12. Risk Register
 

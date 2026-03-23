@@ -162,6 +162,16 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(trackingPointBatches);
             await m.createTable(trackingCandidates);
             await m.createTable(trackingMoments);
+            await m.createIndex(trackingSessionsTripStateUpdatedIdx);
+            await m.createIndex(trackingSessionsTripUpdatedIdx);
+            await m.createIndex(trackingPointBatchesClaimIdx);
+            await m.createIndex(trackingPointBatchesTripCreatedIdx);
+            await m.createIndex(trackingPointBatchesSessionCreatedIdx);
+            await m.createIndex(trackingCandidatesTripCreatedIdx);
+            await m.createIndex(trackingCandidatesTripStatusUpdatedIdx);
+            await m.createIndex(trackingCandidatesActionQueueIdx);
+            await m.createIndex(trackingMomentsTripCapturedIdx);
+            await m.createIndex(trackingMomentsSyncPendingIdx);
           }
         },
       );
@@ -287,7 +297,7 @@ class AppDatabase extends _$AppDatabase {
     final row = await customSelect(
       'SELECT name FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1',
       variables: [
-        Variable<String>('table'),
+        const Variable<String>('table'),
         Variable<String>(tableName),
       ],
     ).getSingleOrNull();

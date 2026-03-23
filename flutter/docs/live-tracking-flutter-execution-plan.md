@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-23  
-Status: In Progress (Phase 4 worker path + hardening + snapshot hydration landed; closeout pending)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slice 1 started)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -481,3 +481,42 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This slice closes a parity gap where offline cache rows could lag behind backend canonical snapshots after sync.
   - Phase 4 closeout now includes schema foundation, worker wiring, hardening, and snapshot hydration evidence.
+
+- Date: 2026-03-23
+- Slice: Phase 4 closeout validation + migration hardening
+- Implemented:
+  - Added migration regression test:
+    - `test/core/storage/drift_database_migration_test.dart`
+    - verifies schema `12 -> 13` upgrade creates all tracking tables and secondary indexes
+    - verifies pre-upgrade data survives the upgrade
+  - Fixed migration upgrade-path index gap in:
+    - `lib/core/storage/drift_database.dart`
+    - explicitly creates tracking indexes in `from < 13` branch
+- Validation:
+  - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/sync/tracking_sync_worker.dart test/core/storage/drift_database_migration_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 49 passed)
+- Decision notes:
+  - Phase 4 is now validated; migration safety and runtime sync path are both explicitly covered by tests.
+
+- Date: 2026-03-23
+- Slice: Phase 5 runtime lifecycle + batching foundation (slice 1)
+- Implemented:
+  - Added `lib/features/create/data/live_tracking_runtime_repository.dart`:
+    - local lifecycle state machine (`planned/active/paused/ended`)
+    - operations: `startSession`, `pauseSession`, `resumeSession`, `stopSession`
+    - point ingest with dedup guard (cadence + distance)
+    - batch append/split policy (`maxPointsPerBatch`, `maxBatchWindow`)
+    - sync task enqueue for sessions and point batches with session dependency
+  - Added provider wiring:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+  - Added DAO/runtime support methods:
+    - `TrackingSessionDao.getLatestSessionForTrip`, `watchLatestSessionForTrip`, `markLastPointAt`
+    - `TrackingPointBatchDao.getLatestMutableBatchForSession`, `getBatchesForSession`
+  - Added test coverage:
+    - `test/features/create/live_tracking_runtime_repository_test.dart`
+    - validates lifecycle transitions and point batching/dedup behavior
+- Validation:
+  - `cd flutter; flutter analyze lib/core/storage/daos/tracking_session_dao.dart lib/core/storage/daos/tracking_point_batch_dao.dart lib/core/storage/drift_database.dart lib/features/create/data/live_tracking_runtime_repository.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/core/storage/drift_database_migration_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 49 passed)
+- Decision notes:
+  - This slice intentionally stops before background capture orchestration; that remains in upcoming Phase 5 slices.

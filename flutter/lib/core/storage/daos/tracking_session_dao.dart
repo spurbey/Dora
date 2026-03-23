@@ -25,6 +25,30 @@ class TrackingSessionDao extends DatabaseAccessor<AppDatabase>
             ]))
           .get();
 
+  Future<TrackingSessionRow?> getLatestSessionForTrip(String tripId) =>
+      (select(trackingSessions)
+            ..where((t) => t.tripId.equals(tripId))
+            ..orderBy([
+              (t) => OrderingTerm(
+                    expression: t.localUpdatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Stream<TrackingSessionRow?> watchLatestSessionForTrip(String tripId) =>
+      (select(trackingSessions)
+            ..where((t) => t.tripId.equals(tripId))
+            ..orderBy([
+              (t) => OrderingTerm(
+                    expression: t.localUpdatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(1))
+          .watchSingleOrNull();
+
   Stream<TrackingSessionRow?> watchActiveOrPausedSessionForTrip(
           String tripId) =>
       (select(trackingSessions)
@@ -88,6 +112,21 @@ class TrackingSessionDao extends DatabaseAccessor<AppDatabase>
             lastPointAt == null ? const Value.absent() : Value(lastPointAt),
         lastFlushAt:
             lastFlushAt == null ? const Value.absent() : Value(lastFlushAt),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<int> markLastPointAt({
+    required String sessionId,
+    required DateTime lastPointAt,
+  }) {
+    final now = DateTime.now();
+    return (update(trackingSessions)..where((t) => t.id.equals(sessionId)))
+        .write(
+      TrackingSessionsCompanion(
+        lastPointAt: Value(lastPointAt),
         localUpdatedAt: Value(now),
         updatedAt: Value(now),
       ),

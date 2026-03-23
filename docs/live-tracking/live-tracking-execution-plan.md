@@ -69,8 +69,8 @@ Important current baseline:
 | 1 | Backend Data Model | Validated | Migrations + ORM updates | Migration chain reconciled; `alembic check` clean and targeted backend suite green |
 | 2 | Backend APIs/Services | Validated | Tracking/check-in/moment endpoints | Phase 2 router/service/schemas shipped; targeted endpoint/service tests + `alembic check` green |
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
-| 4 | Flutter Storage/Sync | In Progress | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables landed; dedicated tracking sync worker path wired + hardened (`/api/v1` paths, requeue-safe completion, deferred-pending retry scheduling); targeted storage/sync/worker tests green |
-| 5 | Flutter Runtime | Not Started | Continuous tracking + batching lifecycle | Offline/restart/permission tests |
+| 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
+| 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1 landed: local runtime lifecycle repository + point batching/dedup + task enqueue orchestration with targeted tests green |
 | 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
@@ -1069,6 +1069,47 @@ Use this section after each phase:
   - Phase 4 closeout evidence includes post-review hardening for this slice.
 - Known failures/waivers:
   - None in this slice.
+
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) closeout validation and migration hardening
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/sync/tracking_sync_worker.dart test/core/storage/drift_database_migration_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 49 passed)
+- Manual checks run:
+  - Added explicit migration regression test for schema `12 -> 13`:
+    - validates tracking tables are created on upgrade
+    - validates all tracking secondary indexes exist after upgrade
+    - validates pre-upgrade non-tracking data remains intact
+  - Fixed upgrade-path index gap by explicitly creating tracking indexes inside `from < 13` migration branch.
+- Result summary:
+  - Phase 4 exit criteria are now fully evidenced (schema migration + DAO/sync validation + worker execution path + hardening + snapshot hydration).
+  - Phase 4 status moved to `Validated`; execution moved to Phase 5 runtime.
+- Known failures/waivers:
+  - Repo-wide `flutter analyze --no-pub` still includes pre-existing info-level lint hints outside live-tracking scope.
+
+- Date: 2026-03-23
+- Phase: 5 (Flutter Runtime) slice 1 foundation
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/storage/daos/tracking_session_dao.dart lib/core/storage/daos/tracking_point_batch_dao.dart lib/core/storage/drift_database.dart lib/features/create/data/live_tracking_runtime_repository.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/core/storage/drift_database_migration_test.dart test/features/create/live_tracking_runtime_repository_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/core/sync/live_tracking_sync_primitives_test.dart test/core/sync/entity_sync_worker_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 49 passed)
+- Manual checks run:
+  - Added runtime lifecycle repository with explicit local state machine (`planned/active/paused/ended`) and operations:
+    - `startSession`, `pauseSession`, `resumeSession`, `stopSession`
+  - Added runtime batching ingest path:
+    - point dedup guard (cadence + distance threshold)
+    - queued batch append/split by policy (`maxPointsPerBatch`, `maxBatchWindow`)
+    - deterministic sync-task enqueue with dependency on tracking session
+  - Added local runtime providers for future UI/runtime integration:
+    - repository provider
+    - runtime snapshot stream provider
+  - Added DAO utilities needed by runtime:
+    - latest session lookups/watch
+    - `markLastPointAt`
+    - latest mutable batch lookup + session batch listing
+- Result summary:
+  - Phase 5 runtime work has started with deterministic local lifecycle and point-batching foundation, while preserving Phase 4 storage/sync guarantees.
+- Known failures/waivers:
+  - Background continuous capture runtime (foreground stream + background worker orchestration) is still pending in later Phase 5 slices.
 
 ## 12. Risk Register
 

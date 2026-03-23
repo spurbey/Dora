@@ -15,6 +15,36 @@ class TrackingPointBatchDao extends DatabaseAccessor<AppDatabase>
       (select(trackingPointBatches)..where((b) => b.id.equals(id)))
           .getSingleOrNull();
 
+  Future<List<TrackingPointBatchRow>> getBatchesForSession(String sessionId) =>
+      (select(trackingPointBatches)
+            ..where((b) => b.sessionId.equals(sessionId))
+            ..orderBy([
+              (b) => OrderingTerm(
+                    expression: b.createdAt,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
+  Future<TrackingPointBatchRow?> getLatestMutableBatchForSession(
+    String sessionId,
+  ) =>
+      (select(trackingPointBatches)
+            ..where(
+              (b) =>
+                  b.sessionId.equals(sessionId) &
+                  b.status.equals('queued') &
+                  b.workerSessionId.isNull(),
+            )
+            ..orderBy([
+              (b) => OrderingTerm(
+                    expression: b.createdAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+
   Future<int> upsertBatch(TrackingPointBatchesCompanion row) =>
       into(trackingPointBatches).insertOnConflictUpdate(row);
 

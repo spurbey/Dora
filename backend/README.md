@@ -224,3 +224,7 @@ CI behavior:
 - Renderer endpoints are currently unauthenticated unless you add network/API-key protection (see `docs/security-deferred.md`).
 - Do not expose renderer port publicly in production.
 - Storage service currently requires JWT-style Supabase service keys; `sb_secret_*` keys are treated as incompatible by current Python client path.
+
+## Live-Tracking
+
+-coming soon

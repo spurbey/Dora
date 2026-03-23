@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/network/api_providers.dart';
@@ -41,14 +43,43 @@ final exportJobPollingProvider =
 
 Stream<ExportJob> _pollJobStatus(Ref ref, String jobId) async* {
   final repository = ref.read(exportRepositoryProvider);
-  while (true) {
+  var disposed = false;
+  Timer? pendingTimer;
+  Completer<void>? pendingSleep;
+
+  ref.onDispose(() {
+    disposed = true;
+    pendingTimer?.cancel();
+    final sleep = pendingSleep;
+    if (sleep != null && !sleep.isCompleted) {
+      sleep.complete();
+    }
+  });
+
+  while (!disposed) {
     final job = await repository.getJobStatus(jobId);
+    if (disposed) {
+      break;
+    }
     yield job;
-    if (_isTerminal(job.status)) break;
+    if (_isTerminal(job.status)) {
+      break;
+    }
+
     final interval = job.status == ExportJobStatus.queued
         ? const Duration(seconds: 10)
         : const Duration(seconds: 2);
-    await Future.delayed(interval);
+
+    final sleep = Completer<void>();
+    pendingSleep = sleep;
+    pendingTimer = Timer(interval, () {
+      if (!sleep.isCompleted) {
+        sleep.complete();
+      }
+    });
+    await sleep.future;
+    pendingTimer = null;
+    pendingSleep = null;
   }
 }
 

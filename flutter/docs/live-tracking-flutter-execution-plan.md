@@ -429,3 +429,13 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Trip-sync review findings were accepted as valid and addressed in this slice.
   - No scope deferrals for the reported high-severity items.
+
+- Date: 2026-03-23
+- Slice: Phase 4 deferred-cooldown guardrail follow-up
+- Implemented:
+  - Added explicit assertion in tracking worker tests that deferred point-batch tasks persist `next_attempt_at` when moved to `pending`.
+  - file: `test/core/sync/tracking_sync_worker_test.dart`
+- Validation:
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 5 passed)
+- Decision notes:
+  - No runtime code changes were needed; this follow-up locks existing anti-churn behavior against regression.

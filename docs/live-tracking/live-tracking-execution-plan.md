@@ -1022,6 +1022,17 @@ Use this section after each phase:
 - Known failures/waivers:
   - None in this slice.
 
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) follow-up guardrail
+- Automated tests run:
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 5 passed)
+- Manual checks run:
+  - Added explicit regression assertion that deferred point-batch tasks set `next_attempt_at` (cooldown) when written as `pending`.
+- Result summary:
+  - Deferred-task anti-churn backoff is now locked by test coverage (not only implementation intent).
+- Known failures/waivers:
+  - None in this slice.
+
 ## 12. Risk Register
 
 Track only active risks:

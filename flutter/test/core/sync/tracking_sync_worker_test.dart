@@ -394,6 +394,7 @@ void main() {
       expect(task['error_code'], 'tracking_session_remote_id_missing');
       expect(task['depends_on_entity_type'], SyncEntityTypes.trackingSession);
       expect(task['depends_on_entity_id'], 'session-local-2');
+      expect(task['next_attempt_at'], isNotNull);
       expect(task['worker_session_id'], isNull);
     });
 

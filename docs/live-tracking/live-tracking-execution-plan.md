@@ -1,6 +1,6 @@
 # Live Tracking Detailed Execution Plan
 
-Last updated: 2026-03-21  
+Last updated: 2026-03-23  
 Status: Active execution plan (phase-gated)
 
 ## 1. Purpose
@@ -36,6 +36,7 @@ Primary references:
 - `flutter/docs/handoffs/2026-03-20-trip-sync-execution-tracker.md`
 - `flutter/docs/handoffs/2026-03-20-trip-sync-m0-contract-freeze.md`
 - `flutter/docs/handoffs/phase5-sync-remediation-plan.md`
+- `flutter/docs/live-tracking-flutter-execution-plan.md`
 - `backend/README.md`
 - `flutter/README.md`
 
@@ -58,6 +59,7 @@ Important current baseline:
 10. Use numeric rollout gates for canary progression and rollback decisions.
 11. Treat candidate cooldown as mandatory service-level invariant backed by explicit tests.
 12. Support manual-only trip completion path (`planned -> completed`) with explicit transition handling/tests.
+13. Keep root and Flutter live-tracking docs synchronized: root is phase-gate memory, Flutter doc is low-level execution memory.
 
 ## 5. Phase Board
 
@@ -287,6 +289,23 @@ Doc updates required:
 
 - Add UX acceptance checklist and outcomes.
 - Record known edge behaviors.
+
+Flutter plan synchronization (2026-03-23):
+
+- High-level Flutter gates remain in this root document (Phases 4, 5, 6).
+- Low-level implementation details now live in:
+  - `flutter/docs/live-tracking-flutter-execution-plan.md`
+- Sync keys between docs:
+  - `FLT-P4` for Flutter storage/sync wiring
+  - `FLT-P5` for runtime capture lifecycle
+  - `FLT-P6` for UX/map integration
+- Update protocol:
+  - Any Flutter live-tracking scope change must update both docs in the same commit.
+  - Root doc stores phase status + evidence summary; Flutter doc stores file-level plan + test matrix.
+- Contract alignment locks (Flutter, 2026-03-23):
+  - Candidate decision wire actions remain `confirm/reject/snooze` (UI copy may display "Dismiss" for `reject`).
+  - `planned` is a local pre-start runtime/UI state and not a persisted backend session state.
+  - `no_tokens` push outcome is terminal for that candidate push flow (`skipped_no_tokens`) unless policy changes.
 
 ## Phase 7: Hardening and Operational Safety
 

@@ -1033,6 +1033,43 @@ Use this section after each phase:
 - Known failures/waivers:
   - None in this slice.
 
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) snapshot hydration slice
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 7 passed)
+  - `cd flutter; flutter test test/core/storage/sync_task_dao_test.dart test/core/sync/entity_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 27 passed)
+- Manual checks run:
+  - Expanded `TrackingSyncWorker` to hydrate richer server snapshots into local cache rows after successful sync:
+    - sessions: timezone/device-context/client-session + lifecycle timestamps
+    - candidates: confidence/suggestion/status/cooldown/payload + server timestamps
+    - moments: source/confidence/location/note/media/extra/locked-fields + timestamps
+  - Preserved requeue safety:
+    - when `pending_requeue=1`, local rows remain `syncStatus='pending'` while avoiding stale completion semantics.
+  - Added snapshot-focused worker tests for session/candidate/moment hydration.
+- Result summary:
+  - Local tracking cache is now materially closer to backend canonical state after sync, improving offline UX parity.
+  - Phase 4 closeout now has schema, worker execution, hardening, and snapshot hydration in place.
+- Known failures/waivers:
+  - None in this slice.
+
+- Date: 2026-03-23
+- Phase: 4 (Flutter Storage/Sync) snapshot hydration hardening follow-up
+- Automated tests run:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart test/core/sync/tracking_sync_worker_test.dart` (pass: no issues)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 8 passed)
+- Manual checks run:
+  - Accepted trip-sync review finding on stale session fallback semantics.
+  - Session hydration now uses current DB row values as fallback for omitted server fields (`client_session_id`, `timezone`, `device_context`, `state`) to avoid mid-flight stale overwrite.
+  - Session `serverUpdatedAt` now prefers server snapshot `updated_at` when present, with worker-time fallback.
+  - Removed unused `fallbackRow` parameter from candidate hydration to reduce maintenance ambiguity.
+  - Added regression test covering mid-flight session edits during pause sync to lock stale-overwrite prevention.
+- Result summary:
+  - Snapshot hydration semantics are now safer under concurrency and partial server payloads.
+  - Phase 4 closeout evidence includes post-review hardening for this slice.
+- Known failures/waivers:
+  - None in this slice.
+
 ## 12. Risk Register
 
 Track only active risks:

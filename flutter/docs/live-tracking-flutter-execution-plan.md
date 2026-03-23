@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-23  
-Status: In Progress (Phase 4 worker path + hardening landed; closeout pending)  
+Status: In Progress (Phase 4 worker path + hardening + snapshot hydration landed; closeout pending)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -439,3 +439,45 @@ After each Flutter live-tracking slice:
   - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 5 passed)
 - Decision notes:
   - No runtime code changes were needed; this follow-up locks existing anti-churn behavior against regression.
+
+- Date: 2026-03-23
+- Slice: Phase 4 snapshot hydration hardening (post-review)
+- Implemented:
+  - Accepted review feedback on session hydration fallback safety in `TrackingSyncWorker`.
+  - Session hydration now uses the current session row as fallback for omitted server fields instead of task-claim snapshot values:
+    - `state`
+    - `client_session_id`
+    - `timezone`
+    - `device_context`
+  - Session hydration now sets `serverUpdatedAt` from snapshot `updated_at` when available (worker `now` only as fallback).
+  - Removed unused `fallbackRow` argument from candidate hydration helper to reduce ambiguity.
+  - Added regression test for mid-flight session edits during `pause` sync to prevent stale overwrite regressions.
+- Validation:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 8 passed)
+- Decision notes:
+  - This hardening is in-scope for Phase 4 because it protects offline cache correctness under concurrent local edits and partial server snapshots.
+
+- Date: 2026-03-23
+- Slice: Phase 4 snapshot hydration for offline cache parity
+- Implemented:
+  - Expanded `TrackingSyncWorker` server snapshot persistence to hydrate richer local cache fields after successful sync.
+  - Session hydration now captures canonical fields:
+    - `remoteSessionId`, `clientSessionId`, `state`, `timezone`, `deviceContextJson`
+    - lifecycle timestamps (`startedAt`, `pausedAt`, `resumedAt`, `endedAt`, `abandonedAt`, `lastPointAt`)
+  - Candidate hydration now captures canonical fields:
+    - `sessionId`, `fingerprint`, `confidence`, suggestion coordinates/name
+    - `confirmedTripPlaceId`, `rejectedReason`, `snoozedUntil`, `cooldownUntil`, `payloadJson`
+  - Moment hydration now captures canonical fields:
+    - `candidateId`, `linkedTripPlaceId`, `source`, `confidence`
+    - `latitude`, `longitude`, `note`, `mediaRefsJson`, `extraPayloadJson`, `lockedFieldsJson`
+  - Requeue safety remains enforced:
+    - when task completion resolves to requeue (`pending_requeue=1`), local entities are not incorrectly finalized as `synced`.
+  - Added/expanded worker tests for session/candidate/moment snapshot hydration.
+- Validation:
+  - `cd flutter; flutter analyze lib/core/sync/tracking_sync_worker.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/core/sync/tracking_sync_worker_test.dart` (pass: 7 passed)
+  - `cd flutter; flutter test test/core/storage/sync_task_dao_test.dart test/core/sync/entity_sync_worker_test.dart test/core/network/live_tracking_api_test.dart` (pass: 27 passed)
+- Decision notes:
+  - This slice closes a parity gap where offline cache rows could lag behind backend canonical snapshots after sync.
+  - Phase 4 closeout now includes schema foundation, worker wiring, hardening, and snapshot hydration evidence.

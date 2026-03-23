@@ -253,35 +253,18 @@ class TrackingSyncWorker {
         );
     }
 
-    final state = (response['state'] as String?) ?? row.state;
     final remoteSessionId =
-        response['session_id']?.toString() ?? row.remoteSessionId;
+        _asString(response['session_id']) ?? row.remoteSessionId;
     await _persistSuccessAndCompleteTask(
       task: task,
       sessionId: sessionId,
       applyLocalMutation: (shouldMarkEntitySynced) async {
-        await (_db.update(_db.trackingSessions)
-              ..where((t) => t.id.equals(row.id)))
-            .write(
-          TrackingSessionsCompanion(
-            remoteSessionId: Value(remoteSessionId),
-            state: Value(state),
-            startedAt:
-                Value(_parseDateTime(response['started_at']) ?? row.startedAt),
-            pausedAt:
-                Value(_parseDateTime(response['paused_at']) ?? row.pausedAt),
-            resumedAt:
-                Value(_parseDateTime(response['resumed_at']) ?? row.resumedAt),
-            endedAt: Value(_parseDateTime(response['ended_at']) ?? row.endedAt),
-            abandonedAt: Value(
-                _parseDateTime(response['abandoned_at']) ?? row.abandonedAt),
-            lastPointAt: Value(
-                _parseDateTime(response['last_point_at']) ?? row.lastPointAt),
-            syncStatus: Value(shouldMarkEntitySynced ? 'synced' : 'pending'),
-            serverUpdatedAt: Value(now),
-            localUpdatedAt: Value(now),
-            updatedAt: Value(now),
-          ),
+        await _applySessionSnapshot(
+          sessionId: row.id,
+          snapshot: response,
+          resolvedRemoteSessionId: remoteSessionId,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+          now: now,
         );
       },
     );
@@ -412,24 +395,28 @@ class TrackingSyncWorker {
         );
     }
 
-    final candidatePayload = response['candidate'];
-    var nextStatus = row.status;
-    if (candidatePayload is Map) {
-      final mapped = Map<String, dynamic>.from(candidatePayload);
-      nextStatus = mapped['status']?.toString() ?? nextStatus;
-    }
+    final candidatePayload = _asJsonMap(response['candidate']);
 
     await _persistSuccessAndCompleteTask(
       task: task,
       sessionId: sessionId,
       applyLocalMutation: (shouldMarkEntitySynced) async {
-        if (!shouldMarkEntitySynced) {
+        if (candidatePayload == null) {
+          if (!shouldMarkEntitySynced) {
+            return;
+          }
+          await _trackingCandidateDao.markDecisionSynced(
+            candidateId: row.id,
+            status: row.status,
+            syncedAt: now,
+          );
           return;
         }
-        await _trackingCandidateDao.markDecisionSynced(
+        await _applyCandidateSnapshot(
           candidateId: row.id,
-          status: nextStatus,
-          syncedAt: now,
+          snapshot: candidatePayload,
+          shouldMarkEntitySynced: shouldMarkEntitySynced,
+          now: now,
         );
       },
     );
@@ -476,6 +463,8 @@ class TrackingSyncWorker {
           extraPayload: extraPayload,
         );
         final responseId = response['id']?.toString();
+        final momentSnapshot =
+            _asJsonMap(response) ?? const <String, dynamic>{};
         await _persistSuccessAndCompleteTask(
           task: task,
           sessionId: sessionId,
@@ -503,27 +492,18 @@ class TrackingSyncWorker {
               }
               localMomentId = responseId;
             }
-            if (shouldMarkEntitySynced) {
-              await _trackingMomentDao.markSynced(
-                momentId: localMomentId,
-                serverUpdatedAt: now,
-              );
-              return;
-            }
-            await (_db.update(_db.trackingMoments)
-                  ..where((m) => m.id.equals(localMomentId)))
-                .write(
-              TrackingMomentsCompanion(
-                syncStatus: const Value('pending'),
-                localUpdatedAt: Value(now),
-                updatedAt: Value(now),
-              ),
+            await _applyMomentSnapshot(
+              momentId: localMomentId,
+              fallbackRow: row,
+              snapshot: momentSnapshot,
+              shouldMarkEntitySynced: shouldMarkEntitySynced,
+              now: now,
             );
           },
         );
         break;
       case 'update':
-        await _liveTrackingApi.updateMoment(
+        final response = await _liveTrackingApi.updateMoment(
           momentId: row.id,
           idempotencyKey: _idempotencyKey(task.id, operation),
           clientEventId: clientEventId,
@@ -534,16 +514,18 @@ class TrackingSyncWorker {
           linkedTripPlaceId: row.linkedTripPlaceId,
           extraPayload: extraPayload,
         );
+        final momentSnapshot =
+            _asJsonMap(response) ?? const <String, dynamic>{};
         await _persistSuccessAndCompleteTask(
           task: task,
           sessionId: sessionId,
           applyLocalMutation: (shouldMarkEntitySynced) async {
-            if (!shouldMarkEntitySynced) {
-              return;
-            }
-            await _trackingMomentDao.markSynced(
+            await _applyMomentSnapshot(
               momentId: row.id,
-              serverUpdatedAt: now,
+              fallbackRow: row,
+              snapshot: momentSnapshot,
+              shouldMarkEntitySynced: shouldMarkEntitySynced,
+              now: now,
             );
           },
         );
@@ -622,6 +604,201 @@ class TrackingSyncWorker {
         lastError: const Value(null),
         workerSessionId: const Value(null),
         localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<void> _applySessionSnapshot({
+    required String sessionId,
+    required Map<String, dynamic> snapshot,
+    required String? resolvedRemoteSessionId,
+    required bool shouldMarkEntitySynced,
+    required DateTime now,
+  }) async {
+    final current = await _trackingSessionDao.getSessionById(sessionId);
+    if (current == null) {
+      return;
+    }
+    final state = _asString(snapshot['state']) ?? current.state;
+    final sessionTimezone = snapshot.containsKey('timezone')
+        ? _asString(snapshot['timezone'])
+        : current.timezone;
+    final sessionClientId =
+        _asString(snapshot['client_session_id']) ?? current.clientSessionId;
+    final deviceContext = snapshot.containsKey('device_context')
+        ? (_asJsonMap(snapshot['device_context']) ?? <String, dynamic>{})
+        : _decodeJsonMap(current.deviceContextJson);
+    final serverUpdatedAt = _parseDateTime(snapshot['updated_at']) ?? now;
+    await (_db.update(_db.trackingSessions)
+          ..where((t) => t.id.equals(sessionId)))
+        .write(
+      TrackingSessionsCompanion(
+        remoteSessionId: Value(resolvedRemoteSessionId),
+        clientSessionId: Value(sessionClientId),
+        state: Value(state),
+        timezone: Value(sessionTimezone),
+        deviceContextJson: Value(_encodeJson(deviceContext)),
+        startedAt:
+            Value(_parseDateTime(snapshot['started_at']) ?? current.startedAt),
+        pausedAt:
+            Value(_parseDateTime(snapshot['paused_at']) ?? current.pausedAt),
+        resumedAt:
+            Value(_parseDateTime(snapshot['resumed_at']) ?? current.resumedAt),
+        endedAt: Value(_parseDateTime(snapshot['ended_at']) ?? current.endedAt),
+        abandonedAt: Value(
+            _parseDateTime(snapshot['abandoned_at']) ?? current.abandonedAt),
+        lastPointAt: Value(
+            _parseDateTime(snapshot['last_point_at']) ?? current.lastPointAt),
+        syncStatus: Value(shouldMarkEntitySynced ? 'synced' : 'pending'),
+        serverUpdatedAt: Value(serverUpdatedAt),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<void> _applyCandidateSnapshot({
+    required String candidateId,
+    required Map<String, dynamic> snapshot,
+    required bool shouldMarkEntitySynced,
+    required DateTime now,
+  }) async {
+    final current = await _trackingCandidateDao.getCandidateById(candidateId);
+    if (current == null) {
+      return;
+    }
+    final serverUpdatedAt = _parseDateTime(snapshot['updated_at']) ?? now;
+    final createdAt =
+        _parseDateTime(snapshot['created_at']) ?? current.createdAt;
+    final payloadMap = snapshot.containsKey('payload')
+        ? (_asJsonMap(snapshot['payload']) ?? <String, dynamic>{})
+        : _decodeJsonMap(current.payloadJson);
+    await (_db.update(_db.trackingCandidates)
+          ..where((c) => c.id.equals(candidateId)))
+        .write(
+      TrackingCandidatesCompanion(
+        tripId: Value(_asString(snapshot['trip_id']) ?? current.tripId),
+        sessionId: Value(snapshot.containsKey('session_id')
+            ? _asString(snapshot['session_id'])
+            : current.sessionId),
+        fingerprint:
+            Value(_asString(snapshot['fingerprint']) ?? current.fingerprint),
+        status: Value(_asString(snapshot['status']) ?? current.status),
+        confidence:
+            Value(_asDouble(snapshot['confidence']) ?? current.confidence),
+        suggestedName: Value(snapshot.containsKey('suggested_name')
+            ? _asString(snapshot['suggested_name'])
+            : current.suggestedName),
+        suggestedLatitude: Value(snapshot.containsKey('suggested_latitude')
+            ? _asDouble(snapshot['suggested_latitude'])
+            : current.suggestedLatitude),
+        suggestedLongitude: Value(snapshot.containsKey('suggested_longitude')
+            ? _asDouble(snapshot['suggested_longitude'])
+            : current.suggestedLongitude),
+        startedAt: Value(snapshot.containsKey('started_at')
+            ? _parseDateTime(snapshot['started_at'])
+            : current.startedAt),
+        endedAt: Value(snapshot.containsKey('ended_at')
+            ? _parseDateTime(snapshot['ended_at'])
+            : current.endedAt),
+        confirmedTripPlaceId: Value(
+            snapshot.containsKey('confirmed_trip_place_id')
+                ? _asString(snapshot['confirmed_trip_place_id'])
+                : current.confirmedTripPlaceId),
+        rejectedReason: Value(snapshot.containsKey('rejected_reason')
+            ? _asString(snapshot['rejected_reason'])
+            : current.rejectedReason),
+        snoozedUntil: Value(snapshot.containsKey('snoozed_until')
+            ? _parseDateTime(snapshot['snoozed_until'])
+            : current.snoozedUntil),
+        cooldownUntil: Value(snapshot.containsKey('cooldown_until')
+            ? _parseDateTime(snapshot['cooldown_until'])
+            : current.cooldownUntil),
+        payloadJson: Value(_encodeJson(payloadMap)),
+        actionState: shouldMarkEntitySynced
+            ? const Value('synced')
+            : const Value.absent(),
+        actionSyncedAt:
+            shouldMarkEntitySynced ? Value(now) : const Value.absent(),
+        syncStatus: Value(shouldMarkEntitySynced ? 'synced' : 'pending'),
+        localUpdatedAt: Value(now),
+        serverUpdatedAt: Value(serverUpdatedAt),
+        createdAt: Value(createdAt),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<void> _applyMomentSnapshot({
+    required String momentId,
+    required TrackingMomentRow fallbackRow,
+    required Map<String, dynamic> snapshot,
+    required bool shouldMarkEntitySynced,
+    required DateTime now,
+  }) async {
+    final current = await _trackingMomentDao.getMomentById(momentId);
+    if (current == null) {
+      return;
+    }
+    final serverUpdatedAt = _parseDateTime(snapshot['updated_at']) ?? now;
+    if (!shouldMarkEntitySynced) {
+      await (_db.update(_db.trackingMoments)
+            ..where((m) => m.id.equals(momentId)))
+          .write(
+        TrackingMomentsCompanion(
+          syncStatus: const Value('pending'),
+          serverUpdatedAt: Value(serverUpdatedAt),
+          localUpdatedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+      return;
+    }
+
+    final mediaRefs = snapshot.containsKey('media_refs')
+        ? (_asJsonList(snapshot['media_refs']) ?? const <dynamic>[])
+        : _decodeJsonList(current.mediaRefsJson);
+    final extraPayload = snapshot.containsKey('extra_payload')
+        ? (_asJsonMap(snapshot['extra_payload']) ?? <String, dynamic>{})
+        : _decodeJsonMap(current.extraPayloadJson);
+    final lockedFields = snapshot.containsKey('locked_fields')
+        ? (_asJsonMap(snapshot['locked_fields']) ?? <String, dynamic>{})
+        : _decodeJsonMap(current.lockedFieldsJson);
+
+    await (_db.update(_db.trackingMoments)..where((m) => m.id.equals(momentId)))
+        .write(
+      TrackingMomentsCompanion(
+        tripId: Value(_asString(snapshot['trip_id']) ?? fallbackRow.tripId),
+        candidateId: Value(snapshot.containsKey('candidate_id')
+            ? _asString(snapshot['candidate_id'])
+            : current.candidateId),
+        linkedTripPlaceId: Value(snapshot.containsKey('linked_trip_place_id')
+            ? _asString(snapshot['linked_trip_place_id'])
+            : current.linkedTripPlaceId),
+        source: Value(_asString(snapshot['source']) ?? current.source),
+        confidence:
+            Value(_asDouble(snapshot['confidence']) ?? current.confidence),
+        capturedAt: Value(
+            _parseDateTime(snapshot['captured_at']) ?? current.capturedAt),
+        latitude: Value(snapshot.containsKey('latitude')
+            ? _asDouble(snapshot['latitude'])
+            : current.latitude),
+        longitude: Value(snapshot.containsKey('longitude')
+            ? _asDouble(snapshot['longitude'])
+            : current.longitude),
+        note: Value(snapshot.containsKey('note')
+            ? _asString(snapshot['note'])
+            : current.note),
+        mediaRefsJson: Value(_encodeJson(mediaRefs)),
+        extraPayloadJson: Value(_encodeJson(extraPayload)),
+        lockedFieldsJson: Value(_encodeJson(lockedFields)),
+        pendingOperation: const Value(null),
+        syncStatus: const Value('synced'),
+        localUpdatedAt: Value(now),
+        serverUpdatedAt: Value(serverUpdatedAt),
+        createdAt:
+            Value(_parseDateTime(snapshot['created_at']) ?? current.createdAt),
         updatedAt: Value(now),
       ),
     );
@@ -752,7 +929,59 @@ class TrackingSyncWorker {
     return const <dynamic>[];
   }
 
+  static String _encodeJson(Object value) {
+    try {
+      return jsonEncode(value);
+    } catch (_) {
+      if (value is Map) {
+        return '{}';
+      }
+      if (value is List) {
+        return '[]';
+      }
+      return 'null';
+    }
+  }
+
+  static Map<String, dynamic>? _asJsonMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    return null;
+  }
+
+  static List<dynamic>? _asJsonList(dynamic raw) {
+    if (raw is List) {
+      return raw;
+    }
+    return null;
+  }
+
+  static String? _asString(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    final value = raw.toString();
+    return value.isEmpty ? null : value;
+  }
+
+  static double? _asDouble(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    if (raw is num) {
+      return raw.toDouble();
+    }
+    return double.tryParse(raw.toString());
+  }
+
   static DateTime? _parseDateTime(dynamic raw) {
+    if (raw is DateTime) {
+      return raw.toUtc();
+    }
     if (raw is! String || raw.isEmpty) {
       return null;
     }

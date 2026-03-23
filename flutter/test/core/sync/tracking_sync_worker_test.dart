@@ -39,9 +39,23 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     }
     return <String, dynamic>{
       'session_id': 'remote-session-1',
+      'trip_id': tripId,
       'state': 'active',
+      'client_session_id': clientSessionId,
       'started_at': startedAt.toUtc().toIso8601String(),
+      'paused_at': null,
+      'resumed_at': null,
+      'ended_at': null,
+      'abandoned_at': null,
       'last_point_at': startedAt.toUtc().toIso8601String(),
+      'updated_at':
+          startedAt.toUtc().add(const Duration(seconds: 45)).toIso8601String(),
+      'timezone': timezone,
+      'device_context': <String, dynamic>{
+        'platform': 'android',
+        'sdk': '34',
+        ...?deviceContext,
+      },
     };
   }
 
@@ -63,6 +77,8 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'session_id': sessionId ?? 'remote-session-1',
       'state': 'paused',
       'paused_at': pausedAt.toUtc().toIso8601String(),
+      'updated_at':
+          pausedAt.toUtc().add(const Duration(seconds: 30)).toIso8601String(),
     };
   }
 
@@ -78,6 +94,8 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'session_id': sessionId ?? 'remote-session-1',
       'state': 'active',
       'resumed_at': resumedAt.toUtc().toIso8601String(),
+      'updated_at':
+          resumedAt.toUtc().add(const Duration(seconds: 30)).toIso8601String(),
     };
   }
 
@@ -94,6 +112,8 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'session_id': sessionId ?? 'remote-session-1',
       'state': 'ended',
       'ended_at': stoppedAt.toUtc().toIso8601String(),
+      'updated_at':
+          stoppedAt.toUtc().add(const Duration(seconds: 30)).toIso8601String(),
     };
   }
 
@@ -141,8 +161,34 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? reason,
   }) async {
     decisionCalls += 1;
+    final createdAt = rejectedAt.subtract(const Duration(minutes: 10)).toUtc();
+    final updatedAt = rejectedAt.toUtc();
     return <String, dynamic>{
-      'candidate': <String, dynamic>{'id': candidateId, 'status': 'rejected'},
+      'candidate': <String, dynamic>{
+        'id': candidateId,
+        'trip_id': 'trip-4',
+        'user_id': 'user-1',
+        'session_id': 'remote-session-1',
+        'fingerprint': 'fp-updated',
+        'status': 'rejected',
+        'confidence': 0.91,
+        'suggested_name': 'Lukla',
+        'suggested_latitude': 27.6889,
+        'suggested_longitude': 86.7314,
+        'started_at': createdAt.toIso8601String(),
+        'ended_at': updatedAt.toIso8601String(),
+        'confirmed_trip_place_id': null,
+        'rejected_reason': reason ?? 'not_a_match',
+        'snoozed_until': null,
+        'cooldown_until':
+            updatedAt.add(const Duration(hours: 24)).toIso8601String(),
+        'payload': <String, dynamic>{
+          'source': 'worker',
+          'score': 0.91,
+        },
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      },
       'idempotency_replayed': false,
     };
   }
@@ -174,10 +220,25 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? extraPayload,
   }) async {
     momentCalls += 1;
+    final createdAt = capturedAt.toUtc();
+    final updatedAt = createdAt.add(const Duration(minutes: 1));
     return <String, dynamic>{
       'id': 'remote-moment-1',
       'trip_id': tripId,
+      'user_id': 'user-1',
+      'candidate_id': null,
+      'linked_trip_place_id': linkedTripPlaceId,
+      'source': 'manual',
+      'confidence': null,
       'captured_at': capturedAt.toUtc().toIso8601String(),
+      'latitude': location?['latitude'],
+      'longitude': location?['longitude'],
+      'note': note,
+      'media_refs': mediaRefs ?? <Map<String, dynamic>>[],
+      'extra_payload': extraPayload ?? <String, dynamic>{},
+      'locked_fields': <String, dynamic>{},
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -194,10 +255,35 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? extraPayload,
   }) async {
     momentCalls += 1;
+    final effectiveCapturedAt =
+        capturedAt ?? DateTime.utc(2026, 3, 23, 10, 45, 00);
+    final createdAt = effectiveCapturedAt.subtract(const Duration(minutes: 20));
+    final updatedAt = effectiveCapturedAt.add(const Duration(minutes: 2));
     return <String, dynamic>{
       'id': momentId,
-      if (capturedAt != null)
-        'captured_at': capturedAt.toUtc().toIso8601String(),
+      'trip_id': 'trip-5',
+      'user_id': 'user-1',
+      'candidate_id': 'candidate-local-2',
+      'linked_trip_place_id': 'place-remote-1',
+      'source': 'edited_auto',
+      'confidence': 0.77,
+      'captured_at': effectiveCapturedAt.toUtc().toIso8601String(),
+      'latitude': 27.7172,
+      'longitude': 85.3240,
+      'note': 'server-updated-note',
+      'media_refs': const <Map<String, dynamic>>[
+        <String, dynamic>{'media_id': 'm-1', 'type': 'photo'},
+      ],
+      'extra_payload': <String, dynamic>{
+        'weather': 'clear',
+        'mood': 'excited',
+      },
+      'locked_fields': <String, dynamic>{
+        'note': true,
+        'location': true,
+      },
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }
@@ -465,6 +551,108 @@ void main() {
       expect(fakeApi.pauseCalls, 1);
     });
 
+    test('hydrates tracking session snapshot fields from server', () async {
+      final now = DateTime.utc(2026, 3, 23, 10, 30);
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-local-4',
+          tripId: 'trip-4',
+          clientSessionId: 'client-session-4',
+          state: const Value('planned'),
+          timezone: const Value('Asia/Katmandu'),
+          deviceContextJson: const Value('{"build":"local"}'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-4',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-local-4',
+        operation: 'start',
+      );
+
+      await worker.startIfIdle();
+
+      final session = await sessionDao.getSessionById('session-local-4');
+      expect(session, isNotNull);
+      expect(session!.state, 'active');
+      expect(session.remoteSessionId, 'remote-session-1');
+      expect(session.clientSessionId, 'client-session-4');
+      expect(session.timezone, 'Asia/Katmandu');
+      expect(session.deviceContextJson, contains('"platform":"android"'));
+      expect(session.lastPointAt, isNotNull);
+      expect(
+        session.serverUpdatedAt?.toUtc(),
+        DateTime.utc(2026, 3, 23, 10, 30, 45),
+      );
+      expect(session.syncStatus, 'synced');
+    });
+
+    test(
+        'uses current row fallback for omitted session fields to avoid stale overwrite',
+        () async {
+      final now = DateTime.utc(2026, 3, 23, 11, 30);
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-local-stale-fallback-1',
+          tripId: 'trip-stale-fallback-1',
+          remoteSessionId: const Value('remote-session-1'),
+          clientSessionId: 'client-session-old',
+          state: const Value('active'),
+          timezone: const Value('Asia/Katmandu'),
+          deviceContextJson: const Value('{"build":"old"}'),
+          startedAt: Value(now.subtract(const Duration(minutes: 10))),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-stale-fallback-1',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-local-stale-fallback-1',
+        operation: 'pause',
+      );
+
+      fakeApi.pauseTrackingGate = Completer<void>();
+      final runFuture = worker.startIfIdle();
+      await waitForTaskStatus(
+        taskId: 'task-tracking-session-stale-fallback-1',
+        status: 'in_progress',
+      );
+
+      final midFlightTime = now.add(const Duration(minutes: 1));
+      await (database.update(database.trackingSessions)
+            ..where((t) => t.id.equals('session-local-stale-fallback-1')))
+          .write(
+        TrackingSessionsCompanion(
+          clientSessionId: const Value('client-session-new'),
+          timezone: const Value('UTC'),
+          deviceContextJson:
+              const Value('{"build":"new","source":"midflight"}'),
+          localUpdatedAt: Value(midFlightTime),
+          updatedAt: Value(midFlightTime),
+        ),
+      );
+
+      fakeApi.pauseTrackingGate!.complete();
+      await runFuture;
+
+      final session =
+          await sessionDao.getSessionById('session-local-stale-fallback-1');
+      expect(session, isNotNull);
+      expect(session!.state, 'paused');
+      expect(session.clientSessionId, 'client-session-new');
+      expect(session.timezone, 'UTC');
+      expect(session.deviceContextJson, contains('"build":"new"'));
+      expect(session.deviceContextJson, contains('"source":"midflight"'));
+    });
+
     test('keeps non-tracking tasks unclaimed', () async {
       final now = DateTime.now().toUtc();
       await sessionDao.upsertSession(
@@ -555,9 +743,69 @@ void main() {
           await candidateDao.getCandidateById('candidate-local-1');
       expect(candidate, isNotNull);
       expect(candidate!.status, 'rejected');
+      expect(candidate.fingerprint, 'fp-updated');
+      expect(candidate.confidence, closeTo(0.91, 0.0001));
+      expect(candidate.suggestedName, 'Lukla');
+      expect(candidate.suggestedLatitude, closeTo(27.6889, 0.0001));
+      expect(candidate.suggestedLongitude, closeTo(86.7314, 0.0001));
+      expect(candidate.rejectedReason, 'not_a_match');
+      expect(candidate.cooldownUntil, isNotNull);
+      expect(candidate.sessionId, 'remote-session-1');
+      expect(candidate.payloadJson, contains('"source":"worker"'));
       expect(candidate.actionState, 'synced');
       expect(candidate.syncStatus, 'synced');
+      expect(candidate.serverUpdatedAt, isNotNull);
       expect(fakeApi.decisionCalls, 1);
+    });
+
+    test('hydrates moment snapshot fields from server response', () async {
+      final now = DateTime.utc(2026, 3, 23, 11, 0);
+      await momentDao.upsertMoment(
+        TrackingMomentsCompanion.insert(
+          id: 'moment-local-1',
+          tripId: 'trip-5',
+          source: const Value('manual'),
+          capturedAt: now,
+          note: const Value('local-note'),
+          mediaRefsJson: const Value('[]'),
+          extraPayloadJson: const Value('{"origin":"local"}'),
+          lockedFieldsJson: const Value('{}'),
+          pendingOperation: const Value('update'),
+          clientEventId: const Value('moment-event-1'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-moment-update-1',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-local-1',
+        operation: 'update',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-moment-update-1');
+      expect(task['status'], 'completed');
+      final moment = await momentDao.getMomentById('moment-local-1');
+      expect(moment, isNotNull);
+      expect(moment!.source, 'edited_auto');
+      expect(moment.confidence, closeTo(0.77, 0.0001));
+      expect(moment.candidateId, 'candidate-local-2');
+      expect(moment.linkedTripPlaceId, 'place-remote-1');
+      expect(moment.note, 'server-updated-note');
+      expect(moment.latitude, closeTo(27.7172, 0.0001));
+      expect(moment.longitude, closeTo(85.324, 0.0001));
+      expect(moment.mediaRefsJson, contains('"media_id":"m-1"'));
+      expect(moment.extraPayloadJson, contains('"weather":"clear"'));
+      expect(moment.lockedFieldsJson, contains('"location":true'));
+      expect(moment.pendingOperation, isNull);
+      expect(moment.syncStatus, 'synced');
+      expect(moment.serverUpdatedAt, isNotNull);
+      expect(fakeApi.momentCalls, 1);
     });
   });
 }

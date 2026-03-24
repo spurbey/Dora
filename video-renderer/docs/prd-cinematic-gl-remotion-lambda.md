@@ -210,15 +210,18 @@ v2 scope is intentionally minimal for this phase:
 ## 7.2 Camera runtime rule
 
 1. Use `jumpTo` per frame (no `easeTo`/`flyTo` in export path).
-2. Gate render start with `delayRender()` until style ready.
+2. Create `delayRender()` gate only after synchronous plan build/validation succeeds.
+3. Gate render start until style ready.
 
 ## 7.3 Style pinning requirement
 
 For `template=cinematic`:
 
-1. Snapshot includes `renderer_config.map_style`.
+1. Snapshot includes `renderer_config.map_style` (`{owner}/{style_id}`, `mapbox://styles/{owner}/{style_id}`, or full style URL).
 2. Renderer verifies `renderer_config.style_revision` or `style_hash`.
-3. Mismatch fails with `map_style_revision_mismatch`.
+3. Non-derived pins require style metadata fetch verification (token required for fetch path).
+4. Metadata fetch `401/403` is classified as terminal `map_token_invalid`.
+5. Mismatch fails with `map_style_revision_mismatch`.
 
 ---
 

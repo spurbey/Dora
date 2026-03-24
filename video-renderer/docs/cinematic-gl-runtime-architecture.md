@@ -267,12 +267,15 @@ Determinism diagnostics:
 ## 8. GL Usage Contract
 
 1. GL is only used for `template=cinematic`.
-2. Map init blocks rendering until style-ready gate passes.
-3. Style pin (`style_revision` or `style_hash`) is required for cinematic.
-4. Missing style pin is rejected by default at plan validation.
-5. Temporary migration mode may allow derived pin only when explicitly enabled (`allowDerivedStylePin` or `CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN=1`).
-6. Mismatch -> terminal error `map_style_revision_mismatch`.
-7. No real-time/clock-driven camera animations.
+2. Gate handle is created only after synchronous plan validation/build succeeds.
+3. Map init blocks rendering until style-ready gate passes.
+4. Style pin (`style_revision` or `style_hash`) is required for cinematic.
+5. Missing style pin is rejected by default at plan validation.
+6. Temporary migration mode may allow derived pin only when explicitly enabled (`allowDerivedStylePin` or `CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN=1`).
+7. Non-derived pins require style metadata verification (token + fetch path).
+8. Metadata fetch `401/403` is classified as terminal `map_token_invalid`.
+9. Mismatch -> terminal error `map_style_revision_mismatch`.
+10. No real-time/clock-driven camera animations.
 
 ---
 

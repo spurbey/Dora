@@ -471,16 +471,6 @@ function MapJourney({
   const [mapRuntime, setMapRuntime] = useState(null);
   const [mapInitError, setMapInitError] = useState(null);
 
-  if (gateHandleRef.current === null) {
-    gateHandleRef.current = delayRender('cinematic_gl_map_init_gate');
-  }
-
-  const releaseGate = () => {
-    if (gateReleasedRef.current || gateHandleRef.current === null) return;
-    continueRender(gateHandleRef.current);
-    gateReleasedRef.current = true;
-  };
-
   const mapCtx = useMemo(
     () => buildGlobalMapContext({ snapshot, width, height }),
     [snapshot, width, height],
@@ -500,6 +490,16 @@ function MapJourney({
     }),
     [snapshot, places, routes, fps, journeyFrames, mapCtx, width, height],
   );
+
+  if (gateHandleRef.current === null) {
+    gateHandleRef.current = delayRender('cinematic_gl_map_init_gate');
+  }
+
+  const releaseGate = () => {
+    if (gateReleasedRef.current || gateHandleRef.current === null) return;
+    continueRender(gateHandleRef.current);
+    gateReleasedRef.current = true;
+  };
 
   const mapStyle = plan?.rendererConfig?.map_style || null;
   const styleRevision = plan?.rendererConfig?.style_revision || null;

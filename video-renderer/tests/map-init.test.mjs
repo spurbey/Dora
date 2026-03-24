@@ -16,6 +16,20 @@ function fnv1aHex(value) {
   return `fnv1a_${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+async function withMockedFetch(fetchImpl, fn) {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  try {
+    return await fn();
+  } finally {
+    if (typeof previousFetch === 'function') {
+      globalThis.fetch = previousFetch;
+    } else {
+      delete globalThis.fetch;
+    }
+  }
+}
+
 test('verifyStylePin passes when requested and fetched pins match', () => {
   assert.doesNotThrow(() => verifyStylePin({
     requestedStyleHash: 'derived_fnv1a_12345678',
@@ -67,5 +81,101 @@ test('initMapWithGate rejects explicit hash without token when revision absent',
       delayRenderLabel: 'test_gate',
     }),
     /map_style_unreachable/,
+  );
+});
+
+test('initMapWithGate verifies revision-only style pin when token is present', async () => {
+  await withMockedFetch(
+    async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          version: 8,
+          name: 'Navigation Night',
+          modified: 'rev_match',
+          sources: {},
+          layers: [],
+        };
+      },
+    }),
+    async () => {
+      const result = await initMapWithGate({
+        mapStyle: 'mapbox/navigation-night-v1',
+        styleRevision: 'rev_match',
+        mapboxToken: 'pk.test-token',
+        delayRenderLabel: 'test_gate',
+      });
+      assert.equal(result?.styleMeta?.styleRevision, 'rev_match');
+    },
+  );
+});
+
+test('initMapWithGate rejects revision-only pin when token is missing', async () => {
+  await assert.rejects(
+    () => initMapWithGate({
+      mapStyle: 'mapbox/navigation-night-v1',
+      styleRevision: 'rev_match',
+      delayRenderLabel: 'test_gate',
+    }),
+    /map_style_unreachable/,
+  );
+});
+
+test('initMapWithGate classifies 401 style fetch as map_token_invalid', async () => {
+  await withMockedFetch(
+    async () => ({
+      ok: false,
+      status: 401,
+      async json() {
+        return {};
+      },
+    }),
+    async () => {
+      await assert.rejects(
+        () => initMapWithGate({
+          mapStyle: 'mapbox/navigation-night-v1',
+          styleHash: 'sha256_any',
+          mapboxToken: 'pk.invalid',
+          delayRenderLabel: 'test_gate',
+        }),
+        /map_token_invalid/,
+      );
+    },
+  );
+});
+
+test('initMapWithGate supports mapbox URI style format', async () => {
+  let requestedUrl = null;
+  await withMockedFetch(
+    async (url) => {
+      requestedUrl = String(url);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            version: 8,
+            name: 'Navigation Night',
+            modified: 'rev_uri',
+            sources: {},
+            layers: [],
+          };
+        },
+      };
+    },
+    async () => {
+      await initMapWithGate({
+        mapStyle: 'mapbox://styles/mapbox/navigation-night-v1',
+        styleRevision: 'rev_uri',
+        mapboxToken: 'pk.test-token',
+        delayRenderLabel: 'test_gate',
+      });
+    },
+  );
+
+  assert.ok(
+    requestedUrl?.startsWith('https://api.mapbox.com/styles/v1/mapbox/navigation-night-v1?access_token='),
+    `unexpected style URL: ${requestedUrl}`,
   );
 });

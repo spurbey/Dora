@@ -60,7 +60,10 @@ function buildStyleApiUrl(mapStyle, mapboxToken) {
     const hasQuery = trimmedStyle.includes('?');
     return `${trimmedStyle}${hasQuery ? '&' : '?'}access_token=${encodeURIComponent(mapboxToken)}`;
   }
-  return `https://api.mapbox.com/styles/v1/${trimmedStyle}?access_token=${encodeURIComponent(mapboxToken)}`;
+  const stylePath = /^mapbox:\/\/styles\//i.test(trimmedStyle)
+    ? trimmedStyle.replace(/^mapbox:\/\/styles\//i, '')
+    : trimmedStyle.replace(/^styles\//i, '');
+  return `https://api.mapbox.com/styles/v1/${stylePath}?access_token=${encodeURIComponent(mapboxToken)}`;
 }
 
 async function fetchStyleMeta({ mapStyle, mapboxToken }) {
@@ -74,6 +77,9 @@ async function fetchStyleMeta({ mapStyle, mapboxToken }) {
   try {
     const response = await fetch(url, controller ? { signal: controller.signal } : undefined);
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('map_token_invalid');
+      }
       throw new Error(`map_style_unreachable_http_${response.status}`);
     }
     const payload = await response.json();
@@ -89,6 +95,9 @@ async function fetchStyleMeta({ mapStyle, mapboxToken }) {
       styleRevision,
     };
   } catch (err) {
+    if (err?.message === 'map_token_invalid') {
+      throw err;
+    }
     throw new Error(err?.name === 'AbortError' ? 'map_style_unreachable_timeout' : 'map_style_unreachable');
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
@@ -166,15 +175,16 @@ export async function initMapWithGate(input = {}) {
   let fetchedStyleHash = null;
   let fetchedStyleRevision = null;
   const isDerivedRequested = Boolean(requestedStyleHash && requestedStyleHash.startsWith('derived_'));
+  const needsRemoteStyleValidation = Boolean(requestedStyleHash || requestedStyleRevision);
 
   if (isDerivedRequested || (allowDerivedStylePin && !requestedStyleRevision && requestedStyleHash)) {
     fetchedStyleHash = deriveStyleHash(mapStyle);
-  } else if (requestedStyleHash && mapboxToken) {
+  } else if (needsRemoteStyleValidation && mapboxToken) {
     const styleMeta = await fetchStyleMeta({ mapStyle, mapboxToken });
     fetchedStyleHash = styleMeta?.styleHash || null;
     fetchedStyleRevision = styleMeta?.styleRevision || null;
-  } else if (requestedStyleHash && !mapboxToken && !requestedStyleRevision) {
-    // Explicit non-derived hash without token cannot be validated against style JSON.
+  } else if (needsRemoteStyleValidation && !mapboxToken) {
+    // Non-derived style pins require style metadata fetch for verification.
     throw new Error('map_style_unreachable');
   }
 

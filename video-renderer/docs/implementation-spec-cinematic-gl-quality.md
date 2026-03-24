@@ -75,7 +75,7 @@ Uses `X-Renderer-Version: 2` and `X-Renderer-Secret: <shared_secret>`.
 
 For `template=cinematic`, require:
 
-1. `snapshot.renderer_config.map_style`
+1. `snapshot.renderer_config.map_style` (`{owner}/{style_id}`, `mapbox://styles/{owner}/{style_id}`, or full style URL)
 2. `snapshot.renderer_config.style_revision` or `style_hash`
 
 Runtime policy:
@@ -84,7 +84,9 @@ Runtime policy:
 2. Temporary migration compatibility may opt in to derived style pin generation via renderer runtime flag:
    - `allowDerivedStylePin` on planner input, or
    - `CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN=1`
-3. Compatibility mode is transitional and must not replace backend pin plumbing.
+3. Non-derived `style_revision`/`style_hash` must be verified against fetched style metadata.
+4. If metadata fetch is required but token is missing/unreachable, fail with `map_style_unreachable`.
+5. Compatibility mode is transitional and must not replace backend pin plumbing.
 
 ## 4.3 Backend plumbing requirements
 
@@ -223,11 +225,12 @@ Mapping:
 ## 10.1 Init gate
 
 1. create map instance once.
-2. `delayRender()` until:
+2. create `delayRender()` gate only after synchronous plan build succeeds.
+3. `delayRender()` until:
    - style loaded
    - map stable idle
    - style pin verified
-3. `continueRender()` on ready.
+4. `continueRender()` exactly once on every async init completion path (success/failure/cancel).
 
 ## 10.2 Per-frame apply
 
@@ -334,6 +337,11 @@ Retry matrix:
 
 1. retry: `map_style_unreachable`, `gl_timeout_delay_render`, `gl_chunk_unstable`
 2. terminal: `map_token_invalid`, `map_style_revision_mismatch`, validation errors
+
+HTTP mapping:
+
+1. style metadata fetch `401/403` -> `map_token_invalid` (terminal)
+2. other non-2xx/transport failures -> `map_style_unreachable` (retryable)
 
 ---
 

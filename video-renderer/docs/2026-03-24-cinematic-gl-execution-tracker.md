@@ -2,7 +2,7 @@
 
 Date: 2026-03-24  
 Owner: Video Renderer + Backend Worker + Flutter + QA  
-Status: Active (P1 In Progress)  
+Status: Active (P2 In Progress)  
 Related Docs:
 1. `video-renderer/docs/prd-cinematic-gl-remotion-lambda.md`
 2. `video-renderer/docs/implementation-spec-cinematic-gl-quality.md`
@@ -19,11 +19,11 @@ This tracker is the session-memory anchor for future work.
 
 1. Branch: `[fill]`
 2. Latest commit: `70c8535` (`Document hardening decisions and add cinematic thumbnail frame selector`)
-3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs` (pass: 9/9 on 2026-03-24)
-4. Current active phase: `P1` (deterministic planning core, hardening pass)
+3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs video-renderer/tests/map-init.test.mjs video-renderer/tests/map-runtime.test.mjs` (pass: 17/17 on 2026-03-24)
+4. Current active phase: `P2` (runtime integration foundations in progress)
 5. Next 3 executable steps:
-   - Implement `map-init.js` runtime gate (`delayRender` + style-load/idle synchronization) for P2.
-   - Implement `map-runtime.js` per-frame apply path (`jumpTo`, route/marker layer updates) for P2.
+   - Add native Mapbox GL map runtime path behind feature flag while keeping static-compat runtime as fallback.
+   - Add integration smoke tests for map-init gate and per-frame apply in local Remotion render.
    - Wire renderer v2 style pin/fallback metadata plumbing in backend worker status persistence for P5.
 6. Open blockers + owner:
    - Backend style pin population/source-of-truth still pending in export snapshot builder (owner: backend worker/data-model).
@@ -115,17 +115,17 @@ Completion Gate:
 
 ## P2: Cinematic GL Runtime Integration
 
-Status: Not Started  
+Status: In Progress  
 Target: 2 days  
 Problem Countered: B  
 Owner: Video-renderer runtime owner
 
 Work Items:
-1. [ ] Replace cinematic composition internals with GL runtime.
-2. [ ] Implement map init gate using `delayRender()/continueRender()`.
-3. [ ] Apply per-frame camera via `jumpTo`.
-4. [ ] Implement style pin verification (`style_revision`/`style_hash`).
-5. [ ] Implement deterministic route/marker layer updates from frame state.
+1. [x] Replace cinematic composition internals with GL runtime modules (static-compat runtime wired; native GL map object pending).
+2. [x] Implement map init gate using `delayRender()/continueRender()`.
+3. [x] Apply per-frame camera via `jumpTo`.
+4. [x] Implement style pin verification (`style_revision`/`style_hash`).
+5. [x] Implement deterministic route/marker layer updates from frame state.
 
 Completion Gate:
 1. [ ] Local render smoke passes for cinematic GL.
@@ -387,3 +387,4 @@ Source of truth alignment:
 6. 2026-03-24: Addressed reviewer criticals: robust short-duration segment allocation, travel-camera fallback away from `{0,0}`, style pin enforcement via normalized pin, stronger determinism assertions with rebuild checks, and added automated planner tests.
 7. 2026-03-24: Tightened hardening pass: style pin is strict-by-default with explicit compatibility flag only, determinism assertion moved to opt-in diagnostics mode, route-aware overlay scoring wired at runtime, and camera easing/bearing-delta limits enforced; planner test suite green (5/5).
 8. 2026-03-24: Replaced fixed thumbnail frame (`45%`) with deterministic content-aware selection for cinematic in both local and Lambda renderer paths, keeping classic template behavior unchanged.
+9. 2026-03-24: Added P2 runtime foundations: `map-init.js` (style pin verification + init gate contract), `map-runtime.js` (per-frame apply with `jumpTo`/route/marker updates), and `CinematicGL.jsx` integration with `delayRender` lifecycle and cleanup-safe map initialization.

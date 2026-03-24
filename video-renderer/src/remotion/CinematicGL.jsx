@@ -1,5 +1,7 @@
 import {
   AbsoluteFill,
+  continueRender,
+  delayRender,
   Easing,
   Img,
   Sequence,
@@ -8,7 +10,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   airArcPath,
   buildGlobalMapContext,
@@ -23,15 +25,13 @@ import {
   TRAVEL_MODE_ICONS,
 } from './render-data.js';
 import { buildRenderPlan, getFrameState } from './gl/render-plan-builder.js';
+import { destroyMap, initMapWithGate } from './gl/map-init.js';
+import { applyFrameToMap } from './gl/map-runtime.js';
 import { resolveCardPlacement } from './gl/overlay-planner.js';
 
 const INTRO_SEC = 1.5;
 const OUTRO_SEC = 1.0;
 const LETTERBOX_HEIGHT = '7%';
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function toScreenPoint(point, totalScale, translateX, translateY) {
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
@@ -465,6 +465,21 @@ function MapJourney({
 }) {
   const frame = useCurrentFrame();
   const journeyFrame = frame - globalFrameOffset;
+  const mapContainerRef = useRef(null);
+  const gateHandleRef = useRef(null);
+  const gateReleasedRef = useRef(false);
+  const [mapRuntime, setMapRuntime] = useState(null);
+  const [mapInitError, setMapInitError] = useState(null);
+
+  if (gateHandleRef.current === null) {
+    gateHandleRef.current = delayRender('cinematic_gl_map_init_gate');
+  }
+
+  const releaseGate = () => {
+    if (gateReleasedRef.current || gateHandleRef.current === null) return;
+    continueRender(gateHandleRef.current);
+    gateReleasedRef.current = true;
+  };
 
   const mapCtx = useMemo(
     () => buildGlobalMapContext({ snapshot, width, height }),
@@ -486,26 +501,93 @@ function MapJourney({
     [snapshot, places, routes, fps, journeyFrames, mapCtx, width, height],
   );
 
+  const mapStyle = plan?.rendererConfig?.map_style || null;
+  const styleRevision = plan?.rendererConfig?.style_revision || null;
+  const styleHash = plan?.rendererConfig?.style_hash || null;
+  const mapboxToken = plan?.rendererConfig?.mapbox_token || null;
+
+  useEffect(() => {
+    let cancelled = false;
+    let activeMap = null;
+    let releaseMap = () => {};
+
+    if (!mapCtx || !plan?.rendererConfig) {
+      setMapRuntime(null);
+      setMapInitError(null);
+      releaseGate();
+      return () => {};
+    }
+
+    (async () => {
+      try {
+        const initResult = await initMapWithGate({
+          container: mapContainerRef.current,
+          mapStyle,
+          styleRevision,
+          styleHash,
+          mapboxToken,
+          delayRenderLabel: 'cinematic_gl_map_init_gate',
+        });
+
+        activeMap = initResult?.map || null;
+        releaseMap = typeof initResult?.release === 'function' ? initResult.release : () => {};
+
+        if (cancelled) {
+          releaseMap();
+          destroyMap(activeMap);
+          return;
+        }
+
+        setMapRuntime(activeMap);
+        setMapInitError(null);
+      } catch (err) {
+        if (!cancelled) {
+          setMapRuntime(null);
+          setMapInitError(err?.message || 'map_init_failed');
+        }
+      } finally {
+        if (!cancelled) {
+          releaseGate();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try {
+        releaseMap();
+      } catch {
+        // no-op
+      }
+      destroyMap(activeMap);
+    };
+  }, [mapCtx, mapStyle, styleRevision, styleHash, mapboxToken]);
+
+  useEffect(() => () => {
+    releaseGate();
+  }, []);
+
   const frameState = useCinematicFrameState(plan, journeyFrame);
+  const mapApplyState = useMemo(
+    () => applyFrameToMap(mapRuntime, frameState, {
+      mapContext: mapCtx || {},
+      frameSize: { width, height },
+    }),
+    [mapRuntime, frameState, mapCtx, width, height],
+  );
+
   const segments = plan.segments || [];
   const activeSegment = frameState.activeSegment;
-  const markerState = frameState.markerState;
+  const markerState = mapApplyState.markerState || frameState.markerState;
   const labelState = frameState.overlay?.label || { place: null, opacity: 0 };
-  const plannedCamera = frameState.camera;
+  const viewport = mapApplyState.viewport || {};
+  const totalScale = viewport.totalScale || 1;
+  const clampedTX = viewport.translateX || 0;
+  const clampedTY = viewport.translateY || 0;
 
-  const cameraScale = plannedCamera?.scale || 1;
-  const focusX = plannedCamera?.center?.x ?? markerState?.mapX ?? (mapCtx ? mapCtx.mapWidth / 2 : width / 2);
-  const focusY = plannedCamera?.center?.y ?? markerState?.mapY ?? (mapCtx ? mapCtx.mapHeight / 2 : height / 2);
-
-  const baseScale = mapCtx ? Math.max(width / mapCtx.mapWidth, height / mapCtx.mapHeight) : 1;
-  const totalScale = baseScale * cameraScale;
-  const translateX = width / 2 - focusX * totalScale;
-  const translateY = height / 2 - focusY * totalScale;
-
-  const scaledMapW = mapCtx ? mapCtx.mapWidth * totalScale : width;
-  const scaledMapH = mapCtx ? mapCtx.mapHeight * totalScale : height;
-  const clampedTX = clamp(translateX, width - scaledMapW, 0);
-  const clampedTY = clamp(translateY, height - scaledMapH, 0);
+  if (mapInitError) {
+    throw new Error(mapInitError);
+  }
 
   if (!mapCtx || (mapCtx.projectedPlaces || []).length === 0) {
     return (
@@ -518,6 +600,15 @@ function MapJourney({
 
   return (
     <AbsoluteFill style={{ background: '#0a0e14' }}>
+      <div
+        ref={mapContainerRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
+      />
       <div
         style={{
           position: 'absolute',
@@ -550,7 +641,7 @@ function MapJourney({
           )}
           <RouteLayer
             projectedRoutes={mapCtx.projectedRoutes}
-            routeProgressByIndex={frameState.routeProgressByIndex}
+            routeProgressByIndex={mapApplyState.routeProgressByIndex || frameState.routeProgressByIndex}
             mapWidth={mapCtx.mapWidth}
             mapHeight={mapCtx.mapHeight}
           />

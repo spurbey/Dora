@@ -18,7 +18,7 @@ This tracker is the session-memory anchor for future work.
 ## 2. Session Continuity Block (Update Every Session)
 
 1. Branch: `[fill]`
-2. Latest commit: `4a1c057` (`Build P2 runtime foundations: map-init gate + map-runtime apply path`)
+2. Latest commit: `8a8c04d` (`Add native-GL init path controls and projected-camera conversion`)
 3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs video-renderer/tests/map-init.test.mjs video-renderer/tests/map-runtime.test.mjs` (pass: 25/25 on 2026-03-24)
 4. Current active phase: `P2` (runtime integration foundations in progress)
 5. Next 3 executable steps:

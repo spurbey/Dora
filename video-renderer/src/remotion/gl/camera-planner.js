@@ -1,6 +1,7 @@
 import { clamp, lerp, lerpAngleDegShortest } from './geometry-math.js';
 import { CAMERA_LIMITS, EASING } from './quality-constants.js';
 import { headingAtS, pointAtS } from './route-animator.js';
+import { resolveTransportMode } from './transport-mode.js';
 
 function toFinite(value, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
@@ -35,18 +36,18 @@ function segmentPreset(segment) {
     };
   }
 
-  const mode = String(segment.route?.transport_mode || '').toLowerCase();
+  const mode = resolveTransportMode(segment.route);
   if (mode === 'air') {
     return {
-      scaleStart: 2.1,
-      scaleMid: 1.85,
-      scaleEnd: 2.25,
-      pitchStart: 44,
-      pitchMid: 52,
-      pitchEnd: 40,
-      lookAheadStart: 0.08,
-      lookAheadMid: 0.58,
-      lookAheadEnd: 0.9,
+      scaleStart: 2.45,
+      scaleMid: 1.78,
+      scaleEnd: 2.38,
+      pitchStart: 32,
+      pitchMid: 55,
+      pitchEnd: 30,
+      lookAheadStart: 0.02,
+      lookAheadMid: 0.52,
+      lookAheadEnd: 0.96,
     };
   }
 
@@ -153,6 +154,23 @@ function clampByLimits(camera) {
   };
 }
 
+function frameAtFraction(startFrame, endFrame, fraction) {
+  const start = Math.max(0, Math.floor(toFinite(startFrame)));
+  const end = Math.max(start, Math.floor(toFinite(endFrame, start)));
+  const span = Math.max(1, end - start);
+  return Math.min(end, start + Math.floor(span * clamp(fraction, 0, 1)));
+}
+
+function fallbackCenter(start, end, ratio) {
+  if (start && end) {
+    return {
+      x: lerp(start.x, end.x, clamp(ratio, 0, 1)),
+      y: lerp(start.y, end.y, clamp(ratio, 0, 1)),
+    };
+  }
+  return start || end || null;
+}
+
 export function buildCameraKeyframes(input) {
   const segments = Array.isArray(input?.segments) ? input.segments : [];
   const routeCurves = Array.isArray(input?.routeCurves) ? input.routeCurves : [];
@@ -229,9 +247,96 @@ export function buildCameraKeyframes(input) {
     }
 
     if (segment.type === 'travel') {
+      const mode = resolveTransportMode(segment.route);
       const curve = routeCurves[segment.routeIndex];
       const startPlace = placeCenter(projectedPlaces, segment.placeIndex);
       const endPlace = placeCenter(projectedPlaces, segment.placeIndex + 1);
+
+      if (mode === 'air') {
+        const routeStart = pointAtS(curve, 0) || startPlace || lastCenter || endPlace;
+        const routeEnd = pointAtS(curve, 1) || endPlace || routeStart;
+        if (!routeStart || !routeEnd) continue;
+
+        const frameSpan = Math.max(1, segment.endFrame - segment.startFrame);
+        const longArc = frameSpan >= 18;
+        const anchors = longArc
+          ? [
+            { at: 0.0, s: 0.0, lead: 0.02, scale: 2.45, pitch: 32, easing: 'easeOutQuad' },
+            { at: 0.12, s: 0.06, lead: 0.08, scale: 2.2, pitch: 44, easing: 'easeInOutSine' },
+            { at: 0.35, s: 0.28, lead: 0.15, scale: 1.82, pitch: 55, easing: 'easeInOutSine' },
+            { at: 0.62, s: 0.62, lead: 0.16, scale: 1.78, pitch: 56, easing: 'easeInOutSine' },
+            { at: 0.84, s: 0.86, lead: 0.09, scale: 2.05, pitch: 42, easing: 'easeOutQuad' },
+            { at: 1.0, s: 1.0, lead: 0.0, scale: 2.38, pitch: 30, easing: 'easeInOutSine' },
+          ]
+          : [
+            { at: 0.0, s: 0.0, lead: 0.03, scale: 2.4, pitch: 32, easing: 'easeOutQuad' },
+            { at: 0.5, s: 0.52, lead: 0.12, scale: 1.88, pitch: 52, easing: 'easeInOutSine' },
+            { at: 1.0, s: 1.0, lead: 0.0, scale: 2.36, pitch: 30, easing: 'easeOutQuad' },
+          ];
+
+        let previousCenter = lastCenter || routeStart;
+        let previousBearing = lastBearing;
+        let previousFrame = segment.startFrame;
+
+        for (let i = 0; i < anchors.length; i++) {
+          const anchor = anchors[i];
+          const isLast = i === anchors.length - 1;
+          const targetFrame = isLast
+            ? segment.endFrame
+            : frameAtFraction(segment.startFrame, segment.endFrame, anchor.at);
+          const frame = i === 0
+            ? segment.startFrame
+            : Math.min(segment.endFrame, Math.max(previousFrame + 1, targetFrame));
+
+          const anchorS = clamp(anchor.s, 0, 1);
+          const leadS = clamp(anchorS + anchor.lead, 0, 1);
+          const fallback = fallbackCenter(routeStart, routeEnd, leadS);
+          let center = pointAtS(curve, leadS) || pointAtS(curve, anchorS) || fallback || previousCenter;
+          if (!center) continue;
+
+          if (i === 0 && lastCenter) {
+            center = {
+              x: lerp(lastCenter.x, center.x, 0.82),
+              y: lerp(lastCenter.y, center.y, 0.82),
+            };
+          }
+          if (isLast && endPlace) {
+            center = {
+              x: lerp(center.x, endPlace.x, 0.66),
+              y: lerp(center.y, endPlace.y, 0.66),
+            };
+          }
+
+          const rawBearing = headingAtS(curve, clamp(leadS + 0.02, 0, 1));
+          const bearingCandidate = Number.isFinite(rawBearing)
+            ? rawBearing
+            : fallbackBearing(previousCenter, center, previousBearing);
+          const boundedBearing = boundBearingByFrameSpan(
+            previousBearing,
+            bearingCandidate,
+            frame - previousFrame,
+          );
+
+          out.push(keyframe(
+            frame,
+            center,
+            anchor.scale,
+            boundedBearing,
+            anchor.pitch,
+            anchor.easing,
+          ));
+
+          previousCenter = center;
+          previousBearing = boundedBearing;
+          previousFrame = frame;
+        }
+
+        lastCenter = previousCenter;
+        lastBearing = previousBearing;
+        lastScale = anchors[anchors.length - 1]?.scale ?? lastScale;
+        continue;
+      }
+
       const start = pointAtS(curve, preset.lookAheadStart)
         || pointAtS(curve, 0)
         || startPlace

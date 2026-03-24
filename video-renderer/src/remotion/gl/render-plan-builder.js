@@ -5,6 +5,7 @@ import { buildOverlayTracks, overlayStateAtFrame } from './overlay-planner.js';
 import { EASING } from './quality-constants.js';
 import { buildRouteCurves, headingAtS, pointAtS } from './route-animator.js';
 import { compileTimelineSegments, findActiveSegment } from './timeline-compiler.js';
+import { resolveTransportMode } from './transport-mode.js';
 
 function easeInOutCubic(input) {
   const p = clamp(input, 0, 1);
@@ -45,6 +46,17 @@ function routeProgressForFrame(segment, frame) {
   if (frame < segment.startFrame) return 0;
   const span = Math.max(1, segment.endFrame - segment.startFrame);
   const local = (frame - segment.startFrame) / span;
+  const mode = resolveTransportMode(segment.route);
+  if (mode === 'air') {
+    // Keep a short lift-off window and a gentle settle window to avoid visual pops.
+    if (local <= 0.08) return 0.04 * applyEasing('easeOutCubic', local / 0.08);
+    if (local >= 0.88) {
+      const tail = (local - 0.88) / 0.12;
+      return 0.92 + 0.08 * applyEasing('easeInOutSine', tail);
+    }
+    const cruise = (local - 0.08) / 0.8;
+    return 0.04 + 0.88 * applyEasing('easeInOutSine', cruise);
+  }
   return applyEasing(EASING.route, local);
 }
 

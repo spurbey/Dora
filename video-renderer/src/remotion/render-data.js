@@ -1,3 +1,5 @@
+import { isAirRoute, resolveTransportMode } from './gl/transport-mode.js';
+
 export function resolveTimelinePlaces(snapshot = {}) {
   const timeline = Array.isArray(snapshot.timeline) ? snapshot.timeline : [];
   const directPlaces = Array.isArray(snapshot.places) ? snapshot.places : [];
@@ -402,18 +404,18 @@ export function pointAtProgress(points, progress) {
 // ---------------------------------------------------------------------------
 
 export const ROUTE_STYLES = {
-  car:   { color: '#FFD700', width: 5, dash: null },
-  foot:  { color: '#00E676', width: 4, dash: null },
+  car:   { color: '#FFC24D', width: 5, dash: null },
+  foot:  { color: '#45E79B', width: 4, dash: null },
   bike:  { color: '#69F0AE', width: 4, dash: null },
-  air:   { color: '#40C4FF', width: 3.5, dash: '8,5' },
-  bus:   { color: '#FF9100', width: 5, dash: null },
-  train: { color: '#E040FB', width: 4.5, dash: null },
+  air:   { color: '#66D9FF', width: 4, dash: '10,7' },
+  bus:   { color: '#FF9E58', width: 5, dash: null },
+  train: { color: '#C186FF', width: 4.5, dash: null },
 };
 
-const DEFAULT_ROUTE_STYLE = { color: '#FFD700', width: 4.0, dash: null };
+const DEFAULT_ROUTE_STYLE = ROUTE_STYLES.car;
 
 export function getRouteStyle(route) {
-  const mode = (route?.transport_mode || '').toLowerCase();
+  const mode = resolveTransportMode(route, 'car');
   return ROUTE_STYLES[mode] || DEFAULT_ROUTE_STYLE;
 }
 
@@ -483,7 +485,7 @@ export function buildGlobalMapContext({ snapshot = {}, width = 720, height = 128
   // Project routes into geographic coordinate space.
   const projectedRoutes = routes.map((route) => {
     const coords = getRouteCoordinates(route);
-    if (coords.length === 0 && (route.route_category === 'air' || !route.route_geojson)) {
+    if (coords.length === 0 && (isAirRoute(route) || !route.route_geojson)) {
       // Synthesize from start/end places.
       const startPlace = projectedPlaces.find((p) => p.place.id === route.start_place_id);
       const endPlace = projectedPlaces.find((p) => p.place.id === route.end_place_id);

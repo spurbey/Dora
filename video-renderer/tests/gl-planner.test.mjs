@@ -7,6 +7,11 @@ import {
   buildRenderPlan,
   getFrameState,
 } from '../src/remotion/gl/render-plan-builder.js';
+import {
+  buildOverlayTracks,
+  overlayStateAtFrame,
+  resolveCardPlacement,
+} from '../src/remotion/gl/overlay-planner.js';
 
 function fixtureSnapshot() {
   return {
@@ -186,4 +191,100 @@ test('buildRenderPlan keeps native-gl renderer flags from snapshot config', () =
 
   assert.equal(plan.rendererConfig.mapbox_gl_enabled, true);
   assert.equal(plan.rendererConfig.mapbox_gl_strict, true);
+});
+
+test('overlay label uses eased fade-in and reaches zero at fade-out tail', () => {
+  const tracks = buildOverlayTracks({
+    segments: [
+      {
+        type: 'arrive',
+        startFrame: 0,
+        endFrame: 29,
+        placeIndex: 0,
+      },
+    ],
+    places: [{ id: 'p1', name: 'Arrival' }],
+    fps: 30,
+    frameSize: { width: 720, height: 1280 },
+  });
+
+  const midFadeIn = overlayStateAtFrame(tracks, 5);
+  const endFrame = overlayStateAtFrame(tracks, 29);
+  assert.ok(midFadeIn.label.opacity > 0.6, `expected eased fade-in > 0.6, got ${midFadeIn.label.opacity}`);
+  assert.ok(endFrame.label.opacity <= 0.01, `expected fade-out tail near 0, got ${endFrame.label.opacity}`);
+});
+
+test('resolveCardPlacement avoids route-heavy quadrant near anchor', () => {
+  const placement = resolveCardPlacement({
+    anchor: { x: 340, y: 640 },
+    cardSize: { width: 170, height: 200 },
+    viewport: { width: 720, height: 1280 },
+    routePolyline: [
+      { x: 360, y: 450 },
+      { x: 390, y: 470 },
+      { x: 420, y: 500 },
+      { x: 445, y: 530 },
+      { x: 470, y: 560 },
+    ],
+  });
+
+  assert.notEqual(placement.quadrant, 'NE');
+});
+
+test('air route_category without transport_mode still gets air pacing and camera profile', () => {
+  const snapshot = {
+    trip: { title: 'Air Route Category Fixture' },
+    places: [
+      { id: 'p1', name: 'Kathmandu', lat: 27.7172, lng: 85.324 },
+      { id: 'p2', name: 'Dubai', lat: 25.2048, lng: 55.2708 },
+    ],
+    routes: [
+      {
+        id: 'r1',
+        route_category: 'air',
+        transport_mode: '',
+        route_geojson: null,
+      },
+    ],
+    renderer_config: {
+      map_style: 'mapbox/navigation-night-v1',
+      style_revision: 'rev_air_fixture_2026_03_25',
+      mapbox_gl_enabled: true,
+      mapbox_gl_strict: false,
+    },
+  };
+
+  const plan = buildRenderPlan({
+    snapshot,
+    fps: 30,
+    durationInFrames: 120,
+    projectedPlaces: [
+      { x: 140, y: 220, place: snapshot.places[0] },
+      { x: 620, y: 360, place: snapshot.places[1] },
+    ],
+    projectedRoutes: [
+      {
+        isArc: true,
+        startPoint: { x: 140, y: 220 },
+        endPoint: { x: 620, y: 360 },
+        points: [],
+        route: snapshot.routes[0],
+      },
+    ],
+    width: 720,
+    height: 1280,
+  });
+
+  const travel = plan.segments.find((segment) => segment.type === 'travel');
+  assert.ok(travel, 'travel segment should exist');
+
+  const quarter = Math.floor(travel.startFrame + (travel.endFrame - travel.startFrame) * 0.25);
+  const middle = Math.floor(travel.startFrame + (travel.endFrame - travel.startFrame) * 0.5);
+  const quarterState = getFrameState(plan, quarter);
+  const middleState = getFrameState(plan, middle);
+
+  const travelProgress = quarterState.routeProgressByIndex[travel.routeIndex];
+  assert.ok(travelProgress < 0.2, `expected slow air lift-off pacing, got ${travelProgress}`);
+  assert.ok(middleState.camera.pitch >= 45, `expected air mid-flight pitch >= 45, got ${middleState.camera.pitch}`);
+  assert.ok(middleState.camera.scale <= 2.05, `expected air cruise zoomed-out scale <= 2.05, got ${middleState.camera.scale}`);
 });

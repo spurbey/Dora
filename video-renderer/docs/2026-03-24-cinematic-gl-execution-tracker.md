@@ -141,10 +141,10 @@ Problem Countered: C
 Owner: Video-renderer motion/visual owner
 
 Work Items:
-1. [ ] Apply exact easing equation mapping per subsystem.
-2. [ ] Finalize camera interpolation and bearing shortest-path handling.
-3. [ ] Implement overlay card placement scoring algorithm.
-4. [ ] Tune typography safe zones and legibility overlays.
+1. [x] Apply exact easing equation mapping per subsystem.
+2. [x] Finalize camera interpolation and bearing shortest-path handling.
+3. [x] Implement overlay card placement scoring algorithm.
+4. [x] Tune typography safe zones and legibility overlays.
 5. [x] Add content-aware thumbnail frame selection for cinematic. `[parallel-safe]`
 
 Completion Gate:
@@ -392,3 +392,5 @@ Source of truth alignment:
 10. 2026-03-24: Extended P2 foundation with native GL path controls in `map-init.js` (`enableNativeGl`, compat fallback policy, token/style error classification, URI style support) and projected-camera -> native `jumpTo` conversion in `map-runtime.js`; added expanded unit coverage.
 11. 2026-03-24: Wired renderer-level native GL canary flags through manifest snapshot config (`mapbox_gl_enabled`, `mapbox_gl_strict`) into `CinematicGL` map init controls, switched cinematic base-map visibility to native canvas when runtime mode is `native_gl`, and added `mapbox-gl` dependency declaration for deployment rollout.
 12. 2026-03-24: Quality hardening pass landed: cinematic now defaults to native GL path (with compat fallback policy), timeline travel beats are distance/mode-aware, camera planner now uses multi-keyframe motion grammar (arrival settle + travel look-ahead), route rendering adds animated head emphasis, native GL overlay coordinates are projected per-frame via `map.project()`, and cinematic Lambda/local encoders now use quality-first defaults (`png`, explicit `crf`, `x264Preset`).
+13. 2026-03-24: P3 implementation pass: upgraded overlay placement from fixed quadrants to weighted multi-candidate scoring (route overlap + center occlusion + anchor distance), mapped label opacity transitions to declared easing constants, hardened cinematic typography/safe-zone treatment in `PlaceLabel`, and added planner tests for label fade/easing behavior and route-aware card placement.
+14. 2026-03-25: Air-first quality pass started: added canonical transport-mode resolver (`transport_mode` + `route_category` fallback), increased air travel timeline weight, introduced multi-anchor flight camera grammar (lift-off, cruise, descent, arrival settle), added air-specific route progress easing windows, and removed yellow fallback marker styling in `CinematicGL` for cleaner flight visuals; added planner coverage for `route_category=air` when `transport_mode` is missing.

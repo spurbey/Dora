@@ -1,4 +1,5 @@
 import { clamp } from './geometry-math.js';
+import { resolveTransportMode } from './transport-mode.js';
 
 function safeFrames(durationInFrames) {
   if (!Number.isFinite(durationInFrames)) return 0;
@@ -47,8 +48,14 @@ function travelBeatWeight(route) {
   const distanceMeters = estimateRouteDistanceMeters(route);
   const distanceKm = distanceMeters / 1000;
   const distanceBoost = clamp(Math.log10(distanceKm + 1) * 1.9, 0, 2.7);
-  const mode = String(route?.transport_mode || '').toLowerCase();
-  const modeBoost = mode === 'air' ? 0.9 : mode === 'train' ? 0.35 : 0;
+  const mode = resolveTransportMode(route);
+  const modeBoost = mode === 'air'
+    ? 2.3
+    : mode === 'train'
+      ? 0.45
+      : mode === 'foot'
+        ? 0.2
+        : 0;
   return base + distanceBoost + modeBoost;
 }
 

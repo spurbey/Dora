@@ -29,6 +29,7 @@ import { buildRenderPlan, getFrameState } from './gl/render-plan-builder.js';
 import { destroyMap, initMapWithGate } from './gl/map-init.js';
 import { applyFrameToMap } from './gl/map-runtime.js';
 import { resolveCardPlacement } from './gl/overlay-planner.js';
+import { resolveTransportMode } from './gl/transport-mode.js';
 
 const INTRO_SEC = 1.5;
 const OUTRO_SEC = 1.0;
@@ -100,6 +101,8 @@ function RouteLayer({
         if (drawProgress <= 0) return null;
 
         const style = getRouteStyle(projectedRoute.route);
+        const mode = resolveTransportMode(projectedRoute.route);
+        const isAir = projectedRoute.isArc || mode === 'air';
         const clampedProgress = Math.max(0, Math.min(1, drawProgress));
         const headPoint = projectedRoute.isArc
           ? pointOnArc(projectedRoute.startPoint, projectedRoute.endPoint, clampedProgress)
@@ -113,11 +116,21 @@ function RouteLayer({
               <path
                 d={arcD}
                 fill="none"
-                stroke={style.color}
+                stroke={isAir ? 'rgba(117,214,255,0.35)' : style.color}
                 strokeWidth={style.width}
                 strokeLinecap="round"
-                strokeDasharray="6,4"
-                opacity={0.34}
+                strokeDasharray={style.dash || '6,4'}
+                opacity={isAir ? 0.45 : 0.34}
+              />
+              <path
+                d={arcD}
+                pathLength="1"
+                fill="none"
+                stroke={style.color}
+                strokeWidth={style.width + 7}
+                strokeLinecap="round"
+                strokeDasharray={`${clampedProgress} 1`}
+                opacity={isAir ? 0.22 : 0.14}
               />
               <path
                 d={arcD}
@@ -127,12 +140,12 @@ function RouteLayer({
                 strokeWidth={style.width + 2}
                 strokeLinecap="round"
                 strokeDasharray={`${clampedProgress} 1`}
-                opacity={0.58}
+                opacity={isAir ? 0.88 : 0.58}
               />
               {headPoint && (
                 <>
-                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 2.1} fill={style.color} opacity={0.2} />
-                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 1.2} fill={style.color} opacity={0.65} />
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 2.5} fill={style.color} opacity={isAir ? 0.24 : 0.2} />
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 1.25} fill="#FFFFFF" opacity={isAir ? 0.9 : 0.65} />
                 </>
               )}
             </g>
@@ -227,9 +240,9 @@ function TravelMarker({
 }) {
   if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return null;
 
-  const mode = (transportMode || '').toLowerCase();
+  const mode = resolveTransportMode({ transport_mode: transportMode }, transportMode);
   const iconPath = TRAVEL_MODE_ICONS[mode] || TRAVEL_MODE_ICONS.car || '';
-  const color = routeColor || '#FFD700';
+  const color = routeColor || '#66D9FF';
   const size = isAtPlace ? 52 : 64;
   const center = size / 2;
   const pulse = 0.9 + 0.1 * Math.sin(frame * 0.22);
@@ -242,7 +255,7 @@ function TravelMarker({
 
   if (!isAtPlace) {
     if (mode === 'air') {
-      bobY = Math.sin(frame * 0.14) * 2.2;
+      bobY = Math.sin(frame * 0.1) * 1.1;
       iconScale = 1.08;
     } else if (mode === 'car' || mode === 'bus') {
       driftX = Math.sin(frame * 0.38) * 0.35;
@@ -746,8 +759,8 @@ function MapJourney({
           screenX={markerScreen.x}
           screenY={markerScreen.y}
           heading={markerState.heading}
-          transportMode={activeSegment?.route?.transport_mode || ''}
-          routeColor={activeSegment?.route ? getRouteStyle(activeSegment.route).color : '#FFD700'}
+          transportMode={resolveTransportMode(activeSegment?.route)}
+          routeColor={activeSegment?.route ? getRouteStyle(activeSegment.route).color : '#66D9FF'}
           frame={frame}
           isAtPlace={markerState.isAtPlace}
         />

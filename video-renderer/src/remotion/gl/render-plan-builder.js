@@ -1,4 +1,7 @@
 import { clamp } from './geometry-math.js';
+import { cameraStateAtFrame, buildCameraKeyframes } from './camera-planner.js';
+import { extractRendererConfig, normalizeSnapshot, validateSnapshotForCinematic } from './normalize-snapshot.js';
+import { buildOverlayTracks, overlayStateAtFrame } from './overlay-planner.js';
 import { buildRouteCurves, headingAtS, pointAtS } from './route-animator.js';
 import { compileTimelineSegments, findActiveSegment } from './timeline-compiler.js';
 
@@ -33,12 +36,23 @@ function fnv1aHex(value) {
 
 export function buildRenderPlan(input) {
   const safeInput = input || {};
-  const places = Array.isArray(safeInput.places) ? safeInput.places : [];
-  const routes = Array.isArray(safeInput.routes) ? safeInput.routes : [];
+  const normalizedSnapshot = normalizeSnapshot(
+    safeInput.snapshot || {
+      places: safeInput.places,
+      routes: safeInput.routes,
+      renderer_config: safeInput.rendererConfig,
+    },
+  );
+  validateSnapshotForCinematic(normalizedSnapshot);
+
+  const places = Array.isArray(safeInput.places) ? safeInput.places : normalizedSnapshot.places;
+  const routes = Array.isArray(safeInput.routes) ? safeInput.routes : normalizedSnapshot.routes;
   const durationInFrames = Number.isFinite(safeInput.durationInFrames) ? safeInput.durationInFrames : 0;
   const fps = Number.isFinite(safeInput.fps) ? safeInput.fps : 30;
   const projectedRoutes = Array.isArray(safeInput.projectedRoutes) ? safeInput.projectedRoutes : [];
   const projectedPlaces = Array.isArray(safeInput.projectedPlaces) ? safeInput.projectedPlaces : [];
+  const width = Number.isFinite(safeInput.width) ? safeInput.width : 720;
+  const height = Number.isFinite(safeInput.height) ? safeInput.height : 1280;
 
   const segments = Array.isArray(safeInput.segments)
     ? safeInput.segments
@@ -50,8 +64,22 @@ export function buildRenderPlan(input) {
     });
 
   const routeCurves = buildRouteCurves({ projectedRoutes });
+  const cameraKeyframes = buildCameraKeyframes({
+    segments,
+    routeCurves,
+    projectedPlaces,
+    frameSize: { width, height },
+  });
+  const overlayTracks = buildOverlayTracks({
+    segments,
+    places,
+    fps,
+    frameSize: { width, height },
+  });
 
   return {
+    normalizedSnapshot,
+    rendererConfig: extractRendererConfig(normalizedSnapshot),
     fps,
     durationInFrames: Math.max(0, Math.floor(durationInFrames)),
     places,
@@ -60,6 +88,8 @@ export function buildRenderPlan(input) {
     projectedPlaces,
     projectedRoutes,
     routeCurves,
+    cameraKeyframes,
+    overlayTracks,
   };
 }
 
@@ -70,6 +100,8 @@ export function getFrameState(plan, frame) {
       activeSegment: null,
       routeProgressByIndex: {},
       markerState: null,
+      camera: null,
+      overlay: null,
     };
   }
 
@@ -112,11 +144,16 @@ export function getFrameState(plan, frame) {
     }
   }
 
+  const camera = cameraStateAtFrame(f, plan.cameraKeyframes || []);
+  const overlay = overlayStateAtFrame(plan.overlayTracks || {}, f);
+
   return {
     frame: f,
     activeSegment,
     routeProgressByIndex,
     markerState,
+    camera,
+    overlay,
   };
 }
 
@@ -128,6 +165,9 @@ export function hashRenderPlan(plan) {
     segments: safePlan.segments || [],
     routeCurves: safePlan.routeCurves || [],
     projectedPlaces: safePlan.projectedPlaces || [],
+    cameraKeyframes: safePlan.cameraKeyframes || [],
+    overlayTracks: safePlan.overlayTracks || [],
+    rendererConfig: safePlan.rendererConfig || {},
   });
   return fnv1aHex(payload);
 }

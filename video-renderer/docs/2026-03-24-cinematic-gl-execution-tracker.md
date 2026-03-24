@@ -382,3 +382,4 @@ Source of truth alignment:
 2. 2026-03-24: Added utility export to execution map and export-level completion checklist aligned to canonical architecture doc.
 3. 2026-03-24: P1 implementation started in codebase. Added deterministic planner utilities (`gl/*`) and wired `CinematicGL.jsx` route/marker progression to shared `frameState`.
 4. 2026-03-24: Composition split for migration safety: legacy cinematic preserved in `CinematicLegacy.jsx`, new work moved to `CinematicGL.jsx`, and `Cinematic.jsx` now acts as compatibility wrapper exporting GL as canonical cinematic.
+5. 2026-03-24: Added `normalize-snapshot.js`, `camera-planner.js`, and `overlay-planner.js`; integrated camera/overlay outputs into `render-plan-builder` and consumed planned camera/label state in `CinematicGL.jsx`.

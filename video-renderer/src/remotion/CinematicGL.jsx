@@ -22,47 +22,14 @@ import {
   TRAVEL_MODE_ICONS,
 } from './render-data.js';
 import { buildRenderPlan, getFrameState } from './gl/render-plan-builder.js';
+import { resolveCardPlacement } from './gl/overlay-planner.js';
 
 const INTRO_SEC = 1.5;
 const OUTRO_SEC = 1.0;
 const LETTERBOX_HEIGHT = '7%';
 
-const CAMERA_SCALE_GROUND = 4.0;
-const CAMERA_SCALE_AIR = 2.0;
-const CAMERA_SCALE_ARRIVE = 5.0;
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
-}
-
-function mix(a, b, t) {
-  const n = clamp(t, 0, 1);
-  return a + (b - a) * n;
-}
-
-function easeInOutSine(t) {
-  const p = clamp(t, 0, 1);
-  return 0.5 * (1 - Math.cos(Math.PI * p));
-}
-
-function scaleForSegment(segment) {
-  if (!segment) return 1;
-  if (segment.type === 'arrive') return CAMERA_SCALE_ARRIVE;
-  const mode = (segment.route?.transport_mode || '').toLowerCase();
-  return mode === 'air' ? CAMERA_SCALE_AIR : CAMERA_SCALE_GROUND;
-}
-
-function computeCameraScale(segments, activeSegment, frame) {
-  if (!Array.isArray(segments) || segments.length === 0 || !activeSegment) return 1;
-  const target = scaleForSegment(activeSegment);
-  const idx = segments.indexOf(activeSegment);
-  if (idx <= 0) return target;
-  const prev = scaleForSegment(segments[idx - 1]);
-  const segFrames = activeSegment.endFrame - activeSegment.startFrame + 1;
-  const easeWindow = Math.max(4, Math.floor(segFrames * 0.2));
-  const framesIn = frame - activeSegment.startFrame;
-  const local = clamp(framesIn / Math.max(1, easeWindow), 0, 1);
-  return mix(prev, target, easeInOutSine(local));
 }
 
 function RouteLayer({
@@ -323,6 +290,7 @@ function PlaceLabel({ place, opacity }) {
 }
 
 function ArrivalPhotoCards({
+  activeArrivalSegment,
   segments,
   projectedPlaces,
   journeyFrame,
@@ -333,7 +301,7 @@ function ArrivalPhotoCards({
   frameWidth,
   frameHeight,
 }) {
-  const activeArrivalSegment = useMemo(
+  const derivedActiveArrivalSegment = useMemo(
     () => (segments || []).find(
       (segment) => segment.type === 'arrive'
         && journeyFrame >= segment.startFrame
@@ -342,16 +310,28 @@ function ArrivalPhotoCards({
     [segments, journeyFrame],
   );
 
-  if (!activeArrivalSegment) return null;
-  const projectedPlace = projectedPlaces?.[activeArrivalSegment.placeIndex];
+  const active = activeArrivalSegment || derivedActiveArrivalSegment;
+  if (!active) return null;
+  const projectedPlace = projectedPlaces?.[active.placeIndex];
   if (!projectedPlace) return null;
 
   const imageUrls = getPlaceImageUrls(projectedPlace.place, 3);
   if (imageUrls.length === 0) return null;
 
-  const segmentFrames = activeArrivalSegment.endFrame - activeArrivalSegment.startFrame + 1;
-  const localFrame = journeyFrame - activeArrivalSegment.startFrame;
-  const cardPos = cardScreenPosition(
+  const segmentFrames = active.endFrame - active.startFrame + 1;
+  const localFrame = journeyFrame - active.startFrame;
+
+  const anchor = {
+    x: projectedPlace.x * totalScale + translateX,
+    y: projectedPlace.y * totalScale + translateY,
+  };
+  const planned = resolveCardPlacement({
+    anchor,
+    cardSize: { width: 170, height: 200 },
+    viewport: { width: frameWidth, height: frameHeight },
+    routePolyline: [],
+  });
+  const fallback = cardScreenPosition(
     projectedPlace.x,
     projectedPlace.y,
     totalScale,
@@ -360,6 +340,7 @@ function ArrivalPhotoCards({
     frameWidth,
     frameHeight,
   );
+  const cardPos = planned || fallback;
 
   return (
     <div
@@ -397,7 +378,7 @@ function ArrivalPhotoCards({
 
         return (
           <div
-            key={`${activeArrivalSegment.placeIndex}-${idx}`}
+            key={`${active.placeIndex}-${idx}`}
             style={{
               width: 160,
               borderRadius: 10,
@@ -438,41 +419,29 @@ function MapJourney({
 
   const plan = useMemo(
     () => buildRenderPlan({
+      snapshot,
       places,
       routes,
       fps,
       durationInFrames: journeyFrames,
       projectedRoutes: mapCtx?.projectedRoutes || [],
       projectedPlaces: mapCtx?.projectedPlaces || [],
+      width,
+      height,
     }),
-    [places, routes, fps, journeyFrames, mapCtx],
+    [snapshot, places, routes, fps, journeyFrames, mapCtx, width, height],
   );
 
   const frameState = useCinematicFrameState(plan, journeyFrame);
   const segments = plan.segments || [];
   const activeSegment = frameState.activeSegment;
   const markerState = frameState.markerState;
+  const labelState = frameState.overlay?.label || { place: null, opacity: 0 };
+  const plannedCamera = frameState.camera;
 
-  const labelState = useMemo(() => {
-    if (!activeSegment || activeSegment.type !== 'arrive') return { place: null, opacity: 0 };
-    const segFrames = activeSegment.endFrame - activeSegment.startFrame + 1;
-    const localFrame = journeyFrame - activeSegment.startFrame;
-    const fadeIn = Math.max(1, Math.floor(fps * 0.35));
-    const fadeOut = Math.max(1, Math.floor(fps * 0.25));
-    return {
-      place: activeSegment.place,
-      opacity: interpolate(
-        localFrame,
-        [0, fadeIn, segFrames - fadeOut, segFrames - 1],
-        [0, 1, 1, 0.3],
-        { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
-      ),
-    };
-  }, [activeSegment, journeyFrame, fps]);
-
-  const cameraScale = computeCameraScale(segments, activeSegment, journeyFrame);
-  const focusX = markerState ? markerState.mapX : (mapCtx ? mapCtx.mapWidth / 2 : width / 2);
-  const focusY = markerState ? markerState.mapY : (mapCtx ? mapCtx.mapHeight / 2 : height / 2);
+  const cameraScale = plannedCamera?.scale || 1;
+  const focusX = plannedCamera?.center?.x ?? markerState?.mapX ?? (mapCtx ? mapCtx.mapWidth / 2 : width / 2);
+  const focusY = plannedCamera?.center?.y ?? markerState?.mapY ?? (mapCtx ? mapCtx.mapHeight / 2 : height / 2);
 
   const baseScale = mapCtx ? Math.max(width / mapCtx.mapWidth, height / mapCtx.mapHeight) : 1;
   const totalScale = baseScale * cameraScale;
@@ -555,6 +524,7 @@ function MapJourney({
       )}
 
       <ArrivalPhotoCards
+        activeArrivalSegment={frameState.overlay?.activeArrivalSegment || null}
         segments={segments}
         projectedPlaces={mapCtx.projectedPlaces}
         journeyFrame={journeyFrame}
@@ -681,14 +651,17 @@ export function useCinematicPlan({
 
   return useMemo(
     () => buildRenderPlan({
+      snapshot,
       places,
       routes,
       fps,
       durationInFrames,
       projectedRoutes: mapCtx?.projectedRoutes || [],
       projectedPlaces: mapCtx?.projectedPlaces || [],
+      width,
+      height,
     }),
-    [places, routes, fps, durationInFrames, mapCtx],
+    [snapshot, places, routes, fps, durationInFrames, mapCtx, width, height],
   );
 }
 

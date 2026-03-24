@@ -47,6 +47,12 @@ Under `video-renderer/src/remotion/gl/`:
 11. `retry-policy.js`
 12. `quality-constants.js`
 
+Composition files:
+
+13. `video-renderer/src/remotion/CinematicGL.jsx` (new cinematic runtime implementation)
+14. `video-renderer/src/remotion/Cinematic.jsx` (compatibility wrapper exporting `CinematicGL` as `Cinematic`)
+15. `video-renderer/src/remotion/CinematicLegacy.jsx` (frozen rollback-safe legacy implementation)
+
 ---
 
 ## 4. Contract split

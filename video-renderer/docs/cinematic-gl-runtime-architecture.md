@@ -218,9 +218,13 @@ Rules:
    - `initMapWithGate(config)` (delayRender/continueRender contract)
 8. `src/remotion/gl/map-runtime.js`
    - `applyFrameToMap(map, frameState)`
-9. `src/remotion/Cinematic.jsx`
-   - `Cinematic({snapshot})`
+9. `src/remotion/CinematicGL.jsx`
+   - `CinematicGL({snapshot})`
    - calls `buildRenderPlan()`, `getFrameState()`, `applyFrameToMap()`
+10. `src/remotion/Cinematic.jsx`
+   - compatibility wrapper exporting `CinematicGL` as `Cinematic` (composition contract stable)
+11. `src/remotion/CinematicLegacy.jsx`
+   - frozen legacy cinematic fallback implementation (not default runtime path)
 
 ---
 
@@ -464,7 +468,7 @@ Exports:
 
 Used by:
 1. `getFrameState()`
-2. cinematic overlay rendering in `Cinematic.jsx`
+2. cinematic overlay rendering in `CinematicGL.jsx`
 
 ## 14.9 `src/remotion/gl/render-plan-builder.js`
 
@@ -475,7 +479,7 @@ Exports:
 4. `assertPlanDeterminism(plan: RenderPlan): void`
 
 Used by:
-1. `Cinematic.jsx` runtime loop
+1. `CinematicGL.jsx` runtime loop
 2. determinism tests and diagnostics
 
 ## 14.10 `src/remotion/gl/map-init.js`
@@ -486,7 +490,7 @@ Exports:
 3. `destroyMap(map: unknown): void`
 
 Used by:
-1. `Cinematic.jsx` mount/unmount lifecycle
+1. `CinematicGL.jsx` mount/unmount lifecycle
 
 ## 14.11 `src/remotion/gl/map-runtime.js`
 
@@ -497,7 +501,7 @@ Exports:
 4. `applyCameraState(map: unknown, camera: FrameState["camera"]): void`
 
 Used by:
-1. `Cinematic.jsx` per-frame render
+1. `CinematicGL.jsx` per-frame render
 
 ## 14.12 `src/remotion/gl/retry-policy.js`
 
@@ -510,12 +514,23 @@ Used by:
 1. renderer service error mapping
 2. renderer-side retry classification tests (worker retry authority remains in backend Python)
 
-## 14.13 `src/remotion/Cinematic.jsx`
+## 14.13 `src/remotion/CinematicGL.jsx`
 
 Exports:
-1. `Cinematic(props: { snapshot: unknown }): JSX.Element`
+1. `CinematicGL(props: { snapshot: unknown }): JSX.Element`
 2. `useCinematicPlan(input: { snapshot: unknown; width: number; height: number; fps: number; durationInFrames: number }): RenderPlan`
 3. `useCinematicFrameState(plan: RenderPlan, frame: number): FrameState`
+
+Used by:
+1. `src/remotion/Cinematic.jsx` compatibility wrapper
+
+## 14.14 `src/remotion/Cinematic.jsx`
+
+Exports:
+1. `Cinematic` (re-export alias of `CinematicGL`)
+2. `useCinematicPlan` (re-export)
+3. `useCinematicFrameState` (re-export)
+4. `CinematicLegacy` (named re-export)
 
 Used by:
 1. Remotion root composition registry
@@ -526,7 +541,7 @@ Used by:
 
 ```mermaid
 flowchart TD
-  A[Cinematic.jsx] --> B[buildRenderPlan]
+  A[CinematicGL.jsx] --> B[buildRenderPlan]
   B --> C[normalizeSnapshot]
   B --> D[compileTimelineSegments]
   B --> E[buildRouteCurves]

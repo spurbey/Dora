@@ -251,7 +251,9 @@ Source of truth alignment:
 | `src/remotion/gl/map-init.js` | P2 | Video-renderer runtime owner | `render-plan-builder.js` | style gate + pin mismatch tests pass |
 | `src/remotion/gl/map-runtime.js` | P2 | Video-renderer runtime owner | `map-init.js`, `render-plan-builder.js` | per-frame map apply tests pass |
 | `src/remotion/gl/retry-policy.js` | P4/P5 | Infra/ops owner (P4), backend worker owner (P5) | error code list freeze from P0 + shared retry matrix | renderer retry classification tests + Python worker parity tests pass |
-| `src/remotion/Cinematic.jsx` | P2/P3 | Runtime owner (P2), motion/visual owner (P3) | full GL utility stack | cinematic fixture render and sync tests pass |
+| `src/remotion/CinematicGL.jsx` | P2/P3 | Runtime owner (P2), motion/visual owner (P3) | full GL utility stack | cinematic fixture render and sync tests pass |
+| `src/remotion/Cinematic.jsx` | P2 | Runtime owner (P2) | `CinematicGL.jsx`, `CinematicLegacy.jsx` | wrapper/export contract tests pass |
+| `src/remotion/CinematicLegacy.jsx` | P2 | Runtime owner (P2) | legacy renderer path | rollback fixture render parity tests pass |
 
 ### 7.2 Exact Export Completion Checklist
 
@@ -326,17 +328,24 @@ Source of truth alignment:
 2. [ ] `nextBackoffMs(code, attempt)`
 3. [ ] `isTerminalRendererError(code)`
 
-`src/remotion/Cinematic.jsx`
-1. [ ] `Cinematic(props)`
+`src/remotion/CinematicGL.jsx`
+1. [ ] `CinematicGL(props)`
 2. [ ] `useCinematicPlan(input)`
 3. [ ] `useCinematicFrameState(plan, frame)`
+
+`src/remotion/Cinematic.jsx`
+1. [ ] `Cinematic` re-export alias to `CinematicGL`
+2. [ ] `CinematicLegacy` re-export
+
+`src/remotion/CinematicLegacy.jsx`
+1. [ ] `CinematicLegacy(props)`
 
 ### 7.3 Export-to-Test Pack Mapping
 
 1. [ ] U-PLAN-01: deterministic planner snapshot test pack covers `normalize-snapshot`, `timeline-compiler`, `render-plan-builder`.
 2. [ ] U-GEOM-01: numeric and property tests cover `geometry-math`, `route-animator`, `camera-planner`.
 3. [ ] U-OVERLAY-01: visual fixture tests cover `overlay-planner` placement and readability constraints.
-4. [ ] U-RUNTIME-01: local headless map runtime tests cover `map-init`, `map-runtime`, `Cinematic.jsx` frame application.
+4. [ ] U-RUNTIME-01: local headless map runtime tests cover `map-init`, `map-runtime`, `CinematicGL.jsx` frame application + `Cinematic.jsx` wrapper contract.
 5. [ ] U-RETRY-01: backend worker integration tests cover worker-attempt source-of-truth, and parity checks validate Python worker retry mapping against renderer retry classification matrix.
 6. [ ] U-SEAM-01: chunk-boundary seam tests validate camera jump and marker jump thresholds.
 7. [ ] U-CLASSIC-01: classic template non-regression suite stays green while cinematic internals are replaced.
@@ -371,3 +380,5 @@ Source of truth alignment:
 
 1. 2026-03-24: Tracker created. All phases initialized as Not Started.
 2. 2026-03-24: Added utility export to execution map and export-level completion checklist aligned to canonical architecture doc.
+3. 2026-03-24: P1 implementation started in codebase. Added deterministic planner utilities (`gl/*`) and wired `CinematicGL.jsx` route/marker progression to shared `frameState`.
+4. 2026-03-24: Composition split for migration safety: legacy cinematic preserved in `CinematicLegacy.jsx`, new work moved to `CinematicGL.jsx`, and `Cinematic.jsx` now acts as compatibility wrapper exporting GL as canonical cinematic.

@@ -395,25 +395,29 @@ Rollback steps:
 
 ## 13. File-by-file changes
 
-1. `video-renderer/src/remotion/Cinematic.jsx`
-   - replace static cinematic internals with GL runtime.
-2. `video-renderer/src/remotion/Root.jsx`
+1. `video-renderer/src/remotion/CinematicGL.jsx`
+   - fresh GL cinematic runtime implementation (phase-driven).
+2. `video-renderer/src/remotion/Cinematic.jsx`
+   - compatibility wrapper exporting `CinematicGL` as `Cinematic`.
+3. `video-renderer/src/remotion/CinematicLegacy.jsx`
+   - frozen legacy implementation for rollback/debug.
+4. `video-renderer/src/remotion/Root.jsx`
    - keep composition id `Cinematic`; points to GL implementation.
-3. `video-renderer/src/server.js`
+5. `video-renderer/src/server.js`
    - no profile handling; keep template-based routing.
    - add cinematic GL->static fallback policy wiring and fallback metadata in status.
-4. `video-renderer/src/lambda-renderer.js`
+6. `video-renderer/src/lambda-renderer.js`
    - cinematic-specific GL-friendly render options.
    - expose fallback metadata fields on terminal status payloads.
-5. `video-renderer/package.json`
+7. `video-renderer/package.json`
    - add `mapbox-gl`.
-6. `backend/app/services/export_service.py`
+8. `backend/app/services/export_service.py`
    - ensure snapshot renderer_config includes style pin metadata for cinematic manifests.
-7. `backend/app/services/export_renderer.py`
+9. `backend/app/services/export_renderer.py`
    - internal manifest/status schema updates for v2 fields (`engine_used`, fallback metadata).
-8. `backend/app/workers/export_worker.py`
+10. `backend/app/workers/export_worker.py`
    - preserve renderer fallback metadata in export job terminal status/logging.
-9. `video-renderer/docs/renderer-api-contract-v2-draft.md`
+11. `video-renderer/docs/renderer-api-contract-v2-draft.md`
    - internal v2 contract (style pinning + error envelope).
 
 ---

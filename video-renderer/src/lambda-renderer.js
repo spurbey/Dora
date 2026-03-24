@@ -67,6 +67,7 @@ export class LambdaRenderBackend {
     this._mapStyle = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
     this._mapboxGlEnabled = (process.env.CINEMATIC_GL_ENABLE_MAPBOX || '').trim() === '1';
     this._mapboxGlStrict = (process.env.CINEMATIC_GL_STRICT_NATIVE || '').trim() === '1';
+    this._allowDerivedStylePin = (process.env.CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN || '').trim() === '1';
     this._renders = new Map();
   }
 
@@ -131,6 +132,7 @@ export class LambdaRenderBackend {
     const requestedStrictNative = parseOptionalBoolean(existingRendererConfig.mapbox_gl_strict);
     rendererConfig.mapbox_gl_enabled = requestedNativeGl ?? this._mapboxGlEnabled;
     rendererConfig.mapbox_gl_strict = requestedStrictNative ?? this._mapboxGlStrict;
+    rendererConfig.allow_derived_style_pin = this._allowDerivedStylePin;
     if (this._mapboxToken) {
       rendererConfig.mapbox_token = this._mapboxToken;
     }

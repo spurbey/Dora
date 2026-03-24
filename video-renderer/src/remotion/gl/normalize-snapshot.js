@@ -90,7 +90,7 @@ function resolveRoutes(snapshot) {
 export function normalizeSnapshot(snapshot, options = {}) {
   const safe = asObject(snapshot);
   const rendererConfig = asObject(safe.renderer_config);
-  const allowDerivedStylePin = options.allowDerivedStylePin === true || readFlag('CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN');
+  const allowDerivedStylePin = options.allowDerivedStylePin === true || readFlag('CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN') || toBooleanOrNull(rendererConfig.allow_derived_style_pin) === true;
   const mapStyle = typeof rendererConfig.map_style === 'string' && rendererConfig.map_style.trim().length > 0
     ? rendererConfig.map_style.trim()
     : DEFAULT_MAP_STYLE;

@@ -4,6 +4,9 @@ Status: Draft for sign-off
 Owner: Rendering Team  
 Last updated: 2026-03-23
 
+Canonical runtime architecture:
+1. `video-renderer/docs/cinematic-gl-runtime-architecture.md` (this overrides conflicting runtime-flow text)
+
 ## 1. Final Product Decision
 
 We are removing profile/premium split complexity.
@@ -165,7 +168,7 @@ List/download/share endpoints remain unchanged and out of scope for schema chang
 
 ## 6.2 Internal API (`backend -> renderer`)
 
-Use `X-Renderer-Version: 2` and the schema in:
+Use `X-Renderer-Version: 2` and `X-Renderer-Secret: <shared_secret>` with the schema in:
 
 1. [renderer-api-contract-v2-draft.md](c:/Users/sumit/Downloads/Dora/video-renderer/docs/renderer-api-contract-v2-draft.md)
 
@@ -377,8 +380,9 @@ Rollback steps:
 1. visual:
    - SSIM >= 0.985 on fixture suite
 2. determinism:
+   - planner/frame-state hash consistency = 100% for same manifest
    - static overlays hash match >= 99.9%
-   - full-frame GL hash match >= 99.0%
+   - full-frame validation uses SSIM + seam metrics (not full-frame hash equality)
 3. seam continuity:
    - no chunk seam camera jump > 0.0005 deg
    - no seam marker jump > 3 px @1080p normalized

@@ -5,6 +5,9 @@ Owner: Rendering Team
 Last updated: 2026-03-23  
 Related PRD: `video-renderer/docs/prd-cinematic-gl-remotion-lambda.md`
 
+Canonical runtime architecture:
+1. `video-renderer/docs/cinematic-gl-runtime-architecture.md` (this overrides conflicting runtime-flow text)
+
 ## 1. Core decision
 
 No profile split.
@@ -62,7 +65,7 @@ Input includes:
 
 ## 4.2 Internal manifest (`backend -> renderer`)
 
-Uses `X-Renderer-Version: 2`.
+Uses `X-Renderer-Version: 2` and `X-Renderer-Secret: <shared_secret>`.
 
 For `template=cinematic`, require:
 
@@ -318,10 +321,11 @@ Retry matrix:
 ## 14.3 Visual regression
 
 1. fixture golden frames for 5 route patterns.
-2. SSIM and hash threshold checks.
+2. SSIM and deterministic-hash threshold checks (planner/frame-state + overlays; no full-frame hash gate).
 3. chunk seam continuity checks:
    - camera jump threshold
    - marker jump threshold
+4. full-frame comparison policy uses SSIM/seam metrics, not full-frame hash equality.
 
 ---
 
@@ -329,7 +333,7 @@ Retry matrix:
 
 1. SSIM >= 0.985
 2. overlay hash consistency >= 99.9%
-3. full-frame GL hash consistency >= 99.0%
+3. planner/frame-state hash consistency = 100% for same manifest
 4. seam: camera jump <= 0.0005 deg
 5. seam: marker jump <= 3 px @1080p normalized
 6. staging completion rate >= 99% across 500 jobs

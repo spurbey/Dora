@@ -4,6 +4,9 @@ Status: Draft
 Version header: `X-Renderer-Version: 2`  
 Date: 2026-03-23
 
+Canonical runtime architecture reference:
+1. `video-renderer/docs/cinematic-gl-runtime-architecture.md`
+
 ## 1. Boundary
 
 This document is for **internal renderer service** calls only.

@@ -141,7 +141,7 @@ export function overlayStateAtFrame(tracks, frame) {
     opacity = easeInOutSine(local / Math.max(1, fadeInEnd));
   } else if (local >= fadeOutStart) {
     const p = (local - fadeOutStart) / Math.max(1, segFrames - 1 - fadeOutStart);
-    opacity = 1 - 0.7 * easeInOutSine(p);
+    opacity = 1 - easeInOutSine(p);
   } else {
     opacity = 1;
   }

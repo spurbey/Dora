@@ -47,8 +47,6 @@ export function compileTimelineSegments({
 
   const numPlaces = safePlaces.length;
   const numRoutes = Math.min(safeRoutes.length, Math.max(0, numPlaces - 1));
-  const safeFps = Number.isFinite(fps) && fps > 0 ? fps : 30;
-
   const beats = [];
   const specs = [];
 
@@ -75,35 +73,35 @@ export function compileTimelineSegments({
     }
   }
 
-  let frameAlloc = allocateSegmentFrames({ beatWeights: beats, durationInFrames: totalFrames });
-  const minArrive = Math.max(1, Math.floor(0.8 * safeFps));
-  const minTravel = Math.max(1, Math.floor(0.5 * safeFps));
+  let specsToUse = specs;
+  let beatsToUse = beats;
 
-  frameAlloc = frameAlloc.map((frames, idx) => {
-    const spec = specs[idx];
-    if (!spec) return 0;
-    if (spec.type === 'arrive') return Math.max(frames, minArrive);
-    return Math.max(frames, minTravel);
-  });
-
-  const allocSum = frameAlloc.reduce((acc, n) => acc + n, 0);
-  if (allocSum > totalFrames) {
-    let overflow = allocSum - totalFrames;
-    for (let i = frameAlloc.length - 1; i >= 0 && overflow > 0; i--) {
-      const spec = specs[i];
-      const minFrames = spec?.type === 'arrive' ? minArrive : minTravel;
-      const removable = Math.max(0, frameAlloc[i] - minFrames);
-      const take = Math.min(removable, overflow);
-      frameAlloc[i] -= take;
-      overflow -= take;
+  if (totalFrames < specs.length) {
+    const keep = [];
+    keep.push(0);
+    if (totalFrames > 1 && specs.length > 1) {
+      keep.push(specs.length - 1);
     }
+    for (let i = 1; i < specs.length - 1 && keep.length < totalFrames; i++) {
+      keep.push(i);
+    }
+    const uniqueOrdered = [...new Set(keep)].sort((a, b) => a - b);
+    specsToUse = uniqueOrdered.map((idx) => specs[idx]);
+    beatsToUse = uniqueOrdered.map((idx) => beats[idx] ?? 1);
+  }
+
+  let frameAlloc = Array(specsToUse.length).fill(1);
+  const remaining = totalFrames - specsToUse.length;
+  if (remaining > 0) {
+    const extra = allocateSegmentFrames({ beatWeights: beatsToUse, durationInFrames: remaining });
+    frameAlloc = frameAlloc.map((base, idx) => base + (extra[idx] || 0));
   }
 
   const segments = [];
   let cursor = 0;
 
-  for (let i = 0; i < specs.length; i++) {
-    const spec = specs[i];
+  for (let i = 0; i < specsToUse.length; i++) {
+    const spec = specsToUse[i];
     const budget = frameAlloc[i] || 0;
     if (budget <= 0 || cursor >= totalFrames) continue;
     const frames = clamp(budget, 1, totalFrames - cursor);

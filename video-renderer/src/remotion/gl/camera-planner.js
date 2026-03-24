@@ -27,6 +27,25 @@ function keyframe(frame, center, scale, bearing, pitch) {
   };
 }
 
+function placeCenter(projectedPlaces, index) {
+  const place = projectedPlaces[index];
+  if (!place) return null;
+  const x = Number(place.x);
+  const y = Number(place.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
+function fallbackBearing(start, end, previousBearing = 0) {
+  if (!start || !end) return toFinite(previousBearing, 0);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
+    return toFinite(previousBearing, 0);
+  }
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
 function clampByLimits(camera) {
   const c = camera || {};
   return {
@@ -45,30 +64,49 @@ export function buildCameraKeyframes(input) {
   const segments = Array.isArray(input?.segments) ? input.segments : [];
   const routeCurves = Array.isArray(input?.routeCurves) ? input.routeCurves : [];
   const projectedPlaces = Array.isArray(input?.projectedPlaces) ? input.projectedPlaces : [];
+  const frameSize = input?.frameSize || { width: 720, height: 1280 };
   if (segments.length === 0) return [];
 
   const out = [];
   let lastBearing = 0;
+  let lastCenter = placeCenter(projectedPlaces, 0) || {
+    x: Number.isFinite(frameSize.width) ? frameSize.width / 2 : 0,
+    y: Number.isFinite(frameSize.height) ? frameSize.height / 2 : 0,
+  };
 
   for (const segment of segments) {
     const preset = segmentPreset(segment);
     if (segment.type === 'arrive') {
-      const place = projectedPlaces[segment.placeIndex];
-      const center = place ? { x: place.x, y: place.y } : { x: 0, y: 0 };
+      const center = placeCenter(projectedPlaces, segment.placeIndex) || lastCenter;
       out.push(keyframe(segment.startFrame, center, preset.scale, lastBearing, preset.pitch));
       out.push(keyframe(segment.endFrame, center, preset.scale, lastBearing, preset.pitch));
+      lastCenter = center;
       continue;
     }
 
     if (segment.type === 'travel') {
       const curve = routeCurves[segment.routeIndex];
-      const start = pointAtS(curve, 0) || { x: 0, y: 0 };
-      const end = pointAtS(curve, 1) || start;
-      const startBearing = headingAtS(curve, 0.02);
-      const endBearing = headingAtS(curve, 0.98);
+      const startPlace = placeCenter(projectedPlaces, segment.placeIndex);
+      const endPlace = placeCenter(projectedPlaces, segment.placeIndex + 1);
+
+      const start = pointAtS(curve, 0) || startPlace || lastCenter || endPlace;
+      const end = pointAtS(curve, 1) || endPlace || start || lastCenter;
+      if (!start || !end) {
+        continue;
+      }
+
+      const rawStartBearing = headingAtS(curve, 0.02);
+      const rawEndBearing = headingAtS(curve, 0.98);
+      const startBearing = Number.isFinite(rawStartBearing)
+        ? rawStartBearing
+        : fallbackBearing(start, end, lastBearing);
+      const endBearing = Number.isFinite(rawEndBearing)
+        ? rawEndBearing
+        : fallbackBearing(start, end, startBearing);
       out.push(keyframe(segment.startFrame, start, preset.scale, startBearing, preset.pitch));
       out.push(keyframe(segment.endFrame, end, preset.scale, endBearing, preset.pitch));
       lastBearing = endBearing;
+      lastCenter = end;
     }
   }
 

@@ -95,7 +95,7 @@ Completion Gate:
 
 ## P1: Deterministic Planning Core
 
-Status: Not Started  
+Status: In Progress  
 Target: 2 days  
 Problem Countered: B  
 Owner: Video-renderer planning owner
@@ -383,3 +383,4 @@ Source of truth alignment:
 3. 2026-03-24: P1 implementation started in codebase. Added deterministic planner utilities (`gl/*`) and wired `CinematicGL.jsx` route/marker progression to shared `frameState`.
 4. 2026-03-24: Composition split for migration safety: legacy cinematic preserved in `CinematicLegacy.jsx`, new work moved to `CinematicGL.jsx`, and `Cinematic.jsx` now acts as compatibility wrapper exporting GL as canonical cinematic.
 5. 2026-03-24: Added `normalize-snapshot.js`, `camera-planner.js`, and `overlay-planner.js`; integrated camera/overlay outputs into `render-plan-builder` and consumed planned camera/label state in `CinematicGL.jsx`.
+6. 2026-03-24: Addressed reviewer criticals: robust short-duration segment allocation, travel-camera fallback away from `{0,0}`, style pin enforcement via normalized pin, stronger determinism assertions with rebuild checks, and added automated planner tests.

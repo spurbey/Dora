@@ -76,7 +76,7 @@ sequenceDiagram
   RA->>RS: POST /api/v1/render (X-Renderer-Version + X-Renderer-Secret)
   RS->>REM: start render
   alt template=cinematic
-    REM->>COMP: mount composition(template=cinematic_gl)
+    REM->>COMP: mount composition(id=Cinematic, component=CinematicGL)
     COMP->>COMP: buildRenderPlan(snapshot, fps, duration)
     COMP->>MB: initMap + delayRender gate
     MB-->>COMP: style loaded + ready
@@ -238,6 +238,10 @@ Per-frame order:
 5. marker layer update
 6. overlay render
 7. capture frame
+
+Phase boundary note:
+1. Current P1 implementation computes projected camera center/scale for static compatibility rendering.
+2. P2 runtime will convert to map-native camera state (`lng/lat/zoom/bearing/pitch`) consumed by `map.jumpTo(...)`.
 
 Easing definitions:
 1. `easeInOutSine(p) = 0.5 * (1 - cos(pi * p))`

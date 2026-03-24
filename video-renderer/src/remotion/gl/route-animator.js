@@ -102,6 +102,6 @@ export function pointAtS(curve, sNorm) {
 export function headingAtS(curve, sNorm, eps = 0.01) {
   const low = pointAtS(curve, Math.max(0, sNorm - eps));
   const high = pointAtS(curve, Math.min(1, sNorm + eps));
-  if (!low || !high) return 0;
+  if (!low || !high) return Number.NaN;
   return (Math.atan2(high.y - low.y, high.x - low.x) * 180) / Math.PI;
 }

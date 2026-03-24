@@ -34,6 +34,10 @@ function fnv1aHex(value) {
   return `fnv1a_${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 export function buildRenderPlan(input) {
   const safeInput = input || {};
   const normalizedSnapshot = normalizeSnapshot(
@@ -77,7 +81,7 @@ export function buildRenderPlan(input) {
     frameSize: { width, height },
   });
 
-  return {
+  const plan = {
     normalizedSnapshot,
     rendererConfig: extractRendererConfig(normalizedSnapshot),
     fps,
@@ -90,7 +94,24 @@ export function buildRenderPlan(input) {
     routeCurves,
     cameraKeyframes,
     overlayTracks,
+    __determinismInput: deepClone({
+      snapshot: normalizedSnapshot,
+      places,
+      routes,
+      fps,
+      durationInFrames,
+      projectedRoutes,
+      projectedPlaces,
+      width,
+      height,
+      segments: Array.isArray(safeInput.segments) ? safeInput.segments : null,
+    }),
   };
+
+  if (!safeInput.skipDeterminismCheck) {
+    assertPlanDeterminism(plan);
+  }
+  return plan;
 }
 
 export function getFrameState(plan, frame) {
@@ -134,10 +155,11 @@ export function getFrameState(plan, frame) {
       const s = routeProgressByIndex[routeIndex] ?? 0;
       const point = pointAtS(curve, s);
       if (point) {
+        const heading = headingAtS(curve, s);
         markerState = {
           mapX: point.x,
           mapY: point.y,
-          heading: headingAtS(curve, s),
+          heading: Number.isFinite(heading) ? heading : 0,
           isAtPlace: false,
         };
       }
@@ -176,5 +198,31 @@ export function assertPlanDeterminism(plan) {
   const hash = hashRenderPlan(plan);
   if (!hash || typeof hash !== 'string') {
     throw new Error('render_plan_non_deterministic_hash');
+  }
+
+  const input = plan?.__determinismInput;
+  if (!input) {
+    throw new Error('render_plan_missing_determinism_input');
+  }
+
+  const rebuilt = buildRenderPlan({
+    ...deepClone(input),
+    segments: Array.isArray(input.segments) ? input.segments : undefined,
+    skipDeterminismCheck: true,
+  });
+
+  const rebuiltHash = hashRenderPlan(rebuilt);
+  if (hash !== rebuiltHash) {
+    throw new Error('render_plan_hash_mismatch');
+  }
+
+  const totalFrames = Math.max(1, Number.isFinite(plan?.durationInFrames) ? plan.durationInFrames : 1);
+  const sampleFrames = [...new Set([0, Math.floor((totalFrames - 1) / 2), totalFrames - 1])];
+  for (const frame of sampleFrames) {
+    const a = JSON.stringify(getFrameState(plan, frame));
+    const b = JSON.stringify(getFrameState(rebuilt, frame));
+    if (a !== b) {
+      throw new Error(`render_plan_frame_state_mismatch_${frame}`);
+    }
   }
 }

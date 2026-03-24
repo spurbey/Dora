@@ -18,7 +18,7 @@ This tracker is the session-memory anchor for future work.
 ## 2. Session Continuity Block (Update Every Session)
 
 1. Branch: `[fill]`
-2. Latest commit: `b1bed52` (`Tighten GL style pin rules and runtime planning behavior`)
+2. Latest commit: `70c8535` (`Document hardening decisions and add cinematic thumbnail frame selector`)
 3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs` (pass: 9/9 on 2026-03-24)
 4. Current active phase: `P1` (deterministic planning core, hardening pass)
 5. Next 3 executable steps:

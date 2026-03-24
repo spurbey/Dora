@@ -194,6 +194,8 @@ Rules:
    - `submit()`
    - `getStatus()`
    - `cancel()`
+7. `video-renderer/src/thumbnail-frame.js`
+   - `selectThumbnailFrame()`
 
 ## 6.2 Canonical cinematic GL runtime modules (target)
 
@@ -252,6 +254,13 @@ Interpolation rules:
 1. shortest-path lon interpolation across antimeridian
 2. shortest-angle bearing interpolation
 3. clamp zoom/pitch/bearing bounds
+4. apply per-frame bearing delta guard using `CAMERA_LIMITS.maxBearingDeltaPerFrame`
+
+Determinism diagnostics:
+1. `assertPlanDeterminism()` is a diagnostics/test check, not always-on runtime work.
+2. Runtime enables it only with explicit opt-in:
+   - `buildRenderPlan({ enableDeterminismCheck: true })`
+   - or `CINEMATIC_GL_ASSERT_PLAN_DETERMINISM=1`
 
 ---
 
@@ -260,8 +269,10 @@ Interpolation rules:
 1. GL is only used for `template=cinematic`.
 2. Map init blocks rendering until style-ready gate passes.
 3. Style pin (`style_revision` or `style_hash`) is required for cinematic.
-4. Mismatch -> terminal error `map_style_revision_mismatch`.
-5. No real-time/clock-driven camera animations.
+4. Missing style pin is rejected by default at plan validation.
+5. Temporary migration mode may allow derived pin only when explicitly enabled (`allowDerivedStylePin` or `CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN=1`).
+6. Mismatch -> terminal error `map_style_revision_mismatch`.
+7. No real-time/clock-driven camera animations.
 
 ---
 
@@ -270,10 +281,11 @@ Interpolation rules:
 Local backend:
 1. `renderMedia()` produces MP4.
 2. `renderStill()` produces thumbnail.
+3. For cinematic, thumbnail frame is selected by planner-aware helper (`selectThumbnailFrame`) instead of fixed percent.
 
 Lambda backend:
 1. `renderMediaOnLambda()` orchestrates chunk renders and stitching.
-2. `renderStillOnLambda()` produces thumbnail artifact.
+2. `renderStillOnLambda()` produces thumbnail artifact using the same thumbnail frame selection policy as local backend.
 3. Output keys are persisted and polled via renderer status endpoint.
 
 ---
@@ -403,9 +415,9 @@ Used by:
 ## 14.3 `src/remotion/gl/normalize-snapshot.js`
 
 Exports:
-1. `normalizeSnapshot(snapshot: unknown): NormalizedSnapshot`
-2. `extractRendererConfig(snapshot: NormalizedSnapshot): RendererConfig`
-3. `validateSnapshotForCinematic(snapshot: NormalizedSnapshot): void`
+1. `normalizeSnapshot(snapshot: unknown, options?: { allowDerivedStylePin?: boolean }): NormalizedSnapshot`
+2. `extractRendererConfig(snapshot: NormalizedSnapshot, options?: { allowDerivedStylePin?: boolean }): RendererConfig`
+3. `validateSnapshotForCinematic(snapshot: NormalizedSnapshot, options?: { allowDerivedStylePin?: boolean }): void`
 
 Used by:
 1. `buildRenderPlan()`
@@ -477,7 +489,7 @@ Used by:
 ## 14.9 `src/remotion/gl/render-plan-builder.js`
 
 Exports:
-1. `buildRenderPlan(input: { snapshot: unknown; width: number; height: number; fps: number; durationInFrames: number }): RenderPlan`
+1. `buildRenderPlan(input: { snapshot: unknown; width: number; height: number; fps: number; durationInFrames: number; allowDerivedStylePin?: boolean; enableDeterminismCheck?: boolean }): RenderPlan`
 2. `getFrameState(plan: RenderPlan, frame: number): FrameState`
 3. `hashRenderPlan(plan: RenderPlan): string`
 4. `assertPlanDeterminism(plan: RenderPlan): void`
@@ -538,6 +550,15 @@ Exports:
 
 Used by:
 1. Remotion root composition registry
+
+## 14.15 `src/thumbnail-frame.js`
+
+Exports:
+1. `selectThumbnailFrame(input: { template: string; snapshot: unknown; durationInFrames?: number; durationSec?: number; fps: number }): number`
+
+Used by:
+1. `src/server.js` local `renderStill()` frame selection
+2. `src/lambda-renderer.js` `renderStillOnLambda()` frame selection
 
 ---
 

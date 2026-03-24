@@ -5,6 +5,7 @@ import {
   renderMediaOnLambda,
   renderStillOnLambda,
 } from '@remotion/lambda/client';
+import { selectThumbnailFrame } from './thumbnail-frame.js';
 
 function parsePositiveInt(value, fallback) {
   const parsed = parseInt(value || '', 10);
@@ -135,6 +136,7 @@ export class LambdaRenderBackend {
     const outputKey = `private/${userId}/${manifest.job_id}/output.mp4`;
     const thumbnailKey = `private/${userId}/${manifest.job_id}/thumbnail.jpg`;
     const inputProps = this._buildInputProps(manifest.snapshot);
+    const durationInFrames = manifest.duration_sec * manifest.fps;
 
     const response = await renderMediaOnLambda({
       region: this._region,
@@ -149,7 +151,7 @@ export class LambdaRenderBackend {
       forceWidth: dims.width,
       forceHeight: dims.height,
       forceFps: manifest.fps,
-      forceDurationInFrames: manifest.duration_sec * manifest.fps,
+      forceDurationInFrames: durationInFrames,
       outName: {
         bucketName: this._outputBucket,
         key: outputKey,
@@ -166,11 +168,17 @@ export class LambdaRenderBackend {
       inputProps,
       imageFormat: 'jpeg',
       privacy: 'no-acl',
-      frame: Math.max(0, Math.floor(manifest.duration_sec * manifest.fps * 0.45)),
+      frame: selectThumbnailFrame({
+        template: manifest.template,
+        snapshot: manifest.snapshot,
+        durationInFrames,
+        durationSec: manifest.duration_sec,
+        fps: manifest.fps,
+      }),
       forceWidth: dims.width,
       forceHeight: dims.height,
       forceFps: manifest.fps,
-      forceDurationInFrames: manifest.duration_sec * manifest.fps,
+      forceDurationInFrames: durationInFrames,
       outName: {
         bucketName: this._outputBucket,
         key: thumbnailKey,

@@ -2,7 +2,7 @@
 
 Status: Draft for execution  
 Owner: Rendering Team  
-Last updated: 2026-03-23  
+Last updated: 2026-03-24  
 Related PRD: `video-renderer/docs/prd-cinematic-gl-remotion-lambda.md`
 
 Canonical runtime architecture:
@@ -77,6 +77,14 @@ For `template=cinematic`, require:
 
 1. `snapshot.renderer_config.map_style`
 2. `snapshot.renderer_config.style_revision` or `style_hash`
+
+Runtime policy:
+
+1. Missing cinematic style pin is validation failure by default.
+2. Temporary migration compatibility may opt in to derived style pin generation via renderer runtime flag:
+   - `allowDerivedStylePin` on planner input, or
+   - `CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN=1`
+3. Compatibility mode is transitional and must not replace backend pin plumbing.
 
 ## 4.3 Backend plumbing requirements
 
@@ -169,7 +177,10 @@ Center:
 Bearing:
 
 1. `d_bear = ((b1 - b0 + 540) % 360) - 180`
-2. `bearing = b0 + d_bear * e`
+2. `bearing_raw = b0 + d_bear * e`
+3. per-frame delta clamp:
+   - `max_delta = maxBearingDeltaPerFrame * elapsed_frames_since_K0`
+   - `bearing = b0 + clamp(shortestDelta(b0, bearing_raw), -max_delta, +max_delta)`
 
 Zoom/pitch:
 
@@ -270,11 +281,28 @@ Where:
 3. `edge_penalty = 100 if too close to safe edge else 0`
 4. `travel_penalty = distance(anchor, card_center)`
 
+Runtime call-site requirement:
+
+1. `resolveCardPlacement(...)` must receive nearby route polyline points.
+2. For air routes without dense polyline, pass sampled quadratic-arc points.
+3. Empty polyline input is only acceptable when no nearby route exists.
+
 Pick minimum score.
 
 Tie-break order:
 
 1. NE > NW > SE > SW
+
+## 11.3 Thumbnail frame policy
+
+1. `template=classic`: keep legacy fixed selection (`floor(durationInFrames * 0.45)`).
+2. `template=cinematic`: use deterministic planner-aware selection (`selectThumbnailFrame`), not fixed progress.
+3. Cinematic selection rules:
+   - compute journey window (`total - intro - outro`)
+   - build deterministic timeline segments
+   - score arrival/travel segments
+   - pick one best segment and choose a stable intra-segment frame
+4. Local and Lambda backends must use the same helper for parity.
 
 ---
 
@@ -317,6 +345,8 @@ Retry matrix:
 2. camera interpolation bounds and continuity.
 3. route animator monotonicity + heading continuity.
 4. overlay placement scoring determinism.
+5. strict style-pin validation by default.
+6. opt-in derived style-pin compatibility behavior.
 
 ## 14.2 Integration
 
@@ -357,6 +387,11 @@ Retry matrix:
 7. apply lambda cinematic defaults (`png`, chunk size, concurrency)
 8. add tests (unit/integration/visual)
 9. rollout by environment with quality gates
+
+Determinism diagnostics rule:
+
+1. `assertPlanDeterminism()` should be enabled in tests/diagnostics, not always-on in production path.
+2. Enable only via `enableDeterminismCheck` input or `CINEMATIC_GL_ASSERT_PLAN_DETERMINISM=1`.
 
 ---
 

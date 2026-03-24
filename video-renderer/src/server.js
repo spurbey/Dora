@@ -21,6 +21,7 @@ import { bundle } from '@remotion/bundler';
 import { getCompositions, makeCancelSignal, renderMedia, renderStill } from '@remotion/renderer';
 
 import { LambdaRenderBackend } from './lambda-renderer.js';
+import { selectThumbnailFrame } from './thumbnail-frame.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -396,7 +397,12 @@ async function runLocalRender(renderId, manifest) {
       composition,
       serveUrl: bundleLocation,
       output: thumbnailPath,
-      frame: Math.max(0, Math.floor(composition.durationInFrames * 0.45)),
+      frame: selectThumbnailFrame({
+        template: manifest.template,
+        snapshot: manifest.snapshot,
+        durationInFrames: composition.durationInFrames,
+        fps: manifest.fps,
+      }),
       imageFormat: 'jpeg',
       inputProps,
       ...(CHROME_EXECUTABLE ? { browserExecutable: CHROME_EXECUTABLE } : {}),

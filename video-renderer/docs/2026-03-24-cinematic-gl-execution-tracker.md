@@ -2,7 +2,7 @@
 
 Date: 2026-03-24  
 Owner: Video Renderer + Backend Worker + Flutter + QA  
-Status: Active (P0 Not Started)  
+Status: Active (P1 In Progress)  
 Related Docs:
 1. `video-renderer/docs/prd-cinematic-gl-remotion-lambda.md`
 2. `video-renderer/docs/implementation-spec-cinematic-gl-quality.md`
@@ -18,15 +18,16 @@ This tracker is the session-memory anchor for future work.
 ## 2. Session Continuity Block (Update Every Session)
 
 1. Branch: `[fill]`
-2. Latest commit: `[fill]`
-3. Last known good test command: `[fill]`
-4. Current active phase: `[fill]`
+2. Latest commit: `b1bed52` (`Tighten GL style pin rules and runtime planning behavior`)
+3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs` (pass: 9/9 on 2026-03-24)
+4. Current active phase: `P1` (deterministic planning core, hardening pass)
 5. Next 3 executable steps:
-   - `[fill]`
-   - `[fill]`
-   - `[fill]`
+   - Implement `map-init.js` runtime gate (`delayRender` + style-load/idle synchronization) for P2.
+   - Implement `map-runtime.js` per-frame apply path (`jumpTo`, route/marker layer updates) for P2.
+   - Wire renderer v2 style pin/fallback metadata plumbing in backend worker status persistence for P5.
 6. Open blockers + owner:
-   - `[fill]`
+   - Backend style pin population/source-of-truth still pending in export snapshot builder (owner: backend worker/data-model).
+   - Real GL runtime path not yet enabled; current P1 uses projected static compatibility rendering (owner: video-renderer runtime).
 
 ## 3. Update Rules
 
@@ -101,16 +102,16 @@ Problem Countered: B
 Owner: Video-renderer planning owner
 
 Work Items:
-1. [ ] Implement snapshot normalization module.
-2. [ ] Implement timeline compiler (contiguous segments, deterministic frame allocation).
-3. [ ] Implement route animator (`pointAtS`, heading continuity, air arc mode).
-4. [ ] Implement camera planner and unified progress pipeline.
-5. [ ] Build single `frameState(frame)` API consumed by all systems.
+1. [x] Implement snapshot normalization module.
+2. [x] Implement timeline compiler (contiguous segments, deterministic frame allocation).
+3. [x] Implement route animator (`pointAtS`, heading continuity, air arc mode).
+4. [x] Implement camera planner and unified progress pipeline.
+5. [x] Build single `frameState(frame)` API consumed by all systems.
 
 Completion Gate:
-1. [ ] Planner unit tests pass.
+1. [x] Planner unit tests pass.
 2. [ ] No NaN/invalid frame state in fuzz/property tests.
-3. [ ] Same input -> same planned frame state hash.
+3. [x] Same input -> same planned frame state hash.
 
 ## P2: Cinematic GL Runtime Integration
 
@@ -133,7 +134,7 @@ Completion Gate:
 
 ## P3: Motion and Visual Quality Hardening
 
-Status: Not Started  
+Status: In Progress (parallel-safe)  
 Target: 2 days  
 Problem Countered: C  
 Owner: Video-renderer motion/visual owner
@@ -143,7 +144,7 @@ Work Items:
 2. [ ] Finalize camera interpolation and bearing shortest-path handling.
 3. [ ] Implement overlay card placement scoring algorithm.
 4. [ ] Tune typography safe zones and legibility overlays.
-5. [ ] Add content-aware thumbnail frame selection for cinematic.
+5. [x] Add content-aware thumbnail frame selection for cinematic. `[parallel-safe]`
 
 Completion Gate:
 1. [ ] Fixture clips meet visual review baseline.
@@ -384,3 +385,5 @@ Source of truth alignment:
 4. 2026-03-24: Composition split for migration safety: legacy cinematic preserved in `CinematicLegacy.jsx`, new work moved to `CinematicGL.jsx`, and `Cinematic.jsx` now acts as compatibility wrapper exporting GL as canonical cinematic.
 5. 2026-03-24: Added `normalize-snapshot.js`, `camera-planner.js`, and `overlay-planner.js`; integrated camera/overlay outputs into `render-plan-builder` and consumed planned camera/label state in `CinematicGL.jsx`.
 6. 2026-03-24: Addressed reviewer criticals: robust short-duration segment allocation, travel-camera fallback away from `{0,0}`, style pin enforcement via normalized pin, stronger determinism assertions with rebuild checks, and added automated planner tests.
+7. 2026-03-24: Tightened hardening pass: style pin is strict-by-default with explicit compatibility flag only, determinism assertion moved to opt-in diagnostics mode, route-aware overlay scoring wired at runtime, and camera easing/bearing-delta limits enforced; planner test suite green (5/5).
+8. 2026-03-24: Replaced fixed thumbnail frame (`45%`) with deterministic content-aware selection for cinematic in both local and Lambda renderer paths, keeping classic template behavior unchanged.

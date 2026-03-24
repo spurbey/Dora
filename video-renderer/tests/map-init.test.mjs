@@ -84,6 +84,44 @@ test('initMapWithGate rejects explicit hash without token when revision absent',
   );
 });
 
+test('initMapWithGate rejects native mapbox init without token', async () => {
+  await assert.rejects(
+    () => initMapWithGate({
+      mapStyle: 'mapbox/navigation-night-v1',
+      styleHash: `derived_${fnv1aHex('mapbox/navigation-night-v1')}`,
+      enableNativeGl: true,
+      delayRenderLabel: 'test_gate',
+    }),
+    /map_token_invalid/,
+  );
+});
+
+test('initMapWithGate falls back to compatibility map when native runtime unavailable', async () => {
+  const result = await initMapWithGate({
+    mapStyle: 'https://example.com/style.json',
+    styleHash: `derived_${fnv1aHex('https://example.com/style.json')}`,
+    enableNativeGl: true,
+    allowCompatFallback: true,
+    delayRenderLabel: 'test_gate',
+  });
+
+  assert.equal(result.map.mode, 'static_compat');
+  assert.equal(typeof result.map.jumpTo, 'function');
+});
+
+test('initMapWithGate surfaces native runtime error when compat fallback disabled', async () => {
+  await assert.rejects(
+    () => initMapWithGate({
+      mapStyle: 'https://example.com/style.json',
+      styleHash: `derived_${fnv1aHex('https://example.com/style.json')}`,
+      enableNativeGl: true,
+      allowCompatFallback: false,
+      delayRenderLabel: 'test_gate',
+    }),
+    /gl_runtime_unavailable/,
+  );
+});
+
 test('initMapWithGate verifies revision-only style pin when token is present', async () => {
   await withMockedFetch(
     async () => ({

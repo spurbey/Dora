@@ -10,12 +10,15 @@ import {
 
 function compatMapFixture() {
   return {
+    mode: 'static_compat',
+    lastJumpTo: null,
     __state: {
       camera: null,
       routeState: {},
       markerState: null,
     },
     jumpTo(payload) {
+      this.lastJumpTo = payload;
       this.__state.camera = payload;
     },
   };
@@ -23,6 +26,7 @@ function compatMapFixture() {
 
 test('applyCameraState forwards map-native camera to jumpTo', () => {
   const map = compatMapFixture();
+  map.mode = 'native_gl';
   applyCameraState(map, {
     center: { lng: 85.31, lat: 27.71 },
     zoom: 9.25,
@@ -30,11 +34,38 @@ test('applyCameraState forwards map-native camera to jumpTo', () => {
     pitch: 20,
   });
 
-  assert.equal(map.__state.camera.center.lng, 85.31);
-  assert.equal(map.__state.camera.center.lat, 27.71);
-  assert.equal(map.__state.camera.zoom, 9.25);
-  assert.equal(map.__state.camera.bearing, 35);
-  assert.equal(map.__state.camera.pitch, 20);
+  assert.deepEqual(map.lastJumpTo.center, [85.31, 27.71]);
+  assert.equal(map.lastJumpTo.zoom, 9.25);
+  assert.equal(map.lastJumpTo.bearing, 35);
+  assert.equal(map.lastJumpTo.pitch, 20);
+});
+
+test('applyCameraState converts projected camera to native jumpTo payload', () => {
+  const map = compatMapFixture();
+  map.mode = 'native_gl';
+
+  applyCameraState(map, {
+    center: { x: 450, y: 520 },
+    scale: 2,
+    bearing: 22,
+    pitch: 12,
+  }, {
+    mapContext: {
+      viewport: {
+        center: { lng: 85.31, lat: 27.71 },
+        zoom: 8,
+      },
+      mapWidth: 900,
+      mapHeight: 1100,
+    },
+  });
+
+  assert.ok(Array.isArray(map.lastJumpTo.center));
+  assert.ok(Number.isFinite(map.lastJumpTo.center[0]));
+  assert.ok(Number.isFinite(map.lastJumpTo.center[1]));
+  assert.equal(map.lastJumpTo.zoom, 9);
+  assert.equal(map.lastJumpTo.bearing, 22);
+  assert.equal(map.lastJumpTo.pitch, 12);
 });
 
 test('upsert route and marker states persist into compatibility map state', () => {

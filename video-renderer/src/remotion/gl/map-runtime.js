@@ -1,7 +1,94 @@
 import { clamp } from './geometry-math.js';
 
+const TILE_SIZE = 512;
+const MAX_WEB_MERCATOR_LAT = 85.05112878;
+
 function toFinite(value, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeLon(lon) {
+  return (lon + 180) / 360;
+}
+
+function normalizeLat(lat) {
+  const clamped = clamp(lat, -MAX_WEB_MERCATOR_LAT, MAX_WEB_MERCATOR_LAT);
+  const sin = Math.sin((clamped * Math.PI) / 180);
+  return 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI);
+}
+
+function lngLatToWorld(lng, lat, zoom) {
+  const scale = TILE_SIZE * 2 ** zoom;
+  return {
+    x: normalizeLon(lng) * scale,
+    y: normalizeLat(lat) * scale,
+  };
+}
+
+function worldToLngLat(x, y, zoom) {
+  const scale = TILE_SIZE * 2 ** zoom;
+  const lon = (x / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * y) / scale;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return {
+    lng: clamp(lon, -180, 180),
+    lat: clamp(lat, -MAX_WEB_MERCATOR_LAT, MAX_WEB_MERCATOR_LAT),
+  };
+}
+
+function projectedPointToLngLat(point, mapContext) {
+  const x = toFinite(point?.x, NaN);
+  const y = toFinite(point?.y, NaN);
+  const viewport = mapContext?.viewport || null;
+  const mapWidth = toFinite(mapContext?.mapWidth, NaN);
+  const mapHeight = toFinite(mapContext?.mapHeight, NaN);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !viewport || !Number.isFinite(viewport.zoom)) {
+    return null;
+  }
+  if (!Number.isFinite(viewport.center?.lng) || !Number.isFinite(viewport.center?.lat)) {
+    return null;
+  }
+  if (!Number.isFinite(mapWidth) || !Number.isFinite(mapHeight) || mapWidth <= 0 || mapHeight <= 0) {
+    return null;
+  }
+
+  const zoom = viewport.zoom;
+  const centerWorld = lngLatToWorld(viewport.center.lng, viewport.center.lat, zoom);
+  const worldX = x + centerWorld.x - mapWidth / 2;
+  const worldY = y + centerWorld.y - mapHeight / 2;
+  return worldToLngLat(worldX, worldY, zoom);
+}
+
+function projectedCameraToNative(camera, mapContext) {
+  if (!camera || typeof camera !== 'object') return null;
+  if (
+    Number.isFinite(camera.center?.lng)
+    && Number.isFinite(camera.center?.lat)
+    && Number.isFinite(camera.zoom)
+  ) {
+    return {
+      center: [camera.center.lng, camera.center.lat],
+      zoom: camera.zoom,
+      bearing: toFinite(camera.bearing, 0),
+      pitch: toFinite(camera.pitch, 0),
+      animate: false,
+    };
+  }
+
+  const centerLngLat = projectedPointToLngLat(camera.center, mapContext);
+  const baseZoom = toFinite(mapContext?.viewport?.zoom, NaN);
+  if (!centerLngLat || !Number.isFinite(baseZoom)) {
+    return null;
+  }
+
+  const scale = Math.max(0.0001, toFinite(camera.scale, 1));
+  return {
+    center: [centerLngLat.lng, centerLngLat.lat],
+    zoom: baseZoom + Math.log2(scale),
+    bearing: toFinite(camera.bearing, 0),
+    pitch: toFinite(camera.pitch, 0),
+    animate: false,
+  };
 }
 
 function projectCameraToViewport({ camera, markerState, mapContext, frameSize }) {
@@ -40,24 +127,13 @@ function projectCameraToViewport({ camera, markerState, mapContext, frameSize })
   };
 }
 
-export function applyCameraState(map, camera) {
+export function applyCameraState(map, camera, context = {}) {
   if (!map || typeof map !== 'object') return camera || null;
 
-  if (
-    map
-    && typeof map.jumpTo === 'function'
-    && camera
-    && Number.isFinite(camera.center?.lng)
-    && Number.isFinite(camera.center?.lat)
-    && Number.isFinite(camera.zoom)
-  ) {
-    map.jumpTo({
-      center: [camera.center.lng, camera.center.lat],
-      zoom: camera.zoom,
-      bearing: toFinite(camera.bearing, 0),
-      pitch: toFinite(camera.pitch, 0),
-      animate: false,
-    });
+  const nativeCamera = projectedCameraToNative(camera, context.mapContext);
+
+  if (map.mode === 'native_gl' && typeof map.jumpTo === 'function' && nativeCamera) {
+    map.jumpTo(nativeCamera);
   } else if (typeof map.jumpTo === 'function' && camera) {
     // Static compatibility map accepts projected camera fields.
     map.jumpTo({
@@ -93,7 +169,7 @@ export function upsertMarkerLayerState(map, markerState) {
 
 export function applyFrameToMap(map, frameState, context = {}) {
   const safeState = frameState && typeof frameState === 'object' ? frameState : {};
-  const camera = applyCameraState(map, safeState.camera || null);
+  const camera = applyCameraState(map, safeState.camera || null, context);
   const routeProgressByIndex = upsertRouteLayerState(map, safeState.routeProgressByIndex || {});
   const markerState = upsertMarkerLayerState(map, safeState.markerState || null);
 
@@ -111,4 +187,3 @@ export function applyFrameToMap(map, frameState, context = {}) {
     viewport,
   };
 }
-

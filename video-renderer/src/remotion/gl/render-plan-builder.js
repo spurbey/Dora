@@ -2,6 +2,7 @@ import { clamp } from './geometry-math.js';
 import { cameraStateAtFrame, buildCameraKeyframes } from './camera-planner.js';
 import { extractRendererConfig, normalizeSnapshot, validateSnapshotForCinematic } from './normalize-snapshot.js';
 import { buildOverlayTracks, overlayStateAtFrame } from './overlay-planner.js';
+import { EASING } from './quality-constants.js';
 import { buildRouteCurves, headingAtS, pointAtS } from './route-animator.js';
 import { compileTimelineSegments, findActiveSegment } from './timeline-compiler.js';
 
@@ -9,6 +10,28 @@ function easeInOutCubic(input) {
   const p = clamp(input, 0, 1);
   if (p < 0.5) return 4 * p * p * p;
   return 1 - Math.pow(-2 * p + 2, 3) / 2;
+}
+
+function easeOutCubic(input) {
+  const p = clamp(input, 0, 1);
+  return 1 - Math.pow(1 - p, 3);
+}
+
+function easeInOutSine(input) {
+  const p = clamp(input, 0, 1);
+  return 0.5 * (1 - Math.cos(Math.PI * p));
+}
+
+function applyEasing(name, input) {
+  switch (name) {
+    case 'easeOutCubic':
+      return easeOutCubic(input);
+    case 'easeInOutSine':
+      return easeInOutSine(input);
+    case 'easeInOutCubic':
+    default:
+      return easeInOutCubic(input);
+  }
 }
 
 function safeFrame(frame) {
@@ -22,7 +45,7 @@ function routeProgressForFrame(segment, frame) {
   if (frame < segment.startFrame) return 0;
   const span = Math.max(1, segment.endFrame - segment.startFrame);
   const local = (frame - segment.startFrame) / span;
-  return easeInOutCubic(local);
+  return applyEasing(EASING.route, local);
 }
 
 function fnv1aHex(value) {

@@ -7,14 +7,63 @@ function toFinite(value, fallback = 0) {
 }
 
 function segmentPreset(segment) {
-  if (!segment) return { scale: 1, pitch: 0 };
-  if (segment.type === 'arrive') return { scale: 5.0, pitch: 18 };
-  const mode = (segment.route?.transport_mode || '').toLowerCase();
-  if (mode === 'air') return { scale: 2.0, pitch: 45 };
-  return { scale: 4.0, pitch: 28 };
+  if (!segment) {
+    return {
+      scaleStart: 3.2,
+      scaleMid: 3.2,
+      scaleEnd: 3.2,
+      pitchStart: 0,
+      pitchMid: 0,
+      pitchEnd: 0,
+      lookAheadStart: 0,
+      lookAheadMid: 0,
+      lookAheadEnd: 1,
+    };
+  }
+
+  if (segment.type === 'arrive') {
+    return {
+      scaleStart: 4.2,
+      scaleMid: 4.9,
+      scaleEnd: 5.2,
+      pitchStart: 16,
+      pitchMid: 19,
+      pitchEnd: 17,
+      lookAheadStart: 0,
+      lookAheadMid: 0,
+      lookAheadEnd: 0,
+    };
+  }
+
+  const mode = String(segment.route?.transport_mode || '').toLowerCase();
+  if (mode === 'air') {
+    return {
+      scaleStart: 2.1,
+      scaleMid: 1.85,
+      scaleEnd: 2.25,
+      pitchStart: 44,
+      pitchMid: 52,
+      pitchEnd: 40,
+      lookAheadStart: 0.08,
+      lookAheadMid: 0.58,
+      lookAheadEnd: 0.9,
+    };
+  }
+
+  return {
+    scaleStart: 4.8,
+    scaleMid: 4.2,
+    scaleEnd: 4.6,
+    pitchStart: 24,
+    pitchMid: 30,
+    pitchEnd: 22,
+    lookAheadStart: 0.12,
+    lookAheadMid: 0.62,
+    lookAheadEnd: 0.88,
+  };
 }
 
-function keyframe(frame, center, scale, bearing, pitch) {
+function keyframe(frame, center, scale, bearing, pitch, easing = EASING.camera) {
   return {
     frame: Math.max(0, Math.floor(frame)),
     center: {
@@ -24,6 +73,7 @@ function keyframe(frame, center, scale, bearing, pitch) {
     scale: toFinite(scale, 1),
     bearing: toFinite(bearing, 0),
     pitch: toFinite(pitch, 0),
+    easing,
   };
 }
 
@@ -48,6 +98,16 @@ function fallbackBearing(start, end, previousBearing = 0) {
 
 function shortestAngleDeltaDeg(fromDeg, toDeg) {
   return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function boundBearingByFrameSpan(fromBearing, toBearing, frameSpan) {
+  const span = Math.max(1, Math.floor(toFinite(frameSpan, 1)));
+  const maxDelta = CAMERA_LIMITS.maxBearingDeltaPerFrame * span;
+  return fromBearing + clamp(
+    shortestAngleDeltaDeg(fromBearing, toBearing),
+    -maxDelta,
+    maxDelta,
+  );
 }
 
 function easeInOutSine(t) {
@@ -89,6 +149,7 @@ function clampByLimits(camera) {
       x: toFinite(c.center?.x),
       y: toFinite(c.center?.y),
     },
+    easing: typeof c.easing === 'string' ? c.easing : EASING.camera,
   };
 }
 
@@ -101,6 +162,7 @@ export function buildCameraKeyframes(input) {
 
   const out = [];
   let lastBearing = 0;
+  let lastScale = 3.2;
   let lastCenter = placeCenter(projectedPlaces, 0) || {
     x: Number.isFinite(frameSize.width) ? frameSize.width / 2 : 0,
     y: Number.isFinite(frameSize.height) ? frameSize.height / 2 : 0,
@@ -108,10 +170,60 @@ export function buildCameraKeyframes(input) {
 
   for (const segment of segments) {
     const preset = segmentPreset(segment);
+
     if (segment.type === 'arrive') {
       const center = placeCenter(projectedPlaces, segment.placeIndex) || lastCenter;
-      out.push(keyframe(segment.startFrame, center, preset.scale, lastBearing, preset.pitch));
-      out.push(keyframe(segment.endFrame, center, preset.scale, lastBearing, preset.pitch));
+      const frameSpan = Math.max(1, segment.endFrame - segment.startFrame);
+      const settleFrame = Math.min(
+        segment.endFrame,
+        segment.startFrame + Math.max(1, Math.floor(frameSpan * 0.38)),
+      );
+
+      const settleBearing = boundBearingByFrameSpan(
+        lastBearing,
+        lastBearing * 0.42,
+        settleFrame - segment.startFrame,
+      );
+      const endBearing = boundBearingByFrameSpan(
+        settleBearing,
+        settleBearing * 0.62,
+        segment.endFrame - settleFrame,
+      );
+
+      const startScale = lerp(lastScale, preset.scaleStart, 0.45);
+      out.push(keyframe(
+        segment.startFrame,
+        {
+          x: lerp(lastCenter.x, center.x, 0.55),
+          y: lerp(lastCenter.y, center.y, 0.55),
+        },
+        startScale,
+        lastBearing,
+        preset.pitchStart,
+        'easeOutQuad',
+      ));
+      out.push(keyframe(
+        settleFrame,
+        {
+          x: lerp(lastCenter.x, center.x, 0.85),
+          y: lerp(lastCenter.y, center.y, 0.85),
+        },
+        preset.scaleMid,
+        settleBearing,
+        preset.pitchMid,
+        'easeInOutSine',
+      ));
+      out.push(keyframe(
+        segment.endFrame,
+        center,
+        preset.scaleEnd,
+        endBearing,
+        preset.pitchEnd,
+        'easeInOutSine',
+      ));
+
+      lastBearing = endBearing;
+      lastScale = preset.scaleEnd;
       lastCenter = center;
       continue;
     }
@@ -120,31 +232,81 @@ export function buildCameraKeyframes(input) {
       const curve = routeCurves[segment.routeIndex];
       const startPlace = placeCenter(projectedPlaces, segment.placeIndex);
       const endPlace = placeCenter(projectedPlaces, segment.placeIndex + 1);
+      const start = pointAtS(curve, preset.lookAheadStart)
+        || pointAtS(curve, 0)
+        || startPlace
+        || lastCenter
+        || endPlace;
+      const mid = pointAtS(curve, preset.lookAheadMid)
+        || pointAtS(curve, 0.5)
+        || endPlace
+        || start;
+      const end = pointAtS(curve, preset.lookAheadEnd)
+        || pointAtS(curve, 1)
+        || endPlace
+        || mid
+        || start;
+      if (!start || !mid || !end) continue;
 
-      const start = pointAtS(curve, 0) || startPlace || lastCenter || endPlace;
-      const end = pointAtS(curve, 1) || endPlace || start || lastCenter;
-      if (!start || !end) {
-        continue;
-      }
+      const rawStartBearing = headingAtS(curve, preset.lookAheadStart + 0.03);
+      const rawMidBearing = headingAtS(curve, preset.lookAheadMid);
+      const rawEndBearing = headingAtS(curve, Math.min(0.98, preset.lookAheadEnd + 0.04));
 
-      const rawStartBearing = headingAtS(curve, 0.02);
-      const rawEndBearing = headingAtS(curve, 0.98);
       const startBearing = Number.isFinite(rawStartBearing)
         ? rawStartBearing
         : fallbackBearing(start, end, lastBearing);
-      const endBearing = Number.isFinite(rawEndBearing)
-        ? rawEndBearing
-        : fallbackBearing(start, end, startBearing);
+
       const frameSpan = Math.max(1, segment.endFrame - segment.startFrame);
-      const maxBearingDelta = CAMERA_LIMITS.maxBearingDeltaPerFrame * frameSpan;
-      const limitedEndBearing = startBearing + clamp(
-        shortestAngleDeltaDeg(startBearing, endBearing),
-        -maxBearingDelta,
-        maxBearingDelta,
+      const midFrame = Math.min(
+        segment.endFrame,
+        segment.startFrame + Math.max(1, Math.floor(frameSpan * 0.52)),
       );
-      out.push(keyframe(segment.startFrame, start, preset.scale, startBearing, preset.pitch));
-      out.push(keyframe(segment.endFrame, end, preset.scale, limitedEndBearing, preset.pitch));
-      lastBearing = limitedEndBearing;
+
+      const midBearingRaw = Number.isFinite(rawMidBearing)
+        ? rawMidBearing
+        : fallbackBearing(start, mid, startBearing);
+      const midBearing = boundBearingByFrameSpan(
+        startBearing,
+        midBearingRaw,
+        midFrame - segment.startFrame,
+      );
+
+      const endBearingRaw = Number.isFinite(rawEndBearing)
+        ? rawEndBearing
+        : fallbackBearing(mid, end, midBearing);
+      const endBearing = boundBearingByFrameSpan(
+        midBearing,
+        endBearingRaw,
+        segment.endFrame - midFrame,
+      );
+
+      out.push(keyframe(
+        segment.startFrame,
+        start,
+        preset.scaleStart,
+        startBearing,
+        preset.pitchStart,
+        'easeInOutCubic',
+      ));
+      out.push(keyframe(
+        midFrame,
+        mid,
+        preset.scaleMid,
+        midBearing,
+        preset.pitchMid,
+        'easeInOutSine',
+      ));
+      out.push(keyframe(
+        segment.endFrame,
+        end,
+        preset.scaleEnd,
+        endBearing,
+        preset.pitchEnd,
+        'easeOutQuad',
+      ));
+
+      lastBearing = endBearing;
+      lastScale = preset.scaleEnd;
       lastCenter = end;
     }
   }
@@ -179,7 +341,8 @@ export function interpolateCamera(frame, keyframes) {
   if (prev.frame === next.frame) return clampByLimits(prev);
 
   const t = clamp((safeFrame - prev.frame) / Math.max(1, next.frame - prev.frame), 0, 1);
-  const eased = applyEasing(EASING.camera, t);
+  const easingName = typeof next.easing === 'string' ? next.easing : EASING.camera;
+  const eased = applyEasing(easingName, t);
   const elapsedFrames = Math.max(0, safeFrame - prev.frame);
   const maxBearingDelta = CAMERA_LIMITS.maxBearingDeltaPerFrame * elapsedFrames;
   const rawBearing = lerpAngleDegShortest(prev.bearing, next.bearing, eased);
@@ -198,6 +361,7 @@ export function interpolateCamera(frame, keyframes) {
     scale: lerp(prev.scale, next.scale, eased),
     bearing: boundedBearing,
     pitch: lerp(prev.pitch, next.pitch, eased),
+    easing: easingName,
   });
 }
 

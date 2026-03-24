@@ -120,7 +120,7 @@ export function normalizeSnapshot(snapshot, options = {}) {
       style_revision: styleRevision,
       style_hash: styleHash,
       mapbox_token: typeof rendererConfig.mapbox_token === 'string' ? rendererConfig.mapbox_token : null,
-      mapbox_gl_enabled: mapboxGlEnabled ?? false,
+      mapbox_gl_enabled: mapboxGlEnabled ?? true,
       mapbox_gl_strict: mapboxGlStrict ?? false,
     },
   };

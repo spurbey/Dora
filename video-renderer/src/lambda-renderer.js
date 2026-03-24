@@ -30,6 +30,11 @@ function parseOptionalBoolean(value) {
   return null;
 }
 
+function parseEnvBoolean(value, fallback) {
+  const parsed = parseOptionalBoolean(value);
+  return parsed == null ? fallback : parsed;
+}
+
 function clampProgress(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return 0;
@@ -55,6 +60,17 @@ export class LambdaRenderBackend {
       1,
       parseInt(process.env.LAMBDA_FRAMES_PER_LAMBDA || '200', 10) || 200,
     );
+    this._framesPerLambdaCinematic = parsePositiveInt(
+      process.env.LAMBDA_FRAMES_PER_LAMBDA_CINEMATIC,
+      40,
+    );
+    this._concurrencyPerLambdaCinematic = parsePositiveInt(
+      process.env.LAMBDA_CONCURRENCY_PER_LAMBDA_CINEMATIC,
+      1,
+    );
+    this._videoCrf = parsePositiveInt(process.env.LAMBDA_VIDEO_CRF, 16);
+    this._x264Preset = (process.env.LAMBDA_X264_PRESET || 'slow').trim();
+    this._videoBitrate = (process.env.LAMBDA_VIDEO_BITRATE || '').trim();
     this._renderRetentionMs = parsePositiveInt(
       process.env.LAMBDA_RENDER_RETENTION_MS,
       10 * 60 * 1000,
@@ -65,8 +81,8 @@ export class LambdaRenderBackend {
     );
     this._mapboxToken = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
     this._mapStyle = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
-    this._mapboxGlEnabled = (process.env.CINEMATIC_GL_ENABLE_MAPBOX || '').trim() === '1';
-    this._mapboxGlStrict = (process.env.CINEMATIC_GL_STRICT_NATIVE || '').trim() === '1';
+    this._mapboxGlEnabled = parseEnvBoolean(process.env.CINEMATIC_GL_ENABLE_MAPBOX, true);
+    this._mapboxGlStrict = parseEnvBoolean(process.env.CINEMATIC_GL_STRICT_NATIVE, false);
     this._allowDerivedStylePin = (process.env.CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN || '').trim() === '1';
     this._renders = new Map();
   }
@@ -160,6 +176,8 @@ export class LambdaRenderBackend {
     const thumbnailKey = `private/${userId}/${manifest.job_id}/thumbnail.jpg`;
     const inputProps = this._buildInputProps(manifest.snapshot);
     const durationInFrames = manifest.duration_sec * manifest.fps;
+    const isCinematic = manifest.template === 'cinematic';
+    const framesPerLambda = isCinematic ? this._framesPerLambdaCinematic : this._framesPerLambda;
 
     const response = await renderMediaOnLambda({
       region: this._region,
@@ -168,8 +186,8 @@ export class LambdaRenderBackend {
       composition,
       inputProps,
       codec: 'h264',
-      imageFormat: 'jpeg',
-      framesPerLambda: this._framesPerLambda,
+      imageFormat: isCinematic ? 'png' : 'jpeg',
+      framesPerLambda,
       privacy: 'no-acl',
       forceWidth: dims.width,
       forceHeight: dims.height,
@@ -181,6 +199,11 @@ export class LambdaRenderBackend {
       },
       timeoutInMilliseconds: 240000,
       maxRetries: 1,
+      crf: this._videoCrf,
+      x264Preset: this._x264Preset,
+      ...(this._videoBitrate ? { videoBitrate: this._videoBitrate } : {}),
+      ...(isCinematic ? { concurrencyPerLambda: this._concurrencyPerLambdaCinematic } : {}),
+      chromiumOptions: { gl: 'swangle' },
     });
 
     const stillResponse = await renderStillOnLambda({

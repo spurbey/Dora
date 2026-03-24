@@ -118,7 +118,7 @@ test('initMapWithGate surfaces native runtime error when compat fallback disable
       allowCompatFallback: false,
       delayRenderLabel: 'test_gate',
     }),
-    /gl_runtime_unavailable/,
+    /gl_runtime_(init_error|unavailable)/,
   );
 });
 

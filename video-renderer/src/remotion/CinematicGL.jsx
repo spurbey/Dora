@@ -18,6 +18,7 @@ import {
   getPlaceImageUrls,
   getRouteStyle,
   ICON_VIEWBOX,
+  pointAtProgress,
   pointsToPath,
   pointOnArc,
   resolveTimelinePlaces,
@@ -94,6 +95,10 @@ function RouteLayer({
         if (drawProgress <= 0) return null;
 
         const style = getRouteStyle(projectedRoute.route);
+        const clampedProgress = Math.max(0, Math.min(1, drawProgress));
+        const headPoint = projectedRoute.isArc
+          ? pointOnArc(projectedRoute.startPoint, projectedRoute.endPoint, clampedProgress)
+          : pointAtProgress(projectedRoute.points, clampedProgress);
 
         if (projectedRoute.isArc) {
           const arcD = airArcPath(projectedRoute.startPoint, projectedRoute.endPoint);
@@ -107,7 +112,7 @@ function RouteLayer({
                 strokeWidth={style.width}
                 strokeLinecap="round"
                 strokeDasharray="6,4"
-                opacity={0.45}
+                opacity={0.34}
               />
               <path
                 d={arcD}
@@ -116,9 +121,15 @@ function RouteLayer({
                 stroke={style.color}
                 strokeWidth={style.width + 2}
                 strokeLinecap="round"
-                strokeDasharray={`${drawProgress} 1`}
-                opacity={0.35}
+                strokeDasharray={`${clampedProgress} 1`}
+                opacity={0.58}
               />
+              {headPoint && (
+                <>
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 2.1} fill={style.color} opacity={0.2} />
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 1.2} fill={style.color} opacity={0.65} />
+                </>
+              )}
             </g>
           );
         }
@@ -131,27 +142,33 @@ function RouteLayer({
               d={pathD}
               pathLength="1"
               fill="none"
-              stroke={style.color}
-              strokeWidth={style.width + 4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={`${drawProgress} 1`}
-              opacity={0.2}
-            />
-            <path
-              d={pathD}
-              pathLength="1"
-              fill="none"
-              stroke={style.color}
-              strokeWidth={style.width}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={`${drawProgress} 1`}
-              opacity={0.9}
-            />
-          </g>
-        );
-      })}
+                stroke={style.color}
+                strokeWidth={style.width + 4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`${clampedProgress} 1`}
+                opacity={0.2}
+              />
+              <path
+                d={pathD}
+                pathLength="1"
+                fill="none"
+                stroke={style.color}
+                strokeWidth={style.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`${clampedProgress} 1`}
+                opacity={0.9}
+              />
+              {headPoint && (
+                <>
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 2.4} fill={style.color} opacity={0.18} />
+                  <circle cx={headPoint.x} cy={headPoint.y} r={style.width * 1.35} fill={style.color} opacity={0.7} />
+                </>
+              )}
+            </g>
+          );
+        })}
     </svg>
   );
 }
@@ -210,7 +227,7 @@ function TravelMarker({
   const color = routeColor || '#FFD700';
   const size = isAtPlace ? 52 : 64;
   const center = size / 2;
-  const pulse = 0.75 + 0.25 * Math.sin(frame * 0.3);
+  const pulse = 0.9 + 0.1 * Math.sin(frame * 0.22);
   const iconSize = isAtPlace ? 20 : 30;
 
   let bobY = 0;
@@ -220,13 +237,13 @@ function TravelMarker({
 
   if (!isAtPlace) {
     if (mode === 'air') {
-      bobY = Math.sin(frame * 0.18) * 3;
-      iconScale = 1.05;
+      bobY = Math.sin(frame * 0.14) * 2.2;
+      iconScale = 1.08;
     } else if (mode === 'car' || mode === 'bus') {
-      driftX = Math.sin(frame * 1.8) * 0.8;
-      driftY = Math.cos(frame * 2.1) * 0.5;
+      driftX = Math.sin(frame * 0.38) * 0.35;
+      driftY = Math.cos(frame * 0.33) * 0.25;
     } else if (mode === 'train') {
-      driftX = Math.sin(frame * 0.6) * 1.2;
+      driftX = Math.sin(frame * 0.26) * 0.5;
     }
   }
 
@@ -593,6 +610,28 @@ function MapJourney({
   const clampedTX = viewport.translateX || 0;
   const clampedTY = viewport.translateY || 0;
   const isNativeMap = mapRuntime?.mode === 'native_gl';
+  const nativeOverlay = mapApplyState.nativeOverlay || null;
+  const overlayProjectedRoutes = isNativeMap
+    ? (nativeOverlay?.routes || [])
+    : (mapCtx?.projectedRoutes || []);
+  const overlayProjectedPlaces = isNativeMap
+    ? (nativeOverlay?.places || [])
+    : (mapCtx?.projectedPlaces || []);
+  const overlayScale = isNativeMap ? 1 : totalScale;
+  const overlayTX = isNativeMap ? 0 : clampedTX;
+  const overlayTY = isNativeMap ? 0 : clampedTY;
+  const overlayMapWidth = isNativeMap ? width : (mapCtx?.mapWidth || width);
+  const overlayMapHeight = isNativeMap ? height : (mapCtx?.mapHeight || height);
+  const markerScreen = markerState
+    ? (isNativeMap
+      ? (nativeOverlay?.marker
+        ? { x: nativeOverlay.marker.x, y: nativeOverlay.marker.y }
+        : null)
+      : {
+        x: markerState.mapX * totalScale + clampedTX,
+        y: markerState.mapY * totalScale + clampedTY,
+      })
+    : null;
 
   if (mapInitError) {
     throw new Error(mapInitError);
@@ -632,9 +671,9 @@ function MapJourney({
             position: 'absolute',
             top: 0,
             left: 0,
-            width: mapCtx.mapWidth,
-            height: mapCtx.mapHeight,
-            transform: `translate(${clampedTX}px, ${clampedTY}px) scale(${totalScale})`,
+            width: overlayMapWidth,
+            height: overlayMapHeight,
+            transform: isNativeMap ? 'none' : `translate(${overlayTX}px, ${overlayTY}px) scale(${overlayScale})`,
             transformOrigin: '0 0',
             willChange: 'transform',
           }}
@@ -651,26 +690,26 @@ function MapJourney({
             />
           ))}
           <RouteLayer
-            projectedRoutes={mapCtx.projectedRoutes}
+            projectedRoutes={overlayProjectedRoutes}
             routeProgressByIndex={mapApplyState.routeProgressByIndex || frameState.routeProgressByIndex}
-            mapWidth={mapCtx.mapWidth}
-            mapHeight={mapCtx.mapHeight}
+            mapWidth={overlayMapWidth}
+            mapHeight={overlayMapHeight}
           />
           <PlaceDots
-            projectedPlaces={mapCtx.projectedPlaces}
+            projectedPlaces={overlayProjectedPlaces}
             segments={segments}
             journeyFrame={journeyFrame}
-            mapWidth={mapCtx.mapWidth}
-            mapHeight={mapCtx.mapHeight}
+            mapWidth={overlayMapWidth}
+            mapHeight={overlayMapHeight}
             activeSegment={activeSegment}
           />
         </div>
       </div>
 
-      {markerState && (
+      {markerScreen && (
         <TravelMarker
-          screenX={markerState.mapX * totalScale + clampedTX}
-          screenY={markerState.mapY * totalScale + clampedTY}
+          screenX={markerScreen.x}
+          screenY={markerScreen.y}
           heading={markerState.heading}
           transportMode={activeSegment?.route?.transport_mode || ''}
           routeColor={activeSegment?.route ? getRouteStyle(activeSegment.route).color : '#FFD700'}
@@ -682,15 +721,15 @@ function MapJourney({
       <ArrivalPhotoCards
         activeArrivalSegment={frameState.overlay?.activeArrivalSegment || null}
         segments={segments}
-        projectedPlaces={mapCtx.projectedPlaces}
+        projectedPlaces={overlayProjectedPlaces}
         journeyFrame={journeyFrame}
         fps={fps}
-        totalScale={totalScale}
-        translateX={clampedTX}
-        translateY={clampedTY}
+        totalScale={overlayScale}
+        translateX={overlayTX}
+        translateY={overlayTY}
         frameWidth={width}
         frameHeight={height}
-        projectedRoutes={mapCtx.projectedRoutes}
+        projectedRoutes={overlayProjectedRoutes}
       />
 
       <Vignette />

@@ -59,6 +59,17 @@ function projectedPointToLngLat(point, mapContext) {
   return worldToLngLat(worldX, worldY, zoom);
 }
 
+function nativeProjectPoint(map, point, mapContext) {
+  if (!map || typeof map.project !== 'function') return null;
+  const lngLat = projectedPointToLngLat(point, mapContext);
+  if (!lngLat) return null;
+  const projected = map.project([lngLat.lng, lngLat.lat]);
+  const x = toFinite(projected?.x, NaN);
+  const y = toFinite(projected?.y, NaN);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
 function projectedCameraToNative(camera, mapContext) {
   if (!camera || typeof camera !== 'object') return null;
   if (
@@ -127,6 +138,50 @@ function projectCameraToViewport({ camera, markerState, mapContext, frameSize })
   };
 }
 
+function projectNativeOverlayState({ map, mapContext, markerState }) {
+  if (!map || map.mode !== 'native_gl') return null;
+  const projectedRoutes = Array.isArray(mapContext?.projectedRoutes) ? mapContext.projectedRoutes : [];
+  const projectedPlaces = Array.isArray(mapContext?.projectedPlaces) ? mapContext.projectedPlaces : [];
+
+  const routes = projectedRoutes.map((route) => {
+    const points = Array.isArray(route?.points)
+      ? route.points.map((point) => nativeProjectPoint(map, point, mapContext)).filter(Boolean)
+      : [];
+    const startPoint = route?.startPoint
+      ? nativeProjectPoint(map, route.startPoint, mapContext)
+      : null;
+    const endPoint = route?.endPoint
+      ? nativeProjectPoint(map, route.endPoint, mapContext)
+      : null;
+    return {
+      ...route,
+      points,
+      startPoint,
+      endPoint,
+    };
+  });
+
+  const places = projectedPlaces.map((place) => {
+    const projected = nativeProjectPoint(map, place, mapContext);
+    if (!projected) return null;
+    return {
+      ...place,
+      x: projected.x,
+      y: projected.y,
+    };
+  }).filter(Boolean);
+
+  const marker = markerState
+    ? nativeProjectPoint(map, { x: markerState.mapX, y: markerState.mapY }, mapContext)
+    : null;
+
+  return {
+    routes,
+    places,
+    marker,
+  };
+}
+
 export function applyCameraState(map, camera, context = {}) {
   if (!map || typeof map !== 'object') return camera || null;
 
@@ -169,14 +224,20 @@ export function upsertMarkerLayerState(map, markerState) {
 
 export function applyFrameToMap(map, frameState, context = {}) {
   const safeState = frameState && typeof frameState === 'object' ? frameState : {};
+  const mapContext = context.mapContext || {};
   const camera = applyCameraState(map, safeState.camera || null, context);
   const routeProgressByIndex = upsertRouteLayerState(map, safeState.routeProgressByIndex || {});
   const markerState = upsertMarkerLayerState(map, safeState.markerState || null);
+  const nativeOverlay = projectNativeOverlayState({
+    map,
+    mapContext,
+    markerState,
+  });
 
   const viewport = projectCameraToViewport({
     camera,
     markerState,
-    mapContext: context.mapContext || {},
+    mapContext,
     frameSize: context.frameSize || {},
   });
 
@@ -185,5 +246,6 @@ export function applyFrameToMap(map, frameState, context = {}) {
     routeProgressByIndex,
     markerState,
     viewport,
+    nativeOverlay,
   };
 }

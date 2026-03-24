@@ -33,8 +33,8 @@ const CHROME_EXECUTABLE = process.env.REMOTION_CHROME_EXECUTABLE || undefined;
 const RENDER_BACKEND = (process.env.RENDER_BACKEND || 'local').trim().toLowerCase();
 const RENDERER_MAPBOX_TOKEN = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
 const RENDERER_MAP_STYLE = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
-const CINEMATIC_GL_ENABLE_MAPBOX = (process.env.CINEMATIC_GL_ENABLE_MAPBOX || '').trim() === '1';
-const CINEMATIC_GL_STRICT_NATIVE = (process.env.CINEMATIC_GL_STRICT_NATIVE || '').trim() === '1';
+const CINEMATIC_GL_ENABLE_MAPBOX = parseEnvBoolean(process.env.CINEMATIC_GL_ENABLE_MAPBOX, true);
+const CINEMATIC_GL_STRICT_NATIVE = parseEnvBoolean(process.env.CINEMATIC_GL_STRICT_NATIVE, false);
 const RENDERER_SHARED_SECRET = (process.env.RENDERER_SHARED_SECRET || '').trim();
 const MAX_DURATION_SEC = parsePositiveInt(process.env.RENDER_MAX_DURATION_SEC, 180);
 const MAX_FPS = parsePositiveInt(process.env.RENDER_MAX_FPS, 60);
@@ -71,6 +71,11 @@ function parsePositiveInt(value, fallback) {
     return fallback;
   }
   return parsed;
+}
+
+function parseEnvBoolean(value, fallback) {
+  const parsed = parseOptionalBoolean(value);
+  return parsed == null ? fallback : parsed;
 }
 
 function parseOptionalBoolean(value) {
@@ -400,6 +405,9 @@ async function runLocalRender(renderId, manifest) {
       composition,
       serveUrl: bundleLocation,
       codec: 'h264',
+      imageFormat: 'png',
+      crf: 16,
+      x264Preset: 'slow',
       outputLocation: outputPath,
       inputProps,
       cancelSignal: signal,

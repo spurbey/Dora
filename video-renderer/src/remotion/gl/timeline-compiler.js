@@ -5,6 +5,53 @@ function safeFrames(durationInFrames) {
   return Math.max(0, Math.floor(durationInFrames));
 }
 
+function toLngLat(coord) {
+  if (!Array.isArray(coord) || coord.length < 2) return null;
+  const lng = Number(coord[0]);
+  const lat = Number(coord[1]);
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  return { lng, lat };
+}
+
+function haversineMeters(a, b) {
+  if (!a || !b) return 0;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const sinDlat = Math.sin(dLat / 2);
+  const sinDlng = Math.sin(dLng / 2);
+  const h = sinDlat * sinDlat + Math.cos(lat1) * Math.cos(lat2) * sinDlng * sinDlng;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return 6371000 * c;
+}
+
+function estimateRouteDistanceMeters(route) {
+  const coordinates = Array.isArray(route?.route_geojson?.coordinates)
+    ? route.route_geojson.coordinates
+    : [];
+  if (coordinates.length < 2) return 0;
+  let total = 0;
+  let prev = toLngLat(coordinates[0]);
+  for (let i = 1; i < coordinates.length; i++) {
+    const next = toLngLat(coordinates[i]);
+    if (prev && next) total += haversineMeters(prev, next);
+    prev = next;
+  }
+  return total;
+}
+
+function travelBeatWeight(route) {
+  const base = 1.6;
+  const distanceMeters = estimateRouteDistanceMeters(route);
+  const distanceKm = distanceMeters / 1000;
+  const distanceBoost = clamp(Math.log10(distanceKm + 1) * 1.9, 0, 2.7);
+  const mode = String(route?.transport_mode || '').toLowerCase();
+  const modeBoost = mode === 'air' ? 0.9 : mode === 'train' ? 0.35 : 0;
+  return base + distanceBoost + modeBoost;
+}
+
 export function allocateSegmentFrames({ beatWeights, durationInFrames }) {
   const totalFrames = safeFrames(durationInFrames);
   const weights = Array.isArray(beatWeights)
@@ -51,7 +98,7 @@ export function compileTimelineSegments({
   const specs = [];
 
   for (let i = 0; i < numPlaces; i++) {
-    const arriveWeightSec = (i === 0 || i === numPlaces - 1) ? 2.8 : 2.5;
+    const arriveWeightSec = (i === 0 || i === numPlaces - 1) ? 2.4 : 1.8;
     beats.push(arriveWeightSec);
     specs.push({
       type: 'arrive',
@@ -62,7 +109,7 @@ export function compileTimelineSegments({
     });
 
     if (i < numRoutes) {
-      beats.push(1.2);
+      beats.push(travelBeatWeight(safeRoutes[i]));
       specs.push({
         type: 'travel',
         placeIndex: i,

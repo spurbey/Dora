@@ -33,6 +33,8 @@ const CHROME_EXECUTABLE = process.env.REMOTION_CHROME_EXECUTABLE || undefined;
 const RENDER_BACKEND = (process.env.RENDER_BACKEND || 'local').trim().toLowerCase();
 const RENDERER_MAPBOX_TOKEN = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
 const RENDERER_MAP_STYLE = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
+const CINEMATIC_GL_ENABLE_MAPBOX = (process.env.CINEMATIC_GL_ENABLE_MAPBOX || '').trim() === '1';
+const CINEMATIC_GL_STRICT_NATIVE = (process.env.CINEMATIC_GL_STRICT_NATIVE || '').trim() === '1';
 const RENDERER_SHARED_SECRET = (process.env.RENDERER_SHARED_SECRET || '').trim();
 const MAX_DURATION_SEC = parsePositiveInt(process.env.RENDER_MAX_DURATION_SEC, 180);
 const MAX_FPS = parsePositiveInt(process.env.RENDER_MAX_FPS, 60);
@@ -69,6 +71,21 @@ function parsePositiveInt(value, fallback) {
     return fallback;
   }
   return parsed;
+}
+
+function parseOptionalBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+  }
+  return null;
 }
 
 function getDimensions(quality, aspectRatio) {
@@ -270,6 +287,10 @@ function buildRendererInputProps(snapshot) {
     ...existingRendererConfig,
     map_style: existingRendererConfig.map_style || RENDERER_MAP_STYLE,
   };
+  const requestedNativeGl = parseOptionalBoolean(existingRendererConfig.mapbox_gl_enabled);
+  const requestedStrictNative = parseOptionalBoolean(existingRendererConfig.mapbox_gl_strict);
+  rendererConfig.mapbox_gl_enabled = requestedNativeGl ?? CINEMATIC_GL_ENABLE_MAPBOX;
+  rendererConfig.mapbox_gl_strict = requestedStrictNative ?? CINEMATIC_GL_STRICT_NATIVE;
   if (RENDERER_MAPBOX_TOKEN) {
     rendererConfig.mapbox_token = RENDERER_MAPBOX_TOKEN;
   }

@@ -19,7 +19,7 @@ This tracker is the session-memory anchor for future work.
 
 1. Branch: `[fill]`
 2. Latest commit: `8a8c04d` (`Add native-GL init path controls and projected-camera conversion`)
-3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs video-renderer/tests/map-init.test.mjs video-renderer/tests/map-runtime.test.mjs` (pass: 25/25 on 2026-03-24)
+3. Last known good test command: `node --test video-renderer/tests/gl-planner.test.mjs video-renderer/tests/thumbnail-frame.test.mjs video-renderer/tests/map-init.test.mjs video-renderer/tests/map-runtime.test.mjs` (pass: 26/26 on 2026-03-24)
 4. Current active phase: `P2` (runtime integration foundations in progress)
 5. Next 3 executable steps:
    - Add native Mapbox GL map runtime path behind feature flag while keeping static-compat runtime as fallback.
@@ -390,3 +390,4 @@ Source of truth alignment:
 8. 2026-03-24: Replaced fixed thumbnail frame (`45%`) with deterministic content-aware selection for cinematic in both local and Lambda renderer paths, keeping classic template behavior unchanged.
 9. 2026-03-24: Added P2 runtime foundations: `map-init.js` (style pin verification + init gate contract), `map-runtime.js` (per-frame apply with `jumpTo`/route/marker updates), and `CinematicGL.jsx` integration with `delayRender` lifecycle and cleanup-safe map initialization.
 10. 2026-03-24: Extended P2 foundation with native GL path controls in `map-init.js` (`enableNativeGl`, compat fallback policy, token/style error classification, URI style support) and projected-camera -> native `jumpTo` conversion in `map-runtime.js`; added expanded unit coverage.
+11. 2026-03-24: Wired renderer-level native GL canary flags through manifest snapshot config (`mapbox_gl_enabled`, `mapbox_gl_strict`) into `CinematicGL` map init controls, switched cinematic base-map visibility to native canvas when runtime mode is `native_gl`, and added `mapbox-gl` dependency declaration for deployment rollout.

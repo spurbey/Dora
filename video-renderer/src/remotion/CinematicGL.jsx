@@ -505,6 +505,8 @@ function MapJourney({
   const styleRevision = plan?.rendererConfig?.style_revision || null;
   const styleHash = plan?.rendererConfig?.style_hash || null;
   const mapboxToken = plan?.rendererConfig?.mapbox_token || null;
+  const enableNativeGl = Boolean(plan?.rendererConfig?.mapbox_gl_enabled);
+  const strictNativeGl = Boolean(plan?.rendererConfig?.mapbox_gl_strict);
 
   useEffect(() => {
     let cancelled = false;
@@ -526,6 +528,12 @@ function MapJourney({
           styleRevision,
           styleHash,
           mapboxToken,
+          enableNativeGl,
+          allowCompatFallback: !strictNativeGl,
+          initialCenter: mapCtx?.viewport?.center
+            ? [mapCtx.viewport.center.lng, mapCtx.viewport.center.lat]
+            : [0, 0],
+          initialZoom: Number.isFinite(mapCtx?.viewport?.zoom) ? mapCtx.viewport.zoom : 1,
           delayRenderLabel: 'cinematic_gl_map_init_gate',
         });
 
@@ -561,7 +569,7 @@ function MapJourney({
       }
       destroyMap(activeMap);
     };
-  }, [mapCtx, mapStyle, styleRevision, styleHash, mapboxToken]);
+  }, [mapCtx, mapStyle, styleRevision, styleHash, mapboxToken, enableNativeGl, strictNativeGl]);
 
   useEffect(() => () => {
     releaseGate();
@@ -584,6 +592,7 @@ function MapJourney({
   const totalScale = viewport.totalScale || 1;
   const clampedTX = viewport.translateX || 0;
   const clampedTY = viewport.translateY || 0;
+  const isNativeMap = mapRuntime?.mode === 'native_gl';
 
   if (mapInitError) {
     throw new Error(mapInitError);
@@ -605,7 +614,8 @@ function MapJourney({
         style={{
           position: 'absolute',
           inset: 0,
-          opacity: 0,
+          opacity: isNativeMap ? 1 : 0,
+          zIndex: isNativeMap ? 1 : 0,
           pointerEvents: 'none',
         }}
       />
@@ -614,6 +624,7 @@ function MapJourney({
           position: 'absolute',
           inset: 0,
           overflow: 'hidden',
+          zIndex: 2,
         }}
       >
         <div
@@ -628,7 +639,7 @@ function MapJourney({
             willChange: 'transform',
           }}
         >
-          {mapCtx.mapUrl ? (
+          {!isNativeMap && (mapCtx.mapUrl ? (
             <Img src={mapCtx.mapUrl} style={{ width: mapCtx.mapWidth, height: mapCtx.mapHeight, display: 'block' }} />
           ) : (
             <div
@@ -638,7 +649,7 @@ function MapJourney({
                 background: 'linear-gradient(160deg, #0f1421 0%, #1a2740 60%, #0b111c 100%)',
               }}
             />
-          )}
+          ))}
           <RouteLayer
             projectedRoutes={mapCtx.projectedRoutes}
             routeProgressByIndex={mapApplyState.routeProgressByIndex || frameState.routeProgressByIndex}

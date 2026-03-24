@@ -22,6 +22,21 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function toBooleanOrNull(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+  }
+  return null;
+}
+
 function normalizePlace(place, index) {
   const safe = asObject(place);
   return {
@@ -90,6 +105,8 @@ export function normalizeSnapshot(snapshot, options = {}) {
       ? `derived_${fnv1aHex(mapStyle)}`
       : null
   );
+  const mapboxGlEnabled = toBooleanOrNull(rendererConfig.mapbox_gl_enabled);
+  const mapboxGlStrict = toBooleanOrNull(rendererConfig.mapbox_gl_strict);
 
   return {
     ...safe,
@@ -103,6 +120,8 @@ export function normalizeSnapshot(snapshot, options = {}) {
       style_revision: styleRevision,
       style_hash: styleHash,
       mapbox_token: typeof rendererConfig.mapbox_token === 'string' ? rendererConfig.mapbox_token : null,
+      mapbox_gl_enabled: mapboxGlEnabled ?? false,
+      mapbox_gl_strict: mapboxGlStrict ?? false,
     },
   };
 }
@@ -114,6 +133,8 @@ export function extractRendererConfig(snapshot, options = {}) {
     style_revision: normalized.renderer_config.style_revision,
     style_hash: normalized.renderer_config.style_hash,
     mapbox_token: normalized.renderer_config.mapbox_token,
+    mapbox_gl_enabled: normalized.renderer_config.mapbox_gl_enabled,
+    mapbox_gl_strict: normalized.renderer_config.mapbox_gl_strict,
   };
 }
 

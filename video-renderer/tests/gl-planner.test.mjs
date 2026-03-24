@@ -31,6 +31,8 @@ function fixtureSnapshot() {
     renderer_config: {
       map_style: 'mapbox/navigation-night-v1',
       style_revision: 'rev_fixture_2026_03_24',
+      mapbox_gl_enabled: true,
+      mapbox_gl_strict: false,
     },
   };
 }
@@ -158,4 +160,30 @@ test('assertPlanDeterminism validates rebuilt plan equivalence', () => {
 
   plan.segments[0].startFrame += 1;
   assert.throws(() => assertPlanDeterminism(plan), /render_plan_hash_mismatch|render_plan_frame_state_mismatch_/);
+});
+
+test('buildRenderPlan keeps native-gl renderer flags from snapshot config', () => {
+  const snapshot = fixtureSnapshot();
+  snapshot.renderer_config.mapbox_gl_enabled = true;
+  snapshot.renderer_config.mapbox_gl_strict = true;
+
+  const plan = buildRenderPlan({
+    snapshot,
+    fps: 30,
+    durationInFrames: 90,
+    projectedPlaces: [
+      { x: 100, y: 100, place: snapshot.places[0] },
+      { x: 250, y: 250, place: snapshot.places[1] },
+      { x: 420, y: 420, place: snapshot.places[2] },
+    ],
+    projectedRoutes: [
+      { points: [{ x: 100, y: 100 }, { x: 180, y: 160 }, { x: 250, y: 250 }], isArc: false, route: snapshot.routes[0] },
+      { points: [{ x: 250, y: 250 }, { x: 340, y: 310 }, { x: 420, y: 420 }], isArc: false, route: snapshot.routes[1] },
+    ],
+    width: 720,
+    height: 1280,
+  });
+
+  assert.equal(plan.rendererConfig.mapbox_gl_enabled, true);
+  assert.equal(plan.rendererConfig.mapbox_gl_strict, true);
 });

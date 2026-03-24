@@ -15,6 +15,21 @@ function parsePositiveInt(value, fallback) {
   return parsed;
 }
 
+function parseOptionalBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+  }
+  return null;
+}
+
 function clampProgress(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return 0;
@@ -50,6 +65,8 @@ export class LambdaRenderBackend {
     );
     this._mapboxToken = (process.env.RENDERER_MAPBOX_TOKEN || process.env.MAPBOX_API_KEY || '').trim();
     this._mapStyle = (process.env.RENDERER_MAP_STYLE || 'mapbox/navigation-night-v1').trim();
+    this._mapboxGlEnabled = (process.env.CINEMATIC_GL_ENABLE_MAPBOX || '').trim() === '1';
+    this._mapboxGlStrict = (process.env.CINEMATIC_GL_STRICT_NATIVE || '').trim() === '1';
     this._renders = new Map();
   }
 
@@ -110,6 +127,10 @@ export class LambdaRenderBackend {
       ...existingRendererConfig,
       map_style: existingRendererConfig.map_style || this._mapStyle,
     };
+    const requestedNativeGl = parseOptionalBoolean(existingRendererConfig.mapbox_gl_enabled);
+    const requestedStrictNative = parseOptionalBoolean(existingRendererConfig.mapbox_gl_strict);
+    rendererConfig.mapbox_gl_enabled = requestedNativeGl ?? this._mapboxGlEnabled;
+    rendererConfig.mapbox_gl_strict = requestedStrictNative ?? this._mapboxGlStrict;
     if (this._mapboxToken) {
       rendererConfig.mapbox_token = this._mapboxToken;
     }

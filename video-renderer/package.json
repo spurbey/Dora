@@ -19,6 +19,7 @@
     "@remotion/lambda": "4.0.431",
     "@remotion/renderer": "4.0.431",
     "express": "^4.21.2",
+    "mapbox-gl": "^3.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "4.0.431"

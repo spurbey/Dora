@@ -38,16 +38,34 @@ function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function readFlag(flagName) {
+  return typeof process !== 'undefined'
+    && Boolean(process?.env)
+    && process.env[flagName] === '1';
+}
+
+function shouldAllowDerivedStylePin(input) {
+  return input?.allowDerivedStylePin === true || readFlag('CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN');
+}
+
+function shouldAssertDeterminism(input) {
+  return input?.enableDeterminismCheck === true || readFlag('CINEMATIC_GL_ASSERT_PLAN_DETERMINISM');
+}
+
 export function buildRenderPlan(input) {
   const safeInput = input || {};
+  const normalizeOptions = {
+    allowDerivedStylePin: shouldAllowDerivedStylePin(safeInput),
+  };
   const normalizedSnapshot = normalizeSnapshot(
     safeInput.snapshot || {
       places: safeInput.places,
       routes: safeInput.routes,
       renderer_config: safeInput.rendererConfig,
     },
+    normalizeOptions,
   );
-  validateSnapshotForCinematic(normalizedSnapshot);
+  validateSnapshotForCinematic(normalizedSnapshot, normalizeOptions);
 
   const places = Array.isArray(safeInput.places) ? safeInput.places : normalizedSnapshot.places;
   const routes = Array.isArray(safeInput.routes) ? safeInput.routes : normalizedSnapshot.routes;
@@ -83,7 +101,7 @@ export function buildRenderPlan(input) {
 
   const plan = {
     normalizedSnapshot,
-    rendererConfig: extractRendererConfig(normalizedSnapshot),
+    rendererConfig: extractRendererConfig(normalizedSnapshot, normalizeOptions),
     fps,
     durationInFrames: Math.max(0, Math.floor(durationInFrames)),
     places,
@@ -108,7 +126,7 @@ export function buildRenderPlan(input) {
     }),
   };
 
-  if (!safeInput.skipDeterminismCheck) {
+  if (!safeInput.skipDeterminismCheck && shouldAssertDeterminism(safeInput)) {
     assertPlanDeterminism(plan);
   }
   return plan;

@@ -1,5 +1,5 @@
 import { clamp, lerp, lerpAngleDegShortest } from './geometry-math.js';
-import { CAMERA_LIMITS } from './quality-constants.js';
+import { CAMERA_LIMITS, EASING } from './quality-constants.js';
 import { headingAtS, pointAtS } from './route-animator.js';
 
 function toFinite(value, fallback = 0) {
@@ -44,6 +44,38 @@ function fallbackBearing(start, end, previousBearing = 0) {
     return toFinite(previousBearing, 0);
   }
   return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+function shortestAngleDeltaDeg(fromDeg, toDeg) {
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function easeInOutSine(t) {
+  return 0.5 * (1 - Math.cos(Math.PI * clamp(t, 0, 1)));
+}
+
+function easeInOutCubic(t) {
+  const p = clamp(t, 0, 1);
+  if (p < 0.5) return 4 * p * p * p;
+  return 1 - Math.pow(-2 * p + 2, 3) / 2;
+}
+
+function easeOutQuad(t) {
+  const p = clamp(t, 0, 1);
+  return 1 - (1 - p) * (1 - p);
+}
+
+function applyEasing(name, t) {
+  switch (name) {
+    case 'easeInOutSine':
+      return easeInOutSine(t);
+    case 'easeInOutCubic':
+      return easeInOutCubic(t);
+    case 'easeOutQuad':
+      return easeOutQuad(t);
+    default:
+      return clamp(t, 0, 1);
+  }
 }
 
 function clampByLimits(camera) {
@@ -103,9 +135,16 @@ export function buildCameraKeyframes(input) {
       const endBearing = Number.isFinite(rawEndBearing)
         ? rawEndBearing
         : fallbackBearing(start, end, startBearing);
+      const frameSpan = Math.max(1, segment.endFrame - segment.startFrame);
+      const maxBearingDelta = CAMERA_LIMITS.maxBearingDeltaPerFrame * frameSpan;
+      const limitedEndBearing = startBearing + clamp(
+        shortestAngleDeltaDeg(startBearing, endBearing),
+        -maxBearingDelta,
+        maxBearingDelta,
+      );
       out.push(keyframe(segment.startFrame, start, preset.scale, startBearing, preset.pitch));
-      out.push(keyframe(segment.endFrame, end, preset.scale, endBearing, preset.pitch));
-      lastBearing = endBearing;
+      out.push(keyframe(segment.endFrame, end, preset.scale, limitedEndBearing, preset.pitch));
+      lastBearing = limitedEndBearing;
       lastCenter = end;
     }
   }
@@ -140,15 +179,25 @@ export function interpolateCamera(frame, keyframes) {
   if (prev.frame === next.frame) return clampByLimits(prev);
 
   const t = clamp((safeFrame - prev.frame) / Math.max(1, next.frame - prev.frame), 0, 1);
+  const eased = applyEasing(EASING.camera, t);
+  const elapsedFrames = Math.max(0, safeFrame - prev.frame);
+  const maxBearingDelta = CAMERA_LIMITS.maxBearingDeltaPerFrame * elapsedFrames;
+  const rawBearing = lerpAngleDegShortest(prev.bearing, next.bearing, eased);
+  const boundedBearing = prev.bearing + clamp(
+    shortestAngleDeltaDeg(prev.bearing, rawBearing),
+    -maxBearingDelta,
+    maxBearingDelta,
+  );
+
   return clampByLimits({
     frame: safeFrame,
     center: {
-      x: lerp(prev.center.x, next.center.x, t),
-      y: lerp(prev.center.y, next.center.y, t),
+      x: lerp(prev.center.x, next.center.x, eased),
+      y: lerp(prev.center.y, next.center.y, eased),
     },
-    scale: lerp(prev.scale, next.scale, t),
-    bearing: lerpAngleDegShortest(prev.bearing, next.bearing, t),
-    pitch: lerp(prev.pitch, next.pitch, t),
+    scale: lerp(prev.scale, next.scale, eased),
+    bearing: boundedBearing,
+    pitch: lerp(prev.pitch, next.pitch, eased),
   });
 }
 

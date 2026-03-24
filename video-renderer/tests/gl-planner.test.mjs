@@ -30,6 +30,7 @@ function fixtureSnapshot() {
     ],
     renderer_config: {
       map_style: 'mapbox/navigation-night-v1',
+      style_revision: 'rev_fixture_2026_03_24',
     },
   };
 }
@@ -80,10 +81,41 @@ test('camera planner does not jump to {0,0} for empty route geometry', () => {
   assert.notEqual(state.camera.center.y, 0);
 });
 
-test('style pin is always present after normalization/validation', () => {
+test('buildRenderPlan requires explicit style pin by default', () => {
   const snapshot = fixtureSnapshot();
+  snapshot.renderer_config = {
+    map_style: 'mapbox/navigation-night-v1',
+  };
+
+  assert.throws(
+    () => buildRenderPlan({
+      snapshot,
+      fps: 30,
+      durationInFrames: 60,
+      projectedPlaces: [
+        { x: 100, y: 100, place: snapshot.places[0] },
+        { x: 240, y: 240, place: snapshot.places[1] },
+        { x: 420, y: 420, place: snapshot.places[2] },
+      ],
+      projectedRoutes: [
+        { points: [{ x: 100, y: 100 }, { x: 240, y: 240 }], isArc: false, route: snapshot.routes[0] },
+        { points: [{ x: 240, y: 240 }, { x: 420, y: 420 }], isArc: false, route: snapshot.routes[1] },
+      ],
+      width: 720,
+      height: 1280,
+    }),
+    /cinematic_snapshot_missing_style_pin/,
+  );
+});
+
+test('allowDerivedStylePin enables deterministic compatibility pin generation', () => {
+  const snapshot = fixtureSnapshot();
+  snapshot.renderer_config = {
+    map_style: 'mapbox/navigation-night-v1',
+  };
   const plan = buildRenderPlan({
     snapshot,
+    allowDerivedStylePin: true,
     fps: 30,
     durationInFrames: 60,
     projectedPlaces: [
@@ -99,10 +131,8 @@ test('style pin is always present after normalization/validation', () => {
     height: 1280,
   });
 
-  assert.ok(
-    plan.rendererConfig.style_revision || plan.rendererConfig.style_hash,
-    'renderer config must include a style pin',
-  );
+  assert.ok(plan.rendererConfig.style_hash, 'renderer config must include a derived style hash');
+  assert.match(plan.rendererConfig.style_hash, /^derived_fnv1a_[0-9a-f]{8}$/);
 });
 
 test('assertPlanDeterminism validates rebuilt plan equivalence', () => {

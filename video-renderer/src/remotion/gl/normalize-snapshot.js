@@ -48,6 +48,12 @@ function normalizeRoute(route, index) {
   };
 }
 
+function readFlag(flagName) {
+  return typeof process !== 'undefined'
+    && Boolean(process?.env)
+    && process.env[flagName] === '1';
+}
+
 function resolvePlaces(snapshot) {
   const timeline = asArray(snapshot.timeline);
   const timelinePlaces = timeline
@@ -66,16 +72,24 @@ function resolveRoutes(snapshot) {
   return asArray(snapshot.routes).map((route, index) => normalizeRoute(route, index));
 }
 
-export function normalizeSnapshot(snapshot) {
+export function normalizeSnapshot(snapshot, options = {}) {
   const safe = asObject(snapshot);
   const rendererConfig = asObject(safe.renderer_config);
+  const allowDerivedStylePin = options.allowDerivedStylePin === true || readFlag('CINEMATIC_GL_ALLOW_DERIVED_STYLE_PIN');
   const mapStyle = typeof rendererConfig.map_style === 'string' && rendererConfig.map_style.trim().length > 0
     ? rendererConfig.map_style.trim()
     : DEFAULT_MAP_STYLE;
-  const styleRevision = typeof rendererConfig.style_revision === 'string' ? rendererConfig.style_revision : null;
-  const styleHash = typeof rendererConfig.style_hash === 'string' && rendererConfig.style_hash.trim().length > 0
+  const styleRevision = typeof rendererConfig.style_revision === 'string' && rendererConfig.style_revision.trim().length > 0
+    ? rendererConfig.style_revision.trim()
+    : null;
+  const explicitStyleHash = typeof rendererConfig.style_hash === 'string' && rendererConfig.style_hash.trim().length > 0
     ? rendererConfig.style_hash.trim()
-    : (styleRevision ? null : fnv1aHex(mapStyle));
+    : null;
+  const styleHash = explicitStyleHash || (
+    !styleRevision && allowDerivedStylePin
+      ? `derived_${fnv1aHex(mapStyle)}`
+      : null
+  );
 
   return {
     ...safe,
@@ -93,8 +107,8 @@ export function normalizeSnapshot(snapshot) {
   };
 }
 
-export function extractRendererConfig(snapshot) {
-  const normalized = normalizeSnapshot(snapshot);
+export function extractRendererConfig(snapshot, options = {}) {
+  const normalized = normalizeSnapshot(snapshot, options);
   return {
     map_style: normalized.renderer_config.map_style,
     style_revision: normalized.renderer_config.style_revision,
@@ -103,8 +117,8 @@ export function extractRendererConfig(snapshot) {
   };
 }
 
-export function validateSnapshotForCinematic(snapshot) {
-  const normalized = normalizeSnapshot(snapshot);
+export function validateSnapshotForCinematic(snapshot, options = {}) {
+  const normalized = normalizeSnapshot(snapshot, options);
   if (typeof normalized.renderer_config.map_style !== 'string' || normalized.renderer_config.map_style.length === 0) {
     throw new Error('cinematic_snapshot_invalid_map_style');
   }

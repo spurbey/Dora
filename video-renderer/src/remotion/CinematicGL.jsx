@@ -17,6 +17,7 @@ import {
   getRouteStyle,
   ICON_VIEWBOX,
   pointsToPath,
+  pointOnArc,
   resolveTimelinePlaces,
   resolveTimelineRoutes,
   TRAVEL_MODE_ICONS,
@@ -30,6 +31,51 @@ const LETTERBOX_HEIGHT = '7%';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function toScreenPoint(point, totalScale, translateX, translateY) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  return {
+    x: point.x * totalScale + translateX,
+    y: point.y * totalScale + translateY,
+  };
+}
+
+function buildOverlayRoutePolyline({
+  placeIndex,
+  projectedRoutes,
+  totalScale,
+  translateX,
+  translateY,
+}) {
+  const routes = Array.isArray(projectedRoutes) ? projectedRoutes : [];
+  if (!Number.isFinite(placeIndex) || routes.length === 0) return [];
+
+  const incomingIndex = Math.max(0, placeIndex - 1);
+  const outgoingIndex = Math.min(routes.length - 1, placeIndex);
+  const candidatePool = [routes[incomingIndex], routes[outgoingIndex]].filter(Boolean);
+  const candidate = candidatePool.find(
+    (route) => Array.isArray(route.points) && route.points.length > 0,
+  ) || candidatePool.find(
+    (route) => route.isArc && route.startPoint && route.endPoint,
+  ) || candidatePool[0];
+  if (!candidate) return [];
+
+  let mapPoints = [];
+  if (Array.isArray(candidate.points) && candidate.points.length > 0) {
+    mapPoints = candidate.points;
+  } else if (candidate.isArc && candidate.startPoint && candidate.endPoint) {
+    const samples = 16;
+    mapPoints = Array.from({ length: samples }, (_, idx) => pointOnArc(
+      candidate.startPoint,
+      candidate.endPoint,
+      idx / Math.max(1, samples - 1),
+    )).filter(Boolean);
+  }
+
+  return mapPoints
+    .map((point) => toScreenPoint(point, totalScale, translateX, translateY))
+    .filter(Boolean);
 }
 
 function RouteLayer({
@@ -300,6 +346,7 @@ function ArrivalPhotoCards({
   translateY,
   frameWidth,
   frameHeight,
+  projectedRoutes,
 }) {
   const derivedActiveArrivalSegment = useMemo(
     () => (segments || []).find(
@@ -325,11 +372,18 @@ function ArrivalPhotoCards({
     x: projectedPlace.x * totalScale + translateX,
     y: projectedPlace.y * totalScale + translateY,
   };
+  const routePolyline = buildOverlayRoutePolyline({
+    placeIndex: active.placeIndex,
+    projectedRoutes,
+    totalScale,
+    translateX,
+    translateY,
+  });
   const planned = resolveCardPlacement({
     anchor,
     cardSize: { width: 170, height: 200 },
     viewport: { width: frameWidth, height: frameHeight },
-    routePolyline: [],
+    routePolyline,
   });
   const fallback = cardScreenPosition(
     projectedPlace.x,
@@ -534,6 +588,7 @@ function MapJourney({
         translateY={clampedTY}
         frameWidth={width}
         frameHeight={height}
+        projectedRoutes={mapCtx.projectedRoutes}
       />
 
       <Vignette />

@@ -59,6 +59,55 @@ test('timeline compiler keeps final arrival for short durations', () => {
   assert.equal(segments[segments.length - 1].endFrame, 29);
 });
 
+test('timeline compiler uses route place endpoints and timestamps for deterministic leg order', () => {
+  const places = [
+    { id: 'mumbai', lat: 19.076, lng: 72.8777 },
+    { id: 'kathmandu', lat: 27.7172, lng: 85.324 },
+    { id: 'oman', lat: 23.588, lng: 58.3829 },
+    { id: 'dubai', lat: 25.2048, lng: 55.2708 },
+  ];
+  const routes = [
+    {
+      id: 'r3',
+      start_place_id: 'oman',
+      end_place_id: 'dubai',
+      transport_mode: 'air',
+      started_at: '2026-01-12T10:00:00Z',
+    },
+    {
+      id: 'r1',
+      start_place_id: 'mumbai',
+      end_place_id: 'kathmandu',
+      transport_mode: 'air',
+      started_at: '2026-01-02T10:00:00Z',
+    },
+    {
+      id: 'r2',
+      start_place_id: 'kathmandu',
+      end_place_id: 'oman',
+      transport_mode: 'air',
+      started_at: '2026-01-06T10:00:00Z',
+    },
+  ];
+
+  const segments = compileTimelineSegments({
+    places,
+    routes,
+    fps: 30,
+    durationInFrames: 180,
+  });
+
+  const travelSegments = segments.filter((segment) => segment.type === 'travel');
+  assert.equal(travelSegments.length, 3);
+  assert.deepEqual(
+    travelSegments.map((segment) => segment.routeIndex),
+    [1, 2, 0],
+    'travel order should follow route timestamps, not input array order',
+  );
+  assert.equal(segments[segments.length - 1].type, 'arrive');
+  assert.equal(segments[segments.length - 1].placeIndex, 3, 'final arrival should land on route chain destination');
+});
+
 test('camera planner does not jump to {0,0} for empty route geometry', () => {
   const snapshot = fixtureSnapshot();
   const plan = buildRenderPlan({
@@ -191,6 +240,80 @@ test('buildRenderPlan keeps native-gl renderer flags from snapshot config', () =
 
   assert.equal(plan.rendererConfig.mapbox_gl_enabled, true);
   assert.equal(plan.rendererConfig.mapbox_gl_strict, true);
+});
+
+test('frame state exposes only active travel route progress to avoid multi-leg clutter', () => {
+  const snapshot = {
+    trip: { title: 'Route Progress Focus Fixture' },
+    places: [
+      { id: 'p1', name: 'A', lat: 27.7, lng: 85.3 },
+      { id: 'p2', name: 'B', lat: 27.71, lng: 85.31 },
+      { id: 'p3', name: 'C', lat: 27.72, lng: 85.32 },
+    ],
+    routes: [
+      {
+        id: 'r1',
+        start_place_id: 'p1',
+        end_place_id: 'p2',
+        transport_mode: 'air',
+        route_geojson: null,
+      },
+      {
+        id: 'r2',
+        start_place_id: 'p2',
+        end_place_id: 'p3',
+        transport_mode: 'air',
+        route_geojson: null,
+      },
+    ],
+    renderer_config: {
+      map_style: 'mapbox/navigation-night-v1',
+      style_revision: 'rev_fixture_focus_2026_03_25',
+      mapbox_gl_enabled: true,
+      mapbox_gl_strict: false,
+    },
+  };
+
+  const plan = buildRenderPlan({
+    snapshot,
+    fps: 30,
+    durationInFrames: 150,
+    projectedPlaces: [
+      { x: 120, y: 240, place: snapshot.places[0] },
+      { x: 360, y: 380, place: snapshot.places[1] },
+      { x: 610, y: 500, place: snapshot.places[2] },
+    ],
+    projectedRoutes: [
+      {
+        isArc: true,
+        startPoint: { x: 120, y: 240 },
+        endPoint: { x: 360, y: 380 },
+        points: [],
+        route: snapshot.routes[0],
+      },
+      {
+        isArc: true,
+        startPoint: { x: 360, y: 380 },
+        endPoint: { x: 610, y: 500 },
+        points: [],
+        route: snapshot.routes[1],
+      },
+    ],
+    width: 720,
+    height: 1280,
+  });
+
+  const firstTravel = plan.segments.find((segment) => segment.type === 'travel' && segment.routeIndex === 0);
+  const secondTravel = plan.segments.find((segment) => segment.type === 'travel' && segment.routeIndex === 1);
+  assert.ok(firstTravel && secondTravel, 'both travel segments should exist');
+
+  const firstTravelFrame = Math.floor((firstTravel.startFrame + firstTravel.endFrame) / 2);
+  const secondTravelFrame = Math.floor((secondTravel.startFrame + secondTravel.endFrame) / 2);
+  const firstState = getFrameState(plan, firstTravelFrame);
+  const secondState = getFrameState(plan, secondTravelFrame);
+
+  assert.deepEqual(Object.keys(firstState.routeProgressByIndex), ['0']);
+  assert.deepEqual(Object.keys(secondState.routeProgressByIndex), ['1']);
 });
 
 test('overlay label uses eased fade-in and reaches zero at fade-out tail', () => {

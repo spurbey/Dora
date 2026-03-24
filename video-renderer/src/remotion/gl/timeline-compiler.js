@@ -43,6 +43,85 @@ function estimateRouteDistanceMeters(route) {
   return total;
 }
 
+function parseEpochMs(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Number.NaN;
+}
+
+function routeSortKey(route, index) {
+  const fields = [
+    route?.started_at,
+    route?.start_time,
+    route?.departure_time,
+    route?.timestamp,
+    route?.created_at,
+    route?.updated_at,
+  ];
+  for (const candidate of fields) {
+    const parsed = parseEpochMs(candidate);
+    if (Number.isFinite(parsed)) return { hasTime: true, value: parsed, index };
+  }
+  return { hasTime: false, value: Number.NaN, index };
+}
+
+function placeCoordinate(place) {
+  const lat = Number(place?.lat);
+  const lng = Number(place?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function nearestPlaceIndex(coord, placeCoords) {
+  if (!coord || !Array.isArray(placeCoords) || placeCoords.length === 0) {
+    return -1;
+  }
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < placeCoords.length; i++) {
+    const pc = placeCoords[i];
+    if (!pc) continue;
+    const d = haversineMeters(coord, pc);
+    if (d < bestDistance) {
+      bestDistance = d;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function resolveRouteEndpoints(route, routeIndex, placeIdToIndex, placeCoords, placeCount) {
+  const startById = placeIdToIndex.get(route?.start_place_id ?? '');
+  const endById = placeIdToIndex.get(route?.end_place_id ?? '');
+
+  const coordinates = Array.isArray(route?.route_geojson?.coordinates)
+    ? route.route_geojson.coordinates
+    : [];
+  const startCoord = coordinates.length > 0 ? toLngLat(coordinates[0]) : null;
+  const endCoord = coordinates.length > 0 ? toLngLat(coordinates[coordinates.length - 1]) : null;
+
+  let startIndex = Number.isInteger(startById) ? startById : nearestPlaceIndex(startCoord, placeCoords);
+  let endIndex = Number.isInteger(endById) ? endById : nearestPlaceIndex(endCoord, placeCoords);
+
+  if (!Number.isInteger(startIndex) || startIndex < 0 || startIndex >= placeCount) {
+    startIndex = clamp(routeIndex, 0, Math.max(0, placeCount - 1));
+  }
+  if (!Number.isInteger(endIndex) || endIndex < 0 || endIndex >= placeCount) {
+    endIndex = clamp(routeIndex + 1, 0, Math.max(0, placeCount - 1));
+  }
+
+  if (startIndex === endIndex && placeCount > 1) {
+    endIndex = clamp(startIndex + 1, 0, placeCount - 1);
+  }
+
+  return { startIndex, endIndex };
+}
+
 function travelBeatWeight(route) {
   const base = 1.6;
   const distanceMeters = estimateRouteDistanceMeters(route);
@@ -57,6 +136,118 @@ function travelBeatWeight(route) {
         ? 0.2
         : 0;
   return base + distanceBoost + modeBoost;
+}
+
+function buildSegmentSpecs({ places, routes }) {
+  const safePlaces = Array.isArray(places) ? places : [];
+  const safeRoutes = Array.isArray(routes) ? routes : [];
+  const placeCount = safePlaces.length;
+  if (placeCount === 0) return { specs: [], beats: [] };
+
+  const placeIdToIndex = new Map();
+  const placeCoords = safePlaces.map((place, index) => {
+    const id = place?.id;
+    if (typeof id === 'string' && id.length > 0 && !placeIdToIndex.has(id)) {
+      placeIdToIndex.set(id, index);
+    }
+    return placeCoordinate(place);
+  });
+
+  if (safeRoutes.length === 0) {
+    const specs = [];
+    const beats = [];
+    for (let i = 0; i < placeCount; i++) {
+      specs.push({
+        type: 'arrive',
+        placeIndex: i,
+        routeIndex: -1,
+        place: safePlaces[i],
+        route: null,
+      });
+      beats.push(i === 0 || i === placeCount - 1 ? 2.4 : 1.8);
+    }
+    return { specs, beats };
+  }
+
+  const legs = safeRoutes.map((route, routeIndex) => {
+    const endpoints = resolveRouteEndpoints(
+      route,
+      routeIndex,
+      placeIdToIndex,
+      placeCoords,
+      placeCount,
+    );
+    const sortKey = routeSortKey(route, routeIndex);
+    return {
+      route,
+      routeIndex,
+      startIndex: endpoints.startIndex,
+      endIndex: endpoints.endIndex,
+      sortKey,
+    };
+  }).sort((a, b) => {
+    if (a.sortKey.hasTime && b.sortKey.hasTime && a.sortKey.value !== b.sortKey.value) {
+      return a.sortKey.value - b.sortKey.value;
+    }
+    if (a.sortKey.hasTime !== b.sortKey.hasTime) {
+      return a.sortKey.hasTime ? -1 : 1;
+    }
+    return a.sortKey.index - b.sortKey.index;
+  });
+
+  const specs = [];
+  const beats = [];
+  const pushArrive = (placeIndex) => {
+    if (!Number.isInteger(placeIndex) || placeIndex < 0 || placeIndex >= placeCount) return;
+    const prev = specs[specs.length - 1];
+    if (prev?.type === 'arrive' && prev.placeIndex === placeIndex) return;
+    specs.push({
+      type: 'arrive',
+      placeIndex,
+      routeIndex: -1,
+      place: safePlaces[placeIndex],
+      route: null,
+    });
+    beats.push(1.8);
+  };
+
+  let currentPlaceIndex = null;
+  for (const leg of legs) {
+    if (!Number.isInteger(leg.startIndex) || !Number.isInteger(leg.endIndex)) continue;
+
+    if (currentPlaceIndex == null || currentPlaceIndex !== leg.startIndex) {
+      pushArrive(leg.startIndex);
+      currentPlaceIndex = leg.startIndex;
+    }
+
+    specs.push({
+      type: 'travel',
+      placeIndex: leg.startIndex,
+      routeIndex: leg.routeIndex,
+      place: null,
+      route: leg.route,
+    });
+    beats.push(travelBeatWeight(leg.route));
+
+    pushArrive(leg.endIndex);
+    currentPlaceIndex = leg.endIndex;
+  }
+
+  if (specs.length === 0) {
+    for (let i = 0; i < placeCount; i++) {
+      pushArrive(i);
+    }
+  }
+
+  const firstArrive = specs.findIndex((spec) => spec.type === 'arrive');
+  if (firstArrive >= 0) beats[firstArrive] = 2.4;
+  for (let i = specs.length - 1; i >= 0; i--) {
+    if (specs[i].type === 'arrive') {
+      beats[i] = 2.4;
+      break;
+    }
+  }
+  return { specs, beats };
 }
 
 export function allocateSegmentFrames({ beatWeights, durationInFrames }) {
@@ -95,37 +286,9 @@ export function compileTimelineSegments({
   durationInFrames,
 }) {
   const safePlaces = Array.isArray(places) ? places : [];
-  const safeRoutes = Array.isArray(routes) ? routes : [];
   const totalFrames = safeFrames(durationInFrames);
   if (safePlaces.length === 0 || totalFrames <= 0) return [];
-
-  const numPlaces = safePlaces.length;
-  const numRoutes = Math.min(safeRoutes.length, Math.max(0, numPlaces - 1));
-  const beats = [];
-  const specs = [];
-
-  for (let i = 0; i < numPlaces; i++) {
-    const arriveWeightSec = (i === 0 || i === numPlaces - 1) ? 2.4 : 1.8;
-    beats.push(arriveWeightSec);
-    specs.push({
-      type: 'arrive',
-      placeIndex: i,
-      routeIndex: -1,
-      place: safePlaces[i],
-      route: null,
-    });
-
-    if (i < numRoutes) {
-      beats.push(travelBeatWeight(safeRoutes[i]));
-      specs.push({
-        type: 'travel',
-        placeIndex: i,
-        routeIndex: i,
-        place: null,
-        route: safeRoutes[i],
-      });
-    }
-  }
+  const { specs, beats } = buildSegmentSpecs({ places: safePlaces, routes });
 
   let specsToUse = specs;
   let beatsToUse = beats;

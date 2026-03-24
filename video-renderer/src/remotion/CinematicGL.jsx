@@ -794,13 +794,14 @@ function MapJourney({
 
 function IntroOverlay({ trip, fps }) {
   const frame = useCurrentFrame();
-  const fadeFrames = Math.max(1, Math.floor(fps * 0.4));
-  const opacity = interpolate(frame, [0, fadeFrames], [0, 1], {
+  const introTotalFrames = Math.max(1, Math.floor(INTRO_SEC * fps));
+  const fadeOutStart = Math.max(1, Math.floor(fps * 0.9));
+  const opacity = interpolate(frame, [0, fadeOutStart, introTotalFrames - 1], [1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const translateY = interpolate(frame, [0, fadeFrames], [20, 0], {
-    easing: Easing.out(Easing.cubic),
+  const translateY = interpolate(frame, [0, fadeOutStart, introTotalFrames - 1], [0, 0, -16], {
+    easing: Easing.inOut(Easing.cubic),
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -808,7 +809,7 @@ function IntroOverlay({ trip, fps }) {
   return (
     <AbsoluteFill
       style={{
-        background: 'radial-gradient(90% 120% at 70% 20%, rgba(31,48,74,0.88) 0%, rgba(21,31,50,0.92) 45%, rgba(12,17,27,0.95) 100%)',
+        background: 'radial-gradient(90% 120% at 70% 20%, #1f304a 0%, #152036 45%, #0c111b 100%)',
         opacity,
         fontFamily: UI_FONT_STACK,
       }}

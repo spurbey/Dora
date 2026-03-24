@@ -184,9 +184,12 @@ export function getFrameState(plan, frame) {
   const activeSegment = findActiveSegment(segments, f);
 
   const routeProgressByIndex = {};
-  for (const segment of segments) {
-    if (segment?.type !== 'travel' || segment.routeIndex == null || segment.routeIndex < 0) continue;
-    routeProgressByIndex[segment.routeIndex] = routeProgressForFrame(segment, f);
+  if (
+    activeSegment?.type === 'travel'
+    && Number.isInteger(activeSegment.routeIndex)
+    && activeSegment.routeIndex >= 0
+  ) {
+    routeProgressByIndex[activeSegment.routeIndex] = routeProgressForFrame(activeSegment, f);
   }
 
   let markerState = null;

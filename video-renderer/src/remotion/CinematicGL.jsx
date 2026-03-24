@@ -33,6 +33,11 @@ import { resolveCardPlacement } from './gl/overlay-planner.js';
 const INTRO_SEC = 1.5;
 const OUTRO_SEC = 1.0;
 const LETTERBOX_HEIGHT = '7%';
+const UI_FONT_STACK = '"Sora", "Avenir Next", "Segoe UI", sans-serif';
+
+function clampNum(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
 function toScreenPoint(point, totalScale, translateX, translateY) {
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
@@ -311,27 +316,51 @@ function Letterbox() {
   );
 }
 
-function PlaceLabel({ place, opacity }) {
+function PlaceLabel({ place, opacity, frameWidth, frameHeight }) {
   if (!place || opacity <= 0) return null;
+  const titleSize = clampNum(Math.round(frameWidth * 0.052), 30, 52);
+  const subtitleSize = clampNum(Math.round(titleSize * 0.5), 16, 24);
+  const panelWidth = clampNum(frameWidth * 0.78, 280, frameWidth * 0.9);
+  const bottom = clampNum(frameHeight * 0.11, 72, 170);
+
   return (
     <div
       style={{
         position: 'absolute',
-        bottom: '12%',
+        bottom,
         left: '6%',
-        right: '6%',
+        width: panelWidth,
         pointerEvents: 'none',
         opacity,
-        fontFamily: 'sans-serif',
+        fontFamily: UI_FONT_STACK,
+        zIndex: 18,
       }}
     >
       <div
         style={{
+          display: 'inline-block',
+          color: 'rgba(255,255,255,0.78)',
+          background: 'rgba(9,12,18,0.52)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: 999,
+          padding: '5px 12px',
+          fontSize: clampNum(Math.round(subtitleSize * 0.72), 12, 16),
+          letterSpacing: 1.6,
+          textTransform: 'uppercase',
+          marginBottom: 10,
+          backdropFilter: 'blur(4px)',
+        }}
+      >
+        Arrival
+      </div>
+      <div
+        style={{
           color: '#ffffff',
-          fontSize: 36,
+          fontSize: titleSize,
           fontWeight: 700,
-          lineHeight: 1.15,
-          textShadow: '0 2px 16px rgba(0,0,0,0.8), 0 1px 4px rgba(0,0,0,0.6)',
+          lineHeight: 1.08,
+          letterSpacing: -0.5,
+          textShadow: '0 3px 18px rgba(0,0,0,0.78), 0 1px 5px rgba(0,0,0,0.72)',
         }}
       >
         {place.name || 'A Place'}
@@ -339,10 +368,10 @@ function PlaceLabel({ place, opacity }) {
       {(place.destination || place.city) && (
         <div
           style={{
-            color: 'rgba(255,255,255,0.8)',
-            fontSize: 18,
+            color: 'rgba(255,255,255,0.88)',
+            fontSize: subtitleSize,
             marginTop: 6,
-            textShadow: '0 1px 8px rgba(0,0,0,0.7)',
+            textShadow: '0 1px 10px rgba(0,0,0,0.72)',
           }}
         >
           {place.destination || place.city}
@@ -384,6 +413,9 @@ function ArrivalPhotoCards({
 
   const segmentFrames = active.endFrame - active.startFrame + 1;
   const localFrame = journeyFrame - active.startFrame;
+  const cardWidth = clampNum(Math.round(frameWidth * 0.22), 150, 210);
+  const cardHeight = clampNum(Math.round(cardWidth * 1.18), 180, 250);
+  const cardImageHeight = Math.round(cardHeight * 0.62);
 
   const anchor = {
     x: projectedPlace.x * totalScale + translateX,
@@ -398,7 +430,7 @@ function ArrivalPhotoCards({
   });
   const planned = resolveCardPlacement({
     anchor,
-    cardSize: { width: 170, height: 200 },
+    cardSize: { width: cardWidth, height: cardHeight },
     viewport: { width: frameWidth, height: frameHeight },
     routePolyline,
   });
@@ -451,7 +483,7 @@ function ArrivalPhotoCards({
           <div
             key={`${active.placeIndex}-${idx}`}
             style={{
-              width: 160,
+              width: cardWidth,
               borderRadius: 10,
               overflow: 'hidden',
               border: '2px solid rgba(255,255,255,0.25)',
@@ -462,7 +494,10 @@ function ArrivalPhotoCards({
               marginLeft: idx > 0 ? -30 : 0,
             }}
           >
-            <Img src={imageUrl} style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+            <Img
+              src={imageUrl}
+              style={{ width: '100%', height: cardImageHeight, objectFit: 'cover', display: 'block' }}
+            />
           </div>
         );
       })}
@@ -733,7 +768,12 @@ function MapJourney({
       />
 
       <Vignette />
-      <PlaceLabel place={labelState.place} opacity={labelState.opacity} />
+      <PlaceLabel
+        place={labelState.place}
+        opacity={labelState.opacity}
+        frameWidth={width}
+        frameHeight={height}
+      />
       <Letterbox />
     </AbsoluteFill>
   );
@@ -757,7 +797,7 @@ function IntroOverlay({ trip, fps }) {
       style={{
         background: 'radial-gradient(90% 120% at 70% 20%, rgba(31,48,74,0.88) 0%, rgba(21,31,50,0.92) 45%, rgba(12,17,27,0.95) 100%)',
         opacity,
-        fontFamily: 'sans-serif',
+        fontFamily: UI_FONT_STACK,
       }}
     >
       <div
@@ -808,7 +848,7 @@ function OutroOverlay({ fps }) {
         justifyContent: 'center',
         alignItems: 'center',
         opacity,
-        fontFamily: 'sans-serif',
+        fontFamily: UI_FONT_STACK,
       }}
     >
       <div style={{ textAlign: 'center' }}>

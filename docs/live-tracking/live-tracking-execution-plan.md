@@ -1252,6 +1252,54 @@ Use this section after each phase:
 - Known failures/waivers:
   - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
 
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 3 candidate inbox/action UX
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_candidate_dao.dart lib/features/create/data/live_tracking_candidate_repository.dart lib/features/create/presentation/providers/live_tracking_candidate_provider.dart lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
+  - `cd flutter; flutter test test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_control_strip_test.dart` (pass: 15 passed)
+- Manual checks run:
+  - Added candidate decision repository and provider path:
+    - `flutter/lib/features/create/data/live_tracking_candidate_repository.dart`
+    - `flutter/lib/features/create/presentation/providers/live_tracking_candidate_provider.dart`
+  - Added local inbox/action filtering semantics:
+    - include `pending` candidates
+    - include due `snoozed` candidates
+    - keep `queued/failed` action-state candidates visible for retry/status visibility
+  - Added candidate inbox strip widget and editor integration for `confirm/reject/snooze` actions:
+    - `flutter/lib/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart`
+    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - Extended candidate DAO queue mutation support for reject/snooze metadata:
+    - `flutter/lib/core/storage/daos/tracking_candidate_dao.dart`
+- Result summary:
+  - Phase 6 now includes actionable check-in suggestion UX in editor with offline-first queued decisions.
+  - Action submission follows backend wire contract (`confirm/reject/snooze`) through existing tracking sync worker lane.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 3 hardening follow-up (snooze wake + failure-state + inbox query efficiency)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_candidate_dao.dart lib/features/create/data/live_tracking_candidate_repository.dart lib/core/sync/tracking_sync_worker.dart test/features/create/live_tracking_candidate_repository_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 15 passed)
+- Manual checks run:
+  - Accepted review finding for snoozed candidate wake-up timing.
+  - Added time-bound inbox re-emit in candidate repository stream:
+    - `flutter/lib/features/create/data/live_tracking_candidate_repository.dart`
+    - schedules timer to next `snoozedUntil` and re-filters without requiring DB writes.
+  - Accepted review finding for decision failure UX path and wired real state propagation:
+    - `flutter/lib/core/sync/tracking_sync_worker.dart`
+    - `flutter/lib/core/storage/daos/tracking_candidate_dao.dart`
+    - terminal blocked `checkin_decision` tasks now mark candidate `actionState='failed'`.
+  - Accepted review finding for SQL prefilter efficiency:
+    - `flutter/lib/core/storage/daos/tracking_candidate_dao.dart`
+    - added `get/watchInboxCandidatesForTrip` SQL-side prefilter (`pending/snoozed/queued/failed`) with limit.
+- Result summary:
+  - Snoozed candidates reappear on time even without additional local writes.
+  - Inbox failure hint now reflects actual state when decision sync reaches terminal failure.
+  - Candidate inbox stream no longer scans full trip candidate set on each update.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
 ## 12. Risk Register
 
 Track only active risks:

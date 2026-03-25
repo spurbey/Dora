@@ -679,3 +679,48 @@ After each Flutter live-tracking slice:
   - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 21 passed)
 - Decision notes:
   - This addresses the review concerns about rebuild pressure, stale session watcher retention, and missing provider integration coverage without introducing map-provider/runtime coupling.
+
+- Date: 2026-03-25
+- Slice: Phase 6 candidate inbox/action UX (slice 3)
+- Implemented:
+  - Added candidate decision repository:
+    - `lib/features/create/data/live_tracking_candidate_repository.dart`
+    - queues `confirm/reject/snooze` decisions into `sync_tasks` (`checkin_decision` lane)
+    - persists required local action metadata (`action_state/type/client_event_id`) and snooze/reject payload fields
+  - Added candidate inbox providers:
+    - `lib/features/create/presentation/providers/live_tracking_candidate_provider.dart`
+    - exposes stream of filtered actionable candidates for editor UI
+  - Extended candidate DAO queue mutation:
+    - `lib/core/storage/daos/tracking_candidate_dao.dart`
+    - supports optional local `status/rejected_reason/snoozed_until` updates on queue
+  - Added editor-facing candidate UX surface:
+    - `lib/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart`
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - action buttons wired to repository (`Confirm`, `Dismiss` -> `reject`, `Snooze 1h` -> `snooze`)
+    - queued/in-flight candidates are disabled and visually annotated
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_candidate_dao.dart lib/features/create/data/live_tracking_candidate_repository.dart lib/features/create/presentation/providers/live_tracking_candidate_provider.dart lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart` (pass; 2 existing info-level lints in `editor_screen.dart`)
+  - `cd flutter; flutter test test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_control_strip_test.dart` (pass: 15 passed)
+- Decision notes:
+  - Candidate UX is now delivered as an editor inbox strip first for low-friction actionability; dedicated inbox route can be layered later without changing queue semantics.
+
+- Date: 2026-03-25
+- Slice: Phase 6 candidate inbox hardening (post-review)
+- Implemented:
+  - Added timed snooze wake-up behavior for inbox stream:
+    - `lib/features/create/data/live_tracking_candidate_repository.dart`
+    - stream now schedules wake timer at nearest future `snoozedUntil` and re-emits filtered candidates even without DB writes.
+  - Added SQL-side inbox prefilter for large-trip efficiency:
+    - `lib/core/storage/daos/tracking_candidate_dao.dart`
+    - new `getInboxCandidatesForTrip` / `watchInboxCandidatesForTrip` queries scope to actionable states and apply limit.
+  - Added candidate action failure-state mutation:
+    - `lib/core/storage/daos/tracking_candidate_dao.dart` (`markDecisionFailed`)
+    - `lib/core/sync/tracking_sync_worker.dart` now marks `checkin_decision` candidates as `actionState='failed'` when task lands in terminal blocked state.
+  - Added regression coverage:
+    - `test/features/create/live_tracking_candidate_repository_test.dart` (snooze reappearance without db writes)
+    - `test/core/sync/tracking_sync_worker_test.dart` (candidate decision blocked -> failed action state)
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_candidate_dao.dart lib/features/create/data/live_tracking_candidate_repository.dart lib/core/sync/tracking_sync_worker.dart test/features/create/live_tracking_candidate_repository_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 15 passed)
+- Decision notes:
+  - Review findings were accepted as valid and resolved in-slice because they affect real-time UX correctness and scale behavior.

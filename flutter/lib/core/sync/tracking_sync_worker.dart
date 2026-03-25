@@ -125,6 +125,7 @@ class TrackingSyncWorker {
         errorMessage: error.message,
         expectedSessionId: sessionId,
       );
+      await _markCheckinDecisionFailed(task: task);
       debugPrint(
         '[TRACKING_SYNC] blocked taskId=${task.id} reason=${error.code}',
       );
@@ -836,7 +837,20 @@ class TrackingSyncWorker {
       dependsOnEntityType: task.dependsOnEntityType,
       dependsOnEntityId: task.dependsOnEntityId,
     );
+    await _markCheckinDecisionFailed(task: task);
     debugPrint('[TRACKING_SYNC] blocked taskId=${task.id} code=$code');
+  }
+
+  Future<void> _markCheckinDecisionFailed({
+    required SyncTaskRow task,
+  }) async {
+    if (task.entityType != SyncEntityTypes.checkinDecision) {
+      return;
+    }
+    await _trackingCandidateDao.markDecisionFailed(
+      candidateId: task.entityId,
+      failedAt: DateTime.now().toUtc(),
+    );
   }
 
   Duration _backoffForRetry(int retryCount) {

@@ -20,6 +20,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   int batchCalls = 0;
   int decisionCalls = 0;
   int momentCalls = 0;
+  Object? decisionError;
   Completer<void>? startTrackingGate;
   Completer<void>? pauseTrackingGate;
 
@@ -145,6 +146,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     required DateTime confirmedAt,
   }) async {
+    final forcedError = decisionError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
     decisionCalls += 1;
     return <String, dynamic>{
       'candidate': <String, dynamic>{'id': candidateId, 'status': 'confirmed'},
@@ -160,6 +165,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required DateTime rejectedAt,
     String? reason,
   }) async {
+    final forcedError = decisionError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
     decisionCalls += 1;
     final createdAt = rejectedAt.subtract(const Duration(minutes: 10)).toUtc();
     final updatedAt = rejectedAt.toUtc();
@@ -200,6 +209,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     required DateTime snoozedUntil,
   }) async {
+    final forcedError = decisionError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
     decisionCalls += 1;
     return <String, dynamic>{
       'candidate': <String, dynamic>{'id': candidateId, 'status': 'snoozed'},
@@ -756,6 +769,45 @@ void main() {
       expect(candidate.syncStatus, 'synced');
       expect(candidate.serverUpdatedAt, isNotNull);
       expect(fakeApi.decisionCalls, 1);
+    });
+
+    test('marks candidate decision as failed when task is blocked', () async {
+      final now = DateTime.now().toUtc();
+      await candidateDao.upsertCandidate(
+        TrackingCandidatesCompanion.insert(
+          id: 'candidate-local-fail-1',
+          tripId: 'trip-4',
+          fingerprint: 'fp-fail-1',
+          status: const Value('pending'),
+          actionState: const Value('queued'),
+          actionType: const Value('reject'),
+          actionClientEventId: const Value('event-fail-1'),
+          actionQueuedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-checkin-decision-fail-1',
+        entityType: SyncEntityTypes.checkinDecision,
+        entityId: 'candidate-local-fail-1',
+        operation: 'reject',
+      );
+      fakeApi.decisionError = Exception('forced decision failure');
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-checkin-decision-fail-1');
+      expect(task['status'], 'blocked');
+      expect(task['error_code'], 'unknown_tracking_sync_failure');
+
+      final candidate =
+          await candidateDao.getCandidateById('candidate-local-fail-1');
+      expect(candidate, isNotNull);
+      expect(candidate!.actionState, 'failed');
+      expect(candidate.syncStatus, 'pending');
     });
 
     test('hydrates moment snapshot fields from server response', () async {

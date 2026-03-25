@@ -20,17 +20,20 @@ import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
+import 'package:dora/features/create/data/live_tracking_candidate_repository.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_candidate_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
+import 'package:dora/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
@@ -61,6 +64,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _mediaFocusPlaceId;
   bool _trackingActionInFlight = false;
   String? _trackingActionLabel;
+  final Set<String> _candidateActionsInFlight = <String>{};
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -111,6 +115,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ref.watch(editorSyncStatusProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
+        final candidateInboxAsync =
+            ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -180,6 +186,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   ),
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
                   _buildLiveTrackingControlStrip(trackingRuntimeAsync),
+                  _buildLiveTrackingCandidateInbox(candidateInboxAsync),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -515,6 +522,45 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  Widget _buildLiveTrackingCandidateInbox(
+    AsyncValue<List<TrackingCandidateRow>> candidateInboxAsync,
+  ) {
+    return candidateInboxAsync.when(
+      data: (candidates) {
+        if (candidates.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return LiveTrackingCandidateInboxStrip(
+          candidates: candidates,
+          inFlightCandidateIds: _candidateActionsInFlight,
+          onConfirm: (candidateId) => unawaited(
+            _runCandidateDecision(
+              candidateId: candidateId,
+              action: LiveTrackingCandidateDecisionAction.confirm,
+              successMessage: 'Check-in confirmed.',
+            ),
+          ),
+          onReject: (candidateId) => unawaited(
+            _runCandidateDecision(
+              candidateId: candidateId,
+              action: LiveTrackingCandidateDecisionAction.reject,
+              successMessage: 'Suggestion dismissed.',
+            ),
+          ),
+          onSnooze: (candidateId) => unawaited(
+            _runCandidateDecision(
+              candidateId: candidateId,
+              action: LiveTrackingCandidateDecisionAction.snooze,
+              successMessage: 'Suggestion snoozed for 1 hour.',
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   String _liveTrackingSubtitle(LiveTrackingRuntimeSnapshot snapshot) {
     final lastPoint = snapshot.lastPointAt;
     switch (snapshot.state) {
@@ -540,6 +586,52 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  Future<void> _runCandidateDecision({
+    required String candidateId,
+    required LiveTrackingCandidateDecisionAction action,
+    required String successMessage,
+  }) async {
+    if (!mounted || _candidateActionsInFlight.contains(candidateId)) {
+      return;
+    }
+    setState(() {
+      _candidateActionsInFlight.add(candidateId);
+    });
+    try {
+      final repository = ref.read(liveTrackingCandidateRepositoryProvider);
+      await repository.queueDecision(
+        tripId: widget.tripId,
+        candidateId: candidateId,
+        action: action,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successMessage),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to queue check-in action. Try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _candidateActionsInFlight.remove(candidateId);
+        });
+      }
+    }
   }
 
   Future<void> _runLiveTrackingAction({

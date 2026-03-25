@@ -20,15 +20,19 @@ import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
+import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
+import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
+import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/place_picker_sheet.dart';
@@ -55,6 +59,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _didAutoCenterOnDevice = false;
   AppMarker? _mediaFocusMarker;
   String? _mediaFocusPlaceId;
+  bool _trackingActionInFlight = false;
+  String? _trackingActionLabel;
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -103,6 +109,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final mapState = ref.watch(mapStateProvider(widget.tripId));
         final syncStatusAsync =
             ref.watch(editorSyncStatusProvider(widget.tripId));
+        final trackingRuntimeAsync =
+            ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -161,6 +169,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     onMore: () {},
                   ),
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
+                  _buildLiveTrackingControlStrip(trackingRuntimeAsync),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -428,6 +437,164 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  Widget _buildLiveTrackingControlStrip(
+    AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
+  ) {
+    final hasRuntimeSnapshot = trackingRuntimeAsync.hasValue;
+    final snapshot = trackingRuntimeAsync.valueOrNull;
+    final runtimeState =
+        hasRuntimeSnapshot ? snapshot!.state : LiveTrackingRuntimeState.planned;
+    final subtitle = trackingRuntimeAsync.when(
+      data: _liveTrackingSubtitle,
+      loading: () => 'Checking tracking state...',
+      error: (_, __) => 'Tracking state unavailable. Retry once sync recovers.',
+    );
+
+    return LiveTrackingControlStrip(
+      runtimeState: runtimeState,
+      isBusy: _trackingActionInFlight,
+      controlsEnabled: hasRuntimeSnapshot,
+      busyLabel: _trackingActionLabel,
+      subtitle: subtitle,
+      onStart: () => unawaited(
+        _runLiveTrackingAction(
+          busyLabel: 'Starting...',
+          successMessage: 'Live tracking started.',
+          action: (coordinator) async {
+            await coordinator.startTracking(tripId: widget.tripId);
+            return true;
+          },
+        ),
+      ),
+      onPause: () => unawaited(
+        _runLiveTrackingAction(
+          busyLabel: 'Pausing...',
+          successMessage: 'Live tracking paused.',
+          noOpMessage: 'No active tracking session to pause.',
+          action: (coordinator) async {
+            final paused =
+                await coordinator.pauseTracking(tripId: widget.tripId);
+            return paused != null;
+          },
+        ),
+      ),
+      onResume: () => unawaited(
+        _runLiveTrackingAction(
+          busyLabel: 'Resuming...',
+          successMessage: 'Live tracking resumed.',
+          noOpMessage: 'No paused tracking session to resume.',
+          action: (coordinator) async {
+            final resumed =
+                await coordinator.resumeTracking(tripId: widget.tripId);
+            return resumed != null;
+          },
+        ),
+      ),
+      onStop: () => unawaited(
+        _runLiveTrackingAction(
+          busyLabel: 'Stopping...',
+          successMessage: 'Live tracking stopped.',
+          noOpMessage: 'No active or paused session to stop.',
+          action: (coordinator) async {
+            final stopped =
+                await coordinator.stopTracking(tripId: widget.tripId);
+            return stopped != null;
+          },
+        ),
+      ),
+    );
+  }
+
+  String _liveTrackingSubtitle(LiveTrackingRuntimeSnapshot snapshot) {
+    final lastPoint = snapshot.lastPointAt;
+    switch (snapshot.state) {
+      case LiveTrackingRuntimeState.active:
+        if (lastPoint != null) {
+          return 'Active. Last point at ${_formatTime(lastPoint)}.';
+        }
+        return 'Active. Waiting for first location sample.';
+      case LiveTrackingRuntimeState.paused:
+        if (lastPoint != null) {
+          return 'Paused. Last point at ${_formatTime(lastPoint)}.';
+        }
+        return 'Paused. Resume when you continue moving.';
+      case LiveTrackingRuntimeState.ended:
+        return 'Session ended. Start a new session to continue capture.';
+      case LiveTrackingRuntimeState.planned:
+        return 'Not started. Start tracking to capture route progress.';
+    }
+  }
+
+  String _formatTime(DateTime value) {
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  Future<void> _runLiveTrackingAction({
+    required String busyLabel,
+    required String successMessage,
+    String? noOpMessage,
+    required Future<bool> Function(LiveTrackingCaptureCoordinator coordinator)
+        action,
+  }) async {
+    if (_trackingActionInFlight || !mounted) {
+      return;
+    }
+    setState(() {
+      _trackingActionInFlight = true;
+      _trackingActionLabel = busyLabel;
+    });
+    try {
+      final coordinator = ref.read(liveTrackingCaptureCoordinatorProvider);
+      final didApply = await action(coordinator);
+      if (!mounted) {
+        return;
+      }
+      final feedback = didApply
+          ? successMessage
+          : (noOpMessage ?? 'No tracking state change was required.');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(feedback),
+        duration: const Duration(seconds: 2),
+      ));
+    } on LiveTrackingCaptureException catch (error) {
+      await _handleLiveTrackingCaptureException(error);
+    } catch (_) {
+      _showLocationMessage('Live tracking action failed. Try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _trackingActionInFlight = false;
+          _trackingActionLabel = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLiveTrackingCaptureException(
+    LiveTrackingCaptureException error,
+  ) async {
+    if (!mounted) {
+      return;
+    }
+    switch (error.code) {
+      case 'location_service_disabled':
+        await _promptToEnableLocationServices();
+        return;
+      case 'location_permission_denied_forever':
+        await _promptToOpenAppSettings();
+        return;
+      case 'location_permission_denied':
+        _showLocationMessage('Location permission denied.');
+        return;
+      default:
+        _showLocationMessage(error.message);
+        return;
+    }
+  }
+
   Future<void> _resolveDeviceCenter() async {
     final locationResult = await ref
         .read(locationServiceProvider)
@@ -620,7 +787,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         foregroundColor: AppColors.textSecondary,
                         side: const BorderSide(color: AppColors.divider),
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                        shape: const RoundedRectangleBorder(
                           borderRadius: AppRadius.borderMd,
                         ),
                       ),
@@ -635,7 +802,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         backgroundColor: AppColors.accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                        shape: const RoundedRectangleBorder(
                           borderRadius: AppRadius.borderMd,
                         ),
                       ),

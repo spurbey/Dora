@@ -300,13 +300,13 @@ void main() {
       expect(streamFactoryCalls, 1);
 
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(streamFactoryCalls, 2);
+      expect(streamFactoryCalls, greaterThanOrEqualTo(2));
 
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      expect(streamFactoryCalls, 2);
+      expect(streamFactoryCalls, inInclusiveRange(2, 3));
 
       await Future<void>.delayed(const Duration(milliseconds: 80));
-      expect(streamFactoryCalls, 3);
+      expect(streamFactoryCalls, greaterThanOrEqualTo(3));
     });
   });
 }

@@ -1159,6 +1159,54 @@ Use this section after each phase:
 - Known failures/waivers:
   - Full background capture/terminated-state runtime policy is still pending later Phase 5 slices.
 
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 1 editor control surface
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_control_strip.dart test/features/create/live_tracking_control_strip_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
+  - `cd flutter; flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 15 passed)
+- Manual checks run:
+  - Added visible live-tracking control strip to editor UI:
+    - file: `flutter/lib/features/create/presentation/widgets/live_tracking_control_strip.dart`
+    - explicit state/action surface for `planned/active/paused/ended`
+    - actions: `Start`, `Pause`, `Resume`, `Stop`
+  - Wired control strip into `EditorScreen`:
+    - file: `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+    - reads runtime state from `liveTrackingRuntimeSnapshotProvider`
+    - executes control actions through `liveTrackingCaptureCoordinatorProvider`
+    - shows action progress + success feedback
+    - maps capture permission/service errors to existing location recovery UX dialogs/snackbars
+  - Added widget coverage for control-state rendering and busy-state disabling:
+    - file: `flutter/test/features/create/live_tracking_control_strip_test.dart`
+- Result summary:
+  - First user-visible Phase 6 slice is in place: editor now exposes live-tracking controls and current runtime status.
+  - UX integration remains incremental; map polyline overlays and candidate/inbox interaction surfaces are next Phase 6 slices.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 1 hardening follow-up (control readiness + no-op feedback)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_control_strip.dart test/features/create/live_tracking_control_strip_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
+  - `cd flutter; flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 16 passed)
+- Manual checks run:
+  - Addressed no-op success feedback ambiguity in editor tracking actions:
+    - `pause/resume/stop` handlers now return whether a state mutation was actually applied.
+    - success snackbar is shown only when applied; otherwise a no-op message is shown.
+    - file: `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - Addressed premature control enablement while runtime state is unresolved:
+    - live-tracking control strip is disabled unless runtime snapshot is loaded.
+    - loading/error subtitle remains visible, but actions are not tappable.
+    - files:
+      - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+      - `flutter/lib/features/create/presentation/widgets/live_tracking_control_strip.dart`
+  - Added widget regression for unavailable-runtime disabled controls:
+    - file: `flutter/test/features/create/live_tracking_control_strip_test.dart`
+- Result summary:
+  - Phase 6 control surface now avoids misleading no-op success messaging and blocks actions until runtime state is known.
+  - This closes the medium-severity UX correctness findings from review for the current slice.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
 ## 12. Risk Register
 
 Track only active risks:

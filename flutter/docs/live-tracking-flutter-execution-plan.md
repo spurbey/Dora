@@ -576,3 +576,59 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Addresses trip-sync findings on ingestion race risk, start-session concurrency safety, and stream retry hot-loop risk.
   - Background capture policy for terminated-state continuation still belongs to later Phase 5 slices.
+
+- Date: 2026-03-25
+- Slice: Phase 6 UX/map integration - editor live-tracking controls (slice 1)
+- Implemented:
+  - Added new UI component:
+    - `lib/features/create/presentation/widgets/live_tracking_control_strip.dart`
+    - explicit control states and actions for `planned/active/paused/ended`
+    - action affordances:
+      - `planned/ended` -> `Start Tracking` / `Start New Session`
+      - `active` -> `Pause`, `Stop`
+      - `paused` -> `Resume`, `Stop`
+    - busy-state progress indicator + disabled action guard while mutation is in flight
+  - Wired control strip into editor surface:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - subscribes to `liveTrackingRuntimeSnapshotProvider(tripId)` for runtime state/subtitle
+    - executes action mutations via `liveTrackingCaptureCoordinatorProvider`
+    - added user feedback for action success/failure
+    - capture permission/service errors map to existing location recovery UX:
+      - service disabled -> open location settings prompt
+      - denied forever -> open app settings prompt
+      - denied -> snackbar feedback
+  - Added widget tests:
+    - `test/features/create/live_tracking_control_strip_test.dart`
+    - verifies action surface by state and busy-state disabling behavior
+  - Stabilized existing capture backoff timing assertion to reduce test flakiness:
+    - `test/features/create/live_tracking_capture_coordinator_test.dart`
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_control_strip.dart test/features/create/live_tracking_control_strip_test.dart` (pass; 2 existing info-level lints in `editor_screen.dart`)
+  - `cd flutter; flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 15 passed)
+- Decision notes:
+  - This slice intentionally delivers the first visible user controls before map-path/candidate UX.
+  - Next Phase 6 slices should add live path overlay rendering and candidate/inbox action surfaces.
+
+- Date: 2026-03-25
+- Slice: Phase 6 editor controls hardening (post-review)
+- Implemented:
+  - Hardened editor action feedback semantics in:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - `_runLiveTrackingAction(...)` now consumes boolean action-apply results.
+    - `pause/resume/stop` flows provide explicit `noOpMessage` feedback when no valid transition/session is available instead of unconditional success toast.
+  - Hardened control readiness gating:
+    - runtime controls are disabled until `liveTrackingRuntimeSnapshotProvider(tripId)` resolves to data.
+    - loading/error states continue to show explanatory subtitle text while action taps are blocked.
+  - Extended control-strip API:
+    - `lib/features/create/presentation/widgets/live_tracking_control_strip.dart`
+    - new `controlsEnabled` property decouples action availability from `isBusy`.
+  - Added widget regression coverage:
+    - `test/features/create/live_tracking_control_strip_test.dart`
+    - verifies controls are disabled when runtime state is unavailable.
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_control_strip.dart test/features/create/live_tracking_control_strip_test.dart` (pass; 2 existing info-level lints in `editor_screen.dart`)
+  - `cd flutter; flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 16 passed)
+- Decision notes:
+  - Fixes both medium review findings for this slice:
+    - no-op success messaging ambiguity
+    - controls enabled before runtime state readiness.

@@ -112,6 +112,7 @@ class NotificationDispatchResult:
     retryable_failures: int
     terminal_failures: int
     skipped_no_tokens: int
+    suppressed_foreground: int
     transport_unavailable: int
 
 
@@ -369,7 +370,7 @@ def _active_notification_filter():
     notification_status = TripCheckinCandidate.payload["notification_status"].astext
     return or_(
         notification_status.is_(None),
-        notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens"]),
+        notification_status.notin_(["sent", "terminal_failure", "skipped_no_tokens", "suppressed_foreground"]),
     )
 
 
@@ -591,7 +592,7 @@ def _upsert_tracking_notification(
         if notification.last_error != last_error:
             notification.last_error = last_error
             changed = True
-    elif delivery_state in {"sent", "acted", "no_tokens"}:
+    elif delivery_state in {"sent", "acted", "no_tokens", "suppressed_foreground"}:
         if notification.last_error is not None:
             notification.last_error = None
             changed = True
@@ -921,6 +922,7 @@ def dispatch_candidate_notifications(
     retryable = 0
     terminal = 0
     skipped_no_tokens = 0
+    suppressed_foreground = 0
     transport_unavailable = 0
 
     for candidate in candidates:
@@ -930,7 +932,7 @@ def dispatch_candidate_notifications(
             continue
 
         status_value = payload.get("notification_status", "pending")
-        if status_value in {"sent", "terminal_failure", "skipped_no_tokens"}:
+        if status_value in {"sent", "terminal_failure", "skipped_no_tokens", "suppressed_foreground"}:
             continue
 
         _upsert_tracking_notification(
@@ -976,6 +978,14 @@ def dispatch_candidate_notifications(
             push_error = None
             push_delivered = True
             sent += 1
+        elif dispatch.status == "suppressed_foreground":
+            payload["notification_status"] = "suppressed_foreground"
+            payload["notification_last_error"] = None
+            payload["notification_next_attempt_at"] = None
+            push_state = "suppressed_foreground"
+            push_error = None
+            push_delivered = False
+            suppressed_foreground += 1
         elif dispatch.status == "no_tokens":
             payload["notification_status"] = "skipped_no_tokens"
             payload["notification_last_error"] = "no_active_tokens"
@@ -1032,6 +1042,7 @@ def dispatch_candidate_notifications(
         retryable_failures=retryable,
         terminal_failures=terminal,
         skipped_no_tokens=skipped_no_tokens,
+        suppressed_foreground=suppressed_foreground,
         transport_unavailable=transport_unavailable,
     )
 
@@ -1167,6 +1178,7 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         retryable_failures=0,
         terminal_failures=0,
         skipped_no_tokens=0,
+        suppressed_foreground=0,
         transport_unavailable=0,
     )
     try:
@@ -1213,6 +1225,7 @@ def run_worker_cycle(db: Session) -> dict[str, int]:
         "notifications_retryable_failures": dispatch.retryable_failures,
         "notifications_terminal_failures": dispatch.terminal_failures,
         "notifications_skipped_no_tokens": dispatch.skipped_no_tokens,
+        "notifications_suppressed_foreground": dispatch.suppressed_foreground,
         "notifications_transport_unavailable": dispatch.transport_unavailable,
         "auto_ended_sessions": auto_end.auto_ended_sessions,
     }

@@ -663,6 +663,61 @@ def test_dispatch_candidate_notifications_records_inbox_when_push_has_no_tokens(
     assert push_row.attempt_count == 1
 
 
+def test_foreground_suppression_policy_is_terminal_for_candidate_push(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.75,
+        suggested_name="Foreground active candidate",
+        payload={},
+    )
+    db.add(candidate)
+    db.flush()
+
+    handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    suppressed_service = _FakePushService(status="suppressed_foreground")
+
+    first = dispatch_candidate_notifications(
+        db,
+        push_service=suppressed_service,
+        now=datetime.now(timezone.utc),
+    )
+    db.flush()
+
+    assert first.attempted_count == 1
+    assert first.suppressed_foreground == 1
+    assert suppressed_service.calls == 1
+    assert (candidate.payload or {}).get("notification_status") == "suppressed_foreground"
+
+    push_row = (
+        db.query(TripTrackingNotification)
+        .filter(
+            TripTrackingNotification.candidate_id == candidate.id,
+            TripTrackingNotification.channel == "push",
+        )
+        .first()
+    )
+    assert push_row is not None
+    assert push_row.delivery_state == "suppressed_foreground"
+
+    sent_service = _FakePushService(status="sent")
+    second = dispatch_candidate_notifications(
+        db,
+        push_service=sent_service,
+        now=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    db.flush()
+    assert second.attempted_count == 0
+    assert second.sent_count == 0
+    assert sent_service.calls == 0
+
+
 def test_no_tokens_policy_is_terminal_for_candidate_push(db, test_user):
     trip = _create_trip(db, user_id=test_user.id)
     session = _create_session(db, trip_id=trip.id, user_id=test_user.id)

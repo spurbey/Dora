@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band; moment UX and full map matching pending |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression; moment UX and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1427,6 +1427,34 @@ Use this section after each phase:
   - This aligns live-tracking behavior with product intent: user prompts only for uncertain states.
 - Known failures/waivers:
   - Confidence band is static and global; trip/user adaptive calibration remains future hardening work.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 5 foreground-aware push suppression (step-7 execution)
+- Automated tests run:
+  - `cd backend; & .\venv\Scripts\activate; alembic upgrade head` (pass)
+  - `cd backend; & .\venv\Scripts\activate; alembic check` (pass: `No new upgrade operations detected`)
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 40 passed)
+- Manual checks run:
+  - Added push-service suppression rule:
+    - `backend/app/services/push_service.py`
+    - if any active token was seen within `TRACKING_PUSH_SUPPRESS_RECENT_ACTIVITY_SECONDS`, push dispatch returns `suppressed_foreground`.
+  - Added config knob:
+    - `backend/app/config.py` (`TRACKING_PUSH_SUPPRESS_RECENT_ACTIVITY_SECONDS=120` default)
+  - Added worker support for suppressed terminal state:
+    - `backend/app/workers/live_tracking_worker.py`
+    - marks `notification_status='suppressed_foreground'`
+    - excludes this status from future retries/dispatch scans
+    - reports summary metric `notifications_suppressed_foreground`.
+  - Added schema support for new notification delivery state:
+    - `backend/app/models/trip_tracking_notification.py`
+    - `backend/alembic/versions/f8e2a1d9c4b7_add_suppressed_foreground_notification_state.py`
+  - Added regression coverage:
+    - `backend/tests/test_live_tracking_worker.py`
+    - `test_foreground_suppression_policy_is_terminal_for_candidate_push`
+- Result summary:
+  - Push prompts are now skipped when app/device activity is recent, preserving inbox parity while reducing redundant foreground notifications.
+- Known failures/waivers:
+  - Foreground inference is token-seen-time based (heartbeat approximation), not a real-time app-presence channel yet.
 
 ## 12. Risk Register
 

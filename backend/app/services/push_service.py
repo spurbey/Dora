@@ -11,7 +11,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -121,6 +121,19 @@ class PushNotificationService:
             .all()
         )
 
+    def _has_recent_activity(self, *, tokens: list[UserDeviceToken], as_of: datetime) -> bool:
+        window_seconds = int(getattr(settings, "TRACKING_PUSH_SUPPRESS_RECENT_ACTIVITY_SECONDS", 0))
+        if window_seconds <= 0:
+            return False
+        cutoff = as_of - timedelta(seconds=window_seconds)
+        for token in tokens:
+            seen_at = token.last_seen_at
+            if seen_at is None:
+                continue
+            if self._to_utc(seen_at) >= cutoff:
+                return True
+        return False
+
     def send_candidate_notification(
         self,
         *,
@@ -131,6 +144,8 @@ class PushNotificationService:
         tokens = self._active_tokens(user_id=candidate.user_id)
         if not tokens:
             return PushDispatchResult(status="no_tokens")
+        if self._has_recent_activity(tokens=tokens, as_of=as_of):
+            return PushDispatchResult(status="suppressed_foreground")
 
         app = self._get_firebase_app()
         if app is None or messaging is None:

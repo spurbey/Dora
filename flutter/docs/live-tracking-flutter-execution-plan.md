@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-6 in progress)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-7 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -836,3 +836,25 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Flutter inbox/prompt surfaces stay unchanged; expected candidate/push volume should decrease for high-confidence inferred stops.
   - If product later wants adaptive per-user confidence bands, this contract can be extended without client API changes.
+
+- Date: 2026-03-25
+- Slice: Phase 6 foreground push suppression policy (ordered step 7, backend hardening)
+- Implemented:
+  - Added backend suppression for recently active users:
+    - `backend/app/services/push_service.py`
+    - returns `suppressed_foreground` instead of sending push when token `last_seen_at` is within configured recent-activity window.
+  - Added config and worker wiring:
+    - `backend/app/config.py` (`TRACKING_PUSH_SUPPRESS_RECENT_ACTIVITY_SECONDS`)
+    - `backend/app/workers/live_tracking_worker.py` terminal handling + summary metric.
+  - Added schema and migration support for new state:
+    - `backend/app/models/trip_tracking_notification.py`
+    - `backend/alembic/versions/f8e2a1d9c4b7_add_suppressed_foreground_notification_state.py`
+  - Added backend regression coverage:
+    - `backend/tests/test_live_tracking_worker.py`
+- Validation:
+  - `cd backend; & .\venv\Scripts\activate; alembic upgrade head` (pass)
+  - `cd backend; & .\venv\Scripts\activate; alembic check` (pass)
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 40 passed)
+- Decision notes:
+  - This reduces redundant push while user is likely in-app, with inbox fallback still preserved.
+  - True foreground/online presence channel is still future scope; current policy uses token seen-time as pragmatic signal.

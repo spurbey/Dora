@@ -56,7 +56,7 @@ class TripTrackingNotification(Base):
         String(32),
         nullable=False,
         default="pending",
-        comment="pending|sent|retryable_failure|transport_unavailable|no_tokens|terminal_failure|acted",
+        comment="pending|sent|retryable_failure|transport_unavailable|no_tokens|suppressed_foreground|terminal_failure|acted",
     )
     attempt_count = Column(
         Integer,
@@ -116,6 +116,7 @@ class TripTrackingNotification(Base):
                 "'retryable_failure',"
                 "'transport_unavailable',"
                 "'no_tokens',"
+                "'suppressed_foreground',"
                 "'terminal_failure',"
                 "'acted'"
                 ")"
@@ -130,4 +131,3 @@ class TripTrackingNotification(Base):
         Index("idx_tracking_notifications_trip_created", "trip_id", "created_at"),
         Index("idx_tracking_notifications_channel_state", "channel", "delivery_state", "created_at"),
     )
-

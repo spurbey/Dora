@@ -125,8 +125,9 @@ final liveTrackingRemotePathPointsProvider =
               yield points;
             }
           } catch (_) {
-            if (previous == null) {
-              previous = const <AppLatLng>[];
+            const fallback = <AppLatLng>[];
+            if (previous == null || !_sameCoordinates(previous, fallback)) {
+              previous = fallback;
               yield previous;
             }
           }

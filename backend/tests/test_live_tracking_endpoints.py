@@ -444,6 +444,37 @@ def test_tracking_path_endpoint_orders_and_filters_points(client, db, test_user,
     assert last["longitude"] == pytest.approx(85.3243)
 
 
+def test_tracking_path_endpoint_returns_latest_points_when_limited(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Path Endpoint Limit")
+    session = create_session(db, trip.id, test_user.id, state="active")
+    base = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+    for offset in range(6):
+        create_point(
+            db,
+            trip_id=trip.id,
+            session_id=session.id,
+            user_id=test_user.id,
+            recorded_at=base + timedelta(seconds=offset),
+            latitude=27.7 + (offset * 0.0001),
+            longitude=85.3 + (offset * 0.0001),
+            accuracy_m=5.0,
+        )
+
+    response = client.get(
+        f"/api/v1/trips/{trip.id}/tracking/path",
+        params={"session_id": str(session.id), "limit": 3},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["points_count"] == 3
+    recorded_at = [datetime.fromisoformat(point["recorded_at"]) for point in data["points"]]
+    assert recorded_at[0] == base + timedelta(seconds=3)
+    assert recorded_at[-1] == base + timedelta(seconds=5)
+
+
 def test_pending_checkins_filters_snoozed_until(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = create_trip(db, test_user.id, title="Pending Checkins")

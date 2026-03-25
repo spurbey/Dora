@@ -627,10 +627,11 @@ class LiveTrackingService:
                 TripLocationPoint.user_id == user_id,
                 TripLocationPoint.session_id == session.id,
             )
-            .order_by(TripLocationPoint.recorded_at.asc())
+            .order_by(TripLocationPoint.recorded_at.desc())
             .limit(clamped_limit)
             .all()
         )
+        rows.sort(key=lambda row: row.recorded_at)
 
         max_accuracy = float(settings.TRACKING_POINT_MAX_ACCURACY_M)
         max_speed_mps = 55.0

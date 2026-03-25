@@ -203,6 +203,52 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 120));
       expect(api.fetchCalls, greaterThanOrEqualTo(2));
     });
+
+    test('falls back to empty remote path when fetch fails', () async {
+      final runtimeController =
+          StreamController<LiveTrackingRuntimeSnapshot>.broadcast();
+      final api = _FlakyLiveTrackingApi();
+      final container = ProviderContainer(
+        overrides: [
+          liveTrackingRuntimeSnapshotProvider('trip-4').overrideWith(
+            (ref) => runtimeController.stream,
+          ),
+          liveTrackingApiProvider.overrideWith((ref) => api),
+          liveTrackingRemotePathRefreshIntervalProvider(
+            LiveTrackingRuntimeState.active,
+          ).overrideWith((ref) => const Duration(milliseconds: 30)),
+        ],
+      );
+      addTearDown(() async {
+        await runtimeController.close();
+        container.dispose();
+      });
+
+      final updates = <List<AppLatLng>>[];
+      final sub = container.listen<AsyncValue<List<AppLatLng>>>(
+        liveTrackingRemotePathPointsProvider('trip-4'),
+        (_, next) {
+          final value = next.valueOrNull;
+          if (value != null) {
+            updates.add(value);
+          }
+        },
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
+
+      runtimeController.add(
+        const LiveTrackingRuntimeSnapshot(
+          tripId: 'trip-4',
+          state: LiveTrackingRuntimeState.active,
+          sessionId: 'session-4',
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 160));
+      expect(updates.any((list) => list.isNotEmpty), isTrue);
+      expect(updates.last, isEmpty);
+    });
   });
 }
 
@@ -225,6 +271,151 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
         <String, dynamic>{'latitude': 10.1, 'longitude': 20.1},
       ],
     };
+  }
+
+  @override
+  Future<Map<String, dynamic>> startTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> pauseTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime pausedAt,
+    String? sessionId,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> resumeTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime resumedAt,
+    String? sessionId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime stoppedAt,
+    String? sessionId,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadPointsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required String sessionId,
+    required String clientBatchId,
+    required DateTime sentAt,
+    required List<Map<String, dynamic>> points,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> confirmCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime confirmedAt,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rejectCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime rejectedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> snoozeCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime snoozedUntil,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> createMoment({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime capturedAt,
+    String? note,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateMoment({
+    required String momentId,
+    required String idempotencyKey,
+    required String clientEventId,
+    DateTime? capturedAt,
+    String? note,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _FlakyLiveTrackingApi implements LiveTrackingApi {
+  var _calls = 0;
+
+  @override
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  }) async {
+    _calls += 1;
+    if (_calls == 1) {
+      return <String, dynamic>{
+        'trip_id': tripId,
+        'session_id': sessionId ?? 'session-4',
+        'points_count': 2,
+        'points': const <Map<String, dynamic>>[
+          <String, dynamic>{'latitude': 10.0, 'longitude': 20.0},
+          <String, dynamic>{'latitude': 10.1, 'longitude': 20.1},
+        ],
+      };
+    }
+    throw Exception('network');
   }
 
   @override

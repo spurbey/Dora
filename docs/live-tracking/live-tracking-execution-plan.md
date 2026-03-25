@@ -1,6 +1,6 @@
 # Live Tracking Detailed Execution Plan
 
-Last updated: 2026-03-24  
+Last updated: 2026-03-25  
 Status: Active execution plan (phase-gated)
 
 ## 1. Purpose
@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | Not Started | Live controls + candidate/moment UX | Widget/integration flows |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Widget/integration flows |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1184,6 +1184,29 @@ Use this section after each phase:
   - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
 
 - Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 2 hardening follow-up (overlay provider lifecycle + integration coverage)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/providers/live_tracking_runtime_provider.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 21 passed)
+- Manual checks run:
+  - Accepted review finding that overlay decoding work should not run on every `EditorScreen` rebuild.
+  - Moved overlay computation into provider layer:
+    - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - added `liveTrackingMapOverlayProvider(tripId)` with `select(...)` dependency narrowing to `(state, sessionId)` so unrelated runtime field updates do not force overlay rebuild.
+  - Hardened session batch watcher lifecycle:
+    - changed `liveTrackingSessionBatchesProvider` to `autoDispose` family to avoid stale session stream watchers accumulating in long-lived containers.
+  - Updated editor rendering path to consume precomputed overlay provider output:
+    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - Added provider-integration test for near-real-time continuity under stream updates:
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+- Result summary:
+  - Overlay rebuild pressure is now decoupled from generic screen rebuilds and narrowed to relevant provider dependency changes.
+  - Session batch stream lifecycle is scoped to active listeners, reducing stale watcher retention risk.
+  - Integration-level provider continuity is now covered in tests alongside pure overlay builder tests.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
+- Date: 2026-03-25
 - Phase: 6 (Flutter UX/Map) slice 1 hardening follow-up (control readiness + no-op feedback)
 - Automated tests run:
   - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_control_strip.dart test/features/create/live_tracking_control_strip_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
@@ -1204,6 +1227,28 @@ Use this section after each phase:
 - Result summary:
   - Phase 6 control surface now avoids misleading no-op success messaging and blocks actions until runtime state is known.
   - This closes the medium-severity UX correctness findings from review for the current slice.
+- Known failures/waivers:
+  - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 2 live map overlay wiring
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_point_batch_dao.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart lib/features/create/presentation/live_tracking_map_overlay.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_map_overlay_test.dart` (pass; existing info-level lint reminders in `editor_screen.dart` remain)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 20 passed)
+- Manual checks run:
+  - Added streaming DAO/provider path for session point batches:
+    - `flutter/lib/core/storage/daos/tracking_point_batch_dao.dart`
+    - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+  - Added map overlay builder for live path + current marker, with malformed payload tolerance and consecutive-point dedupe:
+    - `flutter/lib/features/create/presentation/live_tracking_map_overlay.dart`
+  - Wired overlay rendering into editor map while keeping map provider state untouched:
+    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+    - live route/marker overlays are composed in UI from runtime snapshot + session batches
+  - Added focused overlay unit tests:
+    - `flutter/test/features/create/live_tracking_map_overlay_test.dart`
+- Result summary:
+  - Phase 6 now includes both control surface and live path/current-location map rendering on editor.
+  - Overlay integration avoids cross-provider DB coupling in map-provider tests by composing at the screen layer.
 - Known failures/waivers:
   - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
 

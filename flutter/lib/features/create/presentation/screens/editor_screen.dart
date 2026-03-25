@@ -9,6 +9,7 @@ import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
+import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -17,7 +18,6 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
-import 'package:dora/features/create/domain/map_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
@@ -127,9 +127,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final initialCenter =
             mapState.center ?? _deviceCenter ?? _defaultEditorCenter;
         final initialZoom = mapState.zoom ?? 12.0;
-        final markers = _mediaFocusMarker == null
-            ? mapState.markers
-            : [...mapState.markers, _mediaFocusMarker!];
+        final liveMapOverlay = ref.watch(
+          liveTrackingMapOverlayProvider(widget.tripId),
+        );
+        final markers = [
+          ...mapState.markers,
+          if (liveMapOverlay.currentMarker != null)
+            liveMapOverlay.currentMarker!,
+          if (_mediaFocusMarker != null) _mediaFocusMarker!,
+        ];
+        final routes = [
+          ...mapState.routes,
+          if (liveMapOverlay.pathRoute != null) liveMapOverlay.pathRoute!,
+        ];
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
@@ -174,8 +184,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     child: isWide
                         ? _buildWideLayout(
                             editor,
-                            mapState,
                             markers,
+                            routes,
                             controller,
                             initialCenter,
                             initialZoom,
@@ -185,8 +195,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             selectedPlaceId)
                         : _buildMobileLayout(
                             editor,
-                            mapState,
                             markers,
+                            routes,
                             controller,
                             initialCenter,
                             initialZoom,
@@ -928,8 +938,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Widget _buildWideLayout(
     EditorState editor,
-    MapState mapState,
     List<AppMarker> markers,
+    List<AppRoute> routes,
     EditorController controller,
     AppLatLng initialCenter,
     double initialZoom,
@@ -980,7 +990,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 initialCenter: initialCenter,
                 initialZoom: initialZoom,
                 markers: markers,
-                routes: mapState.routes,
+                routes: routes,
                 mode: editor.mode,
                 routeStartItemId: editor.routeStartItemId,
                 onModeChanged: (mode) {
@@ -1047,8 +1057,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Widget _buildMobileLayout(
     EditorState editor,
-    MapState mapState,
     List<AppMarker> markers,
+    List<AppRoute> routes,
     EditorController controller,
     AppLatLng initialCenter,
     double initialZoom,
@@ -1067,7 +1077,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           initialCenter: initialCenter,
           initialZoom: initialZoom,
           markers: markers,
-          routes: mapState.routes,
+          routes: routes,
           mode: editor.mode,
           routeStartItemId: editor.routeStartItemId,
           onModeChanged: (mode) {

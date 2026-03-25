@@ -26,6 +26,18 @@ class TrackingPointBatchDao extends DatabaseAccessor<AppDatabase>
             ]))
           .get();
 
+  Stream<List<TrackingPointBatchRow>> watchBatchesForSession(
+          String sessionId) =>
+      (select(trackingPointBatches)
+            ..where((b) => b.sessionId.equals(sessionId))
+            ..orderBy([
+              (b) => OrderingTerm(
+                    expression: b.createdAt,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .watch();
+
   Future<TrackingPointBatchRow?> getLatestMutableBatchForSession(
     String sessionId,
   ) =>

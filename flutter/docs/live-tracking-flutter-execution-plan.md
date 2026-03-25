@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
-Last updated: 2026-03-24  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress)  
+Last updated: 2026-03-25  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-2 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -52,7 +52,7 @@ Current Flutter baseline (already present):
 4. `tracking_point_batch` is already split into a non-interactive lane.
 5. Entity sync worker exists for `trip/place/route` only.
 6. Location foundation is currently single-shot/permission utilities (no continuous runtime engine yet).
-7. Map UI exists in editor and trip detail surfaces, but no live-tracking overlays/controls yet.
+7. Map UI exists in editor and trip detail surfaces; editor now has live-tracking controls and live path/current-marker overlay, while candidate/moment UX remains pending.
 8. OpenAPI generated client package exists, but live-tracking APIs are not yet wired in Flutter.
 
 ## 4. Non-Negotiable Flutter Rules
@@ -632,3 +632,50 @@ After each Flutter live-tracking slice:
   - Fixes both medium review findings for this slice:
     - no-op success messaging ambiguity
     - controls enabled before runtime state readiness.
+
+- Date: 2026-03-25
+- Slice: Phase 6 UX/map integration - live path overlay wiring (slice 2)
+- Implemented:
+  - Added streaming session batch query for UI overlay composition:
+    - `lib/core/storage/daos/tracking_point_batch_dao.dart` (`watchBatchesForSession`)
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart` (`liveTrackingSessionBatchesProvider`)
+  - Added live map overlay builder:
+    - `lib/features/create/presentation/live_tracking_map_overlay.dart`
+    - builds:
+      - live path route (`_live_tracking_path_<sessionId>`) when at least 2 points exist
+      - live current marker (`_live_tracking_current_<sessionId>`) from last valid point
+    - resilient to malformed/non-list JSON payloads and invalid lat/lng rows
+    - dedupes consecutive duplicate coordinates to avoid noisy polyline segments
+  - Wired overlay into editor map rendering:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - composes overlay markers/routes at screen layer (keeps `map_provider` contract unchanged)
+  - Added dedicated unit tests:
+    - `test/features/create/live_tracking_map_overlay_test.dart`
+    - covers empty/planned behavior, marker-only behavior, route+marker behavior, malformed payload tolerance, and dedupe semantics
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/core/storage/daos/tracking_point_batch_dao.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart lib/features/create/presentation/live_tracking_map_overlay.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_map_overlay_test.dart` (pass; 2 existing info-level lints in `editor_screen.dart`)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 20 passed)
+- Decision notes:
+  - Overlay composition stays in `EditorScreen` instead of `map_provider` to avoid introducing local-DB runtime dependencies into pure map-state provider tests.
+
+- Date: 2026-03-25
+- Slice: Phase 6 live map overlay hardening (provider lifecycle + continuity test)
+- Implemented:
+  - Moved overlay computation to provider layer:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - new `liveTrackingMapOverlayProvider(tripId)` composes runtime + session batches.
+  - Added dependency narrowing for overlay recomputation:
+    - provider watches only `(runtime state, sessionId)` from `liveTrackingRuntimeSnapshotProvider(...)` via `select(...)`.
+    - avoids full overlay rebuild on unrelated runtime field churn.
+  - Hardened session-batch watcher lifecycle:
+    - `liveTrackingSessionBatchesProvider` changed to `StreamProvider.autoDispose.family`.
+  - Updated editor to read precomputed overlay provider output:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+  - Added provider-integration test:
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies near-real-time overlay continuity as runtime and batch streams update.
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/providers/live_tracking_runtime_provider.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass; 2 existing info-level lints in `editor_screen.dart`)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart` (pass: 21 passed)
+- Decision notes:
+  - This addresses the review concerns about rebuild pressure, stale session watcher retention, and missing provider integration coverage without introducing map-provider/runtime coupling.

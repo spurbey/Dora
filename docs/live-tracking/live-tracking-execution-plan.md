@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 landed; moment UX and full map matching pending |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band; moment UX and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1383,6 +1383,50 @@ Use this section after each phase:
 - Known failures/waivers:
   - Remote path fetch is currently on provider refresh boundaries, not an explicit polling cadence.
   - Full road-snapped map matching is still pending.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 4 remote-path polling cadence hardening (step-5 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_provider_test.dart test/core/network/live_tracking_api_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 10 passed)
+- Manual checks run:
+  - Added state-aware remote-path refresh policy provider:
+    - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - active session poll every `12s`, paused poll every `30s`, ended fetch once.
+  - Converted remote path fetch from one-shot future to stream polling with dedupe:
+    - avoids redundant overlay rebuilds when coordinates are unchanged.
+    - preserves local overlay fallback if remote request fails.
+  - Added polling regression coverage:
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies repeated remote fetch while tracking is active.
+- Result summary:
+  - Remote-path overlay now updates on explicit cadence, closing the stale-refresh gap from prior slice.
+  - Network usage remains bounded by state-aware intervals.
+- Known failures/waivers:
+  - Cadence is currently static constants; adaptive/network-aware tuning remains future hardening.
+  - Full road-snapped map matching is still pending.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 5 notification-policy tuning (step-6 execution)
+- Automated tests run:
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 39 passed)
+- Manual checks run:
+  - Replaced one-sided notification confidence threshold with ambiguity band config:
+    - `backend/app/config.py`
+    - `TRACKING_NOTIFICATION_CONFIDENCE_MIN=0.35`
+    - `TRACKING_NOTIFICATION_CONFIDENCE_MAX=0.85`
+  - Updated worker notification selection logic to use confidence band:
+    - `backend/app/workers/live_tracking_worker.py`
+    - backlog counting, handoff, dispatch, and inference-side candidate notification tagging now all use the same confidence filter.
+  - Added regression lock for high-confidence suppression:
+    - `backend/tests/test_live_tracking_worker.py`
+    - `test_handoff_candidate_notifications_skips_high_confidence_auto_candidates`
+  - Updated notification-related worker tests to use in-band confidence fixtures.
+- Result summary:
+  - Push/inbox prompts are now focused on ambiguous candidates; very high-confidence candidates remain auto-compiled without notification noise.
+  - This aligns live-tracking behavior with product intent: user prompts only for uncertain states.
+- Known failures/waivers:
+  - Confidence band is static and global; trip/user adaptive calibration remains future hardening work.
 
 ## 12. Risk Register
 

@@ -337,6 +337,25 @@ def _notification_backoff_seconds(attempt_count: int) -> int:
     return intervals[index]
 
 
+def _notification_confidence_bounds() -> tuple[float, float]:
+    minimum = max(0.0, min(1.0, float(settings.TRACKING_NOTIFICATION_CONFIDENCE_MIN)))
+    maximum = max(minimum, min(1.0, float(settings.TRACKING_NOTIFICATION_CONFIDENCE_MAX)))
+    return minimum, maximum
+
+
+def _notification_confidence_filter():
+    minimum, maximum = _notification_confidence_bounds()
+    return (
+        TripCheckinCandidate.confidence >= minimum,
+        TripCheckinCandidate.confidence <= maximum,
+    )
+
+
+def _is_notifiable_confidence(confidence: float) -> bool:
+    minimum, maximum = _notification_confidence_bounds()
+    return minimum <= float(confidence) <= maximum
+
+
 def _notification_due_filter(*, as_of: datetime):
     cutoff_iso = _to_utc(as_of).isoformat()
     next_attempt = TripCheckinCandidate.payload["notification_next_attempt_at"].astext
@@ -387,7 +406,7 @@ def _collect_backlog_snapshot(db: Session, *, as_of: datetime) -> WorkerBacklogS
         db.query(func.count(TripCheckinCandidate.id))
         .filter(
             TripCheckinCandidate.status == "pending",
-            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            *_notification_confidence_filter(),
         )
         .filter(
             or_(
@@ -403,7 +422,7 @@ def _collect_backlog_snapshot(db: Session, *, as_of: datetime) -> WorkerBacklogS
         db.query(func.count(TripCheckinCandidate.id))
         .filter(
             TripCheckinCandidate.status == "pending",
-            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            *_notification_confidence_filter(),
         )
         .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
         .filter(active_notification_filter)
@@ -416,7 +435,7 @@ def _collect_backlog_snapshot(db: Session, *, as_of: datetime) -> WorkerBacklogS
         db.query(func.count(TripCheckinCandidate.id))
         .filter(
             TripCheckinCandidate.status == "pending",
-            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            *_notification_confidence_filter(),
             TripCheckinCandidate.payload["notification_status"].astext == "retryable_failure",
         )
         .scalar()
@@ -427,7 +446,7 @@ def _collect_backlog_snapshot(db: Session, *, as_of: datetime) -> WorkerBacklogS
         db.query(func.min(TripCheckinCandidate.created_at))
         .filter(
             TripCheckinCandidate.status == "pending",
-            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            *_notification_confidence_filter(),
         )
         .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
         .filter(active_notification_filter)
@@ -738,7 +757,7 @@ def process_session_inference(
             result.duplicate_candidates += 1
             if _ensure_auto_moment(db, candidate=existing_candidate, cluster=cluster):
                 result.moments_created += 1
-            if existing_candidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD):
+            if _is_notifiable_confidence(existing_candidate.confidence):
                 result.notification_candidate_ids.append(existing_candidate.id)
             continue
 
@@ -800,7 +819,7 @@ def process_session_inference(
         result.candidates_created += 1
         if _ensure_auto_moment(db, candidate=candidate, cluster=cluster):
             result.moments_created += 1
-        if candidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD):
+        if _is_notifiable_confidence(candidate.confidence):
             result.notification_candidate_ids.append(candidate.id)
 
     session.inference_cursor_at = session_last_point_at
@@ -821,7 +840,7 @@ def handoff_candidate_notifications(
 
     query = db.query(TripCheckinCandidate).filter(
         TripCheckinCandidate.status == "pending",
-        TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+        *_notification_confidence_filter(),
     )
     query = query.filter(
         or_(
@@ -886,7 +905,7 @@ def dispatch_candidate_notifications(
         db.query(TripCheckinCandidate)
         .filter(
             TripCheckinCandidate.status == "pending",
-            TripCheckinCandidate.confidence >= float(settings.TRACKING_NOTIFICATION_CONFIDENCE_THRESHOLD),
+            *_notification_confidence_filter(),
         )
         .filter(TripCheckinCandidate.payload["notification_handoff_at"].astext.is_not(None))
         .filter(active_notification_filter)

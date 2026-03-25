@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-4 in progress)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-6 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -801,3 +801,38 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - Local-first/offline rendering remains intact; remote path is an enhancement path, not a hard dependency.
   - Polling cadence and map-matching refinement remain for follow-up slices.
+
+- Date: 2026-03-25
+- Slice: Phase 6 path quality parity (ordered step 5, remote-path polling cadence)
+- Implemented:
+  - Added remote path refresh interval policy by runtime state:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - `active: 12s`, `paused: 30s`, `ended: single-pass`.
+  - Converted remote path provider to polling stream:
+    - periodic fetch while active/paused
+    - coordinate-list dedupe before emitting to overlay consumer
+    - local fallback behavior preserved on fetch failures.
+  - Added cadence regression coverage:
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies remote path API is called repeatedly under active state.
+- Validation:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_provider_test.dart test/core/network/live_tracking_api_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 10 passed)
+- Decision notes:
+  - This closes the stale refresh gap from step 4 while keeping bounded network usage.
+  - Adaptive cadence tuning (motion/network-aware) remains for later hardening.
+
+- Date: 2026-03-25
+- Slice: Phase 6 prompt/noise tuning (ordered step 6, backend notification confidence band)
+- Implemented:
+  - Aligned notification selection with ambiguous-confidence policy in backend worker:
+    - `backend/app/config.py`
+    - `backend/app/workers/live_tracking_worker.py`
+    - notifications now target confidence band (`min..max`) instead of `>= threshold`.
+  - Added backend regression for high-confidence no-prompt path:
+    - `backend/tests/test_live_tracking_worker.py`
+- Validation:
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_worker.py tests/test_live_tracking_endpoints.py` (pass: 39 passed)
+- Decision notes:
+  - Flutter inbox/prompt surfaces stay unchanged; expected candidate/push volume should decrease for high-confidence inferred stops.
+  - If product later wants adaptive per-user confidence bands, this contract can be extended without client API changes.

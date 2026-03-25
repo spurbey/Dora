@@ -43,11 +43,25 @@ final liveTrackingSessionBatchesProvider =
   },
 );
 
+final liveTrackingRemotePathRefreshIntervalProvider =
+    Provider.family<Duration, LiveTrackingRuntimeState>((ref, state) {
+  switch (state) {
+    case LiveTrackingRuntimeState.active:
+      return const Duration(seconds: 12);
+    case LiveTrackingRuntimeState.paused:
+      return const Duration(seconds: 30);
+    case LiveTrackingRuntimeState.ended:
+      return const Duration(seconds: 60);
+    case LiveTrackingRuntimeState.planned:
+      return const Duration(seconds: 60);
+  }
+});
+
 final liveTrackingRemotePathPointsProvider =
-    FutureProvider.autoDispose.family<List<AppLatLng>, String>((
+    StreamProvider.autoDispose.family<List<AppLatLng>, String>((
       ref,
       tripId,
-    ) async {
+    ) {
       final runtimeState = ref.watch(
         liveTrackingRuntimeSnapshotProvider(tripId).select((asyncSnapshot) {
           final snapshot = asyncSnapshot.valueOrNull;
@@ -62,35 +76,66 @@ final liveTrackingRemotePathPointsProvider =
       if (state == LiveTrackingRuntimeState.planned ||
           sessionId == null ||
           sessionId.isEmpty) {
-        return const <AppLatLng>[];
+        return Stream<List<AppLatLng>>.value(const <AppLatLng>[]);
       }
 
       final api = ref.watch(liveTrackingApiProvider);
-      final payload = await api.fetchTrackingPath(
-        tripId: tripId,
-        sessionId: sessionId,
-      );
-      final rawPoints = payload['points'];
-      if (rawPoints is! List) {
-        return const <AppLatLng>[];
+      final refreshInterval =
+          ref.watch(liveTrackingRemotePathRefreshIntervalProvider(state));
+      var disposed = false;
+      ref.onDispose(() {
+        disposed = true;
+      });
+
+      Future<List<AppLatLng>> fetchPoints() async {
+        final payload = await api.fetchTrackingPath(
+          tripId: tripId,
+          sessionId: sessionId,
+        );
+        final rawPoints = payload['points'];
+        if (rawPoints is! List) {
+          return const <AppLatLng>[];
+        }
+
+        final points = <AppLatLng>[];
+        for (final raw in rawPoints) {
+          if (raw is! Map) {
+            continue;
+          }
+          final latitude = _asDouble(raw['latitude']);
+          final longitude = _asDouble(raw['longitude']);
+          if (latitude == null || longitude == null) {
+            continue;
+          }
+          if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
+            continue;
+          }
+          points.add(AppLatLng(latitude: latitude, longitude: longitude));
+        }
+        return points;
       }
 
-      final points = <AppLatLng>[];
-      for (final raw in rawPoints) {
-        if (raw is! Map) {
-          continue;
+      return (() async* {
+        List<AppLatLng>? previous;
+        while (!disposed) {
+          try {
+            final points = await fetchPoints();
+            if (previous == null || !_sameCoordinates(previous, points)) {
+              previous = points;
+              yield points;
+            }
+          } catch (_) {
+            if (previous == null) {
+              previous = const <AppLatLng>[];
+              yield previous;
+            }
+          }
+          if (state == LiveTrackingRuntimeState.ended || disposed) {
+            break;
+          }
+          await Future<void>.delayed(refreshInterval);
         }
-        final latitude = _asDouble(raw['latitude']);
-        final longitude = _asDouble(raw['longitude']);
-        if (latitude == null || longitude == null) {
-          continue;
-        }
-        if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
-          continue;
-        }
-        points.add(AppLatLng(latitude: latitude, longitude: longitude));
-      }
-      return points;
+      })();
     });
 
 final liveTrackingMapOverlayProvider =
@@ -200,4 +245,20 @@ bool _isValidCoordinate({
       latitude <= 90.0 &&
       longitude >= -180.0 &&
       longitude <= 180.0;
+}
+
+bool _sameCoordinates(List<AppLatLng> left, List<AppLatLng> right) {
+  if (identical(left, right)) {
+    return true;
+  }
+  if (left.length != right.length) {
+    return false;
+  }
+  for (var i = 0; i < left.length; i += 1) {
+    if (left[i].latitude != right[i].latitude ||
+        left[i].longitude != right[i].longitude) {
+      return false;
+    }
+  }
+  return true;
 }

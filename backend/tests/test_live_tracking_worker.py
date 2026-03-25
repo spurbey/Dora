@@ -389,7 +389,7 @@ def test_handoff_candidate_notifications_is_idempotent(db, test_user):
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.9,
+        confidence=0.75,
         suggested_name="Inferred stop",
         payload={},
     )
@@ -416,6 +416,31 @@ def test_handoff_candidate_notifications_is_idempotent(db, test_user):
     assert inbox_rows[0].delivery_state == "pending"
 
 
+def test_handoff_candidate_notifications_skips_high_confidence_auto_candidates(db, test_user):
+    trip = _create_trip(db, user_id=test_user.id)
+    session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
+    candidate = TripCheckinCandidate(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        fingerprint=f"fp-{uuid4()}",
+        status="pending",
+        confidence=0.95,
+        suggested_name="High confidence auto-resolve",
+        payload={},
+    )
+    db.add(candidate)
+    db.flush()
+
+    result = handoff_candidate_notifications(db, trip_id=trip.id, now=datetime.now(timezone.utc))
+    db.flush()
+
+    assert result.dispatched_count == 0
+    assert result.candidate_ids == []
+    assert (candidate.payload or {}).get("notification_handoff_at") is None
+
+
 def test_handoff_candidate_notifications_filters_before_limit(db, test_user):
     trip = _create_trip(db, user_id=test_user.id)
     session = _create_session(db, trip_id=trip.id, user_id=test_user.id)
@@ -430,7 +455,7 @@ def test_handoff_candidate_notifications_filters_before_limit(db, test_user):
                 session_id=session.id,
                 fingerprint=f"fp-{uuid4()}",
                 status="pending",
-                confidence=0.95,
+                confidence=0.75,
                 suggested_name="Already handed off",
                 payload={
                     "notification_handoff_at": now.isoformat(),
@@ -446,7 +471,7 @@ def test_handoff_candidate_notifications_filters_before_limit(db, test_user):
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.96,
+        confidence=0.75,
         suggested_name="Needs handoff",
         payload={},
     )
@@ -495,7 +520,7 @@ def test_dispatch_candidate_notifications_marks_sent(db, test_user):
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.91,
+        confidence=0.75,
         suggested_name="Inferred stop",
         payload={},
     )
@@ -539,7 +564,7 @@ def test_dispatch_candidate_notifications_sets_retryable_backoff(db, test_user):
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.95,
+        confidence=0.75,
         suggested_name="Inferred stop",
         payload={},
     )
@@ -595,7 +620,7 @@ def test_dispatch_candidate_notifications_records_inbox_when_push_has_no_tokens(
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.9,
+        confidence=0.75,
         suggested_name="No token candidate",
         payload={},
     )
@@ -648,7 +673,7 @@ def test_no_tokens_policy_is_terminal_for_candidate_push(db, test_user):
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.92,
+        confidence=0.75,
         suggested_name="Terminal no-token",
         payload={},
     )
@@ -700,7 +725,7 @@ def test_push_notification_events_are_append_only_across_attempts(db, test_user)
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.95,
+        confidence=0.75,
         suggested_name="Event history",
         payload={},
     )
@@ -764,7 +789,7 @@ def test_dispatch_candidate_notifications_filters_due_before_limit(db, test_user
             session_id=session.id,
             fingerprint=f"fp-{uuid4()}",
             status="pending",
-            confidence=0.95,
+            confidence=0.75,
             suggested_name="Retry later",
             payload={
                 "notification_handoff_at": (now - timedelta(minutes=5)).isoformat(),
@@ -783,7 +808,7 @@ def test_dispatch_candidate_notifications_filters_due_before_limit(db, test_user
         session_id=session.id,
         fingerprint=f"fp-{uuid4()}",
         status="pending",
-        confidence=0.96,
+        confidence=0.75,
         suggested_name="Dispatch now",
         payload={
             "notification_handoff_at": (now - timedelta(minutes=1)).isoformat(),
@@ -965,7 +990,7 @@ def test_run_worker_cycle_scales_dispatch_limit_under_backlog(db, test_user, mon
                 session_id=session.id,
                 fingerprint=f"fp-{uuid4()}",
                 status="pending",
-                confidence=0.96,
+                confidence=0.75,
                 suggested_name="Dispatch backlog",
                 payload={
                     "notification_handoff_at": (now - timedelta(minutes=1)).isoformat(),

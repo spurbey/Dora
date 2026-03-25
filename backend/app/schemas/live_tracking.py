@@ -98,6 +98,21 @@ class TrackingPointsBatchResponse(BaseModel):
     idempotency_replayed: bool
 
 
+class TrackingPathPointResponse(BaseModel):
+    recorded_at: datetime
+    latitude: float
+    longitude: float
+    accuracy_m: Optional[float] = None
+    speed_mps: Optional[float] = None
+
+
+class TrackingPathResponse(BaseModel):
+    trip_id: UUID
+    session_id: UUID
+    points_count: int
+    points: list[TrackingPathPointResponse]
+
+
 class CheckinCandidateResponse(BaseModel):
     id: UUID
     trip_id: UUID

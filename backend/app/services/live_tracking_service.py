@@ -19,6 +19,7 @@ from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.api_idempotency_record import ApiIdempotencyRecord
 from app.models.place import TripPlace
 from app.models.trip import Trip
@@ -29,6 +30,7 @@ from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
+from app.utils.geo import haversine_distance
 
 
 IDEMPOTENCY_TTL_HOURS = 72
@@ -62,6 +64,10 @@ class LiveTrackingService:
     def _json_hash(payload: dict[str, Any]) -> str:
         normalized = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _is_valid_coordinate(*, latitude: float, longitude: float) -> bool:
+        return -90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0
 
     def _idempotency_conflict(self) -> None:
         raise HTTPException(
@@ -589,6 +595,90 @@ class LiveTrackingService:
             "accepted_points": accepted,
             "duplicate_points": duplicates,
             "ingest_job_id": uuid.uuid4(),
+        }
+
+    def get_tracking_path(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        session_id: Optional[UUID],
+        limit: int = 5000,
+    ) -> dict[str, Any]:
+        self._get_owned_trip(trip_id=trip_id, user_id=user_id)
+        clamped_limit = max(1, min(10000, int(limit)))
+
+        session_query = self.db.query(TripTrackingSession).filter(
+            TripTrackingSession.trip_id == trip_id,
+            TripTrackingSession.user_id == user_id,
+        )
+        if session_id is not None:
+            session = session_query.filter(TripTrackingSession.id == session_id).first()
+        else:
+            session = session_query.order_by(desc(TripTrackingSession.started_at)).first()
+
+        if not session:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracking session not found")
+
+        rows = (
+            self.db.query(TripLocationPoint)
+            .filter(
+                TripLocationPoint.trip_id == trip_id,
+                TripLocationPoint.user_id == user_id,
+                TripLocationPoint.session_id == session.id,
+            )
+            .order_by(TripLocationPoint.recorded_at.asc())
+            .limit(clamped_limit)
+            .all()
+        )
+
+        max_accuracy = float(settings.TRACKING_POINT_MAX_ACCURACY_M)
+        max_speed_mps = 55.0
+        min_move_m = 2.0
+        points: list[dict[str, Any]] = []
+        previous: Optional[dict[str, Any]] = None
+
+        for row in rows:
+            if not self._is_valid_coordinate(latitude=row.latitude, longitude=row.longitude):
+                continue
+            if row.accuracy_m is not None and row.accuracy_m > max_accuracy:
+                continue
+
+            point_payload = {
+                "recorded_at": self._to_utc(row.recorded_at),
+                "latitude": row.latitude,
+                "longitude": row.longitude,
+                "accuracy_m": row.accuracy_m,
+                "speed_mps": row.speed_mps,
+            }
+            if previous is not None:
+                distance_m = haversine_distance(
+                    previous["latitude"],
+                    previous["longitude"],
+                    point_payload["latitude"],
+                    point_payload["longitude"],
+                )
+                if distance_m <= min_move_m:
+                    continue
+
+                delta_seconds = (point_payload["recorded_at"] - previous["recorded_at"]).total_seconds()
+                if delta_seconds <= 0:
+                    continue
+                inferred_speed = distance_m / delta_seconds
+                observed_speed = point_payload.get("speed_mps")
+                if inferred_speed > max_speed_mps and distance_m >= 80.0:
+                    continue
+                if observed_speed is not None and observed_speed > (max_speed_mps * 1.2) and distance_m >= 40.0:
+                    continue
+
+            points.append(point_payload)
+            previous = point_payload
+
+        return {
+            "trip_id": trip_id,
+            "session_id": session.id,
+            "points_count": len(points),
+            "points": points,
         }
 
     def list_pending_checkins(self, *, trip_id: UUID, user_id: UUID) -> dict[str, Any]:

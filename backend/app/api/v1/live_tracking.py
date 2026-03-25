@@ -4,7 +4,7 @@ Live-tracking Phase 2 API endpoints.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -26,6 +26,7 @@ from app.schemas.live_tracking import (
     MomentUpdateRequest,
     PendingCheckinsResponse,
     TrackingPauseRequest,
+    TrackingPathResponse,
     TrackingPointsBatchRequest,
     TrackingPointsBatchResponse,
     TrackingResumeRequest,
@@ -196,6 +197,23 @@ async def ingest_points_batch(
     response.status_code = result.status_code
     _set_replay_header(response, result.replayed)
     return payload
+
+
+@router.get("/trips/{trip_id}/tracking/path", response_model=TrackingPathResponse)
+async def get_tracking_path(
+    trip_id: UUID,
+    session_id: UUID | None = Query(default=None),
+    limit: int = Query(default=5000, ge=1, le=10000),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingService(db)
+    return service.get_tracking_path(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        session_id=session_id,
+        limit=limit,
+    )
 
 
 @router.get("/trips/{trip_id}/checkins/pending", response_model=PendingCheckinsResponse)

@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
+from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
@@ -52,6 +53,37 @@ def create_session(db, trip_id, user_id, state="active"):
     db.commit()
     db.refresh(session)
     return session
+
+
+def create_point(
+    db,
+    *,
+    trip_id,
+    session_id,
+    user_id,
+    recorded_at,
+    latitude,
+    longitude,
+    accuracy_m=6.0,
+    speed_mps=None,
+):
+    point = TripLocationPoint(
+        id=uuid4(),
+        trip_id=trip_id,
+        session_id=session_id,
+        user_id=user_id,
+        client_batch_id=uuid4(),
+        point_id=uuid4(),
+        recorded_at=recorded_at,
+        latitude=latitude,
+        longitude=longitude,
+        accuracy_m=accuracy_m,
+        speed_mps=speed_mps,
+    )
+    db.add(point)
+    db.commit()
+    db.refresh(point)
+    return point
 
 
 def create_candidate(
@@ -319,6 +351,97 @@ def test_points_batch_dedup_and_replay(client, db, test_user, auth_as):
     assert second_key.status_code == 202
     assert second_key.json()["accepted_points"] == 0
     assert second_key.json()["duplicate_points"] == 3
+
+
+def test_tracking_path_endpoint_orders_and_filters_points(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Path Endpoint")
+    session = create_session(db, trip.id, test_user.id, state="active")
+    base = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+    # Insert intentionally out-of-order to verify API sorting by recorded_at.
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(seconds=20),
+        latitude=27.7175,
+        longitude=85.3243,
+        accuracy_m=6.0,
+    )
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base,
+        latitude=27.7172,
+        longitude=85.3240,
+        accuracy_m=5.0,
+    )
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(seconds=6),
+        latitude=27.71726,
+        longitude=85.32406,
+        accuracy_m=250.0,  # Dropped by accuracy gate.
+    )
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(seconds=7),
+        latitude=27.9000,
+        longitude=85.7000,  # Dropped by unrealistic-speed guard.
+        accuracy_m=5.0,
+    )
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(seconds=21),
+        latitude=27.7175001,
+        longitude=85.3243001,  # Dropped by short-distance jitter guard.
+        accuracy_m=6.0,
+    )
+    create_point(
+        db,
+        trip_id=trip.id,
+        session_id=session.id,
+        user_id=test_user.id,
+        recorded_at=base + timedelta(seconds=5),
+        latitude=27.71725,
+        longitude=85.32405,
+        accuracy_m=7.0,
+    )
+
+    response = client.get(
+        f"/api/v1/trips/{trip.id}/tracking/path",
+        params={"session_id": str(session.id), "limit": 1000},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["trip_id"] == str(trip.id)
+    assert data["session_id"] == str(session.id)
+    assert data["points_count"] == 3
+
+    recorded_at = [point["recorded_at"] for point in data["points"]]
+    assert recorded_at == sorted(recorded_at)
+
+    first = data["points"][0]
+    assert first["latitude"] == pytest.approx(27.7172)
+    assert first["longitude"] == pytest.approx(85.3240)
+
+    last = data["points"][-1]
+    assert last["latitude"] == pytest.approx(27.7175)
+    assert last["longitude"] == pytest.approx(85.3243)
 
 
 def test_pending_checkins_filters_snoozed_until(client, db, test_user, auth_as):

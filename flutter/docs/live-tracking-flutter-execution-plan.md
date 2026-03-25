@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-2 in progress)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-4 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -724,3 +724,80 @@ After each Flutter live-tracking slice:
   - `cd flutter; flutter test test/features/create/live_tracking_candidate_repository_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 15 passed)
 - Decision notes:
   - Review findings were accepted as valid and resolved in-slice because they affect real-time UX correctness and scale behavior.
+
+- Date: 2026-03-25
+- Slice: Phase 6 path overlay stability pass (ordered step 1)
+- Implemented:
+  - Updated map overlay extraction pipeline:
+    - `lib/features/create/presentation/live_tracking_map_overlay.dart`
+    - sort points by `recorded_at` (stable tie-break by ingest sequence)
+    - filter invalid coordinates
+    - apply accuracy gate for render quality
+    - suppress jitter and unrealistic speed transitions
+    - remove spike outliers in short windows
+  - Added regression coverage:
+    - `test/features/create/live_tracking_map_overlay_test.dart`
+    - out-of-order batch timestamps now render chronologically
+    - low-quality spike points are dropped from rendered path
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/live_tracking_map_overlay.dart test/features/create/live_tracking_map_overlay_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass: 7 passed)
+- Decision notes:
+  - This improves path display stability without altering persisted point data or backend inference behavior.
+  - Full road-constrained map matching remains a later step.
+
+- Date: 2026-03-25
+- Slice: Phase 6 path quality parity prep (ordered step 2, backend contract)
+- Implemented:
+  - Added backend tracking-path snapshot contract for Flutter consumption in later UX slices:
+    - `backend/app/schemas/live_tracking.py` (`TrackingPathResponse`, `TrackingPathPointResponse`)
+    - `backend/app/services/live_tracking_service.py` (`get_tracking_path`)
+    - `backend/app/api/v1/live_tracking.py` (`GET /api/v1/trips/{trip_id}/tracking/path`)
+  - Added backend regression coverage:
+    - `backend/tests/test_live_tracking_endpoints.py` (`test_tracking_path_endpoint_orders_and_filters_points`)
+- Validation:
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_endpoints.py` (pass: 17 passed)
+  - `cd backend; & .\venv\Scripts\activate; alembic check` (pass: `No new upgrade operations detected`)
+- Decision notes:
+  - This step intentionally lands server-side path normalization first.
+  - Flutter map still renders from local cache in current slice; wiring this endpoint into app UX stays in the next ordered step.
+
+- Date: 2026-03-25
+- Slice: Phase 6 path quality parity prep (ordered step 3, Flutter API wiring)
+- Implemented:
+  - Added `fetchTrackingPath` to live-tracking network contract:
+    - `lib/core/network/live_tracking_api.dart`
+    - maps to `GET /api/v1/trips/{trip_id}/tracking/path`
+    - supports optional `session_id` and clamps `limit` to backend contract bounds.
+  - Extended API route regression coverage:
+    - `test/core/network/live_tracking_api_test.dart`
+    - verifies `/api/v1` path prefix and query serialization for `tracking/path`.
+  - Updated sync-worker test fake contract:
+    - `test/core/sync/tracking_sync_worker_test.dart`
+    - adds stub for `fetchTrackingPath` to keep compile/test compatibility.
+- Validation:
+  - `cd flutter; flutter analyze --no-pub lib/core/network/live_tracking_api.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 10 passed)
+- Decision notes:
+  - This slice is API-contract wiring only; editor/provider consumption of remote path remains the next incremental step.
+
+- Date: 2026-03-25
+- Slice: Phase 6 path quality parity (ordered step 4, provider consumption)
+- Implemented:
+  - Added remote path points provider:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - reads active session runtime key
+    - calls `LiveTrackingApi.fetchTrackingPath`
+    - parses/validates coordinates from backend payload.
+  - Updated map overlay provider behavior:
+    - prefers remote path route when backend returns at least 2 points
+    - falls back to local batch-derived overlay when remote path is unavailable.
+  - Added provider integration regression coverage:
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies remote-path preference behavior.
+- Validation:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass: 12 passed)
+- Decision notes:
+  - Local-first/offline rendering remains intact; remote path is an enhancement path, not a hard dependency.
+  - Polling cadence and map-matching refinement remain for follow-up slices.

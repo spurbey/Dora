@@ -47,6 +47,12 @@ abstract class LiveTrackingApi {
     required List<Map<String, dynamic>> points,
   });
 
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  });
+
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,
@@ -235,6 +241,23 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         'points': points,
       },
       options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  }) async {
+    final clampedLimit = limit.clamp(1, 10000);
+    final response = await _dio.get<dynamic>(
+      _v1Path('/trips/$tripId/tracking/path'),
+      queryParameters: <String, dynamic>{
+        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
+        'limit': clampedLimit,
+      },
     );
     return _asJsonMap(response.data);
   }

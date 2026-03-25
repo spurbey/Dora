@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/map/models/app_route.dart';
+import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
@@ -39,6 +43,56 @@ final liveTrackingSessionBatchesProvider =
   },
 );
 
+final liveTrackingRemotePathPointsProvider =
+    FutureProvider.autoDispose.family<List<AppLatLng>, String>((
+      ref,
+      tripId,
+    ) async {
+      final runtimeState = ref.watch(
+        liveTrackingRuntimeSnapshotProvider(tripId).select((asyncSnapshot) {
+          final snapshot = asyncSnapshot.valueOrNull;
+          return (
+            snapshot?.state ?? LiveTrackingRuntimeState.planned,
+            snapshot?.sessionId,
+          );
+        }),
+      );
+      final state = runtimeState.$1;
+      final sessionId = runtimeState.$2;
+      if (state == LiveTrackingRuntimeState.planned ||
+          sessionId == null ||
+          sessionId.isEmpty) {
+        return const <AppLatLng>[];
+      }
+
+      final api = ref.watch(liveTrackingApiProvider);
+      final payload = await api.fetchTrackingPath(
+        tripId: tripId,
+        sessionId: sessionId,
+      );
+      final rawPoints = payload['points'];
+      if (rawPoints is! List) {
+        return const <AppLatLng>[];
+      }
+
+      final points = <AppLatLng>[];
+      for (final raw in rawPoints) {
+        if (raw is! Map) {
+          continue;
+        }
+        final latitude = _asDouble(raw['latitude']);
+        final longitude = _asDouble(raw['longitude']);
+        if (latitude == null || longitude == null) {
+          continue;
+        }
+        if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
+          continue;
+        }
+        points.add(AppLatLng(latitude: latitude, longitude: longitude));
+      }
+      return points;
+    });
+
 final liveTrackingMapOverlayProvider =
     Provider.autoDispose.family<LiveTrackingMapOverlay, String>(
   (ref, tripId) {
@@ -61,13 +115,30 @@ final liveTrackingMapOverlayProvider =
     final sessionBatches =
         ref.watch(liveTrackingSessionBatchesProvider(sessionId)).valueOrNull ??
             const <TrackingPointBatchRow>[];
-    return buildLiveTrackingMapOverlay(
+    final localOverlay = buildLiveTrackingMapOverlay(
       snapshot: LiveTrackingRuntimeSnapshot(
         tripId: tripId,
         state: runtimeState,
         sessionId: sessionId,
       ),
       sessionBatches: sessionBatches,
+    );
+    final remotePath =
+        ref.watch(liveTrackingRemotePathPointsProvider(tripId)).valueOrNull ??
+            const <AppLatLng>[];
+    if (remotePath.length < 2) {
+      return localOverlay;
+    }
+
+    return LiveTrackingMapOverlay(
+      pathRoute: AppRoute(
+        id: '_live_tracking_remote_path_$sessionId',
+        coordinates: remotePath,
+        color: const Color(0xFF0EA5E9),
+        width: 5.0,
+        dashed: false,
+      ),
+      currentMarker: localOverlay.currentMarker,
     );
   },
 );
@@ -110,3 +181,23 @@ final liveTrackingCaptureBootstrapProvider = Provider<void>((ref) {
   final coordinator = ref.watch(liveTrackingCaptureCoordinatorProvider);
   unawaited(coordinator.recoverActiveSessions());
 });
+
+double? _asDouble(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
+  return null;
+}
+
+bool _isValidCoordinate({
+  required double latitude,
+  required double longitude,
+}) {
+  return latitude >= -90.0 &&
+      latitude <= 90.0 &&
+      longitude >= -180.0 &&
+      longitude <= 180.0;
+}

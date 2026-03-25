@@ -140,6 +140,20 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  }) async {
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'session_id': sessionId ?? 'remote-session-1',
+      'points_count': 0,
+      'points': const <Map<String, dynamic>>[],
+    };
+  }
+
+  @override
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,

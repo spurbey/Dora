@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Widget/integration flows |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 landed; moment UX and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1299,6 +1299,90 @@ Use this section after each phase:
   - Candidate inbox stream no longer scans full trip candidate set on each update.
 - Known failures/waivers:
   - Existing non-blocking `editor_screen.dart` info-level lints (`WillPopScope` deprecation and async-context advisory) remain outside this live-tracking slice scope.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 4 path overlay stability pass (step-1 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/live_tracking_map_overlay.dart test/features/create/live_tracking_map_overlay_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_map_overlay_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass: 7 passed)
+- Manual checks run:
+  - Added path overlay ordering by point `recorded_at` (instead of implicit batch creation order) to prevent out-of-order late samples from causing route zig-zag/triangle artifacts.
+  - Added overlay-only quality filters for visual stability:
+    - max accuracy gate for route rendering
+    - jitter suppression (`~2m` minimum move)
+    - unrealistic transition speed rejection
+    - short-window spike suppression
+  - Kept raw stored points unchanged for backend inference/sync; this slice only changes map rendering quality.
+- Result summary:
+  - Editor live polyline is now more stable under out-of-order and noisy GPS samples.
+  - This directly addresses the observed path distortion behavior during manual field testing.
+- Known failures/waivers:
+  - This is a stabilization pass, not full map-matching. Route is still based on filtered raw GPS geometry.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 4 backend path reconstruction endpoint (step-2 execution)
+- Automated tests run:
+  - `cd backend; & .\venv\Scripts\activate; pytest -q tests/test_live_tracking_endpoints.py` (pass: 17 passed)
+  - `cd backend; & .\venv\Scripts\activate; alembic check` (pass: `No new upgrade operations detected`)
+- Manual checks run:
+  - Added backend response contract for path snapshots:
+    - `backend/app/schemas/live_tracking.py` (`TrackingPathResponse`, `TrackingPathPointResponse`)
+  - Added canonical path reconstruction service:
+    - `backend/app/services/live_tracking_service.py` (`get_tracking_path`)
+    - resolves latest/explicit session
+    - orders by `recorded_at`
+    - applies server-side quality guards (coordinate validity, accuracy gate, jitter/speed outlier suppression)
+  - Added API route:
+    - `backend/app/api/v1/live_tracking.py` (`GET /api/v1/trips/{trip_id}/tracking/path`)
+  - Added regression test coverage for ordering + filter behavior:
+    - `backend/tests/test_live_tracking_endpoints.py` (`test_tracking_path_endpoint_orders_and_filters_points`)
+- Result summary:
+  - Backend now exposes a deterministic, filtered tracking path snapshot for editor/runtime parity and troubleshooting.
+  - This creates the server-side base for a later full map-matching upgrade.
+- Known failures/waivers:
+  - Flutter still renders from local cached points; endpoint consumption in app UI is a follow-up slice.
+  - This is not road-snapped map matching yet.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 4 Flutter API contract wiring (step-3 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-pub lib/core/network/live_tracking_api.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass)
+  - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 10 passed)
+- Manual checks run:
+  - Added Flutter network contract method for server path snapshots:
+    - `flutter/lib/core/network/live_tracking_api.dart` (`fetchTrackingPath`)
+    - calls `GET /api/v1/trips/{trip_id}/tracking/path` with `session_id` and clamped `limit`.
+  - Extended API route regression coverage:
+    - `flutter/test/core/network/live_tracking_api_test.dart`
+    - locks `/api/v1` prefix and query params for `tracking/path`.
+  - Updated live-tracking API fake used by sync tests:
+    - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+    - keeps worker test suite compile-safe as interface evolves.
+- Result summary:
+  - Flutter and backend path contracts are now in sync, and client-side wiring is ready for UI/provider consumption in the next slice.
+- Known failures/waivers:
+  - Editor overlay still uses local cache rendering path; remote-path consumption remains pending by design.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 4 remote-path overlay consumption (step-4 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass: 12 passed)
+- Manual checks run:
+  - Added remote-path points provider and map overlay fallback wiring:
+    - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - fetches server snapshot via `LiveTrackingApi.fetchTrackingPath` and prefers remote path route when available.
+  - Preserved local-first behavior:
+    - if server snapshot is unavailable/empty, editor keeps rendering local cached path.
+  - Added provider integration coverage:
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies remote snapshot path is preferred when available.
+- Result summary:
+  - Editor map can now consume canonical backend path snapshots while retaining local offline fallback.
+  - This reduces visible divergence between local raw GPS rendering and backend-normalized path output.
+- Known failures/waivers:
+  - Remote path fetch is currently on provider refresh boundaries, not an explicit polling cadence.
+  - Full road-snapped map matching is still pending.
 
 ## 12. Risk Register
 

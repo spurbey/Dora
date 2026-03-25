@@ -58,6 +58,11 @@ void main() {
           },
         ],
       );
+      await api.fetchTrackingPath(
+        tripId: 'trip-1',
+        sessionId: 'session-1',
+        limit: 99999,
+      );
       await api.confirmCheckin(
         candidateId: 'candidate-1',
         idempotencyKey: 'idem-3',
@@ -83,11 +88,16 @@ void main() {
         <String>[
           '/api/v1/trips/trip-1/tracking/start',
           '/api/v1/trips/trip-1/tracking/points:batch',
+          '/api/v1/trips/trip-1/tracking/path',
           '/api/v1/checkins/candidate-1/confirm',
           '/api/v1/trips/trip-1/moments',
           '/api/v1/moments/moment-1',
         ],
       );
+
+      final pathRequest = adapter.captured[2];
+      expect(pathRequest.queryParameters['session_id'], 'session-1');
+      expect(pathRequest.queryParameters['limit'], 10000);
     });
   });
 }

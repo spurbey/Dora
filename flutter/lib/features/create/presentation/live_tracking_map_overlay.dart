@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -17,6 +18,13 @@ class LiveTrackingMapOverlay {
   final AppRoute? pathRoute;
   final AppMarker? currentMarker;
 }
+
+const double _maxOverlayAccuracyM = 65.0;
+const double _minRenderableMoveM = 2.0;
+const double _maxRenderableSpeedMps = 55.0;
+const double _minSpikeJumpM = 120.0;
+const double _maxSpikeDirectDistanceM = 60.0;
+const int _maxSpikeWindowSeconds = 120;
 
 LiveTrackingMapOverlay buildLiveTrackingMapOverlay({
   required LiveTrackingRuntimeSnapshot? snapshot,
@@ -60,7 +68,8 @@ LiveTrackingMapOverlay buildLiveTrackingMapOverlay({
 }
 
 List<AppLatLng> _extractPathPoints(List<TrackingPointBatchRow> batches) {
-  final points = <AppLatLng>[];
+  final orderedPoints = <_OverlayPoint>[];
+  var sequence = 0;
   for (final batch in batches) {
     final payload = _decodePoints(batch.pointsJson);
     for (final rawPoint in payload) {
@@ -69,13 +78,173 @@ List<AppLatLng> _extractPathPoints(List<TrackingPointBatchRow> batches) {
       if (latitude == null || longitude == null) {
         continue;
       }
-      final point = AppLatLng(latitude: latitude, longitude: longitude);
-      if (points.isEmpty || points.last != point) {
-        points.add(point);
+      if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
+        continue;
       }
+      final accuracyM = _asDouble(rawPoint['accuracy_m']);
+      if (accuracyM != null && accuracyM > _maxOverlayAccuracyM) {
+        continue;
+      }
+      orderedPoints.add(
+        _OverlayPoint(
+          latitude: latitude,
+          longitude: longitude,
+          recordedAt: _asDateTime(rawPoint['recorded_at']),
+          accuracyM: accuracyM,
+          speedMps: _asDouble(rawPoint['speed_mps']),
+          sequence: sequence,
+        ),
+      );
+      sequence += 1;
     }
   }
-  return points;
+
+  if (orderedPoints.isEmpty) {
+    return const <AppLatLng>[];
+  }
+
+  orderedPoints.sort(_compareOverlayPoints);
+  final filtered = _removeSpeedAndJitterOutliers(orderedPoints);
+  final despiked = _removeSpikePoints(filtered);
+  return despiked
+      .map(
+        (point) => AppLatLng(
+          latitude: point.latitude,
+          longitude: point.longitude,
+        ),
+      )
+      .toList(growable: false);
+}
+
+int _compareOverlayPoints(_OverlayPoint left, _OverlayPoint right) {
+  final leftTime = left.recordedAt;
+  final rightTime = right.recordedAt;
+  if (leftTime != null && rightTime != null) {
+    final byTime = leftTime.compareTo(rightTime);
+    if (byTime != 0) {
+      return byTime;
+    }
+  }
+  return left.sequence.compareTo(right.sequence);
+}
+
+List<_OverlayPoint> _removeSpeedAndJitterOutliers(List<_OverlayPoint> points) {
+  if (points.isEmpty) {
+    return const <_OverlayPoint>[];
+  }
+  final kept = <_OverlayPoint>[points.first];
+  for (final point in points.skip(1)) {
+    final previous = kept.last;
+    final distanceM = _distanceMeters(
+      lat1: previous.latitude,
+      lon1: previous.longitude,
+      lat2: point.latitude,
+      lon2: point.longitude,
+    );
+    if (distanceM <= _minRenderableMoveM) {
+      continue;
+    }
+    if (!_isReasonableTransition(
+      previous: previous,
+      current: point,
+      distanceM: distanceM,
+    )) {
+      continue;
+    }
+    kept.add(point);
+  }
+  return kept;
+}
+
+bool _isReasonableTransition({
+  required _OverlayPoint previous,
+  required _OverlayPoint current,
+  required double distanceM,
+}) {
+  final prevTime = previous.recordedAt;
+  final currTime = current.recordedAt;
+  if (prevTime == null || currTime == null) {
+    return true;
+  }
+
+  final deltaSeconds = currTime.difference(prevTime).inSeconds;
+  if (deltaSeconds <= 0) {
+    return false;
+  }
+
+  final inferredSpeed = distanceM / deltaSeconds;
+  if (inferredSpeed > _maxRenderableSpeedMps && distanceM >= 80) {
+    return false;
+  }
+
+  final observedSpeed = current.speedMps ?? previous.speedMps;
+  if (observedSpeed != null &&
+      observedSpeed > (_maxRenderableSpeedMps * 1.2) &&
+      distanceM >= 40) {
+    return false;
+  }
+
+  return true;
+}
+
+List<_OverlayPoint> _removeSpikePoints(List<_OverlayPoint> points) {
+  if (points.length <= 2) {
+    return points;
+  }
+
+  final result = <_OverlayPoint>[points.first];
+  for (var i = 1; i < points.length - 1; i += 1) {
+    final previous = result.last;
+    final current = points[i];
+    final next = points[i + 1];
+    if (_looksLikeSpike(previous: previous, current: current, next: next)) {
+      continue;
+    }
+    result.add(current);
+  }
+  result.add(points.last);
+  return result;
+}
+
+bool _looksLikeSpike({
+  required _OverlayPoint previous,
+  required _OverlayPoint current,
+  required _OverlayPoint next,
+}) {
+  final toCurrentM = _distanceMeters(
+    lat1: previous.latitude,
+    lon1: previous.longitude,
+    lat2: current.latitude,
+    lon2: current.longitude,
+  );
+  final fromCurrentM = _distanceMeters(
+    lat1: current.latitude,
+    lon1: current.longitude,
+    lat2: next.latitude,
+    lon2: next.longitude,
+  );
+  if (toCurrentM < _minSpikeJumpM || fromCurrentM < _minSpikeJumpM) {
+    return false;
+  }
+
+  final directM = _distanceMeters(
+    lat1: previous.latitude,
+    lon1: previous.longitude,
+    lat2: next.latitude,
+    lon2: next.longitude,
+  );
+  if (directM > _maxSpikeDirectDistanceM) {
+    return false;
+  }
+
+  final previousTime = previous.recordedAt;
+  final nextTime = next.recordedAt;
+  if (previousTime == null || nextTime == null) {
+    return false;
+  }
+
+  final windowSeconds = nextTime.difference(previousTime).inSeconds;
+  return windowSeconds > 0 && windowSeconds <= _maxSpikeWindowSeconds;
 }
 
 List<Map<String, dynamic>> _decodePoints(String raw) {
@@ -101,4 +270,64 @@ double? _asDouble(dynamic value) {
     return value.toDouble();
   }
   return double.tryParse(value.toString());
+}
+
+DateTime? _asDateTime(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value.toUtc();
+  }
+  if (value is! String || value.isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(value)?.toUtc();
+}
+
+bool _isValidCoordinate({
+  required double latitude,
+  required double longitude,
+}) {
+  return latitude >= -90.0 &&
+      latitude <= 90.0 &&
+      longitude >= -180.0 &&
+      longitude <= 180.0;
+}
+
+double _distanceMeters({
+  required double lat1,
+  required double lon1,
+  required double lat2,
+  required double lon2,
+}) {
+  const earthRadiusMeters = 6371000.0;
+  final dLat = _radians(lat2 - lat1);
+  final dLon = _radians(lon2 - lon1);
+  final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+      math.cos(_radians(lat1)) *
+          math.cos(_radians(lat2)) *
+          (math.sin(dLon / 2) * math.sin(dLon / 2));
+  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  return earthRadiusMeters * c;
+}
+
+double _radians(double degrees) => degrees * (math.pi / 180.0);
+
+class _OverlayPoint {
+  const _OverlayPoint({
+    required this.latitude,
+    required this.longitude,
+    required this.recordedAt,
+    required this.accuracyM,
+    required this.speedMps,
+    required this.sequence,
+  });
+
+  final double latitude;
+  final double longitude;
+  final DateTime? recordedAt;
+  final double? accuracyM;
+  final double? speedMps;
+  final int sequence;
 }

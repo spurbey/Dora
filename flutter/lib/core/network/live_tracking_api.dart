@@ -98,6 +98,24 @@ abstract class LiveTrackingApi {
     String? linkedTripPlaceId,
     Map<String, dynamic>? extraPayload,
   });
+
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  });
+
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  });
 }
 
 class DioLiveTrackingApi implements LiveTrackingApi {
@@ -371,6 +389,54 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         if (linkedTripPlaceId != null && linkedTripPlaceId.isNotEmpty)
           'linked_trip_place_id': linkedTripPlaceId,
         if (extraPayload != null) 'extra_payload': extraPayload,
+      },
+      options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/notifications/device-tokens/register'),
+      data: <String, dynamic>{
+        'client_event_id': clientEventId,
+        'platform': platform,
+        'push_token': pushToken,
+        if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+        if (appVersion != null && appVersion.isNotEmpty)
+          'app_version': appVersion,
+        if (locale != null && locale.isNotEmpty) 'locale': locale,
+        'seen_at': _toUtc(seenAt ?? DateTime.now()).toIso8601String(),
+      },
+      options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/notifications/device-tokens/deactivate'),
+      data: <String, dynamic>{
+        'client_event_id': clientEventId,
+        'push_token': pushToken,
+        'deactivated_at':
+            _toUtc(deactivatedAt ?? DateTime.now()).toIso8601String(),
       },
       options: _idempotentOptions(idempotencyKey),
     );

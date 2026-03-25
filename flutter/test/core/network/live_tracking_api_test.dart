@@ -81,6 +81,19 @@ void main() {
         clientEventId: 'evt-3',
         note: 'updated',
       );
+      await api.registerDeviceToken(
+        idempotencyKey: 'idem-6',
+        clientEventId: 'evt-4',
+        platform: 'android',
+        pushToken: 'push-token-12345678',
+        seenAt: now,
+      );
+      await api.deactivateDeviceToken(
+        idempotencyKey: 'idem-7',
+        clientEventId: 'evt-5',
+        pushToken: 'push-token-12345678',
+        deactivatedAt: now,
+      );
 
       final paths = adapter.captured.map((r) => r.path).toList(growable: false);
       expect(
@@ -92,6 +105,8 @@ void main() {
           '/api/v1/checkins/candidate-1/confirm',
           '/api/v1/trips/trip-1/moments',
           '/api/v1/moments/moment-1',
+          '/api/v1/notifications/device-tokens/register',
+          '/api/v1/notifications/device-tokens/deactivate',
         ],
       );
 

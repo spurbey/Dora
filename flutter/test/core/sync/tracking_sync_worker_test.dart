@@ -313,6 +313,48 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'updated_at': updatedAt.toIso8601String(),
     };
   }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) async {
+    final tokenHint = pushToken.length > 8
+        ? pushToken.substring(pushToken.length - 8)
+        : pushToken;
+    return <String, dynamic>{
+      'id': 'device-token-1',
+      'platform': platform,
+      'token_hint': tokenHint,
+      'is_active': true,
+      'last_seen_at': (seenAt ?? DateTime.now().toUtc()).toIso8601String(),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  }) async {
+    final tokenHint = pushToken.length > 8
+        ? pushToken.substring(pushToken.length - 8)
+        : pushToken;
+    return <String, dynamic>{
+      'id': 'device-token-1',
+      'token_hint': tokenHint,
+      'is_active': false,
+      'last_seen_at':
+          (deactivatedAt ?? DateTime.now().toUtc()).toIso8601String(),
+    };
+  }
 }
 
 void main() {

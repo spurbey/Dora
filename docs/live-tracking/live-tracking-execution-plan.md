@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression; moment UX and full map matching pending |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression + Flutter token lifecycle wiring (register/resume/deactivate) landed; moment UX and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1455,6 +1455,36 @@ Use this section after each phase:
   - Push prompts are now skipped when app/device activity is recent, preserving inbox parity while reducing redundant foreground notifications.
 - Known failures/waivers:
   - Foreground inference is token-seen-time based (heartbeat approximation), not a real-time app-presence channel yet.
+
+- Date: 2026-03-25
+- Phase: 6 (Flutter UX/Map) slice 6 push-token lifecycle wiring (step-8 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-pub lib/core/notifications/push_token_client.dart lib/core/notifications/push_token_lifecycle_bootstrap.dart lib/core/notifications/push_token_lifecycle_provider.dart lib/app.dart test/core/notifications/push_token_lifecycle_bootstrap_test.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/core/notifications/push_token_lifecycle_bootstrap_test.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 14 passed)
+- Manual checks run:
+  - Added Flutter push-token lifecycle bootstrap and provider wiring:
+    - `flutter/lib/core/notifications/push_token_client.dart`
+    - `flutter/lib/core/notifications/push_token_lifecycle_bootstrap.dart`
+    - `flutter/lib/core/notifications/push_token_lifecycle_provider.dart`
+    - `flutter/lib/app.dart`
+  - Lifecycle behavior implemented:
+    - register device token on app start when signed in
+    - refresh `seen_at` on app resume
+    - register on FCM token refresh events
+    - deactivate last known token on logout transition (with in-flight register drain to reduce register/deactivate race)
+  - Added API route regression coverage for token endpoints:
+    - `flutter/test/core/network/live_tracking_api_test.dart`
+  - Added lifecycle behavior tests:
+    - `flutter/test/core/notifications/push_token_lifecycle_bootstrap_test.dart`
+  - Updated existing `LiveTrackingApi` test fakes for interface parity:
+    - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+- Result summary:
+  - Step-8 client-side token lifecycle is now implemented and wired into app bootstrap, aligning Flutter with backend push-token register/deactivate contracts.
+  - Foreground suppression policy (backend) now has matching client heartbeat updates via resume/start token registration.
+- Known failures/waivers:
+  - Logout deactivation remains best-effort from auth-state transition; if network/auth teardown races, token ownership reconciliation relies on subsequent register calls.
+  - `test/features/create/live_tracking_runtime_provider_test.dart` showed a pre-existing timing flake while bundled with unrelated suites; this slice validates via focused token/API/sync tests.
 
 ## 12. Risk Register
 

@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-7 in progress)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-8 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -858,3 +858,33 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This reduces redundant push while user is likely in-app, with inbox fallback still preserved.
   - True foreground/online presence channel is still future scope; current policy uses token seen-time as pragmatic signal.
+
+- Date: 2026-03-25
+- Slice: Phase 6 push-token lifecycle wiring (ordered step 8, Flutter client integration)
+- Implemented:
+  - Added push token client abstraction and Firebase transport:
+    - `lib/core/notifications/push_token_client.dart`
+  - Added lifecycle bootstrap with auth + app-resume + token-refresh handling:
+    - `lib/core/notifications/push_token_lifecycle_bootstrap.dart`
+    - register on startup/login
+    - refresh `seen_at` on app resume
+    - register on token refresh events
+    - deactivate last token on logout transition (drains in-flight register first to reduce race risk)
+  - Added Riverpod bootstrap wiring:
+    - `lib/core/notifications/push_token_lifecycle_provider.dart`
+    - `lib/app.dart` now watches `pushTokenLifecycleBootstrapProvider`
+  - Extended API route regression to include notification token endpoints:
+    - `test/core/network/live_tracking_api_test.dart`
+  - Added lifecycle behavior tests:
+    - `test/core/notifications/push_token_lifecycle_bootstrap_test.dart`
+  - Updated existing `LiveTrackingApi` test doubles for interface parity:
+    - `test/core/sync/tracking_sync_worker_test.dart`
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+- Validation:
+  - `cd flutter; flutter pub get` (pass; `firebase_messaging` resolved in lockfile)
+  - `cd flutter; flutter analyze --no-pub lib/core/notifications/push_token_client.dart lib/core/notifications/push_token_lifecycle_bootstrap.dart lib/core/notifications/push_token_lifecycle_provider.dart lib/app.dart test/core/notifications/push_token_lifecycle_bootstrap_test.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/core/notifications/push_token_lifecycle_bootstrap_test.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass: 14 passed)
+- Decision notes:
+  - This slice completes client-side token lifecycle alignment with backend register/deactivate APIs and foreground suppression policy.
+  - Logout deactivation remains best-effort from auth-state transition; if teardown races auth/network, next token register reconciles ownership.
+  - `test/features/create/live_tracking_runtime_provider_test.dart` currently has a pre-existing timing flake when bundled in the same command and is tracked separately from this token lifecycle slice.

@@ -392,6 +392,30 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _FlakyLiveTrackingApi implements LiveTrackingApi {
@@ -534,6 +558,30 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
     Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
   }) {
     throw UnimplementedError();
   }

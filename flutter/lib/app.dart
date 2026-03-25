@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/navigation/app_router.dart';
+import 'package:dora/core/notifications/push_token_lifecycle_provider.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/theme/app_theme.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
@@ -19,6 +20,7 @@ class DoraApp extends ConsumerWidget {
     ref.watch(trackingSyncBootstrapProvider);
     ref.watch(liveTrackingCaptureBootstrapProvider);
     ref.watch(mediaQueueBootstrapProvider);
+    ref.watch(pushTokenLifecycleBootstrapProvider);
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

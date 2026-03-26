@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,85 +60,85 @@ final liveTrackingRemotePathRefreshIntervalProvider =
 
 final liveTrackingRemotePathPointsProvider =
     StreamProvider.autoDispose.family<List<AppLatLng>, String>((
-      ref,
-      tripId,
-    ) {
-      final runtimeState = ref.watch(
-        liveTrackingRuntimeSnapshotProvider(tripId).select((asyncSnapshot) {
-          final snapshot = asyncSnapshot.valueOrNull;
-          return (
-            snapshot?.state ?? LiveTrackingRuntimeState.planned,
-            snapshot?.sessionId,
-          );
-        }),
+  ref,
+  tripId,
+) {
+  final runtimeState = ref.watch(
+    liveTrackingRuntimeSnapshotProvider(tripId).select((asyncSnapshot) {
+      final snapshot = asyncSnapshot.valueOrNull;
+      return (
+        snapshot?.state ?? LiveTrackingRuntimeState.planned,
+        snapshot?.sessionId,
       );
-      final state = runtimeState.$1;
-      final sessionId = runtimeState.$2;
-      if (state == LiveTrackingRuntimeState.planned ||
-          sessionId == null ||
-          sessionId.isEmpty) {
-        return Stream<List<AppLatLng>>.value(const <AppLatLng>[]);
+    }),
+  );
+  final state = runtimeState.$1;
+  final sessionId = runtimeState.$2;
+  if (state == LiveTrackingRuntimeState.planned ||
+      sessionId == null ||
+      sessionId.isEmpty) {
+    return Stream<List<AppLatLng>>.value(const <AppLatLng>[]);
+  }
+
+  final api = ref.watch(liveTrackingApiProvider);
+  final refreshInterval =
+      ref.watch(liveTrackingRemotePathRefreshIntervalProvider(state));
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+  });
+
+  Future<List<AppLatLng>> fetchPoints() async {
+    final payload = await api.fetchTrackingPath(
+      tripId: tripId,
+      sessionId: sessionId,
+    );
+    final rawPoints = payload['points'];
+    if (rawPoints is! List) {
+      return const <AppLatLng>[];
+    }
+
+    final points = <AppLatLng>[];
+    for (final raw in rawPoints) {
+      if (raw is! Map) {
+        continue;
       }
-
-      final api = ref.watch(liveTrackingApiProvider);
-      final refreshInterval =
-          ref.watch(liveTrackingRemotePathRefreshIntervalProvider(state));
-      var disposed = false;
-      ref.onDispose(() {
-        disposed = true;
-      });
-
-      Future<List<AppLatLng>> fetchPoints() async {
-        final payload = await api.fetchTrackingPath(
-          tripId: tripId,
-          sessionId: sessionId,
-        );
-        final rawPoints = payload['points'];
-        if (rawPoints is! List) {
-          return const <AppLatLng>[];
-        }
-
-        final points = <AppLatLng>[];
-        for (final raw in rawPoints) {
-          if (raw is! Map) {
-            continue;
-          }
-          final latitude = _asDouble(raw['latitude']);
-          final longitude = _asDouble(raw['longitude']);
-          if (latitude == null || longitude == null) {
-            continue;
-          }
-          if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
-            continue;
-          }
-          points.add(AppLatLng(latitude: latitude, longitude: longitude));
-        }
-        return points;
+      final latitude = _asDouble(raw['latitude']);
+      final longitude = _asDouble(raw['longitude']);
+      if (latitude == null || longitude == null) {
+        continue;
       }
+      if (!_isValidCoordinate(latitude: latitude, longitude: longitude)) {
+        continue;
+      }
+      points.add(AppLatLng(latitude: latitude, longitude: longitude));
+    }
+    return _stabilizeRemotePath(points);
+  }
 
-      return (() async* {
-        List<AppLatLng>? previous;
-        while (!disposed) {
-          try {
-            final points = await fetchPoints();
-            if (previous == null || !_sameCoordinates(previous, points)) {
-              previous = points;
-              yield points;
-            }
-          } catch (_) {
-            const fallback = <AppLatLng>[];
-            if (previous == null || !_sameCoordinates(previous, fallback)) {
-              previous = fallback;
-              yield previous;
-            }
-          }
-          if (state == LiveTrackingRuntimeState.ended || disposed) {
-            break;
-          }
-          await Future<void>.delayed(refreshInterval);
+  return (() async* {
+    List<AppLatLng>? previous;
+    while (!disposed) {
+      try {
+        final points = await fetchPoints();
+        if (previous == null || !_sameCoordinates(previous, points)) {
+          previous = points;
+          yield points;
         }
-      })();
-    });
+      } catch (_) {
+        const fallback = <AppLatLng>[];
+        if (previous == null || !_sameCoordinates(previous, fallback)) {
+          previous = fallback;
+          yield previous;
+        }
+      }
+      if (state == LiveTrackingRuntimeState.ended || disposed) {
+        break;
+      }
+      await Future<void>.delayed(refreshInterval);
+    }
+  })();
+});
 
 final liveTrackingMapOverlayProvider =
     Provider.autoDispose.family<LiveTrackingMapOverlay, String>(
@@ -172,7 +173,10 @@ final liveTrackingMapOverlayProvider =
     final remotePath =
         ref.watch(liveTrackingRemotePathPointsProvider(tripId)).valueOrNull ??
             const <AppLatLng>[];
-    if (remotePath.length < 2) {
+    final localPath =
+        localOverlay.pathRoute?.coordinates ?? const <AppLatLng>[];
+    if (!_shouldPreferRemotePath(
+        remotePath: remotePath, localPath: localPath)) {
       return localOverlay;
     }
 
@@ -263,3 +267,113 @@ bool _sameCoordinates(List<AppLatLng> left, List<AppLatLng> right) {
   }
   return true;
 }
+
+const double _minRemoteMoveMeters = 2.0;
+const double _remoteSpikeJumpMeters = 120.0;
+const double _remoteSpikeDirectMeters = 60.0;
+const double _maxRemoteSegmentMeters = 2500.0;
+
+List<AppLatLng> _stabilizeRemotePath(List<AppLatLng> raw) {
+  if (raw.length <= 1) {
+    return raw;
+  }
+
+  final deduped = <AppLatLng>[raw.first];
+  for (final point in raw.skip(1)) {
+    if (_distanceMeters(deduped.last, point) <= _minRemoteMoveMeters) {
+      continue;
+    }
+    deduped.add(point);
+  }
+
+  if (deduped.length <= 2) {
+    return deduped;
+  }
+
+  final spikePruned = <AppLatLng>[deduped.first];
+  for (var i = 1; i < deduped.length - 1; i += 1) {
+    final previous = spikePruned.last;
+    final current = deduped[i];
+    final next = deduped[i + 1];
+    final toCurrent = _distanceMeters(previous, current);
+    final fromCurrent = _distanceMeters(current, next);
+    final direct = _distanceMeters(previous, next);
+    final looksLikeSpike = toCurrent >= _remoteSpikeJumpMeters &&
+        fromCurrent >= _remoteSpikeJumpMeters &&
+        direct <= _remoteSpikeDirectMeters;
+    if (looksLikeSpike) {
+      continue;
+    }
+    spikePruned.add(current);
+  }
+  spikePruned.add(deduped.last);
+
+  final bridged = <AppLatLng>[spikePruned.first];
+  for (final point in spikePruned.skip(1)) {
+    if (_distanceMeters(bridged.last, point) > _maxRemoteSegmentMeters) {
+      continue;
+    }
+    bridged.add(point);
+  }
+  return bridged;
+}
+
+bool _shouldPreferRemotePath({
+  required List<AppLatLng> remotePath,
+  required List<AppLatLng> localPath,
+}) {
+  if (remotePath.length < 2) {
+    return false;
+  }
+  if (localPath.length < 2) {
+    return true;
+  }
+
+  final remoteDistance = _pathDistanceMeters(remotePath);
+  final localDistance = _pathDistanceMeters(localPath);
+  if (remoteDistance <= 0) {
+    return false;
+  }
+
+  final remotePointCount = remotePath.length;
+  final localPointCount = localPath.length;
+  if (localPointCount >= 6 &&
+      remotePointCount <= math.max(2, (localPointCount / 2).floor())) {
+    return false;
+  }
+
+  if (localDistance >= 250) {
+    final distanceRatio = remoteDistance / localDistance;
+    if (distanceRatio < 0.6) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+double _pathDistanceMeters(List<AppLatLng> points) {
+  if (points.length < 2) {
+    return 0;
+  }
+  var total = 0.0;
+  for (var i = 1; i < points.length; i += 1) {
+    total += _distanceMeters(points[i - 1], points[i]);
+  }
+  return total;
+}
+
+double _distanceMeters(AppLatLng left, AppLatLng right) {
+  const earthRadiusMeters = 6371000.0;
+  final dLat = _radians(right.latitude - left.latitude);
+  final dLon = _radians(right.longitude - left.longitude);
+  final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(_radians(left.latitude)) *
+          math.cos(_radians(right.latitude)) *
+          math.sin(dLon / 2) *
+          math.sin(dLon / 2);
+  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  return earthRadiusMeters * c;
+}
+
+double _radians(double degrees) => degrees * (math.pi / 180.0);

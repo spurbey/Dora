@@ -69,6 +69,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   final Set<String> _candidateActionsInFlight = <String>{};
   bool _momentCreateInFlight = false;
   final Set<String> _momentActionsInFlight = <String>{};
+  static const _noLinkedMomentPlaceValue = '__no_linked_place__';
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -197,6 +198,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     momentListAsync: momentListAsync,
                     trackingRuntimeAsync: trackingRuntimeAsync,
                     capturePosition: liveMapOverlay.currentMarker?.position,
+                    tripPlaces: editor.places,
                   ),
                   Expanded(
                     child: isWide
@@ -576,6 +578,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     required AsyncValue<List<TrackingMomentRow>> momentListAsync,
     required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
     required AppLatLng? capturePosition,
+    required List<Place> tripPlaces,
   }) {
     final runtimeState = trackingRuntimeAsync.valueOrNull?.state ??
         LiveTrackingRuntimeState.planned;
@@ -592,7 +595,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           onCaptureNow: () => unawaited(
             _captureMomentNow(capturePosition: capturePosition),
           ),
-          onEditMoment: (moment) => unawaited(_editMomentNote(moment)),
+          onEditMoment: (moment) => unawaited(
+            _editMoment(moment: moment, tripPlaces: tripPlaces),
+          ),
         );
       },
       loading: () => LiveTrackingMomentStrip(
@@ -726,13 +731,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _editMomentNote(TrackingMomentRow moment) async {
+  Future<void> _editMoment({
+    required TrackingMomentRow moment,
+    required List<Place> tripPlaces,
+  }) async {
     if (!mounted || _momentActionsInFlight.contains(moment.id)) {
       return;
     }
 
-    final updatedNote = await _promptForMomentNote(initialNote: moment.note);
-    if (updatedNote == null) {
+    final editResult = await _promptForMomentEdit(
+      initialNote: moment.note,
+      initialLinkedTripPlaceId: moment.linkedTripPlaceId,
+      tripPlaces: tripPlaces,
+    );
+    if (editResult == null) {
+      return;
+    }
+
+    final unchangedNote = (moment.note ?? '').trim() == editResult.note.trim();
+    final unchangedLinkedPlace =
+        moment.linkedTripPlaceId == editResult.linkedTripPlaceId;
+    if (unchangedNote && unchangedLinkedPlace) {
       return;
     }
 
@@ -741,11 +760,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     });
     try {
       final repository = ref.read(liveTrackingMomentRepositoryProvider);
-      await repository.queueNoteUpdate(
+      final queued = await repository.queueMomentUpdate(
         tripId: widget.tripId,
         momentId: moment.id,
-        note: updatedNote,
+        note: editResult.note,
+        linkedTripPlaceId: editResult.linkedTripPlaceId,
       );
+      if (!queued) {
+        return;
+      }
       if (!mounted) {
         return;
       }
@@ -774,34 +797,107 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<String?> _promptForMomentNote({
+  Future<_MomentEditResult?> _promptForMomentEdit({
     required String? initialNote,
+    required String? initialLinkedTripPlaceId,
+    required List<Place> tripPlaces,
   }) async {
     final controller = TextEditingController(text: initialNote ?? '');
-    final result = await showDialog<String>(
+    var selectedLinkedPlaceId =
+        initialLinkedTripPlaceId ?? _noLinkedMomentPlaceValue;
+
+    final placeOptions = [...tripPlaces]
+      ..sort((left, right) => left.orderIndex.compareTo(right.orderIndex));
+    final dropdownOptions = placeOptions
+        .map((place) => (
+              id: place.id,
+              label: place.placeType == 'city'
+                  ? '${place.name} (City)'
+                  : place.name,
+            ))
+        .toList();
+    if (initialLinkedTripPlaceId != null &&
+        dropdownOptions.every((item) => item.id != initialLinkedTripPlaceId)) {
+      final truncatedId = initialLinkedTripPlaceId.length <= 6
+          ? initialLinkedTripPlaceId
+          : initialLinkedTripPlaceId.substring(0, 6);
+      dropdownOptions.insert(
+        0,
+        (
+          id: initialLinkedTripPlaceId,
+          label: 'Previously linked place ($truncatedId)',
+        ),
+      );
+      selectedLinkedPlaceId = initialLinkedTripPlaceId;
+    }
+
+    final result = await showDialog<_MomentEditResult>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Edit Moment Note'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Add a short memory note',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-              child: const Text('Save'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Moment'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      hintText: 'Add a short memory note',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedLinkedPlaceId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Linked place',
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: _noLinkedMomentPlaceValue,
+                        child: Text('No linked place'),
+                      ),
+                      ...dropdownOptions.map(
+                        (item) => DropdownMenuItem<String>(
+                          value: item.id,
+                          child: Text(item.label),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedLinkedPlaceId =
+                            value ?? _noLinkedMomentPlaceValue;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(
+                    _MomentEditResult(
+                      note: controller.text,
+                      linkedTripPlaceId:
+                          selectedLinkedPlaceId == _noLinkedMomentPlaceValue
+                              ? null
+                              : selectedLinkedPlaceId,
+                    ),
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -1778,4 +1874,14 @@ class _EditorSyncCallout {
   final Color tint;
   final String? actionLabel;
   final VoidCallback? onAction;
+}
+
+class _MomentEditResult {
+  const _MomentEditResult({
+    required this.note,
+    required this.linkedTripPlaceId,
+  });
+
+  final String note;
+  final String? linkedTripPlaceId;
 }

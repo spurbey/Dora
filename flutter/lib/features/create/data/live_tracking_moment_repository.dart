@@ -71,10 +71,11 @@ class LiveTrackingMomentRepository {
     return momentId;
   }
 
-  Future<void> queueNoteUpdate({
+  Future<bool> queueMomentUpdate({
     required String tripId,
     required String momentId,
     required String? note,
+    required String? linkedTripPlaceId,
   }) async {
     final row = await _trackingMomentDao.getMomentById(momentId);
     if (row == null) {
@@ -82,6 +83,13 @@ class LiveTrackingMomentRepository {
     }
     if (row.tripId != tripId) {
       throw StateError('Moment $momentId does not belong to trip $tripId');
+    }
+
+    final normalizedNote = _normalizeNote(note);
+    final existingNote = _normalizeNote(row.note);
+    if (normalizedNote == existingNote &&
+        linkedTripPlaceId == row.linkedTripPlaceId) {
+      return false;
     }
 
     final now = _now().toUtc();
@@ -93,13 +101,13 @@ class LiveTrackingMomentRepository {
         id: row.id,
         tripId: row.tripId,
         candidateId: Value(row.candidateId),
-        linkedTripPlaceId: Value(row.linkedTripPlaceId),
+        linkedTripPlaceId: Value(linkedTripPlaceId),
         source: Value(row.source),
         confidence: Value(row.confidence),
         capturedAt: row.capturedAt,
         latitude: Value(row.latitude),
         longitude: Value(row.longitude),
-        note: Value(_normalizeNote(note)),
+        note: Value(normalizedNote),
         mediaRefsJson: Value(row.mediaRefsJson),
         extraPayloadJson: Value(row.extraPayloadJson),
         lockedFieldsJson: Value(row.lockedFieldsJson),
@@ -118,6 +126,7 @@ class LiveTrackingMomentRepository {
       entityId: row.id,
       operation: operation,
     );
+    return true;
   }
 
   static String? _normalizeNote(String? value) {

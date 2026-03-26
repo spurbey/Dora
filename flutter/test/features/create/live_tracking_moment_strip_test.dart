@@ -16,7 +16,10 @@ void main() {
         (tester) async {
       var captureTapCount = 0;
       String? editedMomentId;
-      final moment = _moment(id: 'moment-1');
+      final moment = _moment(
+        id: 'moment-1',
+        linkedTripPlaceId: 'place-1',
+      );
 
       await tester.pumpWidget(
         wrap(
@@ -32,6 +35,7 @@ void main() {
       );
 
       expect(find.byKey(const ValueKey('momentTile_moment-1')), findsOneWidget);
+      expect(find.textContaining('Place linked'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('momentCaptureNow')));
       await tester.pump();
@@ -73,13 +77,14 @@ void main() {
 
 TrackingMomentRow _moment({
   required String id,
+  String? linkedTripPlaceId,
 }) {
   final now = DateTime.utc(2026, 3, 26, 10, 30);
   return TrackingMomentRow(
     id: id,
     tripId: 'trip-1',
     candidateId: null,
-    linkedTripPlaceId: null,
+    linkedTripPlaceId: linkedTripPlaceId,
     source: 'manual',
     confidence: null,
     capturedAt: now,

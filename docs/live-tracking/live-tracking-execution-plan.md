@@ -1,6 +1,6 @@
 # Live Tracking Detailed Execution Plan
 
-Last updated: 2026-03-25  
+Last updated: 2026-03-26  
 Status: Active execution plan (phase-gated)
 
 ## 1. Purpose
@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression + Flutter token lifecycle wiring (register/resume/deactivate) landed; moment capture/edit strip landed; full moment override flow and full map matching pending |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression + Flutter token lifecycle wiring (register/resume/deactivate) landed; moment capture/edit strip + linked-place override landed; path-quality step-10 remote/local overlay guardrails landed; full media-rich moment override and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1512,6 +1512,62 @@ Use this section after each phase:
   - Sync semantics remain stable under retries by keeping unsynced created moments on `create` operation.
 - Known failures/waivers:
   - This slice covers capture/edit-note foundation only; richer moment override (place linking/media edits/review route) remains next.
+
+- Date: 2026-03-26
+- Phase: 6 (Flutter UX/Map) slice 8 remote-path quality guardrails (step-10 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 12 passed)
+- Manual checks run:
+  - Hardened remote-path overlay selection:
+    - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - remote path now passes quality checks before replacing local overlay path.
+    - fallback to local route when remote snapshot is under-sampled versus local tracked history.
+  - Added remote-path stabilization stage:
+    - dedupe near-identical points
+    - prune spike patterns and unrealistic long segment jumps
+    - preserve local marker rendering and local-first fallback behavior.
+  - Added regression coverage:
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies under-sampled remote path falls back to local route.
+    - verifies noisy remote payload is stabilized before overlay consumption.
+- Result summary:
+  - Editor path rendering now avoids replacing high-fidelity local tracks with sparse/noisy remote snapshots.
+  - This reduces visible route distortion while keeping backend canonical path integration active when quality is sufficient.
+- Known failures/waivers:
+  - This is still heuristic guardrail logic, not full road-snapped map matching.
+  - Route confidence tuning constants may need calibration after broader field telemetry.
+
+- Date: 2026-03-26
+- Phase: 6 (Flutter UX/Map) slice 9 moment override parity (step-11 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos --no-pub lib/features/create/data/live_tracking_moment_repository.dart lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_moment_strip.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass; pre-existing editor infos only)
+  - `cd flutter; flutter test test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 19 passed)
+- Manual checks run:
+  - Extended moment override queue contract:
+    - `flutter/lib/features/create/data/live_tracking_moment_repository.dart`
+    - replaced note-only update call with `queueMomentUpdate(...)` supporting `note` plus `linkedTripPlaceId`.
+    - adds repository-level no-op short-circuit so unchanged updates do not enqueue redundant sync tasks.
+  - Updated editor moment edit flow:
+    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+    - edit dialog now supports both note updates and linked-place override (including clear-link).
+    - avoids creating sync tasks when no effective moment change was made.
+  - Updated moment strip detail metadata:
+    - `flutter/lib/features/create/presentation/widgets/live_tracking_moment_strip.dart`
+    - shows `Place linked` hint when a moment is linked to a trip place.
+  - Added/updated regressions:
+    - `flutter/test/features/create/live_tracking_moment_repository_test.dart`
+    - validates update operation semantics for link set/clear and no-op skip cases.
+    - `flutter/test/features/create/live_tracking_moment_strip_test.dart`
+    - validates linked-place metadata rendering.
+    - `flutter/test/features/create/live_tracking_runtime_provider_test.dart`
+    - removes delay-based flake via deterministic wait conditions in overlay stream test.
+- Result summary:
+  - Moment overrides now cover the key place-link use case in addition to note edits, with offline-first sync semantics preserved.
+  - This closes the biggest functional gap from moment UX foundation while keeping API/sync contract compatibility intact.
+- Known failures/waivers:
+  - Full media-rich moment override (media refs and advanced review/edit orchestration) remains a later slice.
+  - Editor still has two pre-existing info-level analyzer warnings unrelated to this slice.
 
 ## 12. Risk Register
 

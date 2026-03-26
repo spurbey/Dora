@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
-Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-9 in progress)  
+Last updated: 2026-03-26  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-11 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -914,3 +914,55 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This lands the moment UX baseline without blocking on larger timeline/map-matching refactors.
   - Full moment override parity (linked place/media edit/review orchestration) remains for the next slice.
+
+- Date: 2026-03-26
+- Slice: Phase 6 path quality parity hardening (ordered step 10, remote/local overlay guardrails)
+- Implemented:
+  - Hardened remote-path selection policy in runtime provider:
+    - `lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+    - remote path is no longer selected solely on `>=2` points.
+    - provider now falls back to local overlay route when remote snapshot is under-sampled compared with local tracked history.
+  - Added remote-path stabilization before overlay consumption:
+    - dedupe near-identical coordinates
+    - prune spike patterns (jump-out/jump-back points)
+    - drop unrealistic segment jumps
+  - Preserved existing local-first behavior:
+    - local overlay path and marker remain canonical fallback when remote payload is unavailable or low quality.
+  - Added regression tests:
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+    - verifies local fallback on sparse remote snapshots.
+    - verifies remote noisy payload is stabilized before emission.
+- Validation:
+  - `cd flutter; flutter analyze --no-pub lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_provider_test.dart` (pass)
+  - `cd flutter; flutter test test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 12 passed)
+- Decision notes:
+  - This slice reduces path distortion risk where server snapshots are temporarily coarse while local capture is denser.
+  - Constants are heuristic safety rails; full road-snapped map matching remains a later phase.
+
+- Date: 2026-03-26
+- Slice: Phase 6 moment override parity (ordered step 11, note + linked-place editing)
+- Implemented:
+  - Expanded moment repository update contract:
+    - `lib/features/create/data/live_tracking_moment_repository.dart`
+    - replaced note-only queue call with `queueMomentUpdate(...)` supporting both `note` and `linkedTripPlaceId`.
+    - added repository-level no-op short-circuit to avoid redundant sync task enqueue on unchanged updates.
+  - Extended editor moment edit flow:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - edit dialog now includes linked-place selection (including clear-link option) alongside note edits.
+    - no-op submissions (no note/link change) are ignored to prevent unnecessary sync churn.
+  - Updated moment strip metadata hint:
+    - `lib/features/create/presentation/widgets/live_tracking_moment_strip.dart`
+    - shows `Place linked` in tile metadata when a link exists.
+  - Added regression coverage:
+    - `test/features/create/live_tracking_moment_repository_test.dart`
+    - validates set/clear linked-place updates, pending operation semantics, and no-op skip behavior.
+    - `test/features/create/live_tracking_moment_strip_test.dart`
+    - validates linked-place metadata rendering.
+    - `test/features/create/live_tracking_runtime_provider_test.dart`
+    - stabilized first overlay stream test with deterministic wait conditions (removes delay-based flake under combined-suite runs).
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos --no-pub lib/features/create/data/live_tracking_moment_repository.dart lib/features/create/presentation/screens/editor_screen.dart lib/features/create/presentation/widgets/live_tracking_moment_strip.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass; 2 pre-existing info-level warnings in editor screen)
+  - `cd flutter; flutter test test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart` (pass: 19 passed)
+- Decision notes:
+  - This slice closes the primary parity gap left by step 9 for moment place-link overrides while preserving offline-first sync flow.
+  - Advanced media-rich override/review orchestration remains a future slice.

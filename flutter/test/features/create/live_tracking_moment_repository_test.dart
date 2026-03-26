@@ -68,7 +68,7 @@ void main() {
       expect(task.status, 'queued');
     });
 
-    test('queueNoteUpdate on synced moment switches to update operation',
+    test('queueMomentUpdate on synced moment switches to update operation',
         () async {
       final now = clock.now.toUtc();
       await _insertMoment(
@@ -79,16 +79,18 @@ void main() {
         pendingOperation: null,
       );
 
-      await repository.queueNoteUpdate(
+      await repository.queueMomentUpdate(
         tripId: 'trip-1',
         momentId: 'moment-1',
         note: '  Updated note  ',
+        linkedTripPlaceId: 'place-123',
       );
 
       final row = await momentDao.getMomentById('moment-1');
       expect(row, isNotNull);
       expect(row!.pendingOperation, 'update');
       expect(row.note, 'Updated note');
+      expect(row.linkedTripPlaceId, 'place-123');
       expect(row.clientEventId, isNotNull);
       expect(row.syncStatus, 'pending');
 
@@ -100,7 +102,7 @@ void main() {
       expect(task!.operation, 'update');
     });
 
-    test('queueNoteUpdate preserves create operation for unsynced moment',
+    test('queueMomentUpdate preserves create operation for unsynced moment',
         () async {
       final now = clock.now.toUtc();
       await _insertMoment(
@@ -111,10 +113,11 @@ void main() {
         pendingOperation: 'create',
       );
 
-      await repository.queueNoteUpdate(
+      await repository.queueMomentUpdate(
         tripId: 'trip-1',
         momentId: 'moment-2',
         note: 'Edited before first sync',
+        linkedTripPlaceId: null,
       );
 
       final row = await momentDao.getMomentById('moment-2');
@@ -128,6 +131,57 @@ void main() {
       expect(task, isNotNull);
       expect(task!.operation, 'create');
     });
+
+    test('queueMomentUpdate can clear previously linked place', () async {
+      final now = clock.now.toUtc();
+      await _insertMoment(
+        momentDao,
+        id: 'moment-3',
+        tripId: 'trip-1',
+        createdAt: now,
+        pendingOperation: null,
+        linkedTripPlaceId: 'place-old',
+      );
+
+      await repository.queueMomentUpdate(
+        tripId: 'trip-1',
+        momentId: 'moment-3',
+        note: 'Edited note',
+        linkedTripPlaceId: null,
+      );
+
+      final row = await momentDao.getMomentById('moment-3');
+      expect(row, isNotNull);
+      expect(row!.linkedTripPlaceId, isNull);
+      expect(row.pendingOperation, 'update');
+    });
+
+    test('queueMomentUpdate no-op does not enqueue extra sync task', () async {
+      final now = clock.now.toUtc();
+      await _insertMoment(
+        momentDao,
+        id: 'moment-4',
+        tripId: 'trip-1',
+        createdAt: now,
+        pendingOperation: null,
+        linkedTripPlaceId: 'place-123',
+        note: 'Same note',
+      );
+
+      final queued = await repository.queueMomentUpdate(
+        tripId: 'trip-1',
+        momentId: 'moment-4',
+        note: 'Same note',
+        linkedTripPlaceId: 'place-123',
+      );
+
+      expect(queued, isFalse);
+      final task = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-4',
+      );
+      expect(task, isNull);
+    });
   });
 }
 
@@ -137,14 +191,17 @@ Future<void> _insertMoment(
   required String tripId,
   required DateTime createdAt,
   required String? pendingOperation,
+  String? linkedTripPlaceId,
+  String note = 'original note',
 }) async {
   await dao.upsertMoment(
     TrackingMomentsCompanion.insert(
       id: id,
       tripId: tripId,
+      linkedTripPlaceId: Value(linkedTripPlaceId),
       source: const Value('manual'),
       capturedAt: createdAt,
-      note: const Value('original note'),
+      note: Value(note),
       pendingOperation: Value(pendingOperation),
       syncStatus: const Value('synced'),
       localUpdatedAt: createdAt,

@@ -101,6 +101,9 @@ class LiveTrackingMomentStrip extends StatelessWidget {
     final details = [
       _sourceLabel(moment.source),
       _formatTime(moment.capturedAt),
+      if (moment.linkedTripPlaceId != null &&
+          moment.linkedTripPlaceId!.isNotEmpty)
+        'Place linked',
       if (moment.syncStatus == 'pending' || moment.pendingOperation != null)
         'Sync pending',
     ].join(' | ');

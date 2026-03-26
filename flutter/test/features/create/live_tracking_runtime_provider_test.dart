@@ -54,7 +54,7 @@ void main() {
           sessionId: 'session-1',
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await _waitUntil(() => updates.length >= 2);
 
       batchesController.add(
         <TrackingPointBatchRow>[
@@ -67,7 +67,10 @@ void main() {
           ),
         ],
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await _waitUntil(() {
+        final next = container.read(liveTrackingMapOverlayProvider('trip-1'));
+        return next.currentMarker != null && next.pathRoute == null;
+      });
       var overlay = container.read(liveTrackingMapOverlayProvider('trip-1'));
       expect(overlay.currentMarker, isNotNull);
       expect(overlay.pathRoute, isNull);
@@ -90,7 +93,10 @@ void main() {
           ),
         ],
       );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await _waitUntil(() {
+        final next = container.read(liveTrackingMapOverlayProvider('trip-1'));
+        return next.pathRoute != null;
+      });
       overlay = container.read(liveTrackingMapOverlayProvider('trip-1'));
       expect(overlay.currentMarker, isNotNull);
       expect(overlay.pathRoute, isNotNull);
@@ -155,7 +161,8 @@ void main() {
         ],
       );
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      await container.read(liveTrackingRemotePathPointsProvider('trip-2').future);
+      await container
+          .read(liveTrackingRemotePathPointsProvider('trip-2').future);
 
       final overlay = container.read(liveTrackingMapOverlayProvider('trip-2'));
       expect(overlay.pathRoute, isNotNull);
@@ -163,6 +170,151 @@ void main() {
       expect(overlay.pathRoute!.coordinates.length, 2);
       expect(overlay.pathRoute!.coordinates.first.latitude, 10.0);
       expect(overlay.pathRoute!.coordinates.first.longitude, 20.0);
+    });
+
+    test('falls back to local path when remote snapshot is under-sampled',
+        () async {
+      final runtimeController =
+          StreamController<LiveTrackingRuntimeSnapshot>.broadcast();
+      final batchesController =
+          StreamController<List<TrackingPointBatchRow>>.broadcast();
+
+      final container = ProviderContainer(
+        overrides: [
+          liveTrackingRuntimeSnapshotProvider('trip-5').overrideWith(
+            (ref) => runtimeController.stream,
+          ),
+          liveTrackingSessionBatchesProvider('session-5').overrideWith(
+            (ref) => batchesController.stream,
+          ),
+          liveTrackingRemotePathPointsProvider('trip-5').overrideWith(
+            (ref) => Stream<List<AppLatLng>>.value(const <AppLatLng>[
+              AppLatLng(latitude: 27.7000, longitude: 85.3000),
+              AppLatLng(latitude: 27.7002, longitude: 85.3002),
+            ]),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        await runtimeController.close();
+        await batchesController.close();
+        container.dispose();
+      });
+      final subscription = container.listen<LiveTrackingMapOverlay>(
+        liveTrackingMapOverlayProvider('trip-5'),
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(subscription.close);
+
+      runtimeController.add(
+        const LiveTrackingRuntimeSnapshot(
+          tripId: 'trip-5',
+          state: LiveTrackingRuntimeState.active,
+          sessionId: 'session-5',
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      batchesController.add(
+        <TrackingPointBatchRow>[
+          _batch(
+            id: 'batch-local-5',
+            sessionId: 'session-5',
+            points: const <Map<String, dynamic>>[
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:00:00Z',
+                'latitude': 27.7000,
+                'longitude': 85.3000,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:01:00Z',
+                'latitude': 27.7002,
+                'longitude': 85.3003,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:02:00Z',
+                'latitude': 27.7004,
+                'longitude': 85.3006,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:03:00Z',
+                'latitude': 27.7006,
+                'longitude': 85.3009,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:04:00Z',
+                'latitude': 27.7008,
+                'longitude': 85.3012,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:05:00Z',
+                'latitude': 27.7010,
+                'longitude': 85.3015,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:06:00Z',
+                'latitude': 27.7012,
+                'longitude': 85.3018,
+              },
+              <String, dynamic>{
+                'recorded_at': '2026-03-26T10:07:00Z',
+                'latitude': 27.7014,
+                'longitude': 85.3021,
+              },
+            ],
+          ),
+        ],
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await container
+          .read(liveTrackingRemotePathPointsProvider('trip-5').future);
+
+      final overlay = container.read(liveTrackingMapOverlayProvider('trip-5'));
+      expect(overlay.pathRoute, isNotNull);
+      expect(overlay.pathRoute!.id, '_live_tracking_path_session-5');
+      expect(overlay.pathRoute!.coordinates.length, 8);
+    });
+
+    test('stabilizes remote path points before emitting to overlay', () async {
+      final api = _NoisyPathLiveTrackingApi();
+      final container = ProviderContainer(
+        overrides: [
+          liveTrackingRuntimeSnapshotProvider('trip-6').overrideWith(
+            (ref) => Stream<LiveTrackingRuntimeSnapshot>.value(
+              const LiveTrackingRuntimeSnapshot(
+                tripId: 'trip-6',
+                state: LiveTrackingRuntimeState.active,
+                sessionId: 'session-6',
+              ),
+            ),
+          ),
+          liveTrackingApiProvider.overrideWith((ref) => api),
+          liveTrackingRemotePathRefreshIntervalProvider(
+            LiveTrackingRuntimeState.active,
+          ).overrideWith((ref) => const Duration(seconds: 5)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final sub = container.listen<AsyncValue<List<AppLatLng>>>(
+        liveTrackingRemotePathPointsProvider('trip-6'),
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
+
+      final points = await container
+          .read(liveTrackingRemotePathPointsProvider('trip-6').future);
+      expect(
+        points,
+        const <AppLatLng>[
+          AppLatLng(latitude: 27.7000, longitude: 85.3000),
+          AppLatLng(latitude: 27.7002, longitude: 85.3002),
+          AppLatLng(latitude: 27.7004, longitude: 85.3004),
+        ],
+      );
+      expect(api.fetchCalls, 1);
     });
 
     test('polls remote path on active cadence', () async {
@@ -250,6 +402,19 @@ void main() {
       expect(updates.last, isEmpty);
     });
   });
+}
+
+Future<void> _waitUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      break;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
 }
 
 class _PollingLiveTrackingApi implements LiveTrackingApi {
@@ -440,6 +605,175 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
       };
     }
     throw Exception('network');
+  }
+
+  @override
+  Future<Map<String, dynamic>> startTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> pauseTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime pausedAt,
+    String? sessionId,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> resumeTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime resumedAt,
+    String? sessionId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime stoppedAt,
+    String? sessionId,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadPointsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required String sessionId,
+    required String clientBatchId,
+    required DateTime sentAt,
+    required List<Map<String, dynamic>> points,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> confirmCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime confirmedAt,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rejectCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime rejectedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> snoozeCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime snoozedUntil,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> createMoment({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime capturedAt,
+    String? note,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateMoment({
+    required String momentId,
+    required String idempotencyKey,
+    required String clientEventId,
+    DateTime? capturedAt,
+    String? note,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
+  int fetchCalls = 0;
+
+  @override
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  }) async {
+    fetchCalls += 1;
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'session_id': sessionId ?? 'session-6',
+      'points_count': 6,
+      'points': const <Map<String, dynamic>>[
+        <String, dynamic>{'latitude': 27.7000, 'longitude': 85.3000},
+        <String, dynamic>{'latitude': 27.7000, 'longitude': 85.3000},
+        <String, dynamic>{'latitude': 27.8200, 'longitude': 85.4200},
+        <String, dynamic>{'latitude': 27.7002, 'longitude': 85.3002},
+        <String, dynamic>{'latitude': 27.7004, 'longitude': 85.3004},
+      ],
+    };
   }
 
   @override

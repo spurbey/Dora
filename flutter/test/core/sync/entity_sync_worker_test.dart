@@ -390,6 +390,79 @@ void main() {
       expect(userTrip?.syncStatus, 'synced');
     });
 
+    test(
+        'trip sync completion requeues identity-blocked tracking tasks for same trip',
+        () async {
+      final baseTime = DateTime(2026, 3, 20, 10, 0, 0);
+
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-recovery-trigger',
+          userId: 'user-1',
+          name: 'Trip Recovery Trigger',
+          localUpdatedAt: baseTime,
+          serverUpdatedAt: baseTime,
+          syncStatus: 'pending',
+          createdAt: baseTime,
+        ),
+      );
+      await database.userTripsDao.insertTrip(
+        UserTrip(
+          id: 'trip-recovery-trigger',
+          userId: 'user-1',
+          name: 'Trip Recovery Trigger',
+          description: null,
+          coverPhotoUrl: null,
+          startDate: null,
+          endDate: null,
+          visibility: 'private',
+          placeCount: 0,
+          status: 'editing',
+          lastEditedAt: baseTime,
+          localUpdatedAt: baseTime,
+          serverUpdatedAt: baseTime,
+          syncStatus: 'pending',
+          createdAt: baseTime,
+        ),
+      );
+      await database.into(database.trackingSessions).insert(
+            TrackingSessionsCompanion.insert(
+              id: 'tracking-session-recovery-trigger',
+              tripId: 'trip-recovery-trigger',
+              clientSessionId: 'client-session-recovery-trigger',
+              state: const drift.Value('planned'),
+              localUpdatedAt: baseTime,
+              createdAt: baseTime,
+              updatedAt: baseTime,
+            ),
+          );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-recovery-trigger',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'tracking-session-recovery-trigger',
+        operation: 'start',
+      );
+      await syncTaskDao.markBlocked(
+        taskId: 'task-tracking-session-recovery-trigger',
+        errorCode: 'http_404',
+        errorMessage: 'trip identity mismatch',
+      );
+
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-trip-recovery-trigger',
+        entityType: 'trip',
+        entityId: 'trip-recovery-trigger',
+        operation: 'create',
+      );
+
+      await worker.startIfIdle();
+
+      final trackingTask =
+          await readTask('task-tracking-session-recovery-trigger');
+      expect(trackingTask['status'], 'queued');
+      expect(trackingTask['error_code'], isNull);
+    });
+
     test('keeps entity pending when task was requeued during in-progress',
         () async {
       final baseTime = DateTime(2026, 3, 20, 11, 0, 0);

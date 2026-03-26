@@ -30,6 +30,7 @@ class _DeactivateCall {
 class _FakeLiveTrackingApi implements LiveTrackingApi {
   final List<_RegisterCall> registerCalls = <_RegisterCall>[];
   final List<_DeactivateCall> deactivateCalls = <_DeactivateCall>[];
+  Completer<void>? registerGate;
 
   @override
   Future<Map<String, dynamic>> registerDeviceToken({
@@ -42,6 +43,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? appVersion,
     String? locale,
   }) async {
+    final gate = registerGate;
+    if (gate != null && !gate.isCompleted) {
+      await gate.future;
+    }
     registerCalls.add(
       _RegisterCall(
         platform: platform,
@@ -184,9 +189,11 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) {
     throw UnimplementedError();
@@ -327,6 +334,41 @@ void main() {
 
       expect(fakeApi.registerCalls, hasLength(2));
       expect(fakeApi.registerCalls.last.pushToken, 'push-token-2');
+
+      bootstrap.dispose();
+      await fakePushClient.dispose();
+      await authStateController.close();
+    });
+
+    test('auth generation guard avoids stale deactivate on rapid logout/login',
+        () async {
+      final authStateController = StreamController<Object?>.broadcast();
+      final fakeApi = _FakeLiveTrackingApi();
+      final fakePushClient = _FakePushTokenClient(token: 'push-token-1');
+      var signedIn = true;
+      final bootstrap = PushTokenLifecycleBootstrap(
+        authStateChanges: authStateController.stream,
+        isSignedIn: () => signedIn,
+        liveTrackingApi: fakeApi,
+        pushTokenClient: fakePushClient,
+        platformResolver: () => 'android',
+      );
+
+      fakeApi.registerGate = Completer<void>();
+      bootstrap.start();
+      await settle();
+
+      signedIn = false;
+      authStateController.add(null);
+      signedIn = true;
+      authStateController.add(Object());
+
+      fakeApi.registerGate?.complete();
+      await settle();
+      await settle();
+
+      expect(fakeApi.registerCalls.length, greaterThanOrEqualTo(2));
+      expect(fakeApi.deactivateCalls, isEmpty);
 
       bootstrap.dispose();
       await fakePushClient.dispose();

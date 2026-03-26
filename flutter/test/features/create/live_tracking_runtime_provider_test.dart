@@ -286,8 +286,13 @@ void main() {
                 tripId: 'trip-6',
                 state: LiveTrackingRuntimeState.active,
                 sessionId: 'session-6',
+                remoteSessionId: 'remote-session-6',
               ),
             ),
+          ),
+          liveTrackingIsAuthenticatedProvider.overrideWith((ref) => true),
+          liveTrackingServerTripIdProvider('trip-6').overrideWith(
+            (ref) => Stream<String?>.value('remote-trip-6'),
           ),
           liveTrackingApiProvider.overrideWith((ref) => api),
           liveTrackingRemotePathRefreshIntervalProvider(
@@ -317,6 +322,45 @@ void main() {
       expect(api.fetchCalls, 1);
     });
 
+    test('auth gate keeps remote path local-only when signed out', () async {
+      final api = _PollingLiveTrackingApi();
+      final container = ProviderContainer(
+        overrides: [
+          liveTrackingRuntimeSnapshotProvider('trip-auth').overrideWith(
+            (ref) => Stream<LiveTrackingRuntimeSnapshot>.value(
+              const LiveTrackingRuntimeSnapshot(
+                tripId: 'trip-auth',
+                state: LiveTrackingRuntimeState.active,
+                sessionId: 'session-auth',
+                remoteSessionId: 'remote-session-auth',
+              ),
+            ),
+          ),
+          liveTrackingIsAuthenticatedProvider.overrideWith((ref) => false),
+          liveTrackingServerTripIdProvider('trip-auth').overrideWith(
+            (ref) => Stream<String?>.value('remote-trip-auth'),
+          ),
+          liveTrackingApiProvider.overrideWith((ref) => api),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final sub = container.listen<AsyncValue<List<AppLatLng>>>(
+        liveTrackingRemotePathPointsProvider('trip-auth'),
+        (_, __) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final points = container
+              .read(liveTrackingRemotePathPointsProvider('trip-auth'))
+              .valueOrNull ??
+          const <AppLatLng>[];
+      expect(points, isEmpty);
+      expect(api.fetchCalls, 0);
+    });
+
     test('polls remote path on active cadence', () async {
       final runtimeController =
           StreamController<LiveTrackingRuntimeSnapshot>.broadcast();
@@ -325,6 +369,10 @@ void main() {
         overrides: [
           liveTrackingRuntimeSnapshotProvider('trip-3').overrideWith(
             (ref) => runtimeController.stream,
+          ),
+          liveTrackingIsAuthenticatedProvider.overrideWith((ref) => true),
+          liveTrackingServerTripIdProvider('trip-3').overrideWith(
+            (ref) => Stream<String?>.value('remote-trip-3'),
           ),
           liveTrackingApiProvider.overrideWith((ref) => api),
           liveTrackingRemotePathRefreshIntervalProvider(
@@ -349,11 +397,14 @@ void main() {
           tripId: 'trip-3',
           state: LiveTrackingRuntimeState.active,
           sessionId: 'session-3',
+          remoteSessionId: 'remote-session-3',
         ),
       );
 
       await Future<void>.delayed(const Duration(milliseconds: 120));
       expect(api.fetchCalls, greaterThanOrEqualTo(2));
+      expect(api.lastTripId, 'remote-trip-3');
+      expect(api.lastSessionId, 'remote-session-3');
     });
 
     test('falls back to empty remote path when fetch fails', () async {
@@ -364,6 +415,10 @@ void main() {
         overrides: [
           liveTrackingRuntimeSnapshotProvider('trip-4').overrideWith(
             (ref) => runtimeController.stream,
+          ),
+          liveTrackingIsAuthenticatedProvider.overrideWith((ref) => true),
+          liveTrackingServerTripIdProvider('trip-4').overrideWith(
+            (ref) => Stream<String?>.value('remote-trip-4'),
           ),
           liveTrackingApiProvider.overrideWith((ref) => api),
           liveTrackingRemotePathRefreshIntervalProvider(
@@ -394,6 +449,7 @@ void main() {
           tripId: 'trip-4',
           state: LiveTrackingRuntimeState.active,
           sessionId: 'session-4',
+          remoteSessionId: 'remote-session-4',
         ),
       );
 
@@ -419,6 +475,8 @@ Future<void> _waitUntil(
 
 class _PollingLiveTrackingApi implements LiveTrackingApi {
   int fetchCalls = 0;
+  String? lastTripId;
+  String? lastSessionId;
 
   @override
   Future<Map<String, dynamic>> fetchTrackingPath({
@@ -427,6 +485,8 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
     int limit = 5000,
   }) async {
     fetchCalls += 1;
+    lastTripId = tripId;
+    lastSessionId = sessionId;
     return <String, dynamic>{
       'trip_id': tripId,
       'session_id': sessionId ?? 'session-3',
@@ -550,9 +610,11 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) {
     throw UnimplementedError();
@@ -719,9 +781,11 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) {
     throw UnimplementedError();
@@ -888,9 +952,11 @@ class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) {
     throw UnimplementedError();

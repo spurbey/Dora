@@ -93,9 +93,11 @@ abstract class LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   });
 
@@ -372,9 +374,11 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) async {
     final response = await _dio.patch<dynamic>(
@@ -383,10 +387,11 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         'client_event_id': clientEventId,
         if (capturedAt != null)
           'captured_at': _toUtc(capturedAt).toIso8601String(),
-        if (note != null) 'note': note,
+        if (includeNote || note != null) 'note': note,
         if (location != null) 'location': location,
         if (mediaRefs != null) 'media_refs': mediaRefs,
-        if (linkedTripPlaceId != null && linkedTripPlaceId.isNotEmpty)
+        if (includeLinkedTripPlaceId ||
+            (linkedTripPlaceId != null && linkedTripPlaceId.isNotEmpty))
           'linked_trip_place_id': linkedTripPlaceId,
         if (extraPayload != null) 'extra_payload': extraPayload,
       },

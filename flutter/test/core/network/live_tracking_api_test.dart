@@ -114,5 +114,40 @@ void main() {
       expect(pathRequest.queryParameters['session_id'], 'session-1');
       expect(pathRequest.queryParameters['limit'], 10000);
     });
+
+    test('updateMoment sends explicit clear fields only with include flags',
+        () async {
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000'));
+      final adapter = _CaptureAdapter();
+      dio.httpClientAdapter = adapter;
+      final api = DioLiveTrackingApi(dio);
+
+      await api.updateMoment(
+        momentId: 'moment-1',
+        idempotencyKey: 'idem-a',
+        clientEventId: 'evt-a',
+        note: null,
+        linkedTripPlaceId: null,
+      );
+      await api.updateMoment(
+        momentId: 'moment-1',
+        idempotencyKey: 'idem-b',
+        clientEventId: 'evt-b',
+        note: null,
+        includeNote: true,
+        linkedTripPlaceId: null,
+        includeLinkedTripPlaceId: true,
+      );
+
+      final firstPayload = adapter.captured[0].data as Map<String, dynamic>;
+      expect(firstPayload.containsKey('note'), isFalse);
+      expect(firstPayload.containsKey('linked_trip_place_id'), isFalse);
+
+      final secondPayload = adapter.captured[1].data as Map<String, dynamic>;
+      expect(secondPayload.containsKey('note'), isTrue);
+      expect(secondPayload['note'], isNull);
+      expect(secondPayload.containsKey('linked_trip_place_id'), isTrue);
+      expect(secondPayload['linked_trip_place_id'], isNull);
+    });
   });
 }

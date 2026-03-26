@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/network/api_providers.dart';
@@ -58,25 +60,56 @@ final liveTrackingRemotePathRefreshIntervalProvider =
   }
 });
 
+final liveTrackingIsAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(authControllerProvider).valueOrNull != null;
+});
+
+final liveTrackingServerTripIdProvider =
+    StreamProvider.autoDispose.family<String?, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    SELECT server_trip_id
+    FROM trips
+    WHERE id = ?
+    LIMIT 1
+    ''',
+    variables: [Variable<String>(tripId)],
+    readsFrom: {db.trips},
+  );
+  return query.watchSingleOrNull().map((row) {
+    final serverTripId = row?.read<String?>('server_trip_id')?.trim();
+    if (serverTripId == null || serverTripId.isEmpty) {
+      return null;
+    }
+    return serverTripId;
+  });
+});
+
 final liveTrackingRemotePathPointsProvider =
     StreamProvider.autoDispose.family<List<AppLatLng>, String>((
   ref,
   tripId,
 ) {
+  final isAuthenticated = ref.watch(liveTrackingIsAuthenticatedProvider);
+  final serverTripId =
+      ref.watch(liveTrackingServerTripIdProvider(tripId)).valueOrNull;
   final runtimeState = ref.watch(
     liveTrackingRuntimeSnapshotProvider(tripId).select((asyncSnapshot) {
       final snapshot = asyncSnapshot.valueOrNull;
       return (
         snapshot?.state ?? LiveTrackingRuntimeState.planned,
-        snapshot?.sessionId,
+        snapshot?.remoteSessionId,
       );
     }),
   );
   final state = runtimeState.$1;
-  final sessionId = runtimeState.$2;
-  if (state == LiveTrackingRuntimeState.planned ||
-      sessionId == null ||
-      sessionId.isEmpty) {
+  final remoteSessionId = runtimeState.$2;
+  if (!isAuthenticated ||
+      state == LiveTrackingRuntimeState.planned ||
+      serverTripId == null ||
+      remoteSessionId == null ||
+      remoteSessionId.isEmpty) {
     return Stream<List<AppLatLng>>.value(const <AppLatLng>[]);
   }
 
@@ -90,8 +123,8 @@ final liveTrackingRemotePathPointsProvider =
 
   Future<List<AppLatLng>> fetchPoints() async {
     final payload = await api.fetchTrackingPath(
-      tripId: tripId,
-      sessionId: sessionId,
+      tripId: serverTripId,
+      sessionId: remoteSessionId,
     );
     final rawPoints = payload['points'];
     if (rawPoints is! List) {

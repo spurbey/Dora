@@ -754,6 +754,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (unchangedNote && unchangedLinkedPlace) {
       return;
     }
+    final didClearNote = _normalizeMomentNote(editResult.note) == null &&
+        _normalizeMomentNote(moment.note) != null;
+    final didClearLinkedPlace = editResult.linkedTripPlaceId == null &&
+        (moment.linkedTripPlaceId?.isNotEmpty ?? false);
 
     setState(() {
       _momentActionsInFlight.add(moment.id);
@@ -765,6 +769,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         momentId: moment.id,
         note: editResult.note,
         linkedTripPlaceId: editResult.linkedTripPlaceId,
+        includeNote: didClearNote,
+        includeLinkedTripPlaceId: didClearLinkedPlace,
       );
       if (!queued) {
         return;
@@ -802,10 +808,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     required String? initialLinkedTripPlaceId,
     required List<Place> tripPlaces,
   }) async {
-    final controller = TextEditingController(text: initialNote ?? '');
-    var selectedLinkedPlaceId =
-        initialLinkedTripPlaceId ?? _noLinkedMomentPlaceValue;
-
     final placeOptions = [...tripPlaces]
       ..sort((left, right) => left.orderIndex.compareTo(right.orderIndex));
     final dropdownOptions = placeOptions
@@ -828,81 +830,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           label: 'Previously linked place ($truncatedId)',
         ),
       );
-      selectedLinkedPlaceId = initialLinkedTripPlaceId;
     }
 
-    final result = await showDialog<_MomentEditResult>(
+    return showDialog<_MomentEditResult>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Edit Moment'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    maxLines: 3,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText: 'Add a short memory note',
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedLinkedPlaceId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Linked place',
-                    ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: _noLinkedMomentPlaceValue,
-                        child: Text('No linked place'),
-                      ),
-                      ...dropdownOptions.map(
-                        (item) => DropdownMenuItem<String>(
-                          value: item.id,
-                          child: Text(item.label),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selectedLinkedPlaceId =
-                            value ?? _noLinkedMomentPlaceValue;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(
-                    _MomentEditResult(
-                      note: controller.text,
-                      linkedTripPlaceId:
-                          selectedLinkedPlaceId == _noLinkedMomentPlaceValue
-                              ? null
-                              : selectedLinkedPlaceId,
-                    ),
-                  ),
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _MomentEditDialog(
+        initialNote: initialNote,
+        initialLinkedTripPlaceId: initialLinkedTripPlaceId,
+        dropdownOptions: dropdownOptions,
+        noLinkedPlaceValue: _noLinkedMomentPlaceValue,
+      ),
     );
-    controller.dispose();
-    return result;
+  }
+
+  String? _normalizeMomentNote(String? note) {
+    if (note == null) {
+      return null;
+    }
+    final trimmed = note.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
   }
 
   Future<void> _runLiveTrackingAction({
@@ -1874,6 +1823,106 @@ class _EditorSyncCallout {
   final Color tint;
   final String? actionLabel;
   final VoidCallback? onAction;
+}
+
+class _MomentEditDialog extends StatefulWidget {
+  const _MomentEditDialog({
+    required this.initialNote,
+    required this.initialLinkedTripPlaceId,
+    required this.dropdownOptions,
+    required this.noLinkedPlaceValue,
+  });
+
+  final String? initialNote;
+  final String? initialLinkedTripPlaceId;
+  final List<({String id, String label})> dropdownOptions;
+  final String noLinkedPlaceValue;
+
+  @override
+  State<_MomentEditDialog> createState() => _MomentEditDialogState();
+}
+
+class _MomentEditDialogState extends State<_MomentEditDialog> {
+  late final TextEditingController _noteController;
+  late String _selectedLinkedPlaceId;
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(text: widget.initialNote ?? '');
+    _selectedLinkedPlaceId =
+        widget.initialLinkedTripPlaceId ?? widget.noLinkedPlaceValue;
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Moment'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _noteController,
+            autofocus: true,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Add a short memory note',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedLinkedPlaceId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Linked place',
+            ),
+            items: [
+              DropdownMenuItem<String>(
+                value: widget.noLinkedPlaceValue,
+                child: const Text('No linked place'),
+              ),
+              ...widget.dropdownOptions.map(
+                (item) => DropdownMenuItem<String>(
+                  value: item.id,
+                  child: Text(item.label),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedLinkedPlaceId = value ?? widget.noLinkedPlaceValue;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(
+            _MomentEditResult(
+              note: _noteController.text,
+              linkedTripPlaceId:
+                  _selectedLinkedPlaceId == widget.noLinkedPlaceValue
+                      ? null
+                      : _selectedLinkedPlaceId,
+            ),
+          ),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
 }
 
 class _MomentEditResult {

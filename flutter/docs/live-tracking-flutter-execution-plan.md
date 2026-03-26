@@ -966,3 +966,13 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This slice closes the primary parity gap left by step 9 for moment place-link overrides while preserving offline-first sync flow.
   - Advanced media-rich override/review orchestration remains a future slice.
+
+## Stabilization Contract Update (2026-03-26)
+
+1. Identity rule: all live-tracking API calls use `serverTripId` + `remoteSessionId` when required; local ids are never sent to live-tracking endpoints.
+2. Runtime auth gate: signed-out state is local-only for live-tracking overlays (no remote path API calls).
+3. Recovery hook: identity-blocked tracking tasks are re-queued through `requeueIdentityBlockedTasks(tripId)` after trip sync completion and tracking-session sync success.
+4. Moment patch contract:
+   - `updateMoment` keeps backward-compatible defaults.
+   - explicit clear requires include flags (`includeNote`, `includeLinkedTripPlaceId`).
+   - non-clear edits keep include flags unset/false.

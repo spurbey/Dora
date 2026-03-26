@@ -20,6 +20,13 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   int batchCalls = 0;
   int decisionCalls = 0;
   int momentCalls = 0;
+  final List<String> startTripIds = <String>[];
+  final List<String> pauseTripIds = <String>[];
+  final List<String> batchTripIds = <String>[];
+  final List<String> momentCreateTripIds = <String>[];
+  final List<String> momentUpdateIds = <String>[];
+  final List<bool> momentUpdateIncludeNote = <bool>[];
+  final List<bool> momentUpdateIncludeLinkedTripPlaceId = <bool>[];
   Object? decisionError;
   Completer<void>? startTrackingGate;
   Completer<void>? pauseTrackingGate;
@@ -34,6 +41,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? deviceContext,
   }) async {
     startCalls += 1;
+    startTripIds.add(tripId);
     final gate = startTrackingGate;
     if (gate != null && !gate.isCompleted) {
       await gate.future;
@@ -70,6 +78,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? reason,
   }) async {
     pauseCalls += 1;
+    pauseTripIds.add(tripId);
     final gate = pauseTrackingGate;
     if (gate != null && !gate.isCompleted) {
       await gate.future;
@@ -128,6 +137,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required List<Map<String, dynamic>> points,
   }) async {
     batchCalls += 1;
+    batchTripIds.add(tripId);
     return <String, dynamic>{
       'trip_id': tripId,
       'session_id': sessionId,
@@ -247,6 +257,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     Map<String, dynamic>? extraPayload,
   }) async {
     momentCalls += 1;
+    momentCreateTripIds.add(tripId);
     final createdAt = capturedAt.toUtc();
     final updatedAt = createdAt.add(const Duration(minutes: 1));
     return <String, dynamic>{
@@ -276,12 +287,17 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     DateTime? capturedAt,
     String? note,
+    bool includeNote = false,
     Map<String, dynamic>? location,
     List<Map<String, dynamic>>? mediaRefs,
     String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) async {
     momentCalls += 1;
+    momentUpdateIds.add(momentId);
+    momentUpdateIncludeNote.add(includeNote);
+    momentUpdateIncludeLinkedTripPlaceId.add(includeLinkedTripPlaceId);
     final effectiveCapturedAt =
         capturedAt ?? DateTime.utc(2026, 3, 23, 10, 45, 00);
     final createdAt = effectiveCapturedAt.subtract(const Duration(minutes: 20));
@@ -427,6 +443,25 @@ void main() {
       fail('Timed out waiting for $description');
     }
 
+    Future<void> seedTripIdentity({
+      required String localTripId,
+      required String serverTripId,
+    }) async {
+      final now = DateTime.now().toUtc();
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: localTripId,
+          serverTripId: Value(serverTripId),
+          userId: 'user-1',
+          name: 'Trip $localTripId',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+    }
+
     setUp(() async {
       database = AppDatabase(NativeDatabase.memory());
       syncTaskDao = SyncTaskDao(database);
@@ -453,6 +488,10 @@ void main() {
 
     test('processes tracking point batch and completes task', () async {
       final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-1',
+        serverTripId: 'remote-trip-1',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-1',
@@ -503,11 +542,16 @@ void main() {
       expect(batch!.status, 'completed');
       expect(batch.syncStatus, 'synced');
       expect(fakeApi.batchCalls, 1);
+      expect(fakeApi.batchTripIds.single, 'remote-trip-1');
     });
 
     test('keeps point batch task pending when remote session id is missing',
         () async {
       final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-2',
+        serverTripId: 'remote-trip-2',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-2',
@@ -553,10 +597,58 @@ void main() {
       expect(task['worker_session_id'], isNull);
     });
 
+    test('keeps tracking session task pending until trip has remote identity',
+        () async {
+      final now = DateTime.now().toUtc();
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-no-remote',
+          userId: 'user-1',
+          name: 'Trip pending identity',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'pending',
+          createdAt: now,
+        ),
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-no-remote-trip',
+          tripId: 'trip-no-remote',
+          clientSessionId: 'client-session-no-remote',
+          state: const Value('planned'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-session-no-remote-trip',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-no-remote-trip',
+        operation: 'start',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-tracking-session-no-remote-trip');
+      expect(task['status'], 'pending');
+      expect(task['error_code'], 'tracking_trip_remote_id_missing');
+      expect(task['depends_on_entity_type'], SyncEntityTypes.trip);
+      expect(task['depends_on_entity_id'], 'trip-no-remote');
+      expect(fakeApi.startCalls, 0);
+    });
+
     test(
         'keeps tracking session syncStatus pending when task is requeued mid-flight',
         () async {
       final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-requeue-1',
+        serverTripId: 'remote-trip-requeue-1',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-requeue-1',
@@ -622,6 +714,10 @@ void main() {
 
     test('hydrates tracking session snapshot fields from server', () async {
       final now = DateTime.utc(2026, 3, 23, 10, 30);
+      await seedTripIdentity(
+        localTripId: 'trip-4',
+        serverTripId: 'remote-trip-4',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-4',
@@ -659,12 +755,17 @@ void main() {
         DateTime.utc(2026, 3, 23, 10, 30, 45),
       );
       expect(session.syncStatus, 'synced');
+      expect(fakeApi.startTripIds.single, 'remote-trip-4');
     });
 
     test(
         'uses current row fallback for omitted session fields to avoid stale overwrite',
         () async {
       final now = DateTime.utc(2026, 3, 23, 11, 30);
+      await seedTripIdentity(
+        localTripId: 'trip-stale-fallback-1',
+        serverTripId: 'remote-trip-stale-fallback-1',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-stale-fallback-1',
@@ -724,6 +825,10 @@ void main() {
 
     test('keeps non-tracking tasks unclaimed', () async {
       final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-3',
+        serverTripId: 'remote-trip-3',
+      );
       await sessionDao.upsertSession(
         TrackingSessionsCompanion.insert(
           id: 'session-local-3',
@@ -775,6 +880,7 @@ void main() {
       final trackingTask = await readTask('task-tracking-batch-3');
       expect(trackingTask['status'], 'completed');
       expect(fakeApi.batchCalls, 1);
+      expect(fakeApi.batchTripIds.last, 'remote-trip-3');
     });
 
     test('syncs queued checkin decision and marks candidate synced', () async {
@@ -868,6 +974,10 @@ void main() {
 
     test('hydrates moment snapshot fields from server response', () async {
       final now = DateTime.utc(2026, 3, 23, 11, 0);
+      await seedTripIdentity(
+        localTripId: 'trip-5',
+        serverTripId: 'remote-trip-5',
+      );
       await momentDao.upsertMoment(
         TrackingMomentsCompanion.insert(
           id: 'moment-local-1',
@@ -914,6 +1024,114 @@ void main() {
       expect(moment.syncStatus, 'synced');
       expect(moment.serverUpdatedAt, isNotNull);
       expect(fakeApi.momentCalls, 1);
+      expect(fakeApi.momentUpdateIncludeNote.single, isFalse);
+      expect(fakeApi.momentUpdateIncludeLinkedTripPlaceId.single, isFalse);
+    });
+
+    test('sends explicit include flags for moment clear operations', () async {
+      final now = DateTime.utc(2026, 3, 23, 11, 30);
+      await seedTripIdentity(
+        localTripId: 'trip-6',
+        serverTripId: 'remote-trip-6',
+      );
+      await momentDao.upsertMoment(
+        TrackingMomentsCompanion.insert(
+          id: 'moment-local-clear-1',
+          tripId: 'trip-6',
+          source: const Value('manual'),
+          capturedAt: now,
+          note: const Value(null),
+          linkedTripPlaceId: const Value(null),
+          mediaRefsJson: const Value('[]'),
+          extraPayloadJson: const Value('{}'),
+          lockedFieldsJson: const Value(
+            '{"__patch_include_note":true,"__patch_include_linked_trip_place_id":true}',
+          ),
+          pendingOperation: const Value('update'),
+          clientEventId: const Value('moment-event-clear-1'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-moment-clear-1',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-local-clear-1',
+        operation: 'update',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-moment-clear-1');
+      expect(task['status'], 'completed');
+      expect(fakeApi.momentUpdateIds.last, 'moment-local-clear-1');
+      expect(fakeApi.momentUpdateIncludeNote.last, isTrue);
+      expect(fakeApi.momentUpdateIncludeLinkedTripPlaceId.last, isTrue);
+    });
+
+    test(
+        'requeues identity-blocked tracking tasks after tracking-session sync success',
+        () async {
+      final now = DateTime.utc(2026, 3, 23, 12, 0);
+      await seedTripIdentity(
+        localTripId: 'trip-recovery-1',
+        serverTripId: 'remote-trip-recovery-1',
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-recovery-1',
+          tripId: 'trip-recovery-1',
+          clientSessionId: 'client-session-recovery-1',
+          state: const Value('planned'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await momentDao.upsertMoment(
+        TrackingMomentsCompanion.insert(
+          id: 'moment-recovery-1',
+          tripId: 'trip-recovery-1',
+          source: const Value('manual'),
+          capturedAt: now,
+          note: const Value('recover me'),
+          pendingOperation: const Value('update'),
+          clientEventId: const Value('moment-event-recovery-1'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-moment-recovery-1',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-recovery-1',
+        operation: 'update',
+      );
+      await syncTaskDao.markBlocked(
+        taskId: 'task-moment-recovery-1',
+        errorCode: 'http_404',
+        errorMessage: 'trip identity mismatch',
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-session-recovery-1',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-recovery-1',
+        operation: 'start',
+      );
+
+      await worker.startIfIdle();
+
+      final momentTask = await readTask('task-moment-recovery-1');
+      expect(momentTask['status'], 'completed');
+      expect(momentTask['error_code'], isNull);
     });
   });
 }

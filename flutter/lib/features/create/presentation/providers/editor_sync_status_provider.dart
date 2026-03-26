@@ -66,48 +66,48 @@ final editorSyncStatusProvider =
   final db = ref.watch(appDatabaseProvider);
   final query = db.customSelect(
     '''
+    WITH scoped_sync_tasks AS (
+      SELECT
+        t.entity_type,
+        t.entity_id,
+        t.status,
+        t.updated_at,
+        t.error_message
+      FROM sync_tasks AS t
+      WHERE (
+          (t.entity_type = 'trip' AND t.entity_id = ?)
+          OR (t.entity_type = 'place' AND t.entity_id IN (
+            SELECT p.id FROM places AS p WHERE p.trip_id = ?
+          ))
+          OR (t.entity_type = 'route' AND t.entity_id IN (
+            SELECT r.id FROM routes AS r WHERE r.trip_id = ?
+          ))
+          OR (t.entity_type = 'tracking_session' AND t.entity_id IN (
+            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
+          ))
+          OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
+            SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
+          ))
+          OR (t.entity_type = 'moment' AND t.entity_id IN (
+            SELECT m.id FROM tracking_moments AS m WHERE m.trip_id = ?
+          ))
+          OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
+            SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
+          ))
+      )
+    )
     SELECT
       (
-        SELECT COUNT(*)
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status = 'blocked'
+        SELECT COUNT(*) FROM scoped_sync_tasks
+        WHERE status = 'blocked'
       ) AS blocked_tasks,
       (
-        SELECT COUNT(*)
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status = 'failed'
+        SELECT COUNT(*) FROM scoped_sync_tasks
+        WHERE status = 'failed'
       ) AS failed_tasks,
       (
-        SELECT COUNT(*)
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status IN ('queued', 'pending', 'in_progress', 'deferred')
+        SELECT COUNT(*) FROM scoped_sync_tasks
+        WHERE status IN ('queued', 'pending', 'in_progress', 'deferred')
       ) AS active_tasks,
       (
         SELECT COUNT(*)
@@ -141,51 +141,24 @@ final editorSyncStatusProvider =
         WHERE r.trip_id = ? AND r.sync_status <> 'synced'
       ) AS unsynced_route_rows,
       (
-        SELECT t.entity_type
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status = 'blocked'
-        ORDER BY t.updated_at DESC
+        SELECT entity_type
+        FROM scoped_sync_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_entity_type,
       (
-        SELECT t.entity_id
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status = 'blocked'
-        ORDER BY t.updated_at DESC
+        SELECT entity_id
+        FROM scoped_sync_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_entity_id,
       (
-        SELECT t.error_message
-        FROM sync_tasks AS t
-        WHERE (
-            (t.entity_type = 'trip' AND t.entity_id = ?)
-            OR (t.entity_type = 'place' AND t.entity_id IN (
-              SELECT p.id FROM places AS p WHERE p.trip_id = ?
-            ))
-            OR (t.entity_type = 'route' AND t.entity_id IN (
-              SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-            ))
-          )
-          AND t.status = 'blocked'
-        ORDER BY t.updated_at DESC
+        SELECT error_message
+        FROM scoped_sync_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_error_message,
       (
@@ -213,17 +186,6 @@ final editorSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -231,6 +193,10 @@ final editorSyncStatusProvider =
       db.trips,
       db.places,
       db.routes,
+      db.trackingSessions,
+      db.trackingPointBatches,
+      db.trackingMoments,
+      db.trackingCandidates,
     },
   );
 

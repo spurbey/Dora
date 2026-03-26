@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
@@ -76,6 +78,8 @@ class LiveTrackingMomentRepository {
     required String momentId,
     required String? note,
     required String? linkedTripPlaceId,
+    bool includeNote = false,
+    bool includeLinkedTripPlaceId = false,
   }) async {
     final row = await _trackingMomentDao.getMomentById(momentId);
     if (row == null) {
@@ -87,8 +91,30 @@ class LiveTrackingMomentRepository {
 
     final normalizedNote = _normalizeNote(note);
     final existingNote = _normalizeNote(row.note);
+    final lockedFields = _decodeJsonMap(row.lockedFieldsJson);
+    final existingIncludeNote = _asBool(
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeNote],
+    );
+    final existingIncludeLinkedTripPlaceId = _asBool(
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId],
+    );
+    if (includeNote) {
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeNote] = true;
+    } else {
+      lockedFields.remove(LiveTrackingMomentPatchIntentKeys.includeNote);
+    }
+    if (includeLinkedTripPlaceId) {
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId] =
+          true;
+    } else {
+      lockedFields.remove(
+        LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId,
+      );
+    }
     if (normalizedNote == existingNote &&
-        linkedTripPlaceId == row.linkedTripPlaceId) {
+        linkedTripPlaceId == row.linkedTripPlaceId &&
+        includeNote == existingIncludeNote &&
+        includeLinkedTripPlaceId == existingIncludeLinkedTripPlaceId) {
       return false;
     }
 
@@ -110,7 +136,7 @@ class LiveTrackingMomentRepository {
         note: Value(normalizedNote),
         mediaRefsJson: Value(row.mediaRefsJson),
         extraPayloadJson: Value(row.extraPayloadJson),
-        lockedFieldsJson: Value(row.lockedFieldsJson),
+        lockedFieldsJson: Value(_encodeJson(lockedFields)),
         pendingOperation: Value(operation),
         clientEventId: Value(_uuid.v4()),
         syncStatus: const Value('pending'),
@@ -138,5 +164,42 @@ class LiveTrackingMomentRepository {
       return null;
     }
     return normalized;
+  }
+
+  static Map<String, dynamic> _decodeJsonMap(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {
+      // Ignore malformed payloads.
+    }
+    return <String, dynamic>{};
+  }
+
+  static String _encodeJson(Object value) {
+    try {
+      return jsonEncode(value);
+    } catch (_) {
+      return '{}';
+    }
+  }
+
+  static bool _asBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
   }
 }

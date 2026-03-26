@@ -723,5 +723,87 @@ void main() {
       expect(task, isNot(equals(null)));
       expect(task!.entityId, 'moment-remote-1');
     });
+
+    test(
+        'requeueIdentityBlockedTasks requeues identity-blocked tracking tasks for trip',
+        () async {
+      final now = DateTime.now().toUtc();
+
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-requeue-identity',
+          serverTripId: const Value('remote-trip-requeue-identity'),
+          userId: 'user-1',
+          name: 'Trip requeue identity',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+      await database.into(database.trackingSessions).insert(
+            TrackingSessionsCompanion.insert(
+              id: 'tracking-session-identity-1',
+              tripId: 'trip-requeue-identity',
+              clientSessionId: 'client-session-identity-1',
+              state: const Value('planned'),
+              localUpdatedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      await database.into(database.trackingMoments).insert(
+            TrackingMomentsCompanion.insert(
+              id: 'moment-identity-1',
+              tripId: 'trip-requeue-identity',
+              source: const Value('manual'),
+              capturedAt: now,
+              localUpdatedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      await dao.upsertQueuedTask(
+        id: 'task-tracking-session-identity-1',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'tracking-session-identity-1',
+        operation: 'start',
+      );
+      await dao.markBlocked(
+        taskId: 'task-tracking-session-identity-1',
+        errorCode: 'http_404',
+        errorMessage: 'trip id mismatch',
+      );
+      await dao.upsertQueuedTask(
+        id: 'task-moment-identity-1',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-identity-1',
+        operation: 'update',
+      );
+      await dao.markBlocked(
+        taskId: 'task-moment-identity-1',
+        errorCode: 'tracking_trip_remote_id_missing',
+        errorMessage: 'missing remote trip id',
+      );
+
+      final affected = await dao.requeueIdentityBlockedTasks(
+        tripId: 'trip-requeue-identity',
+      );
+
+      expect(affected, 2);
+      final sessionTask =
+          await dao.getTaskById('task-tracking-session-identity-1');
+      expect(sessionTask, isNot(equals(null)));
+      expect(sessionTask!.status, 'queued');
+      expect(sessionTask.errorCode, equals(null));
+      expect(sessionTask.dependsOnEntityType, SyncEntityTypes.trip);
+      expect(sessionTask.dependsOnEntityId, 'trip-requeue-identity');
+
+      final momentTask = await dao.getTaskById('task-moment-identity-1');
+      expect(momentTask, isNot(equals(null)));
+      expect(momentTask!.status, 'queued');
+      expect(momentTask.errorCode, equals(null));
+    });
   });
 }

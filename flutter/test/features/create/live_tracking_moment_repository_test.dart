@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
 
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
@@ -154,6 +155,65 @@ void main() {
       expect(row, isNotNull);
       expect(row!.linkedTripPlaceId, isNull);
       expect(row.pendingOperation, 'update');
+    });
+
+    test('queueMomentUpdate stores explicit clear-intent flags only on clear',
+        () async {
+      final now = clock.now.toUtc();
+      await _insertMoment(
+        momentDao,
+        id: 'moment-clear-1',
+        tripId: 'trip-1',
+        createdAt: now,
+        pendingOperation: null,
+        linkedTripPlaceId: 'place-old',
+        note: 'Original note',
+      );
+
+      await repository.queueMomentUpdate(
+        tripId: 'trip-1',
+        momentId: 'moment-clear-1',
+        note: '',
+        linkedTripPlaceId: null,
+        includeNote: true,
+        includeLinkedTripPlaceId: true,
+      );
+
+      final cleared = await momentDao.getMomentById('moment-clear-1');
+      expect(cleared, isNotNull);
+      final clearedFlags =
+          jsonDecode(cleared!.lockedFieldsJson) as Map<String, dynamic>;
+      expect(
+        clearedFlags[LiveTrackingMomentPatchIntentKeys.includeNote],
+        isTrue,
+      );
+      expect(
+        clearedFlags[
+            LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId],
+        isTrue,
+      );
+
+      await repository.queueMomentUpdate(
+        tripId: 'trip-1',
+        momentId: 'moment-clear-1',
+        note: 'Replacement note',
+        linkedTripPlaceId: 'place-new',
+      );
+
+      final edited = await momentDao.getMomentById('moment-clear-1');
+      expect(edited, isNotNull);
+      final editedFlags =
+          jsonDecode(edited!.lockedFieldsJson) as Map<String, dynamic>;
+      expect(
+        editedFlags.containsKey(LiveTrackingMomentPatchIntentKeys.includeNote),
+        isFalse,
+      );
+      expect(
+        editedFlags.containsKey(
+          LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId,
+        ),
+        isFalse,
+      );
     });
 
     test('queueMomentUpdate no-op does not enqueue extra sync task', () async {

@@ -353,6 +353,9 @@ class EntitySyncWorker {
         syncStatus: Value(syncStatus),
       ),
     );
+    await _syncTaskDao.requeueIdentityBlockedTasks(
+      tripId: receipt.localEntityId,
+    );
   }
 
   Future<void> _applyPlaceReceipt({

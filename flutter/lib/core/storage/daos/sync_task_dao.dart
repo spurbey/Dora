@@ -427,6 +427,102 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<int> requeueIdentityBlockedTasks({
+    required String tripId,
+  }) async {
+    final blockedTasks = await customSelect(
+      '''
+      SELECT t.id, t.entity_type
+      FROM sync_tasks AS t
+      WHERE t.status = 'blocked'
+        AND (
+          (
+            t.entity_type = ?
+            AND EXISTS (
+              SELECT 1 FROM tracking_sessions AS s
+              WHERE s.id = t.entity_id
+                AND s.trip_id = ?
+            )
+          )
+          OR (
+            t.entity_type = ?
+            AND EXISTS (
+              SELECT 1 FROM tracking_point_batches AS b
+              WHERE b.id = t.entity_id
+                AND b.trip_id = ?
+            )
+          )
+          OR (
+            t.entity_type = ?
+            AND EXISTS (
+              SELECT 1 FROM tracking_moments AS m
+              WHERE m.id = t.entity_id
+                AND m.trip_id = ?
+            )
+          )
+          OR (
+            t.entity_type IN (?, ?, ?)
+            AND t.depends_on_entity_type = ?
+            AND t.depends_on_entity_id = ?
+          )
+        )
+        AND (
+          t.error_code IS NULL
+          OR t.error_code IN ('http_404', 'tracking_trip_remote_id_missing')
+        )
+      ''',
+      variables: [
+        const Variable<String>(SyncEntityTypes.trackingSession),
+        Variable<String>(tripId),
+        const Variable<String>(SyncEntityTypes.trackingPointBatch),
+        Variable<String>(tripId),
+        const Variable<String>(SyncEntityTypes.moment),
+        Variable<String>(tripId),
+        const Variable<String>(SyncEntityTypes.trackingSession),
+        const Variable<String>(SyncEntityTypes.trackingPointBatch),
+        const Variable<String>(SyncEntityTypes.moment),
+        const Variable<String>(SyncEntityTypes.trip),
+        Variable<String>(tripId),
+      ],
+      readsFrom: {
+        syncTasks,
+        attachedDatabase.trackingSessions,
+        attachedDatabase.trackingPointBatches,
+        attachedDatabase.trackingMoments,
+      },
+    ).get();
+
+    if (blockedTasks.isEmpty) {
+      return 0;
+    }
+
+    final now = DateTime.now();
+    var updated = 0;
+    for (final row in blockedTasks) {
+      final taskId = row.read<String>('id');
+      final entityType = row.read<String>('entity_type');
+      final companion = SyncTasksCompanion(
+        status: const Value('queued'),
+        pendingRequeue: const Value(false),
+        retryCount: const Value(0),
+        nextAttemptAt: const Value(null),
+        errorCode: const Value(null),
+        errorMessage: const Value(null),
+        workerSessionId: const Value(null),
+        updatedAt: Value(now),
+        dependsOnEntityType: entityType == SyncEntityTypes.trackingSession
+            ? const Value(SyncEntityTypes.trip)
+            : const Value.absent(),
+        dependsOnEntityId: entityType == SyncEntityTypes.trackingSession
+            ? Value(tripId)
+            : const Value.absent(),
+      );
+      updated += await (update(syncTasks)..where((t) => t.id.equals(taskId)))
+          .write(companion);
+    }
+    return updated;
+  }
+
   Future<int> _updateTaskState({
     required String taskId,
     required SyncTasksCompanion companion,

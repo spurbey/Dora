@@ -18,14 +18,14 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
     DateTime Function()? clock,
     String Function()? platformResolver,
     String? Function()? localeResolver,
-  }) : _authStateChanges = authStateChanges,
-       _isSignedIn = isSignedIn,
-       _liveTrackingApi = liveTrackingApi,
-       _pushTokenClient = pushTokenClient,
-       _uuid = uuid ?? const Uuid(),
-       _clock = clock ?? (() => DateTime.now().toUtc()),
-       _platformResolver = platformResolver ?? defaultPushPlatform,
-       _localeResolver = localeResolver ?? defaultLocaleTag;
+  })  : _authStateChanges = authStateChanges,
+        _isSignedIn = isSignedIn,
+        _liveTrackingApi = liveTrackingApi,
+        _pushTokenClient = pushTokenClient,
+        _uuid = uuid ?? const Uuid(),
+        _clock = clock ?? (() => DateTime.now().toUtc()),
+        _platformResolver = platformResolver ?? defaultPushPlatform,
+        _localeResolver = localeResolver ?? defaultLocaleTag;
 
   final Stream<Object?> _authStateChanges;
   final bool Function() _isSignedIn;
@@ -44,6 +44,7 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
   bool _signedIn = false;
   bool _syncInFlight = false;
   bool _registerPending = false;
+  int _authGeneration = 0;
 
   void start() {
     if (_started) {
@@ -51,6 +52,7 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
     }
     _started = true;
     _signedIn = _isSignedIn();
+    _authGeneration = 1;
 
     WidgetsBinding.instance.addObserver(this);
     _authSubscription = _authStateChanges.listen(_handleAuthStateChanged);
@@ -96,6 +98,8 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
       return;
     }
 
+    _authGeneration += 1;
+    final generation = _authGeneration;
     _signedIn = nextSignedIn;
     if (_signedIn) {
       _scheduleRegister();
@@ -104,7 +108,7 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
 
     _queuedTokenOverride = null;
     _registerPending = false;
-    unawaited(_deactivateAfterRegisterDrain());
+    unawaited(_deactivateAfterRegisterDrain(logoutGeneration: generation));
   }
 
   void _scheduleRegister({String? tokenOverride}) {
@@ -132,19 +136,26 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
         _registerPending = false;
         final tokenOverride = _queuedTokenOverride;
         _queuedTokenOverride = null;
-        await _registerCurrentToken(tokenOverride: tokenOverride);
+        await _registerCurrentToken(
+          tokenOverride: tokenOverride,
+          requestGeneration: _authGeneration,
+        );
       } while (_registerPending && _signedIn);
     } finally {
       _syncInFlight = false;
     }
   }
 
-  Future<void> _registerCurrentToken({String? tokenOverride}) async {
+  Future<void> _registerCurrentToken({
+    String? tokenOverride,
+    required int requestGeneration,
+  }) async {
     if (!_signedIn) {
       return;
     }
 
-    final permissionGranted = await _pushTokenClient.ensurePermissionRequested();
+    final permissionGranted =
+        await _pushTokenClient.ensurePermissionRequested();
     if (!permissionGranted) {
       return;
     }
@@ -167,17 +178,25 @@ class PushTokenLifecycleBootstrap with WidgetsBindingObserver {
         seenAt: _clock(),
         locale: _localeResolver(),
       );
+      if (_authGeneration != requestGeneration || !_signedIn) {
+        return;
+      }
       _lastKnownToken = normalizedToken;
     } catch (_) {
       // Best-effort lifecycle sync to avoid blocking app flows.
     }
   }
 
-  Future<void> _deactivateAfterRegisterDrain() async {
+  Future<void> _deactivateAfterRegisterDrain({
+    required int logoutGeneration,
+  }) async {
     var spin = 0;
     while (_syncInFlight && spin < 30) {
       spin += 1;
       await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (_authGeneration != logoutGeneration || _signedIn) {
+      return;
     }
     await _deactivateLastKnownToken();
   }

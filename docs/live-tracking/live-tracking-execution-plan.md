@@ -1627,3 +1627,22 @@ Phase gate enforcement:
    - required generation complete
    - required tests pass
    - sections 10 and 11 updated with evidence
+
+## 14. Stabilization Contract (2026-03-26)
+
+Identity rule (mandatory):
+
+1. All live-tracking API calls must use `serverTripId` (remote trip id), never local `trip.id`.
+
+Recovery path (mandatory):
+
+1. Historical identity-blocked tracking tasks (`http_404` / `tracking_trip_remote_id_missing`) are re-queued through `requeueIdentityBlockedTasks(tripId)` at both checkpoints:
+   - after trip sync completion
+   - after tracking-session sync success
+
+Moment patch clear semantics (mandatory):
+
+1. Null-clears are explicit-intent only:
+   - `note: null` only with `includeNote: true`
+   - `linked_trip_place_id: null` only with `includeLinkedTripPlaceId: true`
+2. Non-clear edits must not force include flags.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -75,6 +76,8 @@ void main() {
       expect(sessionTask, isNotNull);
       expect(sessionTask!.operation, 'start');
       expect(sessionTask.status, 'queued');
+      expect(sessionTask.dependsOnEntityType, SyncEntityTypes.trip);
+      expect(sessionTask.dependsOnEntityId, 'trip-1');
 
       final repeated = await repository.startSession(
         tripId: 'trip-1',
@@ -83,6 +86,38 @@ void main() {
 
       final sessions = await sessionDao.getSessionsForTrip('trip-1');
       expect(sessions.length, 1);
+    });
+
+    test(
+        'start session re-enqueues start when existing active session lacks remote id',
+        () async {
+      final now = clock.now.toUtc();
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-existing-1',
+          tripId: 'trip-1',
+          clientSessionId: 'client-session-existing-1',
+          state: const Value('active'),
+          startedAt: Value(now),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+
+      final existing = await repository.startSession(tripId: 'trip-1');
+      expect(existing.id, 'session-existing-1');
+
+      final task = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-existing-1',
+      );
+      expect(task, isNotNull);
+      expect(task!.operation, 'start');
+      expect(task.dependsOnEntityType, SyncEntityTypes.trip);
+      expect(task.dependsOnEntityId, 'trip-1');
     });
 
     test('session lifecycle transitions pause -> resume -> stop are queued',

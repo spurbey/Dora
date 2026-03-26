@@ -117,6 +117,17 @@ class LiveTrackingRuntimeRepository {
       final existing =
           await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
       if (existing != null) {
+        final missingRemoteSessionId = existing.remoteSessionId == null ||
+            existing.remoteSessionId!.isEmpty;
+        final isAlive =
+            existing.state == 'active' || existing.state == 'paused';
+        if (isAlive && missingRemoteSessionId) {
+          await _enqueueSessionTask(
+            sessionId: existing.id,
+            tripId: existing.tripId,
+            operation: 'start',
+          );
+        }
         return existing;
       }
 
@@ -138,7 +149,11 @@ class LiveTrackingRuntimeRepository {
           updatedAt: now,
         ),
       );
-      await _enqueueSessionTask(sessionId: sessionId, operation: 'start');
+      await _enqueueSessionTask(
+        sessionId: sessionId,
+        tripId: tripId,
+        operation: 'start',
+      );
       final persisted = await _trackingSessionDao.getSessionById(sessionId);
       if (persisted == null) {
         throw StateError('Failed to persist tracking session: $sessionId');
@@ -166,7 +181,11 @@ class LiveTrackingRuntimeRepository {
         state: 'paused',
         pausedAt: now,
       );
-      await _enqueueSessionTask(sessionId: session.id, operation: 'pause');
+      await _enqueueSessionTask(
+        sessionId: session.id,
+        tripId: session.tripId,
+        operation: 'pause',
+      );
       return _trackingSessionDao.getSessionById(session.id);
     });
   }
@@ -193,7 +212,11 @@ class LiveTrackingRuntimeRepository {
         state: 'active',
         resumedAt: now,
       );
-      await _enqueueSessionTask(sessionId: session.id, operation: 'resume');
+      await _enqueueSessionTask(
+        sessionId: session.id,
+        tripId: session.tripId,
+        operation: 'resume',
+      );
       return _trackingSessionDao.getSessionById(session.id);
     });
   }
@@ -214,7 +237,11 @@ class LiveTrackingRuntimeRepository {
         state: 'ended',
         endedAt: now,
       );
-      await _enqueueSessionTask(sessionId: session.id, operation: 'stop');
+      await _enqueueSessionTask(
+        sessionId: session.id,
+        tripId: session.tripId,
+        operation: 'stop',
+      );
       return _trackingSessionDao.getSessionById(session.id);
     });
   }
@@ -324,6 +351,7 @@ class LiveTrackingRuntimeRepository {
 
   Future<void> _enqueueSessionTask({
     required String sessionId,
+    required String tripId,
     required String operation,
   }) {
     return _syncTaskDao.upsertQueuedTask(
@@ -331,6 +359,8 @@ class LiveTrackingRuntimeRepository {
       entityType: SyncEntityTypes.trackingSession,
       entityId: sessionId,
       operation: operation,
+      dependsOnEntityType: SyncEntityTypes.trip,
+      dependsOnEntityId: tripId,
     );
   }
 

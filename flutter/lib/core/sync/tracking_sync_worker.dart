@@ -207,12 +207,13 @@ class TrackingSyncWorker {
     }
 
     final idempotencyKey = _idempotencyKey(task.id, task.operation);
+    final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
     final now = DateTime.now().toUtc();
     late final Map<String, dynamic> response;
     switch (task.operation) {
       case 'start':
         response = await _liveTrackingApi.startTracking(
-          tripId: row.tripId,
+          tripId: remoteTripId,
           idempotencyKey: idempotencyKey,
           clientSessionId: row.clientSessionId,
           startedAt: row.startedAt ?? now,
@@ -222,7 +223,7 @@ class TrackingSyncWorker {
         break;
       case 'pause':
         response = await _liveTrackingApi.pauseTracking(
-          tripId: row.tripId,
+          tripId: remoteTripId,
           idempotencyKey: idempotencyKey,
           clientEventId: _clientEventId(task.id, task.operation),
           pausedAt: row.pausedAt ?? now,
@@ -231,7 +232,7 @@ class TrackingSyncWorker {
         break;
       case 'resume':
         response = await _liveTrackingApi.resumeTracking(
-          tripId: row.tripId,
+          tripId: remoteTripId,
           idempotencyKey: idempotencyKey,
           clientEventId: _clientEventId(task.id, task.operation),
           resumedAt: row.resumedAt ?? now,
@@ -240,7 +241,7 @@ class TrackingSyncWorker {
         break;
       case 'stop':
         response = await _liveTrackingApi.stopTracking(
-          tripId: row.tripId,
+          tripId: remoteTripId,
           idempotencyKey: idempotencyKey,
           clientEventId: _clientEventId(task.id, task.operation),
           stoppedAt: row.endedAt ?? now,
@@ -269,6 +270,7 @@ class TrackingSyncWorker {
         );
       },
     );
+    await _syncTaskDao.requeueIdentityBlockedTasks(tripId: row.tripId);
   }
 
   Future<void> _processTrackingPointBatchTask({
@@ -304,6 +306,7 @@ class TrackingSyncWorker {
     final points = _decodeJsonList(row.pointsJson)
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
+    final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
     final now = DateTime.now().toUtc();
     if (points.isEmpty) {
       await _persistSuccessAndCompleteTask(
@@ -322,7 +325,7 @@ class TrackingSyncWorker {
     }
 
     await _liveTrackingApi.uploadPointsBatch(
-      tripId: row.tripId,
+      tripId: remoteTripId,
       idempotencyKey: _idempotencyKey(task.id, task.operation),
       sessionId: remoteSessionId,
       clientBatchId: row.clientBatchId,
@@ -441,6 +444,7 @@ class TrackingSyncWorker {
     final now = DateTime.now().toUtc();
     final clientEventId =
         row.clientEventId ?? _clientEventId(task.id, operation);
+    final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
     final location = _locationPayload(
       latitude: row.latitude,
       longitude: row.longitude,
@@ -449,11 +453,18 @@ class TrackingSyncWorker {
         .whereType<Map<String, dynamic>>()
         .toList(growable: false);
     final extraPayload = _decodeJsonMap(row.extraPayloadJson);
+    final lockedFields = _decodeJsonMap(row.lockedFieldsJson);
+    final includeNote = _asBool(
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeNote],
+    );
+    final includeLinkedTripPlaceId = _asBool(
+      lockedFields[LiveTrackingMomentPatchIntentKeys.includeLinkedTripPlaceId],
+    );
 
     switch (operation) {
       case 'create':
         final response = await _liveTrackingApi.createMoment(
-          tripId: row.tripId,
+          tripId: remoteTripId,
           idempotencyKey: _idempotencyKey(task.id, operation),
           clientEventId: clientEventId,
           capturedAt: row.capturedAt,
@@ -510,9 +521,11 @@ class TrackingSyncWorker {
           clientEventId: clientEventId,
           capturedAt: row.capturedAt,
           note: row.note,
+          includeNote: includeNote,
           location: location,
           mediaRefs: mediaRefs,
           linkedTripPlaceId: row.linkedTripPlaceId,
+          includeLinkedTripPlaceId: includeLinkedTripPlaceId,
           extraPayload: extraPayload,
         );
         final momentSnapshot =
@@ -905,6 +918,26 @@ class TrackingSyncWorker {
     }
   }
 
+  Future<String> _resolveRemoteTripIdForTask(String localTripId) async {
+    final trip = await _db.tripDao.getTripById(localTripId);
+    if (trip == null) {
+      throw _TrackingSyncTerminalException(
+        code: 'tracking_trip_missing',
+        message: 'Tracking task references missing trip: $localTripId',
+      );
+    }
+    final remoteTripId = trip.serverTripId?.trim();
+    if (remoteTripId == null || remoteTripId.isEmpty) {
+      throw _TrackingSyncDeferredException(
+        code: 'tracking_trip_remote_id_missing',
+        message: 'Tracking task requires remote trip id before API sync.',
+        dependsOnEntityType: SyncEntityTypes.trip,
+        dependsOnEntityId: localTripId,
+      );
+    }
+    return remoteTripId;
+  }
+
   String _idempotencyKey(String taskId, String operation) {
     return '$taskId:$operation';
   }
@@ -990,6 +1023,20 @@ class TrackingSyncWorker {
       return raw.toDouble();
     }
     return double.tryParse(raw.toString());
+  }
+
+  static bool _asBool(dynamic raw) {
+    if (raw is bool) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw != 0;
+    }
+    if (raw is String) {
+      final normalized = raw.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1';
+    }
+    return false;
   }
 
   static DateTime? _parseDateTime(dynamic raw) {

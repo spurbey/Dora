@@ -46,6 +46,14 @@ class SyncEntityTypes {
   }
 }
 
+class LiveTrackingMomentPatchIntentKeys {
+  const LiveTrackingMomentPatchIntentKeys._();
+
+  static const String includeNote = '__patch_include_note';
+  static const String includeLinkedTripPlaceId =
+      '__patch_include_linked_trip_place_id';
+}
+
 enum SyncEntityProvenance {
   manual,
   auto,

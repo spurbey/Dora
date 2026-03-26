@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +28,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   final List<String> momentUpdateIds = <String>[];
   final List<bool> momentUpdateIncludeNote = <bool>[];
   final List<bool> momentUpdateIncludeLinkedTripPlaceId = <bool>[];
+  Object? startError;
   Object? decisionError;
   Completer<void>? startTrackingGate;
   Completer<void>? pauseTrackingGate;
@@ -40,6 +42,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
+    final forcedError = startError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
     startCalls += 1;
     startTripIds.add(tripId);
     final gate = startTrackingGate;
@@ -199,7 +205,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     return <String, dynamic>{
       'candidate': <String, dynamic>{
         'id': candidateId,
-        'trip_id': 'trip-4',
+        'trip_id': 'remote-trip-4',
         'user_id': 'user-1',
         'session_id': 'remote-session-1',
         'fingerprint': 'fp-updated',
@@ -304,7 +310,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     final updatedAt = effectiveCapturedAt.add(const Duration(minutes: 2));
     return <String, dynamic>{
       'id': momentId,
-      'trip_id': 'trip-5',
+      'trip_id': 'remote-trip-5',
       'user_id': 'user-1',
       'candidate_id': 'candidate-local-2',
       'linked_trip_place_id': 'place-remote-1',
@@ -925,6 +931,7 @@ void main() {
       expect(candidate.suggestedLongitude, closeTo(86.7314, 0.0001));
       expect(candidate.rejectedReason, 'not_a_match');
       expect(candidate.cooldownUntil, isNotNull);
+      expect(candidate.tripId, 'trip-4');
       expect(candidate.sessionId, 'remote-session-1');
       expect(candidate.payloadJson, contains('"source":"worker"'));
       expect(candidate.actionState, 'synced');
@@ -1012,6 +1019,7 @@ void main() {
       expect(moment, isNotNull);
       expect(moment!.source, 'edited_auto');
       expect(moment.confidence, closeTo(0.77, 0.0001));
+      expect(moment.tripId, 'trip-5');
       expect(moment.candidateId, 'candidate-local-2');
       expect(moment.linkedTripPlaceId, 'place-remote-1');
       expect(moment.note, 'server-updated-note');
@@ -1132,6 +1140,69 @@ void main() {
       final momentTask = await readTask('task-moment-recovery-1');
       expect(momentTask['status'], 'completed');
       expect(momentTask['error_code'], isNull);
+    });
+
+    test('recovers stale trip identity on 404 trip-not-found', () async {
+      final now = DateTime.now().toUtc();
+      const localTripId = 'trip-stale-404-1';
+      const staleRemoteTripId = 'remote-trip-stale-404-1';
+      const taskId = 'task-session-stale-404-1';
+      await seedTripIdentity(
+        localTripId: localTripId,
+        serverTripId: staleRemoteTripId,
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-stale-404-1',
+          tripId: localTripId,
+          clientSessionId: 'client-session-stale-404-1',
+          state: const Value('planned'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: taskId,
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-stale-404-1',
+        operation: 'start',
+      );
+
+      final requestOptions = RequestOptions(
+          path: '/api/v1/trips/$staleRemoteTripId/tracking/start');
+      fakeApi.startError = DioException(
+        requestOptions: requestOptions,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(
+          requestOptions: requestOptions,
+          statusCode: 404,
+          data: <String, dynamic>{'detail': 'Trip not found'},
+        ),
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask(taskId);
+      expect(task['status'], 'pending');
+      expect(task['error_code'], 'tracking_trip_identity_stale');
+      expect(task['depends_on_entity_type'], SyncEntityTypes.trip);
+      expect(task['depends_on_entity_id'], localTripId);
+
+      final trip = await database.tripDao.getTripById(localTripId);
+      expect(trip, isNotNull);
+      expect(trip!.serverTripId, isNull);
+      expect(trip.syncStatus, 'pending');
+
+      final tripTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trip,
+        entityId: localTripId,
+      );
+      expect(tripTask, isNotNull);
+      expect(tripTask!.operation, 'create');
+      expect(tripTask.status, 'queued');
     });
   });
 }

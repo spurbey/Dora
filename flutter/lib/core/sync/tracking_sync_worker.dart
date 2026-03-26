@@ -151,6 +151,14 @@ class TrackingSyncWorker {
         retryable: true,
       );
     } on DioException catch (error) {
+      final recovered = await _tryRecoverTripIdentityMismatch(
+        task: task,
+        sessionId: sessionId,
+        error: error,
+      );
+      if (recovered) {
+        return;
+      }
       await _handleRecoverableFailure(
         task: task,
         sessionId: sessionId,
@@ -506,7 +514,6 @@ class TrackingSyncWorker {
             }
             await _applyMomentSnapshot(
               momentId: localMomentId,
-              fallbackRow: row,
               snapshot: momentSnapshot,
               shouldMarkEntitySynced: shouldMarkEntitySynced,
               now: now,
@@ -536,7 +543,6 @@ class TrackingSyncWorker {
           applyLocalMutation: (shouldMarkEntitySynced) async {
             await _applyMomentSnapshot(
               momentId: row.id,
-              fallbackRow: row,
               snapshot: momentSnapshot,
               shouldMarkEntitySynced: shouldMarkEntitySynced,
               now: now,
@@ -692,7 +698,7 @@ class TrackingSyncWorker {
           ..where((c) => c.id.equals(candidateId)))
         .write(
       TrackingCandidatesCompanion(
-        tripId: Value(_asString(snapshot['trip_id']) ?? current.tripId),
+        tripId: Value(current.tripId),
         sessionId: Value(snapshot.containsKey('session_id')
             ? _asString(snapshot['session_id'])
             : current.sessionId),
@@ -746,7 +752,6 @@ class TrackingSyncWorker {
 
   Future<void> _applyMomentSnapshot({
     required String momentId,
-    required TrackingMomentRow fallbackRow,
     required Map<String, dynamic> snapshot,
     required bool shouldMarkEntitySynced,
     required DateTime now,
@@ -783,7 +788,7 @@ class TrackingSyncWorker {
     await (_db.update(_db.trackingMoments)..where((m) => m.id.equals(momentId)))
         .write(
       TrackingMomentsCompanion(
-        tripId: Value(_asString(snapshot['trip_id']) ?? fallbackRow.tripId),
+        tripId: Value(current.tripId),
         candidateId: Value(snapshot.containsKey('candidate_id')
             ? _asString(snapshot['candidate_id'])
             : current.candidateId),
@@ -854,6 +859,54 @@ class TrackingSyncWorker {
     debugPrint('[TRACKING_SYNC] blocked taskId=${task.id} code=$code');
   }
 
+  Future<bool> _tryRecoverTripIdentityMismatch({
+    required SyncTaskRow task,
+    required String? sessionId,
+    required DioException error,
+  }) async {
+    if (!_isTripNotFound404(error) || !_isTripScopedTrackingTask(task)) {
+      return false;
+    }
+
+    final localTripId = await _resolveLocalTripIdForTask(task);
+    if (localTripId == null || localTripId.isEmpty) {
+      return false;
+    }
+
+    final trip = await _db.tripDao.getTripById(localTripId);
+    if (trip == null) {
+      return false;
+    }
+
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.trips)..where((t) => t.id.equals(localTripId))).write(
+      TripsCompanion(
+        serverTripId: const Value(null),
+        syncStatus: const Value('pending'),
+        localUpdatedAt: Value(now),
+      ),
+    );
+    await _syncTaskDao.upsertQueuedTask(
+      id: _uuid.v4(),
+      entityType: SyncEntityTypes.trip,
+      entityId: localTripId,
+      operation: 'create',
+    );
+    final detail = _dioResponseDetail(error.response?.data) ?? 'Trip not found';
+    await _syncTaskDao.markPending(
+      taskId: task.id,
+      errorCode: 'tracking_trip_identity_stale',
+      errorMessage: '$detail. Queued trip identity recovery.',
+      expectedSessionId: sessionId,
+      dependsOnEntityType: SyncEntityTypes.trip,
+      dependsOnEntityId: localTripId,
+    );
+    debugPrint(
+      '[TRACKING_SYNC] pending taskId=${task.id} reason=tracking_trip_identity_stale tripId=$localTripId',
+    );
+    return true;
+  }
+
   Future<void> _markCheckinDecisionFailed({
     required SyncTaskRow task,
   }) async {
@@ -916,6 +969,64 @@ class TrackingSyncWorker {
       case DioExceptionType.unknown:
         return 'unknown_dio_error';
     }
+  }
+
+  bool _isTripScopedTrackingTask(SyncTaskRow task) {
+    return task.entityType == SyncEntityTypes.trackingSession ||
+        task.entityType == SyncEntityTypes.trackingPointBatch ||
+        task.entityType == SyncEntityTypes.moment;
+  }
+
+  Future<String?> _resolveLocalTripIdForTask(SyncTaskRow task) async {
+    switch (task.entityType) {
+      case SyncEntityTypes.trackingSession:
+        final row = await _trackingSessionDao.getSessionById(task.entityId);
+        return row?.tripId;
+      case SyncEntityTypes.trackingPointBatch:
+        final row = await _trackingPointBatchDao.getBatchById(task.entityId);
+        return row?.tripId;
+      case SyncEntityTypes.moment:
+        final row = await _trackingMomentDao.getMomentById(task.entityId);
+        return row?.tripId;
+      default:
+        return null;
+    }
+  }
+
+  static bool _isTripNotFound404(DioException error) {
+    if (error.response?.statusCode != 404) {
+      return false;
+    }
+    final detail = _dioResponseDetail(error.response?.data);
+    if (detail == null) {
+      return false;
+    }
+    return detail.trim().toLowerCase().contains('trip not found');
+  }
+
+  static String? _dioResponseDetail(dynamic responseData) {
+    if (responseData is Map) {
+      final detail = responseData['detail'];
+      if (detail is String && detail.trim().isNotEmpty) {
+        return detail;
+      }
+    }
+    if (responseData is String && responseData.trim().isNotEmpty) {
+      final trimmed = responseData.trim();
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) {
+          final detail = decoded['detail'];
+          if (detail is String && detail.trim().isNotEmpty) {
+            return detail;
+          }
+        }
+      } catch (_) {
+        return trimmed;
+      }
+      return trimmed;
+    }
+    return null;
   }
 
   Future<String> _resolveRemoteTripIdForTask(String localTripId) async {

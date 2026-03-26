@@ -27,6 +27,7 @@ import 'package:dora/features/create/presentation/providers/editor_provider.dart
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_candidate_provider.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
@@ -34,6 +35,7 @@ import 'package:dora/features/create/presentation/providers/place_media_provider
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart';
+import 'package:dora/features/create/presentation/widgets/live_tracking_moment_strip.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
@@ -65,6 +67,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _trackingActionInFlight = false;
   String? _trackingActionLabel;
   final Set<String> _candidateActionsInFlight = <String>{};
+  bool _momentCreateInFlight = false;
+  final Set<String> _momentActionsInFlight = <String>{};
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -117,6 +121,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
         final candidateInboxAsync =
             ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
+        final momentListAsync =
+            ref.watch(liveTrackingMomentsProvider(widget.tripId));
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -187,6 +193,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
                   _buildLiveTrackingControlStrip(trackingRuntimeAsync),
                   _buildLiveTrackingCandidateInbox(candidateInboxAsync),
+                  _buildLiveTrackingMomentStrip(
+                    momentListAsync: momentListAsync,
+                    trackingRuntimeAsync: trackingRuntimeAsync,
+                    capturePosition: liveMapOverlay.currentMarker?.position,
+                  ),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -561,6 +572,43 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  Widget _buildLiveTrackingMomentStrip({
+    required AsyncValue<List<TrackingMomentRow>> momentListAsync,
+    required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
+    required AppLatLng? capturePosition,
+  }) {
+    final runtimeState = trackingRuntimeAsync.valueOrNull?.state ??
+        LiveTrackingRuntimeState.planned;
+    final canCapture = runtimeState == LiveTrackingRuntimeState.active ||
+        runtimeState == LiveTrackingRuntimeState.paused;
+
+    return momentListAsync.when(
+      data: (moments) {
+        return LiveTrackingMomentStrip(
+          moments: moments,
+          inFlightMomentIds: _momentActionsInFlight,
+          canCapture: canCapture,
+          captureInFlight: _momentCreateInFlight,
+          onCaptureNow: () => unawaited(
+            _captureMomentNow(capturePosition: capturePosition),
+          ),
+          onEditMoment: (moment) => unawaited(_editMomentNote(moment)),
+        );
+      },
+      loading: () => LiveTrackingMomentStrip(
+        moments: const <TrackingMomentRow>[],
+        inFlightMomentIds: _momentActionsInFlight,
+        canCapture: canCapture,
+        captureInFlight: _momentCreateInFlight,
+        onCaptureNow: () => unawaited(
+          _captureMomentNow(capturePosition: capturePosition),
+        ),
+        onEditMoment: (_) {},
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   String _liveTrackingSubtitle(LiveTrackingRuntimeSnapshot snapshot) {
     final lastPoint = snapshot.lastPointAt;
     switch (snapshot.state) {
@@ -632,6 +680,133 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         });
       }
     }
+  }
+
+  Future<void> _captureMomentNow({
+    required AppLatLng? capturePosition,
+  }) async {
+    if (!mounted || _momentCreateInFlight) {
+      return;
+    }
+    setState(() {
+      _momentCreateInFlight = true;
+    });
+    try {
+      final repository = ref.read(liveTrackingMomentRepositoryProvider);
+      await repository.createMomentNow(
+        tripId: widget.tripId,
+        latitude: capturePosition?.latitude,
+        longitude: capturePosition?.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Moment captured. You can edit it anytime.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to capture moment. Try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _momentCreateInFlight = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _editMomentNote(TrackingMomentRow moment) async {
+    if (!mounted || _momentActionsInFlight.contains(moment.id)) {
+      return;
+    }
+
+    final updatedNote = await _promptForMomentNote(initialNote: moment.note);
+    if (updatedNote == null) {
+      return;
+    }
+
+    setState(() {
+      _momentActionsInFlight.add(moment.id);
+    });
+    try {
+      final repository = ref.read(liveTrackingMomentRepositoryProvider);
+      await repository.queueNoteUpdate(
+        tripId: widget.tripId,
+        momentId: moment.id,
+        note: updatedNote,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Moment update queued.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to queue moment update. Try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _momentActionsInFlight.remove(moment.id);
+        });
+      }
+    }
+  }
+
+  Future<String?> _promptForMomentNote({
+    required String? initialNote,
+  }) async {
+    final controller = TextEditingController(text: initialNote ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Moment Note'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Add a short memory note',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<void> _runLiveTrackingAction({

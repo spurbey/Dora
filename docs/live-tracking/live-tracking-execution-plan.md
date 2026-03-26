@@ -71,7 +71,7 @@ Important current baseline:
 | 3 | Async Processing | Validated | Workers for scoring/auto-end/moments | Worker foundations + push/inbox parity + append-only notification history + backlog control/alerting + targeted stress/retry tests green |
 | 4 | Flutter Storage/Sync | Validated | Drift tables/DAOs + sync task wiring | Schema v13 + tracking DAOs/tables + dedicated tracking sync worker path + snapshot hydration/hardening landed; schema `12 -> 13` migration regression added and index-upgrade drift fixed; targeted storage/sync/worker/analyze suites green |
 | 5 | Flutter Runtime | In Progress | Continuous tracking + batching lifecycle | Phase 5 slice 1+2 landed: lifecycle repository + batching/dedup + foreground capture coordinator with permission gating and active-session recovery bootstrap; targeted runtime/storage/sync tests green |
-| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression + Flutter token lifecycle wiring (register/resume/deactivate) landed; moment UX and full map matching pending |
+| 6 | Flutter UX/Map | In Progress | Live controls + candidate/moment UX | Controls + live overlay + candidate inbox landed; path stability step-1 + backend path endpoint step-2 + remote-path polling cadence step-5 landed; notification policy tuned to ambiguous confidence band + foreground push suppression + Flutter token lifecycle wiring (register/resume/deactivate) landed; moment capture/edit strip landed; full moment override flow and full map matching pending |
 | 7 | Hardening | Not Started | Metrics, limits, reconciliation | Load/chaos checks + regression suite |
 | 8 | Rollout | Not Started | Canary -> staged release | SLO monitoring + rollback drill |
 
@@ -1485,6 +1485,33 @@ Use this section after each phase:
 - Known failures/waivers:
   - Logout deactivation remains best-effort from auth-state transition; if network/auth teardown races, token ownership reconciliation relies on subsequent register calls.
   - `test/features/create/live_tracking_runtime_provider_test.dart` showed a pre-existing timing flake while bundled with unrelated suites; this slice validates via focused token/API/sync tests.
+
+- Date: 2026-03-26
+- Phase: 6 (Flutter UX/Map) slice 7 moment UX foundation (step-9 execution)
+- Automated tests run:
+  - `cd flutter; flutter analyze --no-fatal-infos --no-pub lib/features/create/data/live_tracking_moment_repository.dart lib/features/create/presentation/providers/live_tracking_moment_provider.dart lib/features/create/presentation/widgets/live_tracking_moment_strip.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass; pre-existing editor info warnings only)
+  - `cd flutter; flutter test test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass: 5 passed)
+- Manual checks run:
+  - Added offline-first moment repository with deterministic sync-task enqueue:
+    - `flutter/lib/features/create/data/live_tracking_moment_repository.dart`
+    - supports `createMomentNow` and note override queueing
+    - preserves `create` operation when editing unsynced moments to avoid invalid remote `update`.
+  - Added moment providers:
+    - `flutter/lib/features/create/presentation/providers/live_tracking_moment_provider.dart`
+  - Added editor UX strip for moments:
+    - `flutter/lib/features/create/presentation/widgets/live_tracking_moment_strip.dart`
+    - capture-now action (current live marker position when available)
+    - edit-note action with queued sync updates and in-flight guards.
+  - Integrated strip and actions in editor:
+    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - Added regression coverage:
+    - `flutter/test/features/create/live_tracking_moment_repository_test.dart`
+    - `flutter/test/features/create/live_tracking_moment_strip_test.dart`
+- Result summary:
+  - App now has a usable moment UX baseline: users can capture moments during tracking and queue local note overrides for sync.
+  - Sync semantics remain stable under retries by keeping unsynced created moments on `create` operation.
+- Known failures/waivers:
+  - This slice covers capture/edit-note foundation only; richer moment override (place linking/media edits/review route) remains next.
 
 ## 12. Risk Register
 

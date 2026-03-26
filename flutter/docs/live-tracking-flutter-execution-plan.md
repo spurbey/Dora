@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-03-25  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-8 in progress)  
+Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-9 in progress)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -888,3 +888,29 @@ After each Flutter live-tracking slice:
   - This slice completes client-side token lifecycle alignment with backend register/deactivate APIs and foreground suppression policy.
   - Logout deactivation remains best-effort from auth-state transition; if teardown races auth/network, next token register reconciles ownership.
   - `test/features/create/live_tracking_runtime_provider_test.dart` currently has a pre-existing timing flake when bundled in the same command and is tracked separately from this token lifecycle slice.
+
+- Date: 2026-03-26
+- Slice: Phase 6 moment UX foundation (ordered step 9, Flutter editor integration)
+- Implemented:
+  - Added moment repository with offline-first queue semantics:
+    - `lib/features/create/data/live_tracking_moment_repository.dart`
+    - `createMomentNow` for quick capture
+    - `queueNoteUpdate` for local overrides
+    - preserves pending `create` when editing unsynced moments.
+  - Added moment providers:
+    - `lib/features/create/presentation/providers/live_tracking_moment_provider.dart`
+  - Added moment UI strip:
+    - `lib/features/create/presentation/widgets/live_tracking_moment_strip.dart`
+    - capture-now CTA
+    - edit-note action with busy guards.
+  - Integrated moment strip/actions into editor:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+  - Added regression tests:
+    - `test/features/create/live_tracking_moment_repository_test.dart`
+    - `test/features/create/live_tracking_moment_strip_test.dart`
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos --no-pub lib/features/create/data/live_tracking_moment_repository.dart lib/features/create/presentation/providers/live_tracking_moment_provider.dart lib/features/create/presentation/widgets/live_tracking_moment_strip.dart lib/features/create/presentation/screens/editor_screen.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass; pre-existing editor info warnings only)
+  - `cd flutter; flutter test test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_moment_strip_test.dart` (pass: 5 passed)
+- Decision notes:
+  - This lands the moment UX baseline without blocking on larger timeline/map-matching refactors.
+  - Full moment override parity (linked place/media edit/review orchestration) remains for the next slice.

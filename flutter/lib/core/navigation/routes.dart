@@ -14,6 +14,7 @@ class Routes {
   static const String signup = '/signup';
 
   static const String editor = '/trips/:id/edit';
+  static const String liveCapture = '/trips/:id/live';
   static const String placeSearch = '/trips/:id/places/search';
   static const String citySearch = '/trips/:id/cities/search';
   static const String mediaUpload = '/trips/:tripId/places/:placeId/media';
@@ -23,6 +24,7 @@ class Routes {
 
   static String tripDetailPath(String id) => '/trip/$id';
   static String editorPath(String id) => '/trips/$id/edit';
+  static String liveCapturePath(String id) => '/trips/$id/live';
   static String placeSearchPath(String id) => '/trips/$id/places/search';
   static String citySearchPath(String id) => '/trips/$id/cities/search';
   static String mediaUploadPath(String tripId, String placeId) =>

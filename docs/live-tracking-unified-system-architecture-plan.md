@@ -521,12 +521,12 @@ Status: `[-]`
 4. [x] Log decision record in both docs.
 
 #### Phase P1: Live/Editor Boundary Split
-Status: `[ ]`
-1. [ ] Add dedicated live capture route and screen shell.
+Status: `[-]`
+1. [x] Add dedicated live capture route and screen shell.
 2. [ ] Move runtime controls out of editor.
 3. [ ] Keep editor map overlays functional for compiled artifacts only.
-4. [ ] Add focused widget tests for screen states.
-5. [ ] Update docs status in both execution docs.
+4. [x] Add focused widget tests for screen states.
+5. [x] Update docs status in both execution docs.
 
 #### Phase P2: Event and Session Pipeline
 Status: `[-]`
@@ -606,3 +606,17 @@ Use this block for each completed phase:
    - `flutter/test/core/sync/tracking_sync_worker_test.dart` (stale fallback and trip-id safety assertions)
 3. Auth-generation-safe push token lifecycle guard:
    - `flutter/lib/core/notifications/push_token_lifecycle_bootstrap.dart`
+
+### Phase P1 Evidence (2026-03-29, Partial)
+
+1. Dedicated live capture route and shell landed with widget-state coverage.
+2. Evidence files:
+   - `flutter/lib/core/navigation/routes.dart`
+   - `flutter/lib/core/navigation/app_router.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+3. Validation commands and outcomes are logged in:
+   - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice A Evidence`)
+4. Remaining P1 scope:
+   - remove runtime strips from editor
+   - ensure editor overlay remains projection-only

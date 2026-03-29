@@ -13,6 +13,7 @@ import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/auth/presentation/screens/startup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
 import 'package:dora/features/create/presentation/screens/editor_screen.dart';
+import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 import 'package:dora/features/create/presentation/screens/city_search_screen.dart';
 import 'package:dora/features/create/presentation/screens/media_upload_screen.dart';
 import 'package:dora/features/create/presentation/screens/place_search_screen.dart';
@@ -70,6 +71,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.editor,
         builder: (context, state) => EditorScreen(
+          tripId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: Routes.liveCapture,
+        builder: (context, state) => LiveCaptureScreen(
           tripId: state.pathParameters['id']!,
         ),
       ),

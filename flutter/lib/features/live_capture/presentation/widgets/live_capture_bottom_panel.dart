@@ -1,0 +1,184 @@
+import 'package:flutter/material.dart';
+
+import 'package:dora/core/theme/app_colors.dart';
+import 'package:dora/core/theme/app_radius.dart';
+import 'package:dora/core/theme/app_spacing.dart';
+import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
+
+class LiveCaptureBottomPanel extends StatelessWidget {
+  const LiveCaptureBottomPanel({
+    super.key,
+    required this.state,
+  });
+
+  final LiveCaptureShellState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final controls = _controls(state);
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        key: const ValueKey('liveCaptureBottomPanel'),
+        margin: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.card.withValues(alpha: 0.94),
+          borderRadius: AppRadius.borderXl,
+          border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              offset: Offset(0, 8),
+              blurRadius: 18,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _headline(state),
+              key: const ValueKey('liveCapturePanelHeadline'),
+              style: AppTypography.h3.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _subline(state),
+              key: const ValueKey('liveCapturePanelSubline'),
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: controls,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _controls(LiveCaptureShellState state) {
+    switch (state) {
+      case LiveCaptureShellState.active:
+        return [
+          OutlinedButton.icon(
+            key: const ValueKey('liveCaptureControlPause'),
+            onPressed: () {},
+            icon: const Icon(Icons.pause, size: 16),
+            label: const Text('Pause'),
+          ),
+          FilledButton.tonalIcon(
+            key: const ValueKey('liveCaptureControlStop'),
+            onPressed: () {},
+            icon: const Icon(Icons.stop, size: 16),
+            label: const Text('Stop'),
+          ),
+        ];
+      case LiveCaptureShellState.paused:
+        return [
+          FilledButton.icon(
+            key: const ValueKey('liveCaptureControlResume'),
+            onPressed: () {},
+            icon: const Icon(Icons.play_arrow, size: 16),
+            label: const Text('Resume'),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('liveCaptureControlStop'),
+            onPressed: () {},
+            icon: const Icon(Icons.stop, size: 16),
+            label: const Text('Stop'),
+          ),
+        ];
+      case LiveCaptureShellState.ended:
+        return [
+          FilledButton.icon(
+            key: const ValueKey('liveCaptureControlStartNew'),
+            onPressed: () {},
+            icon: const Icon(Icons.play_arrow, size: 16),
+            label: const Text('Start New Session'),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('liveCaptureControlOpenEditor'),
+            onPressed: () {},
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text('Open Editor'),
+          ),
+        ];
+      case LiveCaptureShellState.blocked:
+        return [
+          FilledButton.tonalIcon(
+            key: const ValueKey('liveCaptureControlRetry'),
+            onPressed: () {},
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Retry Sync'),
+          ),
+          OutlinedButton.icon(
+            key: const ValueKey('liveCaptureControlReview'),
+            onPressed: () {},
+            icon: const Icon(Icons.rule_folder_outlined, size: 16),
+            label: const Text('Review Issues'),
+          ),
+        ];
+      case LiveCaptureShellState.planned:
+        return [
+          FilledButton.icon(
+            key: const ValueKey('liveCaptureControlStart'),
+            onPressed: () {},
+            icon: const Icon(Icons.play_arrow, size: 16),
+            label: const Text('Start Tracking'),
+          ),
+        ];
+    }
+  }
+
+  String _headline(LiveCaptureShellState state) {
+    switch (state) {
+      case LiveCaptureShellState.active:
+        return 'Tracking in progress';
+      case LiveCaptureShellState.paused:
+        return 'Tracking paused';
+      case LiveCaptureShellState.ended:
+        return 'Session complete';
+      case LiveCaptureShellState.blocked:
+        return 'Sync requires attention';
+      case LiveCaptureShellState.planned:
+        return 'Ready to track';
+    }
+  }
+
+  String _subline(LiveCaptureShellState state) {
+    switch (state) {
+      case LiveCaptureShellState.active:
+        return 'Capture moments, warnings, and media as you move.';
+      case LiveCaptureShellState.paused:
+        return 'Resume when movement starts to continue path capture.';
+      case LiveCaptureShellState.ended:
+        return 'Review the captured trip storyline in editor.';
+      case LiveCaptureShellState.blocked:
+        return 'Capture is still local. Resolve sync to publish updates.';
+      case LiveCaptureShellState.planned:
+        return 'Start a session to begin live route and moment capture.';
+    }
+  }
+}
+

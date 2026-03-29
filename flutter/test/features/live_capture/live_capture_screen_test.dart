@@ -21,7 +21,8 @@ void main() {
     testWidgets('planned state shows start control', (tester) async {
       await tester.pumpWidget(wrap(LiveCaptureShellState.planned));
 
-      expect(find.byKey(const ValueKey('liveCaptureMapCanvas')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('liveCaptureMapCanvas')), findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureTopBar')), findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureControlStart')),
           findsOneWidget);
@@ -48,8 +49,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('liveCaptureActionPhoto')),
-          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('liveCaptureActionPhoto')), findsOneWidget);
     });
 
     testWidgets('paused state shows resume and stop controls', (tester) async {
@@ -100,6 +101,21 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('blocked state remains stable on compact viewport',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(wrap(LiveCaptureShellState.blocked));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.byKey(const ValueKey('liveCaptureBottomPanel')), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

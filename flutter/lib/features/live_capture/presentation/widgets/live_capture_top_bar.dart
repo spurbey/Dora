@@ -25,6 +25,7 @@ class LiveCaptureTopBar extends StatelessWidget {
     final stateMeta = _stateMeta(state);
     return Container(
       key: const ValueKey('liveCaptureTopBar'),
+      width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.md,
@@ -42,83 +43,120 @@ class LiveCaptureTopBar extends StatelessWidget {
         borderRadius: AppRadius.borderLg,
         border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
       ),
-      child: Row(
-        children: [
-          IconButton(
-            key: const ValueKey('liveCaptureBack'),
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back, size: 20),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tripName,
-                  key: const ValueKey('liveCaptureTripName'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.h3.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 280;
+          final ultraCompact = constraints.maxWidth < 220;
+          final compactStateLabel = _compactStateLabel(state);
+          return Row(
+            children: [
+              IconButton(
+                key: const ValueKey('liveCaptureBack'),
+                onPressed: onBack,
+                constraints: BoxConstraints.tightFor(
+                  width: ultraCompact ? 32 : (compact ? 36 : 40),
+                  height: ultraCompact ? 32 : (compact ? 36 : 40),
                 ),
-                const SizedBox(height: 2),
-                Row(
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.arrow_back, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      key: const ValueKey('liveCaptureStateBadge'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: stateMeta.background,
-                        borderRadius: AppRadius.borderSm,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            stateMeta.icon,
-                            size: 12,
-                            color: stateMeta.foreground,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            stateMeta.label,
-                            key: const ValueKey('liveCaptureStateLabel'),
-                            style: AppTypography.caption.copyWith(
-                              color: stateMeta.foreground,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      tripName,
+                      key: const ValueKey('liveCaptureTripName'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.h3.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      syncLabel,
-                      key: const ValueKey('liveCaptureSyncLabel'),
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    const SizedBox(height: 2),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: 2,
+                      children: [
+                        Container(
+                          key: const ValueKey('liveCaptureStateBadge'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: stateMeta.background,
+                            borderRadius: AppRadius.borderSm,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                stateMeta.icon,
+                                size: 12,
+                                color: stateMeta.foreground,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                ultraCompact
+                                    ? compactStateLabel
+                                    : stateMeta.label,
+                                key: const ValueKey('liveCaptureStateLabel'),
+                                style: AppTypography.caption.copyWith(
+                                  color: stateMeta.foreground,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!ultraCompact)
+                          Text(
+                            syncLabel,
+                            key: const ValueKey('liveCaptureSyncLabel'),
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          IconButton(
-            key: const ValueKey('liveCaptureMore'),
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, size: 20),
-          ),
-        ],
+              ),
+              if (!compact)
+                IconButton(
+                  key: const ValueKey('liveCaptureMore'),
+                  onPressed: () {},
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_vert, size: 20),
+                ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  String _compactStateLabel(LiveCaptureShellState value) {
+    switch (value) {
+      case LiveCaptureShellState.active:
+        return 'On';
+      case LiveCaptureShellState.paused:
+        return 'Paused';
+      case LiveCaptureShellState.ended:
+        return 'Ended';
+      case LiveCaptureShellState.blocked:
+        return 'Blocked';
+      case LiveCaptureShellState.planned:
+        return 'Ready';
+    }
   }
 
   _StateMeta _stateMeta(LiveCaptureShellState value) {
@@ -175,4 +213,3 @@ class _StateMeta {
   final Color foreground;
   final Color background;
 }
-

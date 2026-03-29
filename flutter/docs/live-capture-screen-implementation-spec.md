@@ -487,7 +487,7 @@ Status: `[ ]`
 Status: `[-]`
 1. [x] Remove live runtime control strips from editor screen.
 2. [x] Keep editor consuming compiled/projection overlays only.
-3. [ ] Run full test matrix from Section 14.
+3. [x] Run full test matrix from Section 14.
 4. [ ] Validate no overflow/crash in long live sessions.
 5. [ ] Update all related docs and add final evidence entry.
 
@@ -621,17 +621,27 @@ All items must pass before merging any live screen PR:
 - PR/Commit: pending commit in current branch
 - Files changed:
   - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+  - `flutter/docs/live-tracking-flutter-execution-plan.md`
 - Commands run:
   - `flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
+  - `flutter test test/core/sync/live_tracking_sync_primitives_test.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_candidate_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart test/core/network/live_tracking_api_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart`
   - `flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart`
 - Results:
-  - passed: no analyze errors; related strip widget tests passed
+  - passed: matrix rerun green (`94` tests); compact-viewport overflow regression now covered by `live_capture_screen_test.dart`
   - failed: none
 - Known follow-ups:
+  - Manual 30+ minute live-session QA from Section 14.5 remains pending before slice closeout
   - Remove legacy strip implementation paths completely after migration window
   - Replace `_showLegacyTrackingWidgets` fallback with full removal once migration is stable
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`
+  - `docs/live-tracking/live-tracking-execution-plan.md`
+  - `flutter/docs/live-tracking-flutter-execution-plan.md`

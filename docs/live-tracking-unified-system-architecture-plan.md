@@ -521,7 +521,7 @@ Status: `[-]`
 4. [x] Log decision record in both docs.
 
 #### Phase P1: Live/Editor Boundary Split
-Status: `[-]`
+Status: `[x]`
 1. [x] Add dedicated live capture route and screen shell.
 2. [x] Move runtime controls out of editor.
 3. [x] Keep editor map overlays functional for compiled artifacts only.
@@ -607,7 +607,7 @@ Use this block for each completed phase:
 3. Auth-generation-safe push token lifecycle guard:
    - `flutter/lib/core/notifications/push_token_lifecycle_bootstrap.dart`
 
-### Phase P1 Evidence (2026-03-29, Partial)
+### Phase P1 Evidence (2026-03-30)
 
 1. Dedicated live capture route and shell landed with widget-state coverage.
 2. Evidence files:
@@ -617,9 +617,9 @@ Use this block for each completed phase:
    - `flutter/test/features/live_capture/live_capture_screen_test.dart`
 3. Validation commands and outcomes are logged in:
    - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice A Evidence`)
-4. Remaining P1 scope:
-   - remove runtime strips from editor
-   - ensure editor overlay remains projection-only
+4. P1 closeout notes:
+   - editor decoupling is complete for runtime controls and map overlays (projection-only in editor)
+   - full removal of legacy fallback flag is deferred as controlled cleanup after migration window
 5. Additional P1 progress:
    - runtime controls now wired to live-tracking coordinator on the new live screen
    - blocked sync callout + retry trigger wired to tracking sync worker
@@ -627,3 +627,4 @@ Use this block for each completed phase:
    - recent-captures overlay strip now renders from local moments stream in live capture
    - editor header stack now surfaces a dedicated "Live Capture" entry card and hides legacy live runtime strips by default
    - editor map now renders only editor projection artifacts (places/routes/media focus), with runtime live overlays removed from editor
+   - compact-viewport overflow guardrails added for live-capture top bar + bottom panel with widget regression coverage

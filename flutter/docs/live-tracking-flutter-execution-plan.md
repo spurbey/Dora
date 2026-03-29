@@ -967,6 +967,27 @@ After each Flutter live-tracking slice:
   - This slice closes the primary parity gap left by step 9 for moment place-link overrides while preserving offline-first sync flow.
   - Advanced media-rich override/review orchestration remains a future slice.
 
+- Date: 2026-03-30
+- Slice: Live-capture/editor decoupling + validation checkpoint (architecture transition)
+- Implemented:
+  - Moved editor surface to live-entry pattern:
+    - `lib/features/create/presentation/screens/editor_screen.dart`
+    - runtime strips are hidden behind migration fallback and editor shows dedicated `Live Capture` entry card.
+  - Enforced projection-only editor map:
+    - removed runtime live marker/path injection from editor map overlay assembly.
+  - Fixed compact-viewport overflow risks on dedicated live screen:
+    - `lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart`
+    - `lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - Added viewport stability regression:
+    - `test/features/live_capture/live_capture_screen_test.dart`
+    - blocked-state compact viewport now asserts no rendering exceptions.
+- Validation:
+  - `cd flutter; flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart` (pass; 2 pre-existing info warnings in editor screen)
+  - `cd flutter; flutter test test/core/sync/live_tracking_sync_primitives_test.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_candidate_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart test/core/network/live_tracking_api_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart` (pass: 94 tests)
+- Decision notes:
+  - This checkpoint closes Phase P1 live/editor boundary requirements in the unified architecture tracker.
+  - Manual 30+ minute live-session QA remains as operational signoff work before final Slice H closure.
+
 ## Stabilization Contract Update (2026-03-26)
 
 1. Identity rule: all live-tracking API calls use `serverTripId` + `remoteSessionId` when required; local ids are never sent to live-tracking endpoints.

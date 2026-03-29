@@ -1646,3 +1646,10 @@ Moment patch clear semantics (mandatory):
    - `note: null` only with `includeNote: true`
    - `linked_trip_place_id: null` only with `includeLinkedTripPlaceId: true`
 2. Non-clear edits must not force include flags.
+
+## 15. Live/Editor Decoupling Checkpoint (2026-03-30)
+
+1. Editor runtime strips are replaced by a dedicated live-capture entry card; runtime actions now route through the dedicated live screen.
+2. Editor map overlays are projection-only (runtime live marker/path injection removed from editor surface).
+3. Live-capture compact viewport stability improved with top-bar and bottom-panel overflow guardrails.
+4. Flutter validation matrix reran green for the currently-implementable Section 14 suite (unit + dao/storage + sync/integration + widget coverage).

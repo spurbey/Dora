@@ -33,10 +33,15 @@ class LiveCaptureBottomPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = _controls(state);
+    final mediaQuery = MediaQuery.of(context);
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
         key: const ValueKey('liveCaptureBottomPanel'),
+        width: double.infinity,
+        constraints: BoxConstraints(
+          maxHeight: mediaQuery.size.height * 0.42,
+        ),
         margin: const EdgeInsets.fromLTRB(
           AppSpacing.md,
           AppSpacing.md,
@@ -61,56 +66,62 @@ class LiveCaptureBottomPanel extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _headline(state),
-                    key: const ValueKey('liveCapturePanelHeadline'),
-                    style: AppTypography.h3.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                if (isBusy) ...[
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  if (busyLabel != null && busyLabel!.isNotEmpty) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      busyLabel!,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _headline(state),
+                      key: const ValueKey('liveCapturePanelHeadline'),
+                      style: AppTypography.h3.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                  ),
+                  if (isBusy) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    if (busyLabel != null && busyLabel!.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          busyLabel!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ],
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _subline(state),
-              key: const ValueKey('liveCapturePanelSubline'),
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              children: controls,
-            ),
-          ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _subline(state),
+                key: const ValueKey('liveCapturePanelSubline'),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: controls,
+              ),
+            ],
+          ),
         ),
       ),
     );

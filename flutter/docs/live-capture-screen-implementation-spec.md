@@ -1,6 +1,7 @@
 # Live Capture Screen Implementation Spec (Flutter)
 
 Last updated: 2026-03-29  
+Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.  
 Owner: Flutter architecture  
 Parent docs:
 1. `docs/live-tracking-unified-system-architecture-plan.md`

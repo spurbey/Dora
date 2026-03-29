@@ -1,6 +1,7 @@
 # Live Tracking + Editor Unified System Architecture Plan
 
 Date: 2026-03-29
+Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.
 Scope: End-to-end technical blueprint for a seamless live-capture-to-editor system that integrates in-app events with external travel signals.
 
 ## 1. Product Boundary and Core Principles

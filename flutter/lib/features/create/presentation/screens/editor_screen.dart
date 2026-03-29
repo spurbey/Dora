@@ -143,19 +143,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final initialCenter =
             mapState.center ?? _deviceCenter ?? _defaultEditorCenter;
         final initialZoom = mapState.zoom ?? 12.0;
-        final liveMapOverlay = ref.watch(
-          liveTrackingMapOverlayProvider(widget.tripId),
-        );
         final markers = [
           ...mapState.markers,
-          if (liveMapOverlay.currentMarker != null)
-            liveMapOverlay.currentMarker!,
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
         ];
-        final routes = [
-          ...mapState.routes,
-          if (liveMapOverlay.pathRoute != null) liveMapOverlay.pathRoute!,
-        ];
+        final routes = [...mapState.routes];
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
@@ -205,7 +197,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     _buildLiveTrackingMomentStrip(
                       momentListAsync: momentListAsync!,
                       trackingRuntimeAsync: trackingRuntimeAsync,
-                      capturePosition: liveMapOverlay.currentMarker?.position,
+                      capturePosition: null,
                       tripPlaces: editor.places,
                     ),
                   ],

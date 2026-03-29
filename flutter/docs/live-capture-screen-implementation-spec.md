@@ -486,7 +486,7 @@ Status: `[ ]`
 #### Slice H: Editor Decoupling + Final Validation
 Status: `[-]`
 1. [x] Remove live runtime control strips from editor screen.
-2. [ ] Keep editor consuming compiled/projection overlays only.
+2. [x] Keep editor consuming compiled/projection overlays only.
 3. [ ] Run full test matrix from Section 14.
 4. [ ] Validate no overflow/crash in long live sessions.
 5. [ ] Update all related docs and add final evidence entry.
@@ -631,7 +631,7 @@ All items must pass before merging any live screen PR:
   - failed: none
 - Known follow-ups:
   - Remove legacy strip implementation paths completely after migration window
-  - Ensure editor consumes projection-only overlay for final decoupling criteria
+  - Replace `_showLegacyTrackingWidgets` fallback with full removal once migration is stable
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`

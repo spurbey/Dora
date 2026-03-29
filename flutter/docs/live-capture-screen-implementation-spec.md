@@ -618,7 +618,7 @@ All items must pass before merging any live screen PR:
 
 ### Slice H Evidence (2026-03-30, Partial)
 - Owner: Codex
-- PR/Commit: pending commit in current branch
+- PR/Commit: `c893416`, `dccfc9d`, `91a053d`
 - Files changed:
   - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart`

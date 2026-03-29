@@ -238,6 +238,140 @@ final editorSyncStatusProvider =
   });
 });
 
+final liveTrackingSyncStatusProvider =
+    StreamProvider.family<EditorSyncStatus, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    WITH scoped_tracking_tasks AS (
+      SELECT
+        t.entity_type,
+        t.entity_id,
+        t.status,
+        t.updated_at,
+        t.error_message
+      FROM sync_tasks AS t
+      WHERE (
+          (t.entity_type = 'tracking_session' AND t.entity_id IN (
+            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
+          ))
+          OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
+            SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
+          ))
+          OR (t.entity_type = 'moment' AND t.entity_id IN (
+            SELECT m.id FROM tracking_moments AS m WHERE m.trip_id = ?
+          ))
+          OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
+            SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
+          ))
+      )
+    )
+    SELECT
+      (
+        SELECT COUNT(*) FROM scoped_tracking_tasks
+        WHERE status = 'blocked'
+      ) AS blocked_tasks,
+      (
+        SELECT COUNT(*) FROM scoped_tracking_tasks
+        WHERE status = 'failed'
+      ) AS failed_tasks,
+      (
+        SELECT COUNT(*) FROM scoped_tracking_tasks
+        WHERE status IN ('queued', 'pending', 'in_progress', 'deferred')
+      ) AS active_tasks,
+      (
+        SELECT COUNT(*)
+        FROM tracking_sessions AS s
+        WHERE s.trip_id = ? AND s.sync_status <> 'synced'
+      ) AS unsynced_session_rows,
+      (
+        SELECT COUNT(*)
+        FROM tracking_point_batches AS b
+        WHERE b.trip_id = ? AND b.sync_status <> 'synced'
+      ) AS unsynced_batch_rows,
+      (
+        SELECT COUNT(*)
+        FROM tracking_moments AS m
+        WHERE m.trip_id = ? AND m.sync_status <> 'synced'
+      ) AS unsynced_moment_rows,
+      (
+        SELECT COUNT(*)
+        FROM tracking_candidates AS c
+        WHERE c.trip_id = ? AND c.sync_status <> 'synced'
+      ) AS unsynced_candidate_rows,
+      (
+        SELECT entity_type
+        FROM scoped_tracking_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      ) AS first_blocked_task_entity_type,
+      (
+        SELECT entity_id
+        FROM scoped_tracking_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      ) AS first_blocked_task_entity_id,
+      (
+        SELECT error_message
+        FROM scoped_tracking_tasks
+        WHERE status = 'blocked'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      ) AS first_blocked_task_error_message
+    ''',
+    variables: [
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+    ],
+    readsFrom: {
+      db.syncTasks,
+      db.trackingSessions,
+      db.trackingPointBatches,
+      db.trackingMoments,
+      db.trackingCandidates,
+    },
+  );
+
+  return query.watchSingle().map((row) {
+    final blockedItems = row.read<int>('blocked_tasks');
+    final failedItems = row.read<int>('failed_tasks');
+    final activeItems = row.read<int>('active_tasks');
+    final unsyncedRows = row.read<int>('unsynced_session_rows') +
+        row.read<int>('unsynced_batch_rows') +
+        row.read<int>('unsynced_moment_rows') +
+        row.read<int>('unsynced_candidate_rows');
+    final firstBlockedTaskEntityType =
+        row.data['first_blocked_task_entity_type'] as String?;
+    final firstBlockedTaskEntityId =
+        row.data['first_blocked_task_entity_id'] as String?;
+    final firstBlockedTaskErrorMessage =
+        row.data['first_blocked_task_error_message'] as String?;
+
+    return resolveEditorSyncStatus(
+      EditorSyncSnapshot(
+        blockedItems: blockedItems,
+        failedItems: failedItems,
+        activeItems: activeItems,
+        unsyncedRows: unsyncedRows,
+        blockedMediaItems: 0,
+        failedMediaItems: 0,
+        firstBlockedTaskEntityType: firstBlockedTaskEntityType,
+        firstBlockedTaskEntityId: firstBlockedTaskEntityId,
+        firstBlockedTaskErrorMessage: firstBlockedTaskErrorMessage,
+        firstBlockedMediaPlaceId: null,
+      ),
+    );
+  });
+});
+
 class EditorSyncSnapshot {
   const EditorSyncSnapshot({
     required this.blockedItems,

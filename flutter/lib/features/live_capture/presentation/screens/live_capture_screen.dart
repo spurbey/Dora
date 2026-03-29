@@ -51,8 +51,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final runtimeAsync = usePreview
         ? null
         : ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-    final syncStatusAsync =
-        usePreview ? null : ref.watch(editorSyncStatusProvider(widget.tripId));
+    final syncStatusAsync = usePreview
+        ? null
+        : ref.watch(liveTrackingSyncStatusProvider(widget.tripId));
     final mapOverlay = usePreview
         ? null
         : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));

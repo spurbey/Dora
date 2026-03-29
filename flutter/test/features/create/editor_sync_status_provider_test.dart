@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
@@ -144,5 +145,134 @@ void main() {
     expect(status.snapshot.firstBlockedTaskEntityType,
         SyncEntityTypes.trackingSession);
     expect(status.snapshot.firstBlockedTaskEntityId, 'tracking-session-1');
+  });
+
+  test('liveTrackingSyncStatusProvider ignores blocked non-tracking tasks',
+      () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final now = DateTime.utc(2026, 3, 30, 8, 0);
+    await db.tripDao.insertTrip(
+      TripsCompanion.insert(
+        id: 'trip-live-scope-1',
+        serverTripId: const Value('remote-trip-live-scope-1'),
+        userId: 'user-1',
+        name: 'Live Scope Trip',
+        localUpdatedAt: now,
+        serverUpdatedAt: now,
+        syncStatus: 'synced',
+        createdAt: now,
+      ),
+    );
+    await db.placeDao.insertPlace(
+      PlacesCompanion.insert(
+        id: 'place-live-scope-1',
+        tripId: 'trip-live-scope-1',
+        name: 'Blocked Place',
+        coordinates: const AppLatLng(latitude: 27.7, longitude: 85.3),
+        orderIndex: 0,
+        localUpdatedAt: now,
+        serverUpdatedAt: now,
+        syncStatus: 'pending',
+      ),
+    );
+    await db.into(db.syncTasks).insert(
+          SyncTasksCompanion.insert(
+            id: 'task-place-blocked-1',
+            entityType: SyncEntityTypes.place,
+            entityId: 'place-live-scope-1',
+            operation: 'update',
+            status: const Value('blocked'),
+            pendingRequeue: const Value(false),
+            retryCount: const Value(0),
+            nextAttemptAt: const Value(null),
+            errorCode: const Value('place_conflict'),
+            errorMessage: const Value('Place failed'),
+            workerSessionId: const Value(null),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWith((ref) => db),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+    });
+    addTearDown(() async {
+      await db.close();
+    });
+
+    final liveStatus = await container
+        .read(liveTrackingSyncStatusProvider('trip-live-scope-1').future);
+    expect(liveStatus.kind, EditorSyncStatusKind.synced);
+    expect(liveStatus.snapshot.blockedItems, 0);
+  });
+
+  test('liveTrackingSyncStatusProvider blocks on tracking task failures',
+      () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final now = DateTime.utc(2026, 3, 30, 8, 30);
+    await db.tripDao.insertTrip(
+      TripsCompanion.insert(
+        id: 'trip-live-scope-2',
+        serverTripId: const Value('remote-trip-live-scope-2'),
+        userId: 'user-1',
+        name: 'Live Scope Trip 2',
+        localUpdatedAt: now,
+        serverUpdatedAt: now,
+        syncStatus: 'synced',
+        createdAt: now,
+      ),
+    );
+    await db.into(db.trackingSessions).insert(
+          TrackingSessionsCompanion.insert(
+            id: 'tracking-session-live-scope-1',
+            tripId: 'trip-live-scope-2',
+            clientSessionId: 'client-session-live-scope-1',
+            state: const Value('active'),
+            syncStatus: const Value('pending'),
+            localUpdatedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await db.into(db.syncTasks).insert(
+          SyncTasksCompanion.insert(
+            id: 'task-tracking-session-blocked-1',
+            entityType: SyncEntityTypes.trackingSession,
+            entityId: 'tracking-session-live-scope-1',
+            operation: 'start',
+            status: const Value('blocked'),
+            pendingRequeue: const Value(false),
+            retryCount: const Value(0),
+            nextAttemptAt: const Value(null),
+            errorCode: const Value('tracking_trip_remote_id_missing'),
+            errorMessage: const Value('Trip identity missing'),
+            workerSessionId: const Value(null),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWith((ref) => db),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+    });
+    addTearDown(() async {
+      await db.close();
+    });
+
+    final liveStatus = await container
+        .read(liveTrackingSyncStatusProvider('trip-live-scope-2').future);
+    expect(liveStatus.kind, EditorSyncStatusKind.blocked);
+    expect(liveStatus.snapshot.firstBlockedTaskEntityType,
+        SyncEntityTypes.trackingSession);
   });
 }

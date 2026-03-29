@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/presentation/live_tracking_map_overlay.dart';
+import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
+import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 
@@ -115,6 +122,63 @@ void main() {
 
       expect(
           find.byKey(const ValueKey('liveCaptureBottomPanel')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'uses tracking-scoped sync status and does not depend on editor sync provider',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            liveTrackingCaptureBootstrapProvider.overrideWith((ref) {}),
+            trackingSyncBootstrapProvider.overrideWith((ref) {}),
+            liveTrackingRuntimeSnapshotProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const LiveTrackingRuntimeSnapshot(
+                  tripId: 'trip-123',
+                  state: LiveTrackingRuntimeState.active,
+                  sessionId: 'session-1',
+                ),
+              ),
+            ),
+            liveTrackingSyncStatusProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const EditorSyncStatus(
+                  kind: EditorSyncStatusKind.synced,
+                  label: 'Synced',
+                  snapshot: EditorSyncSnapshot(
+                    blockedItems: 0,
+                    failedItems: 0,
+                    activeItems: 0,
+                    unsyncedRows: 0,
+                  ),
+                ),
+              ),
+            ),
+            editorSyncStatusProvider('trip-123').overrideWith(
+              (ref) => throw StateError(
+                'LiveCaptureScreen must not read editorSyncStatusProvider',
+              ),
+            ),
+            liveTrackingMapOverlayProvider('trip-123').overrideWith(
+              (ref) => const LiveTrackingMapOverlay(),
+            ),
+            liveTrackingMomentsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingMomentRow>[]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LiveCaptureScreen(tripId: 'trip-123'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('liveCaptureControlPause')),
+          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('liveCaptureControlRetry')), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

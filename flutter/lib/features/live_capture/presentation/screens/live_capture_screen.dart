@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
@@ -17,6 +20,7 @@ import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart'
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_action_dock.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_map_canvas.dart';
+import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 
 class LiveCaptureScreen extends ConsumerStatefulWidget {
@@ -49,6 +53,12 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         : ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
     final syncStatusAsync =
         usePreview ? null : ref.watch(editorSyncStatusProvider(widget.tripId));
+    final mapOverlay = usePreview
+        ? null
+        : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));
+    final momentsAsync = usePreview
+        ? null
+        : ref.watch(liveTrackingMomentsProvider(widget.tripId));
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
@@ -63,9 +73,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
       shellState: shellState,
       syncStatus: syncStatusAsync?.valueOrNull,
     );
-    final blockedMessage = syncStatusAsync?.valueOrNull?.snapshot
-        .firstBlockedTaskErrorMessage
+    final blockedMessage = syncStatusAsync
+        ?.valueOrNull?.snapshot.firstBlockedTaskErrorMessage
         ?.trim();
+    final capturePosition = mapOverlay?.currentMarker?.position;
 
     return Scaffold(
       body: Stack(
@@ -94,11 +105,26 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       onRetry: _actionInFlight ? null : _retrySyncNow,
                     ),
                   ),
-                const Positioned(
+                Positioned(
                   left: AppSpacing.md,
                   right: AppSpacing.md,
                   bottom: AppSpacing.md + 164,
-                  child: _RecentEventsPlaceholder(),
+                  child: usePreview
+                      ? const _RecentEventsPlaceholder()
+                      : momentsAsync!.when(
+                          data: (events) => LiveCaptureRecentEventsStrip(
+                            events: events,
+                            loading: false,
+                          ),
+                          loading: () => const LiveCaptureRecentEventsStrip(
+                            events: <TrackingMomentRow>[],
+                            loading: true,
+                          ),
+                          error: (_, __) => const LiveCaptureRecentEventsStrip(
+                            events: <TrackingMomentRow>[],
+                            loading: false,
+                          ),
+                        ),
                 ),
                 Positioned.fill(
                   child: Padding(
@@ -108,7 +134,51 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       0,
                       180,
                     ),
-                    child: LiveCaptureActionDock(state: shellState),
+                    child: LiveCaptureActionDock(
+                      state: shellState,
+                      isBusy: _actionInFlight,
+                      onPhoto: usePreview
+                          ? null
+                          : () => _captureQuickMoment(
+                                note: 'Photo marker',
+                                successMessage:
+                                    'Photo marker captured locally.',
+                                position: capturePosition,
+                              ),
+                      onMedia: usePreview
+                          ? null
+                          : () => _captureQuickMoment(
+                                note: 'Media marker',
+                                successMessage:
+                                    'Media marker captured locally.',
+                                position: capturePosition,
+                              ),
+                      onTag: usePreview
+                          ? null
+                          : () => _captureQuickMoment(
+                                note: 'Checkpoint',
+                                successMessage: 'Checkpoint captured locally.',
+                                position: capturePosition,
+                              ),
+                      onNote: usePreview
+                          ? null
+                          : () => _promptForTextCapture(
+                                title: 'Add Quick Note',
+                                hintText: 'Write note for this location...',
+                                defaultPrefix: '',
+                                successMessage: 'Note captured locally.',
+                                position: capturePosition,
+                              ),
+                      onWarn: usePreview
+                          ? null
+                          : () => _promptForTextCapture(
+                                title: 'Add Warning',
+                                hintText: 'Write warning for this location...',
+                                defaultPrefix: '[Warn] ',
+                                successMessage: 'Warning captured locally.',
+                                position: capturePosition,
+                              ),
+                    ),
                   ),
                 ),
                 LiveCaptureBottomPanel(
@@ -131,8 +201,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       : () => _runLiveTrackingAction(
                             busyLabel: 'Pausing...',
                             successMessage: 'Live tracking paused.',
-                            noOpMessage:
-                                'No active tracking session to pause.',
+                            noOpMessage: 'No active tracking session to pause.',
                             action: (coordinator) async {
                               final paused = await coordinator.pauseTracking(
                                 tripId: widget.tripId,
@@ -159,8 +228,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       : () => _runLiveTrackingAction(
                             busyLabel: 'Stopping...',
                             successMessage: 'Live tracking stopped.',
-                            noOpMessage:
-                                'No active or paused session to stop.',
+                            noOpMessage: 'No active or paused session to stop.',
                             action: (coordinator) async {
                               final stopped = await coordinator.stopTracking(
                                 tripId: widget.tripId,
@@ -193,7 +261,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         return LiveTrackingRuntimeState.ended;
       case LiveCaptureShellState.planned:
         return LiveTrackingRuntimeState.planned;
-  }
+    }
   }
 
   LiveCaptureShellState _resolveShellState({
@@ -326,6 +394,88 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     }
   }
 
+  Future<void> _captureQuickMoment({
+    required String note,
+    required String successMessage,
+    required AppLatLng? position,
+  }) async {
+    if (_actionInFlight || !mounted) {
+      return;
+    }
+    setState(() {
+      _actionInFlight = true;
+      _actionLabel = 'Saving...';
+    });
+    try {
+      final repository = ref.read(liveTrackingMomentRepositoryProvider);
+      await repository.createMomentNow(
+        tripId: widget.tripId,
+        note: note,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showMessage(successMessage);
+    } catch (_) {
+      _showMessage('Failed to capture item. Try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actionInFlight = false;
+          _actionLabel = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _promptForTextCapture({
+    required String title,
+    required String hintText,
+    required String defaultPrefix,
+    required String successMessage,
+    required AppLatLng? position,
+  }) async {
+    if (!mounted || _actionInFlight) {
+      return;
+    }
+    final controller = TextEditingController(text: defaultPrefix);
+    final submitted = await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          decoration: InputDecoration(hintText: hintText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(null),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final note = submitted?.trim();
+    if (note == null || note.isEmpty) {
+      return;
+    }
+    await _captureQuickMoment(
+      note: note,
+      successMessage: successMessage,
+      position: position,
+    );
+  }
+
   Future<void> _handleLiveTrackingCaptureException(
     LiveTrackingCaptureException error,
   ) async {
@@ -364,8 +514,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final shouldOpenSettings = await _showLocationActionDialog(
       icon: Icons.gps_off_rounded,
       title: 'Turn On Location Services',
-      message:
-          'Location services are off. Enable them to start live tracking.',
+      message: 'Location services are off. Enable them to start live tracking.',
       confirmLabel: 'Open settings',
     );
     if (shouldOpenSettings == true) {

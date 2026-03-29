@@ -623,3 +623,5 @@ Use this block for each completed phase:
 5. Additional P1 progress:
    - runtime controls now wired to live-tracking coordinator on the new live screen
    - blocked sync callout + retry trigger wired to tracking sync worker
+   - action dock now triggers local quick-capture writes (photo/note/warn/media/tag) on the new live screen
+   - recent-captures overlay strip now renders from local moments stream in live capture

@@ -444,12 +444,12 @@ Status: `[x]`
 5. [x] Add unit/integration tests for transition rules.
 
 #### Slice C: Capture Actions and Local Persistence
-Status: `[ ]`
-1. [ ] Implement photo/note/warn/media/geotag actions.
+Status: `[-]`
+1. [x] Implement photo/note/warn/media/geotag actions.
 2. [ ] Persist `tracking_events` row before any network call.
 3. [ ] Persist local media refs and enqueue upload tasks.
-4. [ ] Render recent events strip from local stream.
-5. [ ] Add tests for immediate local visibility.
+4. [x] Render recent events strip from local stream.
+5. [x] Add tests for immediate local visibility.
 
 #### Slice D: Resolver and Place Badges
 Status: `[ ]`
@@ -576,7 +576,7 @@ All items must pass before merging any live screen PR:
 
 ### Slice B Evidence (2026-03-29)
 - Owner: Codex
-- PR/Commit: pending commit in current branch
+- PR/Commit: `e0ac2df`
 - Files changed:
   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
@@ -591,6 +591,27 @@ All items must pass before merging any live screen PR:
 - Known follow-ups:
   - Replace placeholder map canvas with runtime overlay integration
   - Add dedicated provider layer under `features/live_capture/presentation/providers`
+- Docs touched:
+  - `flutter/docs/live-capture-screen-implementation-spec.md`
+  - `docs/live-tracking-unified-system-architecture-plan.md`
+
+### Slice C Evidence (2026-03-29, Partial)
+- Owner: Codex
+- PR/Commit: pending commit in current branch
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart`
+  - `flutter/test/features/live_capture/live_capture_recent_events_strip_test.dart`
+- Commands run:
+  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
+  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
+- Results:
+  - passed: analyze clean, 7 widget tests passed
+  - failed: none
+- Known follow-ups:
+  - Add dedicated `tracking_events` write path for all capture actions
+  - Add media-ref persistence and upload-task enqueue for photo/media actions
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`

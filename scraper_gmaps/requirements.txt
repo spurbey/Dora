@@ -1,0 +1,13 @@
+playwright>=1.47,<1.48
+playwright-stealth
+blackboxprotobuf
+httpx
+fake-useragent
+python-dotenv
+psutil
+loguru
+aiofiles
+pytest
+pytest-asyncio
+tenacity
+langdetect

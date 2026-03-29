@@ -484,8 +484,8 @@ Status: `[ ]`
 5. [ ] Add animation timing smoke tests.
 
 #### Slice H: Editor Decoupling + Final Validation
-Status: `[ ]`
-1. [ ] Remove live runtime control strips from editor screen.
+Status: `[-]`
+1. [x] Remove live runtime control strips from editor screen.
 2. [ ] Keep editor consuming compiled/projection overlays only.
 3. [ ] Run full test matrix from Section 14.
 4. [ ] Validate no overflow/crash in long live sessions.
@@ -597,7 +597,7 @@ All items must pass before merging any live screen PR:
 
 ### Slice C Evidence (2026-03-29, Partial)
 - Owner: Codex
-- PR/Commit: pending commit in current branch
+- PR/Commit: `a7f1ba2`
 - Files changed:
   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart`
@@ -612,6 +612,26 @@ All items must pass before merging any live screen PR:
 - Known follow-ups:
   - Add dedicated `tracking_events` write path for all capture actions
   - Add media-ref persistence and upload-task enqueue for photo/media actions
+- Docs touched:
+  - `flutter/docs/live-capture-screen-implementation-spec.md`
+  - `docs/live-tracking-unified-system-architecture-plan.md`
+
+### Slice H Evidence (2026-03-30, Partial)
+- Owner: Codex
+- PR/Commit: pending commit in current branch
+- Files changed:
+  - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter/docs/live-capture-screen-implementation-spec.md`
+  - `docs/live-tracking-unified-system-architecture-plan.md`
+- Commands run:
+  - `flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart`
+- Results:
+  - passed: no analyze errors; related strip widget tests passed
+  - failed: none
+- Known follow-ups:
+  - Remove legacy strip implementation paths completely after migration window
+  - Ensure editor consumes projection-only overlay for final decoupling criteria
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`

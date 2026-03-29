@@ -523,7 +523,7 @@ Status: `[-]`
 #### Phase P1: Live/Editor Boundary Split
 Status: `[-]`
 1. [x] Add dedicated live capture route and screen shell.
-2. [ ] Move runtime controls out of editor.
+2. [x] Move runtime controls out of editor.
 3. [ ] Keep editor map overlays functional for compiled artifacts only.
 4. [x] Add focused widget tests for screen states.
 5. [x] Update docs status in both execution docs.
@@ -625,3 +625,4 @@ Use this block for each completed phase:
    - blocked sync callout + retry trigger wired to tracking sync worker
    - action dock now triggers local quick-capture writes (photo/note/warn/media/tag) on the new live screen
    - recent-captures overlay strip now renders from local moments stream in live capture
+   - editor header stack now surfaces a dedicated "Live Capture" entry card and hides legacy live runtime strips by default

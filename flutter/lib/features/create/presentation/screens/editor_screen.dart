@@ -70,6 +70,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _momentCreateInFlight = false;
   final Set<String> _momentActionsInFlight = <String>{};
   static const _noLinkedMomentPlaceValue = '__no_linked_place__';
+  final bool _showLegacyTrackingWidgets = false;
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -120,10 +121,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ref.watch(editorSyncStatusProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-        final candidateInboxAsync =
-            ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
-        final momentListAsync =
-            ref.watch(liveTrackingMomentsProvider(widget.tripId));
+        final candidateInboxAsync = _showLegacyTrackingWidgets
+            ? ref.watch(liveTrackingCandidateInboxProvider(widget.tripId))
+            : null;
+        final momentListAsync = _showLegacyTrackingWidgets
+            ? ref.watch(liveTrackingMomentsProvider(widget.tripId))
+            : null;
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -192,14 +195,20 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     onMore: () {},
                   ),
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
-                  _buildLiveTrackingControlStrip(trackingRuntimeAsync),
-                  _buildLiveTrackingCandidateInbox(candidateInboxAsync),
-                  _buildLiveTrackingMomentStrip(
-                    momentListAsync: momentListAsync,
+                  _buildLiveCaptureEntryCard(
                     trackingRuntimeAsync: trackingRuntimeAsync,
-                    capturePosition: liveMapOverlay.currentMarker?.position,
-                    tripPlaces: editor.places,
+                    syncStatusAsync: syncStatusAsync,
                   ),
+                  if (_showLegacyTrackingWidgets) ...[
+                    _buildLiveTrackingControlStrip(trackingRuntimeAsync),
+                    _buildLiveTrackingCandidateInbox(candidateInboxAsync!),
+                    _buildLiveTrackingMomentStrip(
+                      momentListAsync: momentListAsync!,
+                      trackingRuntimeAsync: trackingRuntimeAsync,
+                      capturePosition: liveMapOverlay.currentMarker?.position,
+                      tripPlaces: editor.places,
+                    ),
+                  ],
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -463,6 +472,143 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLiveCaptureEntryCard({
+    required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
+    required AsyncValue<EditorSyncStatus> syncStatusAsync,
+  }) {
+    final subtitle = trackingRuntimeAsync.when(
+      data: _liveTrackingSubtitle,
+      loading: () => 'Checking tracking state...',
+      error: (_, __) =>
+          'Tracking state unavailable. Open live capture to retry.',
+    );
+    final runtimeState = trackingRuntimeAsync.valueOrNull?.state ??
+        LiveTrackingRuntimeState.planned;
+    final blockedCount =
+        syncStatusAsync.valueOrNull?.snapshot.blockedItems ?? 0;
+
+    final stateLabel = switch (runtimeState) {
+      LiveTrackingRuntimeState.active => 'Active',
+      LiveTrackingRuntimeState.paused => 'Paused',
+      LiveTrackingRuntimeState.ended => 'Ended',
+      LiveTrackingRuntimeState.planned => 'Ready',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Container(
+        key: const ValueKey('editorLiveCaptureEntryCard'),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.accent.withValues(alpha: 0.12),
+              AppColors.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(
+            color: blockedCount > 0
+                ? AppColors.warning.withValues(alpha: 0.45)
+                : AppColors.divider,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Live Capture',
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      _buildPillChip(
+                        icon: Icons.wifi_tethering,
+                        label: stateLabel,
+                      ),
+                      if (blockedCount > 0)
+                        _buildPillChip(
+                          icon: Icons.error_outline,
+                          label: '$blockedCount blocked',
+                          tint: AppColors.warning,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            FilledButton.icon(
+              key: const ValueKey('editorOpenLiveCaptureButton'),
+              onPressed: () =>
+                  context.push(Routes.liveCapturePath(widget.tripId)),
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Open'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillChip({
+    required IconData icon,
+    required String label,
+    Color? tint,
+  }) {
+    final chipTint = tint ?? AppColors.accent;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: chipTint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: chipTint,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

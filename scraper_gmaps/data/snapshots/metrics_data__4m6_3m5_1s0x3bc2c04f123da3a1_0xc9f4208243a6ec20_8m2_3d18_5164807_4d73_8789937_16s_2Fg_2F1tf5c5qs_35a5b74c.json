@@ -1,0 +1,20 @@
+{
+  "place_id": "data__4m6_3m5_1s0x3bc2c04f123da3a1_0xc9f4208243a6ec20_8m2_3d18_5164807_4d73_8789937_16s_2Fg_2F1tf5c5qs",
+  "run_id": "35a5b74c",
+  "started_at": "2026-03-29T07:49:12.148796",
+  "finished_at": "2026-03-29T07:49:31.519701",
+  "network_captured": 1,
+  "proto_extracted": 0,
+  "dom_extracted": 0,
+  "total_extracted": 0,
+  "stored": 0,
+  "ui_total": null,
+  "challenge_detected": false,
+  "challenge_type": "",
+  "session_rotated": false,
+  "proto_field_drift": true,
+  "errors": [
+    "Could not open reviews tab"
+  ],
+  "duration_seconds": 19.370905
+}

@@ -1,0 +1,20 @@
+{
+  "place_id": "Marz_O_Rin",
+  "run_id": "93b9d6b1",
+  "started_at": "2026-03-29T08:41:15.607596",
+  "finished_at": "2026-03-29T08:41:22.460789",
+  "network_captured": 0,
+  "proto_extracted": 0,
+  "dom_extracted": 0,
+  "total_extracted": 0,
+  "stored": 0,
+  "ui_total": 726,
+  "challenge_detected": false,
+  "challenge_type": "",
+  "session_rotated": false,
+  "proto_field_drift": false,
+  "errors": [
+    "Could not open reviews tab"
+  ],
+  "duration_seconds": 6.853193
+}

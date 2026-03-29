@@ -1,7 +1,7 @@
 from .models import PlaceInfo, Review, RunResult
 from .fingerprint_manager import FingerprintManager
 from .proxy_router import ProxyRouter
-from .navigator import Navigator
+from .navigator import Navigator, PageState
 from .challenge_handler import ChallengeHandler
 from .network_sniffer import NetworkSniffer
 from .proto_decoder import ProtoDecoder

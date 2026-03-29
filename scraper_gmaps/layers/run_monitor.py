@@ -33,6 +33,12 @@ class RunMetrics:
     total_extracted: int = 0        # after merge
     stored: int = 0                 # after dedupe upsert
     ui_total: Optional[int] = None  # total shown in Maps UI
+    page_state: str = ""            # classified acquisition state
+    final_url: str = ""             # final page URL at stop/success
+    place_title_found: bool = False
+    reviews_entry_found: bool = False
+    search_results_found: bool = False
+    limited_view_found: bool = False
 
     # Signals
     challenge_detected: bool = False

@@ -1,23 +1,37 @@
 """
-scraper.py — Main orchestrator
+scraper.py - Main orchestrator
 
-Wires all 9 layers together in the correct order.
-Usage:
-    python scraper.py --url "https://maps.google.com/maps/place/..." [--max-reviews 200]
+Wires all layers together with a page-acquisition-first flow:
+1) acquire full place UI
+2) open reviews
+3) extract
 """
-import asyncio, argparse, os, sys, time
-from typing import Optional, List
-from loguru import logger
+import argparse
+import asyncio
+import os
+from typing import List, Optional
+
 from dotenv import load_dotenv
+from loguru import logger
 from playwright.async_api import async_playwright
 
 from layers import (
-    FingerprintManager, ProxyRouter, SessionPolicy,
-    Navigator, ChallengeHandler, NetworkSniffer,
-    ProtoDecoder, ScrollEngine, DomFallback,
-    ReviewParser, DedupeStore, RunMonitor,
-    PlaceInfo, Review,
+    ChallengeHandler,
+    DedupeStore,
+    DomFallback,
+    FingerprintManager,
+    Navigator,
+    NetworkSniffer,
+    PlaceInfo,
+    ProtoDecoder,
+    ProxyRouter,
+    Review,
+    ReviewParser,
+    RunMonitor,
+    ScrollEngine,
+    SessionPolicy,
 )
+from layers.navigator import PageState
 
 load_dotenv()
 
@@ -29,30 +43,31 @@ async def scrape_place(
 ) -> dict:
     """Full pipeline for one Google Maps place URL."""
 
-    # Derive a clean place_id from URL
     if not place_id:
         import re
-        # Try to extract place name from URL
-        m = re.search(r'/place/([^/@]+)', url)
+
+        m = re.search(r"/place/([^/@]+)", url)
         if m:
-            place_id = re.sub(r'[^a-zA-Z0-9_]', '_', m.group(1))
+            place_id = re.sub(r"[^a-zA-Z0-9_]", "_", m.group(1))
         else:
             place_id = "unknown_place"
 
-    # ── Init layers ──────────────────────────────────────────────────────────
+    place_query = place_id.replace("_", " ")
+
     fp_manager = FingerprintManager()
     fp_manager.lock()
-    proxy      = ProxyRouter()
-    monitor    = RunMonitor()
-    store      = DedupeStore()
-    parser     = ReviewParser()
-    session    = SessionPolicy(proxy, fp_manager)
+    proxy = ProxyRouter()
+    monitor = RunMonitor()
+    store = DedupeStore()
+    parser = ReviewParser()
+    session = SessionPolicy(proxy, fp_manager)
 
     metrics = monitor.start_run(place_id)
+    headless = os.getenv("MAPS_HEADLESS", "true").lower() == "true"
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
-            headless=True,
+            headless=headless,
             args=[
                 "--no-sandbox",
                 "--disable-blink-features=AutomationControlled",
@@ -63,20 +78,36 @@ async def scrape_place(
         context = await session.get_context(browser)
         page = await context.new_page()
 
-        # ── Single Navigator instance — carries state through all steps ──────
         nav = Navigator(page, timeout=15_000)
+        challenge: Optional[ChallengeHandler] = None
+        sniffer: Optional[NetworkSniffer] = None
 
-        # ── Challenge rotation callback ──────────────────────────────────────
         async def on_session_rotate():
-            nonlocal context, page
+            nonlocal context, page, challenge, sniffer
             metrics.session_rotated = True
-            await page.close()
+            try:
+                if sniffer:
+                    await sniffer.stop()
+            except Exception:
+                pass
+
+            try:
+                await page.close()
+            except Exception:
+                pass
+
             context = await session.rotate(browser, mark_proxy_blocked=True)
             page = await context.new_page()
 
+            nav.page = page
+            if challenge:
+                challenge.page = page
+            if sniffer:
+                sniffer.page = page
+                await sniffer.start()
+
         challenge = ChallengeHandler(page, on_session_rotate=on_session_rotate)
 
-        # ── Layer 4: start network capture BEFORE navigation ─────────────────
         sniffer = NetworkSniffer(page)
         proto_reviews: List[Review] = []
         decoder = ProtoDecoder(place_id)
@@ -86,66 +117,115 @@ async def scrape_place(
             if reviews:
                 proto_reviews.extend(reviews)
                 metrics.proto_extracted += len(reviews)
-                logger.info(f"[main] Proto decoded {len(reviews)} reviews (total so far: {len(proto_reviews)})")
+                logger.info(
+                    f"[main] Proto decoded {len(reviews)} reviews "
+                    f"(total so far: {len(proto_reviews)})"
+                )
             metrics.network_captured += 1
 
         sniffer.on_capture(on_capture)
         await sniffer.start()
 
+        async def update_acquisition_metrics():
+            state = await nav.classify_page_state()
+            metrics.page_state = state.value
+            metrics.final_url = page.url
+            metrics.limited_view_found = state == PageState.LIMITED_PLACE
+            metrics.search_results_found = state == PageState.SEARCH_RESULTS
+            place_name_local = await nav.get_place_name()
+            metrics.place_title_found = bool(place_name_local)
+            metrics.reviews_entry_found = await nav.has_reviews_entrypoint()
+            return state, place_name_local
+
         try:
-            # ── Layer 2: navigate to place ───────────────────────────────────
+            # 1) Acquire place page
             ok = await nav.goto_place(url)
             if not ok:
-                monitor.log_error("Navigation failed")
-                await monitor.take_snapshot(page, "nav_failed")
-                return monitor.finish_run(metrics).__dict__
+                logger.warning("[main] Direct URL path failed; trying search-click flow")
+                ok = await nav.recover_full_place_via_search(
+                    query=place_query, place_hint=place_query
+                )
+                if not ok:
+                    monitor.log_error("Serving failure: could not acquire place page")
+                    await monitor.take_snapshot(page, "serving_nav_failed")
+                    return monitor.finish_run(metrics).__dict__
 
-            # ── Layer 3: handle consent/captcha ──────────────────────────────
+            # 2) Resolve interrupts
             resolved = await challenge.handle()
             if not resolved:
                 monitor.log_error("Challenge not resolved")
                 await monitor.take_snapshot(page, "challenge")
                 return monitor.finish_run(metrics).__dict__
 
-            # Get place metadata
-            metrics.ui_total = await nav.get_total_review_count()
-            place_name = await nav.get_place_name()
-            logger.info(f"[main] Place: {place_name} | UI reviews: {metrics.ui_total}")
+            # 3) Classify and recover if wrong variant
+            state, place_name = await update_acquisition_metrics()
+            if state in (PageState.LIMITED_PLACE, PageState.SEARCH_RESULTS, PageState.UNKNOWN):
+                logger.warning(f"[main] State={state.value}; retrying search-click acquisition")
+                recovered = await nav.recover_full_place_via_search(
+                    query=place_name or place_query,
+                    place_hint=place_name or place_query,
+                )
+                if not recovered:
+                    monitor.log_error(f"Serving failure: {state.value}")
+                    await monitor.take_snapshot(page, f"serving_{state.value}")
+                    return monitor.finish_run(metrics).__dict__
 
-            # ── Layer 2: open reviews tab (SAME nav instance) ────────────────
+                await challenge.handle()
+                state, place_name = await update_acquisition_metrics()
+
+            if state == PageState.LIMITED_PLACE:
+                monitor.log_error("Serving failure: limited view variant")
+                await monitor.take_snapshot(page, "limited_view")
+                return monitor.finish_run(metrics).__dict__
+
+            if state == PageState.CONSENT:
+                monitor.log_error("Serving failure: consent page still active")
+                await monitor.take_snapshot(page, "consent_stuck")
+                return monitor.finish_run(metrics).__dict__
+
+            if state == PageState.BLOCKED:
+                monitor.log_error("Serving failure: blocked/rate-limited")
+                await monitor.take_snapshot(page, "blocked")
+                return monitor.finish_run(metrics).__dict__
+
+            # 4) Metadata after serving is correct
+            metrics.ui_total = await nav.get_total_review_count()
+            logger.info(
+                f"[main] State={state.value} | Place={place_name} | "
+                f"UI reviews={metrics.ui_total}"
+            )
+
+            # 5) Open reviews panel
             ok = await nav.open_reviews_tab()
             if not ok:
                 monitor.log_error("Could not open reviews tab")
                 await monitor.take_snapshot(page, "no_reviews_tab")
                 return monitor.finish_run(metrics).__dict__
 
-            # ── Layer 3: check for challenges again after tab load ────────────
             await challenge.handle()
 
-            # ── Layer 2: sort by newest ───────────────────────────────────────
+            # 6) Sorting and scrolling
             await nav.sort_by_newest()
-
-            # ── Layer 6a: scroll to load all reviews ─────────────────────────
             scroll = ScrollEngine(page, max_reviews=max_reviews)
             visible = await scroll.scroll_to_load_all(target_count=metrics.ui_total)
-            logger.info(f"[main] Scroll done: {visible} cards visible, {len(proto_reviews)} from proto")
+            logger.info(
+                f"[main] Scroll done: {visible} cards visible, {len(proto_reviews)} from proto"
+            )
 
-            # Allow any final XHR responses to arrive
             await asyncio.sleep(2.0)
 
-            # ── Layer 6b: DOM fallback if proto got nothing ───────────────────
+            # 7) DOM fallback if proto is empty
             dom_reviews: List[Review] = []
             if not proto_reviews:
-                logger.warning("[main] Proto empty — activating DOM fallback")
+                logger.warning("[main] Proto empty - activating DOM fallback")
                 dom_fb = DomFallback(page, place_id)
                 dom_reviews = await dom_fb.extract_reviews()
                 metrics.dom_extracted = len(dom_reviews)
 
-            # ── Layer 7: merge + normalise ────────────────────────────────────
+            # 8) Merge + store
             all_reviews = parser.merge(proto_reviews, dom_reviews)
             metrics.total_extracted = len(all_reviews)
 
-            # ── Layer 8: upsert to store ──────────────────────────────────────
             if all_reviews:
                 place_info = PlaceInfo(
                     place_id=place_id,
@@ -159,6 +239,7 @@ async def scrape_place(
                 logger.info(f"[main] Stored: {inserted} new, {updated} updated")
 
             await monitor.take_snapshot(page, "done")
+            session.record_place_done()
 
         except Exception as e:
             monitor.log_error(f"Unhandled exception: {e}")
@@ -166,7 +247,10 @@ async def scrape_place(
             await monitor.take_snapshot(page, "error")
 
         finally:
-            await sniffer.stop()
+            try:
+                await sniffer.stop()
+            except Exception:
+                pass
             try:
                 await page.close()
             except Exception:
@@ -177,8 +261,6 @@ async def scrape_place(
     logger.info(f"[main] DB stats: {store.stats()}")
     return result.__dict__
 
-
-# ── CLI ──────────────────────────────────────────────────────────────────────
 
 async def main():
     p = argparse.ArgumentParser(description="Google Maps review scraper")

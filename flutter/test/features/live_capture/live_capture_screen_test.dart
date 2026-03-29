@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 
 void main() {
   Widget wrap(LiveCaptureShellState state) {
-    return MaterialApp(
-      home: LiveCaptureScreen(
-        tripId: 'trip-123',
-        previewState: state,
+    return ProviderScope(
+      child: MaterialApp(
+        home: LiveCaptureScreen(
+          tripId: 'trip-123',
+          previewState: state,
+        ),
       ),
     );
   }

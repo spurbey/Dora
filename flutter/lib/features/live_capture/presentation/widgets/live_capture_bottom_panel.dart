@@ -10,9 +10,25 @@ class LiveCaptureBottomPanel extends StatelessWidget {
   const LiveCaptureBottomPanel({
     super.key,
     required this.state,
+    this.isBusy = false,
+    this.busyLabel,
+    this.onStart,
+    this.onPause,
+    this.onResume,
+    this.onStop,
+    this.onRetrySync,
+    this.onOpenEditor,
   });
 
   final LiveCaptureShellState state;
+  final bool isBusy;
+  final String? busyLabel;
+  final VoidCallback? onStart;
+  final VoidCallback? onPause;
+  final VoidCallback? onResume;
+  final VoidCallback? onStop;
+  final VoidCallback? onRetrySync;
+  final VoidCallback? onOpenEditor;
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +65,36 @@ class LiveCaptureBottomPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _headline(state),
-              key: const ValueKey('liveCapturePanelHeadline'),
-              style: AppTypography.h3.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _headline(state),
+                    key: const ValueKey('liveCapturePanelHeadline'),
+                    style: AppTypography.h3.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isBusy) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  if (busyLabel != null && busyLabel!.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      busyLabel!,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -78,18 +117,19 @@ class LiveCaptureBottomPanel extends StatelessWidget {
   }
 
   List<Widget> _controls(LiveCaptureShellState state) {
+    final actionEnabled = !isBusy;
     switch (state) {
       case LiveCaptureShellState.active:
         return [
           OutlinedButton.icon(
             key: const ValueKey('liveCaptureControlPause'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onPause : null,
             icon: const Icon(Icons.pause, size: 16),
             label: const Text('Pause'),
           ),
           FilledButton.tonalIcon(
             key: const ValueKey('liveCaptureControlStop'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onStop : null,
             icon: const Icon(Icons.stop, size: 16),
             label: const Text('Stop'),
           ),
@@ -98,13 +138,13 @@ class LiveCaptureBottomPanel extends StatelessWidget {
         return [
           FilledButton.icon(
             key: const ValueKey('liveCaptureControlResume'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onResume : null,
             icon: const Icon(Icons.play_arrow, size: 16),
             label: const Text('Resume'),
           ),
           OutlinedButton.icon(
             key: const ValueKey('liveCaptureControlStop'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onStop : null,
             icon: const Icon(Icons.stop, size: 16),
             label: const Text('Stop'),
           ),
@@ -113,13 +153,13 @@ class LiveCaptureBottomPanel extends StatelessWidget {
         return [
           FilledButton.icon(
             key: const ValueKey('liveCaptureControlStartNew'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onStart : null,
             icon: const Icon(Icons.play_arrow, size: 16),
             label: const Text('Start New Session'),
           ),
           OutlinedButton.icon(
             key: const ValueKey('liveCaptureControlOpenEditor'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onOpenEditor : null,
             icon: const Icon(Icons.edit_outlined, size: 16),
             label: const Text('Open Editor'),
           ),
@@ -128,13 +168,13 @@ class LiveCaptureBottomPanel extends StatelessWidget {
         return [
           FilledButton.tonalIcon(
             key: const ValueKey('liveCaptureControlRetry'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onRetrySync : null,
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Retry Sync'),
           ),
           OutlinedButton.icon(
             key: const ValueKey('liveCaptureControlReview'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onOpenEditor : null,
             icon: const Icon(Icons.rule_folder_outlined, size: 16),
             label: const Text('Review Issues'),
           ),
@@ -143,7 +183,7 @@ class LiveCaptureBottomPanel extends StatelessWidget {
         return [
           FilledButton.icon(
             key: const ValueKey('liveCaptureControlStart'),
-            onPressed: () {},
+            onPressed: actionEnabled ? onStart : null,
             icon: const Icon(Icons.play_arrow, size: 16),
             label: const Text('Start Tracking'),
           ),
@@ -181,4 +221,3 @@ class LiveCaptureBottomPanel extends StatelessWidget {
     }
   }
 }
-

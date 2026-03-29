@@ -620,3 +620,6 @@ Use this block for each completed phase:
 4. Remaining P1 scope:
    - remove runtime strips from editor
    - ensure editor overlay remains projection-only
+5. Additional P1 progress:
+   - runtime controls now wired to live-tracking coordinator on the new live screen
+   - blocked sync callout + retry trigger wired to tracking sync worker

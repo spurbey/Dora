@@ -436,12 +436,12 @@ Status: `[x]`
 5. [x] Add initial widget tests for render states.
 
 #### Slice B: Session Controls + Runtime
-Status: `[ ]`
-1. [ ] Add session start/pause/resume/stop actions to provider/controller.
-2. [ ] Wire to runtime repository and local persistence.
-3. [ ] Enqueue sync tasks for lifecycle actions.
-4. [ ] Show actionable blocked-state callout and retry action.
-5. [ ] Add unit/integration tests for transition rules.
+Status: `[x]`
+1. [x] Add session start/pause/resume/stop actions to provider/controller.
+2. [x] Wire to runtime repository and local persistence.
+3. [x] Enqueue sync tasks for lifecycle actions.
+4. [x] Show actionable blocked-state callout and retry action.
+5. [x] Add unit/integration tests for transition rules.
 
 #### Slice C: Capture Actions and Local Persistence
 Status: `[ ]`
@@ -550,7 +550,7 @@ All items must pass before merging any live screen PR:
 
 ### Slice A Evidence (2026-03-29)
 - Owner: Codex
-- PR/Commit: pending commit in current branch
+- PR/Commit: `53ed9f3`
 - Files changed:
   - `flutter/lib/core/navigation/routes.dart`
   - `flutter/lib/core/navigation/app_router.dart`
@@ -570,6 +570,27 @@ All items must pass before merging any live screen PR:
 - Known follow-ups:
   - Wire real runtime providers and actions in Slice B
   - Replace placeholder map canvas with live map runtime overlay integration
+- Docs touched:
+  - `flutter/docs/live-capture-screen-implementation-spec.md`
+  - `docs/live-tracking-unified-system-architecture-plan.md`
+
+### Slice B Evidence (2026-03-29)
+- Owner: Codex
+- PR/Commit: pending commit in current branch
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+- Commands run:
+  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter analyze lib/core/navigation/routes.dart lib/core/navigation/app_router.dart lib/features/live_capture/domain/live_capture_shell_state.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart lib/features/live_capture/presentation/widgets/live_capture_map_canvas.dart test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter test test/features/live_capture/live_capture_screen_test.dart`
+- Results:
+  - passed: analyze clean, 5 widget tests passed
+  - failed: none
+- Known follow-ups:
+  - Replace placeholder map canvas with runtime overlay integration
+  - Add dedicated provider layer under `features/live_capture/presentation/providers`
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`

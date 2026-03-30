@@ -15,6 +15,7 @@ import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/live_tracking_map_overlay.dart';
+import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 
 final liveTrackingRuntimeRepositoryProvider =
     Provider<LiveTrackingRuntimeRepository>((ref) {
@@ -22,11 +23,15 @@ final liveTrackingRuntimeRepositoryProvider =
   final trackingSessionDao = ref.watch(trackingSessionDaoProvider);
   final trackingPointBatchDao = ref.watch(trackingPointBatchDaoProvider);
   final syncTaskDao = ref.watch(syncTaskDaoProvider);
+  final liveTrackingApi = ref.watch(liveTrackingApiProvider);
+  final tripRepository = ref.watch(tripRepositoryProvider);
   return LiveTrackingRuntimeRepository(
     db,
     trackingSessionDao: trackingSessionDao,
     trackingPointBatchDao: trackingPointBatchDao,
     syncTaskDao: syncTaskDao,
+    liveTrackingApi: liveTrackingApi,
+    resolveRemoteTripId: (tripId) => tripRepository.ensureRemoteTripId(tripId),
   );
 });
 

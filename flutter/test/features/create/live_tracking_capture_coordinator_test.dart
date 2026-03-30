@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/location/location_permission.dart';
+import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -21,6 +22,186 @@ class _FakeClock {
 
   void advance(Duration value) {
     current = current.add(value);
+  }
+}
+
+class _FakeLiveTrackingApi implements LiveTrackingApi {
+  @override
+  Future<Map<String, dynamic>> startTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) async {
+    return <String, dynamic>{
+      'session_id': 'remote-$tripId',
+      'trip_id': tripId,
+      'state': 'active',
+      'client_session_id': clientSessionId,
+      'started_at': startedAt.toUtc().toIso8601String(),
+      'timezone': timezone,
+      'device_context': deviceContext ?? const <String, dynamic>{},
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> pauseTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime pausedAt,
+    String? sessionId,
+    String? reason,
+  }) async {
+    return <String, dynamic>{
+      'session_id': sessionId ?? 'remote-$tripId',
+      'trip_id': tripId,
+      'state': 'paused',
+      'paused_at': pausedAt.toUtc().toIso8601String(),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> resumeTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime resumedAt,
+    String? sessionId,
+  }) async {
+    return <String, dynamic>{
+      'session_id': sessionId ?? 'remote-$tripId',
+      'trip_id': tripId,
+      'state': 'active',
+      'resumed_at': resumedAt.toUtc().toIso8601String(),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTracking({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime stoppedAt,
+    String? sessionId,
+    String? reason,
+  }) async {
+    return <String, dynamic>{
+      'session_id': sessionId ?? 'remote-$tripId',
+      'trip_id': tripId,
+      'state': 'ended',
+      'ended_at': stoppedAt.toUtc().toIso8601String(),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadPointsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required String sessionId,
+    required String clientBatchId,
+    required DateTime sentAt,
+    required List<Map<String, dynamic>> points,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchTrackingPath({
+    required String tripId,
+    String? sessionId,
+    int limit = 5000,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> confirmCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime confirmedAt,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rejectCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime rejectedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> snoozeCheckin({
+    required String candidateId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime snoozedUntil,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> createMoment({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientEventId,
+    required DateTime capturedAt,
+    String? note,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateMoment({
+    required String momentId,
+    required String idempotencyKey,
+    required String clientEventId,
+    DateTime? capturedAt,
+    String? note,
+    bool includeNote = false,
+    Map<String, dynamic>? location,
+    List<Map<String, dynamic>>? mediaRefs,
+    String? linkedTripPlaceId,
+    bool includeLinkedTripPlaceId = false,
+    Map<String, dynamic>? extraPayload,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String platform,
+    required String pushToken,
+    DateTime? seenAt,
+    String? deviceId,
+    String? appVersion,
+    String? locale,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> deactivateDeviceToken({
+    required String idempotencyKey,
+    required String clientEventId,
+    required String pushToken,
+    DateTime? deactivatedAt,
+  }) {
+    throw UnimplementedError();
   }
 }
 
@@ -62,6 +243,8 @@ void main() {
         trackingSessionDao: sessionDao,
         trackingPointBatchDao: batchDao,
         syncTaskDao: syncTaskDao,
+        liveTrackingApi: _FakeLiveTrackingApi(),
+        resolveRemoteTripId: (localTripId) async => 'remote-trip-$localTripId',
         now: clock.now,
       );
       permissionState = LocationAccessState.granted;

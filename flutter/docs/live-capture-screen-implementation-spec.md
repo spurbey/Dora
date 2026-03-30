@@ -451,10 +451,10 @@ Status: `[x]`
 5. [x] Add initial widget tests for render states.
 
 #### Slice B: Session Controls + Runtime
-Status: `[-]`
+Status: `[x]`
 1. [x] Add session start/pause/resume/stop actions to provider/controller.
 2. [x] Wire to runtime repository and local persistence.
-3. [ ] Migrate lifecycle commands to server write-through execution (remove deferred session-task queue path).
+3. [x] Migrate lifecycle commands to server write-through execution (remove deferred session-task queue path).
 4. [x] Show actionable blocked-state callout and retry action.
 5. [x] Add unit/integration tests for transition rules.
 6. [x] Hotfix: remove ended-state restart CTA that triggers backend `start` policy `409` loop.
@@ -683,4 +683,22 @@ All items must pass before merging any live screen PR:
   - passed: focused tests (`31`) and targeted analyze on touched files
   - failed: none
 - Follow-up:
-  - complete Slice B item 3 (write-through server command path for lifecycle actions).
+  - none
+
+### Slice B.3 Evidence (2026-03-30, Write-Through Command Path)
+- Owner: Codex
+- Scope:
+  - Migrate `start/pause/resume/stop` lifecycle actions to direct server write-through.
+  - Remove deferred sync-task enqueue path for session lifecycle commands from runtime repository.
+  - Keep point-batch sync lane unchanged (still local-first + queued upload).
+- Files changed:
+  - `flutter/lib/features/create/data/live_tracking_runtime_repository.dart`
+  - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+  - `flutter/test/features/create/live_tracking_runtime_repository_test.dart`
+  - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
+- Commands run:
+  - `flutter test test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
+  - `flutter analyze lib/features/create/data/live_tracking_runtime_repository.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
+- Results:
+  - passed: focused tests (`12`) and targeted analyze on touched files
+  - failed: none

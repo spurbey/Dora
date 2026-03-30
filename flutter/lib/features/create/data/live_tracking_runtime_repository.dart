@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -77,6 +78,8 @@ class LiveTrackingRuntimeRepository {
     TrackingSessionDao? trackingSessionDao,
     TrackingPointBatchDao? trackingPointBatchDao,
     SyncTaskDao? syncTaskDao,
+    LiveTrackingApi? liveTrackingApi,
+    Future<String> Function(String localTripId)? resolveRemoteTripId,
     LiveTrackingBatchingPolicy policy = const LiveTrackingBatchingPolicy(),
     DateTime Function()? now,
     Uuid? uuid,
@@ -85,6 +88,8 @@ class LiveTrackingRuntimeRepository {
         _trackingPointBatchDao =
             trackingPointBatchDao ?? TrackingPointBatchDao(db),
         _syncTaskDao = syncTaskDao ?? SyncTaskDao(db),
+        _liveTrackingApi = liveTrackingApi,
+        _resolveRemoteTripId = resolveRemoteTripId,
         _policy = policy,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
@@ -93,6 +98,8 @@ class LiveTrackingRuntimeRepository {
   final TrackingSessionDao _trackingSessionDao;
   final TrackingPointBatchDao _trackingPointBatchDao;
   final SyncTaskDao _syncTaskDao;
+  final LiveTrackingApi? _liveTrackingApi;
+  final Future<String> Function(String localTripId)? _resolveRemoteTripId;
   final LiveTrackingBatchingPolicy _policy;
   final DateTime Function() _now;
   final Uuid _uuid;
@@ -113,137 +120,145 @@ class LiveTrackingRuntimeRepository {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-    return _db.transaction(() async {
-      final existing =
-          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-      if (existing != null) {
-        final missingRemoteSessionId = existing.remoteSessionId == null ||
-            existing.remoteSessionId!.isEmpty;
-        final isAlive =
-            existing.state == 'active' || existing.state == 'paused';
-        if (isAlive && missingRemoteSessionId) {
-          await _enqueueSessionTask(
-            sessionId: existing.id,
-            tripId: existing.tripId,
-            operation: 'start',
-          );
-        }
-        return existing;
-      }
+    final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+      tripId,
+    );
+    final now = _now().toUtc();
 
-      final now = _now().toUtc();
-      final sessionId = _uuid.v4();
-      final clientSessionId = _uuid.v4();
-      await _trackingSessionDao.upsertSession(
-        TrackingSessionsCompanion.insert(
-          id: sessionId,
-          tripId: tripId,
-          clientSessionId: clientSessionId,
-          state: const Value('active'),
-          timezone: Value(timezone),
-          deviceContextJson: Value(_encodeJson(deviceContext ?? const {})),
-          startedAt: Value(now),
-          syncStatus: const Value('pending'),
-          localUpdatedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-      await _enqueueSessionTask(
-        sessionId: sessionId,
-        tripId: tripId,
-        operation: 'start',
-      );
-      final persisted = await _trackingSessionDao.getSessionById(sessionId);
-      if (persisted == null) {
-        throw StateError('Failed to persist tracking session: $sessionId');
-      }
-      return persisted;
-    });
+    if (existing != null && _isNonEmpty(existing.remoteSessionId)) {
+      return existing;
+    }
+
+    final sessionId = existing?.id ?? _uuid.v4();
+    final clientSessionId = existing?.clientSessionId ?? _uuid.v4();
+    final startedAt = existing?.startedAt ?? now;
+    final effectiveTimezone = existing?.timezone ?? timezone;
+    final effectiveDeviceContext = _mergeDeviceContext(
+      existingJson: existing?.deviceContextJson,
+      override: deviceContext,
+    );
+
+    final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
+    final api = _requireLiveTrackingApi();
+    final snapshot = await api.startTracking(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(operation: 'start'),
+      clientSessionId: clientSessionId,
+      startedAt: startedAt,
+      timezone: effectiveTimezone,
+      deviceContext: effectiveDeviceContext,
+    );
+
+    return _upsertSessionSnapshot(
+      localSessionId: sessionId,
+      tripId: tripId,
+      clientSessionId: clientSessionId,
+      snapshot: snapshot,
+      existing: existing,
+      now: now,
+    );
   }
 
   Future<TrackingSessionRow?> pauseSession({
     required String tripId,
   }) async {
-    return _db.transaction(() async {
-      final session =
-          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-      if (session == null) {
-        return null;
-      }
-      if (session.state != 'active') {
-        return session;
-      }
+    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+      tripId,
+    );
+    if (session == null) {
+      return null;
+    }
+    if (session.state != 'active') {
+      return session;
+    }
 
-      final now = _now().toUtc();
-      await _trackingSessionDao.updateLifecycle(
-        sessionId: session.id,
-        state: 'paused',
-        pausedAt: now,
-      );
-      await _enqueueSessionTask(
-        sessionId: session.id,
-        tripId: session.tripId,
-        operation: 'pause',
-      );
-      return _trackingSessionDao.getSessionById(session.id);
-    });
+    final now = _now().toUtc();
+    final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
+    final api = _requireLiveTrackingApi();
+    final snapshot = await api.pauseTracking(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(operation: 'pause'),
+      clientEventId: _uuid.v4(),
+      pausedAt: now,
+      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    );
+
+    return _upsertSessionSnapshot(
+      localSessionId: session.id,
+      tripId: tripId,
+      clientSessionId: session.clientSessionId,
+      snapshot: snapshot,
+      existing: session,
+      now: now,
+    );
   }
 
   Future<TrackingSessionRow?> resumeSession({
     required String tripId,
   }) async {
-    return _db.transaction(() async {
-      final session =
-          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-      if (session == null) {
-        return null;
-      }
-      if (session.state == 'active') {
-        return session;
-      }
-      if (session.state != 'paused') {
-        return null;
-      }
+    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+      tripId,
+    );
+    if (session == null) {
+      return null;
+    }
+    if (session.state == 'active') {
+      return session;
+    }
+    if (session.state != 'paused') {
+      return null;
+    }
 
-      final now = _now().toUtc();
-      await _trackingSessionDao.updateLifecycle(
-        sessionId: session.id,
-        state: 'active',
-        resumedAt: now,
-      );
-      await _enqueueSessionTask(
-        sessionId: session.id,
-        tripId: session.tripId,
-        operation: 'resume',
-      );
-      return _trackingSessionDao.getSessionById(session.id);
-    });
+    final now = _now().toUtc();
+    final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
+    final api = _requireLiveTrackingApi();
+    final snapshot = await api.resumeTracking(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(operation: 'resume'),
+      clientEventId: _uuid.v4(),
+      resumedAt: now,
+      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    );
+
+    return _upsertSessionSnapshot(
+      localSessionId: session.id,
+      tripId: tripId,
+      clientSessionId: session.clientSessionId,
+      snapshot: snapshot,
+      existing: session,
+      now: now,
+    );
   }
 
   Future<TrackingSessionRow?> stopSession({
     required String tripId,
   }) async {
-    return _db.transaction(() async {
-      final session =
-          await _trackingSessionDao.getActiveOrPausedSessionForTrip(tripId);
-      if (session == null) {
-        return null;
-      }
+    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+      tripId,
+    );
+    if (session == null) {
+      return null;
+    }
 
-      final now = _now().toUtc();
-      await _trackingSessionDao.updateLifecycle(
-        sessionId: session.id,
-        state: 'ended',
-        endedAt: now,
-      );
-      await _enqueueSessionTask(
-        sessionId: session.id,
-        tripId: session.tripId,
-        operation: 'stop',
-      );
-      return _trackingSessionDao.getSessionById(session.id);
-    });
+    final now = _now().toUtc();
+    final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
+    final api = _requireLiveTrackingApi();
+    final snapshot = await api.stopTracking(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(operation: 'stop'),
+      clientEventId: _uuid.v4(),
+      stoppedAt: now,
+      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    );
+
+    return _upsertSessionSnapshot(
+      localSessionId: session.id,
+      tripId: tripId,
+      clientSessionId: session.clientSessionId,
+      snapshot: snapshot,
+      existing: session,
+      now: now,
+    );
   }
 
   Future<bool> ingestPoint({
@@ -349,19 +364,102 @@ class LiveTrackingRuntimeRepository {
     });
   }
 
-  Future<void> _enqueueSessionTask({
-    required String sessionId,
+  Future<String> _resolveRemoteTripIdForCommand(String localTripId) async {
+    final resolver = _resolveRemoteTripId;
+    if (resolver == null) {
+      throw StateError(
+        'Live tracking remote trip resolver is unavailable for command path.',
+      );
+    }
+    return resolver(localTripId);
+  }
+
+  LiveTrackingApi _requireLiveTrackingApi() {
+    final api = _liveTrackingApi;
+    if (api == null) {
+      throw StateError(
+        'Live tracking API client is unavailable for command path.',
+      );
+    }
+    return api;
+  }
+
+  Future<TrackingSessionRow> _upsertSessionSnapshot({
+    required String localSessionId,
     required String tripId,
-    required String operation,
-  }) {
-    return _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trackingSession,
-      entityId: sessionId,
-      operation: operation,
-      dependsOnEntityType: SyncEntityTypes.trip,
-      dependsOnEntityId: tripId,
+    required String clientSessionId,
+    required Map<String, dynamic> snapshot,
+    required TrackingSessionRow? existing,
+    required DateTime now,
+  }) async {
+    final remoteSessionId =
+        _asString(snapshot['session_id']) ?? existing?.remoteSessionId;
+    final state = _asString(snapshot['state']) ?? existing?.state ?? 'planned';
+    final startedAt = _parseDateTime(snapshot['started_at']) ??
+        existing?.startedAt ??
+        (state == 'active' ? now : null);
+    final pausedAt =
+        _parseDateTime(snapshot['paused_at']) ?? existing?.pausedAt;
+    final resumedAt =
+        _parseDateTime(snapshot['resumed_at']) ?? existing?.resumedAt;
+    final endedAt = _parseDateTime(snapshot['ended_at']) ?? existing?.endedAt;
+    final abandonedAt =
+        _parseDateTime(snapshot['abandoned_at']) ?? existing?.abandonedAt;
+    final lastPointAt =
+        _parseDateTime(snapshot['last_point_at']) ?? existing?.lastPointAt;
+    final timezone = _asString(snapshot['timezone']) ?? existing?.timezone;
+    final deviceContext = _coerceJsonMap(snapshot['device_context']) ??
+        _coerceJsonMapFromString(existing?.deviceContextJson) ??
+        const <String, dynamic>{};
+    final createdAt = existing?.createdAt ?? now;
+
+    await _trackingSessionDao.upsertSession(
+      TrackingSessionsCompanion.insert(
+        id: localSessionId,
+        tripId: tripId,
+        remoteSessionId: Value(remoteSessionId),
+        clientSessionId: existing?.clientSessionId ?? clientSessionId,
+        state: Value(state),
+        timezone: Value(timezone),
+        deviceContextJson: Value(_encodeJson(deviceContext)),
+        startedAt: Value(startedAt),
+        pausedAt: Value(pausedAt),
+        resumedAt: Value(resumedAt),
+        endedAt: Value(endedAt),
+        abandonedAt: Value(abandonedAt),
+        lastPointAt: Value(lastPointAt),
+        syncStatus: const Value('synced'),
+        localUpdatedAt: now,
+        serverUpdatedAt: Value(now),
+        createdAt: createdAt,
+        updatedAt: now,
+      ),
     );
+
+    final persisted = await _trackingSessionDao.getSessionById(localSessionId);
+    if (persisted == null) {
+      throw StateError('Failed to persist tracking session: $localSessionId');
+    }
+    return persisted;
+  }
+
+  Map<String, dynamic> _mergeDeviceContext({
+    required String? existingJson,
+    required Map<String, dynamic>? override,
+  }) {
+    final merged = <String, dynamic>{};
+    final existing = _coerceJsonMapFromString(existingJson);
+    if (existing != null) {
+      merged.addAll(existing);
+    }
+    if (override != null && override.isNotEmpty) {
+      merged.addAll(override);
+    }
+    return merged;
+  }
+
+  String _idempotencyKey({required String operation}) {
+    return 'tracking:$operation:${_uuid.v4()}';
   }
 
   LiveTrackingRuntimeSnapshot _snapshotFromRow({
@@ -506,6 +604,55 @@ class LiveTrackingRuntimeRepository {
 
   static double _radians(double degrees) {
     return degrees * math.pi / 180.0;
+  }
+
+  static bool _isNonEmpty(String? value) {
+    return value != null && value.trim().isNotEmpty;
+  }
+
+  static String? _nonEmptyOrNull(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  static String? _asString(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+    final trimmed = value.toString().trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static Map<String, dynamic>? _coerceJsonMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? _coerceJsonMapFromString(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(value);
+      return _coerceJsonMap(decoded);
+    } catch (_) {
+      return null;
+    }
   }
 
   static DateTime? _parseDateTime(dynamic value) {

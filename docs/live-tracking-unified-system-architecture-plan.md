@@ -546,7 +546,7 @@ Status: `[-]`
 3. [ ] Add backend `events:batch` ingest API contract.
 4. [x] Add identity recovery for stale remote trip mapping.
 5. [ ] Validate offline-first replay on upgraded DB path.
-6. [ ] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
+6. [x] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
 
 #### Phase P3: Resolver + Compiler
 Status: `[-]`
@@ -659,3 +659,18 @@ Use this block for each completed phase:
    - `flutter/test/core/sync/tracking_sync_worker_test.dart`
 5. Validation commands and outcomes are logged in:
    - `flutter/docs/live-capture-screen-implementation-spec.md` (`Hotfix Evidence (2026-03-30, Session Command + Crash Stabilization)`)
+
+### Phase P2 Incremental Evidence (2026-03-30)
+
+1. Session lifecycle command plane migrated to direct server write-through:
+   - `start/pause/resume/stop` now execute against backend immediately from runtime repository.
+   - deferred session-task enqueue path removed for lifecycle commands.
+2. Dependency wiring updated:
+   - runtime repository now resolves remote trip identity before command execution.
+3. Evidence files:
+   - `flutter/lib/features/create/data/live_tracking_runtime_repository.dart`
+   - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+   - `flutter/test/features/create/live_tracking_runtime_repository_test.dart`
+   - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
+4. Validation commands and outcomes are logged in:
+   - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice B.3 Evidence (2026-03-30, Write-Through Command Path)`)

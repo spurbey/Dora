@@ -80,6 +80,14 @@ Scope: End-to-end technical blueprint for a seamless live-capture-to-editor syst
 5. `advisory_scoring_worker` (new): trip-context scoring, thresholding, and delivery readiness.
 6. `advisory_delivery_worker` (new): in-app inbox writes + push dispatch with cooldown and dedupe windows.
 
+### 3.4 Command vs Data Contract (Hotfix Alignment: 2026-03-30)
+1. Session lifecycle commands (`start`, `pause`, `resume`, `stop`) are command-plane operations and must be server-authoritative.
+2. Capture artifacts (moments/notes/warnings/media refs/path points/checkpoints) are data-plane operations and remain offline-first with deferred sync.
+3. Command-plane failures must never permanently disable local capture UI; they surface actionable callouts and keep data-plane capture available.
+4. Known transition state in current branch:
+   - ended-state `Start New Session` CTA is removed to prevent invalid `start` command replay against backend `planned`-only contract.
+   - full write-through command-path migration is tracked in Phase P2.
+
 ## 4. Canonical Data Model and Identity
 
 ### 4.1 Identity Strategy
@@ -160,9 +168,10 @@ Resolver outputs:
 
 ### 5.2 Sync
 1. Sync worker claims pending tasks by priority and dependency.
-2. Tasks upload session/events/batches/media.
-3. Idempotency keys are mandatory on mutating endpoints.
-4. Failures:
+2. Tasks upload deferred data-plane entities (events, point batches, media, advisory actions).
+3. Session lifecycle commands are moving to write-through command-plane execution (server-ack first, no deferred queue).
+4. Idempotency keys are mandatory on mutating endpoints.
+5. Failures:
    - transport: retry with backoff
    - `404 trip not found`: identity recovery flow
    - validation: mark blocked + actionable reason
@@ -477,6 +486,7 @@ Result:
 4. Advisory delivery is useful, deduplicated, and rate-limited.
 5. Core SLOs (capture latency, sync reliability, crash-free, FPS) are met in staging and pilot rollout.
 6. Live capture UI passes quality gate defined in `flutter/docs/live-capture-screen-implementation-spec.md` Section 16.6.
+7. Session lifecycle commands use server-authoritative execution semantics, and command failures do not hard-lock local capture.
 
 ## 16. Execution Tracker (Persistent Memory for Agents)
 
@@ -519,6 +529,7 @@ Status: `[-]`
 2. [ ] Freeze endpoint additions for Milestone A/B only (no advisory multi-source yet).
 3. [ ] Add task owners and PR boundaries per phase.
 4. [x] Log decision record in both docs.
+5. [x] Add explicit command-plane vs data-plane contract to both architecture/spec docs.
 
 #### Phase P1: Live/Editor Boundary Split
 Status: `[x]`
@@ -535,6 +546,7 @@ Status: `[-]`
 3. [ ] Add backend `events:batch` ingest API contract.
 4. [x] Add identity recovery for stale remote trip mapping.
 5. [ ] Validate offline-first replay on upgraded DB path.
+6. [ ] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
 
 #### Phase P3: Resolver + Compiler
 Status: `[-]`
@@ -628,3 +640,22 @@ Use this block for each completed phase:
    - editor header stack now surfaces a dedicated "Live Capture" entry card and hides legacy live runtime strips by default
    - editor map now renders only editor projection artifacts (places/routes/media focus), with runtime live overlays removed from editor
    - compact-viewport overflow guardrails added for live-capture top bar + bottom panel with widget regression coverage
+
+### Phase P0 Hotfix Evidence (2026-03-30)
+
+1. Session-command policy mismatch hotfix applied for current runtime:
+   - removed ended-state restart CTA path that generated backend `start` `http_409` policy conflicts
+   - tracking-blocked callout no longer hard-overrides runtime shell controls
+2. Live quick-note lifecycle crash path stabilized:
+   - quick-note input moved to dedicated dialog-owned controller lifecycle
+3. Blocked error messaging now preserves backend detail text (instead of raw Dio exception blobs).
+4. Evidence files:
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+   - `flutter/lib/features/create/presentation/providers/editor_sync_status_provider.dart`
+   - `flutter/lib/core/sync/tracking_sync_worker.dart`
+   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+   - `flutter/test/features/create/editor_sync_status_provider_test.dart`
+   - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+5. Validation commands and outcomes are logged in:
+   - `flutter/docs/live-capture-screen-implementation-spec.md` (`Hotfix Evidence (2026-03-30, Session Command + Crash Stabilization)`)

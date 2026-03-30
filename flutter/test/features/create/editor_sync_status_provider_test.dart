@@ -275,4 +275,70 @@ void main() {
     expect(liveStatus.snapshot.firstBlockedTaskEntityType,
         SyncEntityTypes.trackingSession);
   });
+
+  test('liveTrackingSyncStatusProvider ignores start 409 policy blocks',
+      () async {
+    final db = AppDatabase(NativeDatabase.memory());
+    final now = DateTime.utc(2026, 3, 30, 9, 0);
+    await db.tripDao.insertTrip(
+      TripsCompanion.insert(
+        id: 'trip-live-scope-3',
+        serverTripId: const Value('remote-trip-live-scope-3'),
+        userId: 'user-1',
+        name: 'Live Scope Trip 3',
+        localUpdatedAt: now,
+        serverUpdatedAt: now,
+        syncStatus: 'synced',
+        createdAt: now,
+      ),
+    );
+    await db.into(db.trackingSessions).insert(
+          TrackingSessionsCompanion.insert(
+            id: 'tracking-session-live-scope-3',
+            tripId: 'trip-live-scope-3',
+            clientSessionId: 'client-session-live-scope-3',
+            state: const Value('active'),
+            syncStatus: const Value('pending'),
+            localUpdatedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await db.into(db.syncTasks).insert(
+          SyncTasksCompanion.insert(
+            id: 'task-tracking-session-blocked-409',
+            entityType: SyncEntityTypes.trackingSession,
+            entityId: 'tracking-session-live-scope-3',
+            operation: 'start',
+            status: const Value('blocked'),
+            pendingRequeue: const Value(false),
+            retryCount: const Value(0),
+            nextAttemptAt: const Value(null),
+            errorCode: const Value('http_409'),
+            errorMessage: const Value(
+              'Tracking can only be started from planned trip status',
+            ),
+            workerSessionId: const Value(null),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWith((ref) => db),
+      ],
+    );
+    addTearDown(() {
+      container.dispose();
+    });
+    addTearDown(() async {
+      await db.close();
+    });
+
+    final liveStatus = await container
+        .read(liveTrackingSyncStatusProvider('trip-live-scope-3').future);
+    expect(liveStatus.kind, EditorSyncStatusKind.localSaved);
+    expect(liveStatus.snapshot.blockedItems, 0);
+  });
 }

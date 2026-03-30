@@ -76,12 +76,11 @@ void main() {
       );
     });
 
-    testWidgets('ended state shows restart and editor controls',
-        (tester) async {
+    testWidgets('ended state shows editor control', (tester) async {
       await tester.pumpWidget(wrap(LiveCaptureShellState.ended));
 
       expect(find.byKey(const ValueKey('liveCaptureControlStartNew')),
-          findsOneWidget);
+          findsNothing);
       expect(find.byKey(const ValueKey('liveCaptureControlOpenEditor')),
           findsOneWidget);
       expect(
@@ -175,6 +174,64 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const ValueKey('liveCaptureControlPause')),
+          findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('liveCaptureControlRetry')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+        'tracking blocked sync shows callout but keeps runtime controls active',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            liveTrackingCaptureBootstrapProvider.overrideWith((ref) {}),
+            trackingSyncBootstrapProvider.overrideWith((ref) {}),
+            liveTrackingRuntimeSnapshotProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const LiveTrackingRuntimeSnapshot(
+                  tripId: 'trip-123',
+                  state: LiveTrackingRuntimeState.active,
+                  sessionId: 'session-1',
+                ),
+              ),
+            ),
+            liveTrackingSyncStatusProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const EditorSyncStatus(
+                  kind: EditorSyncStatusKind.blocked,
+                  label: 'Sync blocked',
+                  snapshot: EditorSyncSnapshot(
+                    blockedItems: 1,
+                    failedItems: 0,
+                    activeItems: 0,
+                    unsyncedRows: 0,
+                    firstBlockedTaskEntityType: 'tracking_session',
+                    firstBlockedTaskEntityId: 'session-1',
+                    firstBlockedTaskErrorMessage:
+                        'Tracking can only be started from planned trip status',
+                  ),
+                ),
+              ),
+            ),
+            liveTrackingMapOverlayProvider('trip-123').overrideWith(
+              (ref) => const LiveTrackingMapOverlay(),
+            ),
+            liveTrackingMomentsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingMomentRow>[]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LiveCaptureScreen(tripId: 'trip-123'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('liveCaptureBlockedCallout')),
+          findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureControlPause')),
           findsOneWidget);
       expect(

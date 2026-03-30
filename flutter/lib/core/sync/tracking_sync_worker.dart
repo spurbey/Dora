@@ -163,7 +163,7 @@ class TrackingSyncWorker {
         task: task,
         sessionId: sessionId,
         code: _dioErrorCode(error),
-        message: _compactError(error),
+        message: _resolveDioErrorMessage(error),
         retryable: _isRetryableDio(error),
       );
     } on TimeoutException catch (error) {
@@ -1179,6 +1179,14 @@ class TrackingSyncWorker {
   static String _compactError(Object error) {
     final raw = error.toString().trim();
     return raw.length <= 512 ? raw : raw.substring(0, 512);
+  }
+
+  static String _resolveDioErrorMessage(DioException error) {
+    final detail = _dioResponseDetail(error.response?.data);
+    if (detail != null && detail.trim().isNotEmpty) {
+      return detail.trim();
+    }
+    return _compactError(error);
   }
 }
 

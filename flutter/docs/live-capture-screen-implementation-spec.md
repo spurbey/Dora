@@ -36,6 +36,14 @@ This spec defines:
 Live screen is for capture and runtime monitoring.  
 Editor is for curation and restructuring.
 
+### 2.4 Command vs Data Contract (Hotfix Alignment: 2026-03-30)
+1. Session lifecycle commands (`start`, `pause`, `resume`, `stop`) are server-authoritative commands.
+2. Capture artifacts (`note`, `warn`, `photo/media marker`, `tag/checkpoint`, path points) are offline-first data writes.
+3. Command failures must not permanently lock local capture artifacts; they surface actionable callouts and leave local data intact.
+4. Current hotfix in branch:
+   - removes ended-state `Start New Session` CTA to avoid invalid backend `409` replay loop.
+   - keeps command-path migration to pure write-through execution tracked in Slice B follow-up.
+
 ## 3. Navigation and Entry Points
 
 ### 3.1 New Route
@@ -102,7 +110,7 @@ Actions in fixed order:
 Rules:
 1. During `Active`: all actions enabled.
 2. During `Paused`: actions except note disabled by default.
-3. During `Ended`: all capture actions disabled with clear CTA to start new session.
+3. During `Ended`: all capture actions disabled with clear CTA to open editor.
 
 ### 4.5 Bottom Panel
 1. Session controls row (`Start/Pause/Resume/Stop`).
@@ -154,10 +162,10 @@ Rules:
 3. `on_route_unresolved`
 
 ### 5.4 State Transition Contract
-1. `planned -> active` on start success (local session first, remote async).
-2. `active -> paused` on pause.
-3. `paused -> active` on resume.
-4. `active|paused -> ended` on stop.
+1. `planned -> active` only after server `start` acknowledgement.
+2. `active -> paused` only after server `pause` acknowledgement.
+3. `paused -> active` only after server `resume` acknowledgement.
+4. `active|paused -> ended` only after server `stop` acknowledgement.
 5. Any state -> `blocked` only for hard failure requiring user action.
 
 ### 5.5 Blocked State Policy
@@ -169,27 +177,30 @@ Rules:
 
 ### 6.1 Start Tracking
 1. Check permissions and service availability.
-2. Create/activate local session immediately.
-3. Enqueue session-start sync task.
-4. Begin foreground capture loop.
-5. Update UI to `active` state without waiting for server round-trip.
+2. Validate command prerequisites (authenticated + `serverTripId` present + online).
+3. Execute `start` against backend with idempotency key.
+4. Persist returned session snapshot locally (`remote_session_id`, timestamps, state).
+5. Begin foreground capture loop only after command success.
+6. On failure, keep `planned` and show actionable message.
 
 ### 6.2 Pause Tracking
-1. Pause capture loop.
-2. Persist pause timestamp locally.
-3. Enqueue pause sync task.
+1. Execute `pause` against backend with idempotency key.
+2. Persist returned session snapshot locally.
+3. Pause capture loop after command success.
 4. Keep map and recent events visible.
 
 ### 6.3 Resume Tracking
-1. Resume capture loop.
-2. Enqueue resume sync task.
-3. Reopen path stream and current marker updates.
+1. Execute `resume` against backend with idempotency key.
+2. Persist returned session snapshot locally.
+3. Resume capture loop after command success.
+4. Reopen path stream and current marker updates.
 
 ### 6.4 Stop Tracking
-1. Stop capture loop safely.
-2. Flush pending batch queue.
-3. Enqueue stop task.
-4. Show summary CTA: `Review in Editor`.
+1. Execute `stop` against backend with idempotency key.
+2. Persist returned session snapshot locally (`ended`).
+3. Stop capture loop safely.
+4. Flush pending data-plane queue (events/media/path batches).
+5. Show summary CTA: `Review in Editor`.
 
 ### 6.5 Capture Photo
 1. Acquire location snapshot + timestamp.
@@ -221,13 +232,17 @@ Rules:
 2. Attach local media pointers if present.
 3. Run place resolver locally.
 4. Emit UI stream update.
-5. Enqueue sync tasks.
+5. Enqueue data-plane sync tasks.
 
 ### 7.2 Sync Worker Order
-1. Session tasks.
-2. Event tasks.
-3. Media tasks.
+1. Event tasks.
+2. Media tasks.
+3. Point batch tasks.
 4. Advisory ack actions.
+
+### 7.2.1 Command-Plane Note
+1. Session lifecycle commands are not part of deferred data-plane queue in target architecture.
+2. Existing queued command behavior is temporary legacy behavior pending Slice B migration closeout.
 
 ### 7.3 Identity Recovery Rule
 If tracking endpoint returns trip identity mismatch:
@@ -354,7 +369,7 @@ Required tokens:
 1. New live screen exists and is routable from trip detail.
 2. Editor no longer hosts runtime capture controls.
 3. All five capture actions persist locally and appear immediately.
-4. Session transitions (`start/pause/resume/stop`) work offline-first.
+4. Session transitions (`start/pause/resume/stop`) are server-authoritative and do not create permanent blocked loops.
 5. Identity mismatch recovery unblocks tasks automatically.
 6. In-app advisories render with action handling and dedupe.
 7. Push deep links route to correct screen based on session status.
@@ -436,12 +451,13 @@ Status: `[x]`
 5. [x] Add initial widget tests for render states.
 
 #### Slice B: Session Controls + Runtime
-Status: `[x]`
+Status: `[-]`
 1. [x] Add session start/pause/resume/stop actions to provider/controller.
 2. [x] Wire to runtime repository and local persistence.
-3. [x] Enqueue sync tasks for lifecycle actions.
+3. [ ] Migrate lifecycle commands to server write-through execution (remove deferred session-task queue path).
 4. [x] Show actionable blocked-state callout and retry action.
 5. [x] Add unit/integration tests for transition rules.
+6. [x] Hotfix: remove ended-state restart CTA that triggers backend `start` policy `409` loop.
 
 #### Slice C: Capture Actions and Local Persistence
 Status: `[-]`
@@ -645,3 +661,26 @@ All items must pass before merging any live screen PR:
   - `docs/live-tracking-unified-system-architecture-plan.md`
   - `docs/live-tracking/live-tracking-execution-plan.md`
   - `flutter/docs/live-tracking-flutter-execution-plan.md`
+
+### Hotfix Evidence (2026-03-30, Session Command + Crash Stabilization)
+- Owner: Codex
+- Scope:
+  - Live quick-note dialog lifecycle crash fix.
+  - Prevent live screen runtime lock from known `tracking/start` `http_409` policy block.
+  - Improve blocked error message quality from raw Dio blob to backend detail text.
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - `flutter/lib/features/create/presentation/providers/editor_sync_status_provider.dart`
+  - `flutter/lib/core/sync/tracking_sync_worker.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter/test/features/create/editor_sync_status_provider_test.dart`
+  - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+- Commands run:
+  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`
+  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart lib/features/create/presentation/providers/editor_sync_status_provider.dart lib/core/sync/tracking_sync_worker.dart test/features/live_capture/live_capture_screen_test.dart test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`
+- Results:
+  - passed: focused tests (`31`) and targeted analyze on touched files
+  - failed: none
+- Follow-up:
+  - complete Slice B item 3 (write-through server command path for lifecycle actions).

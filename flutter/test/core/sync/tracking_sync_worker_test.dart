@@ -1204,5 +1204,59 @@ void main() {
       expect(tripTask!.operation, 'create');
       expect(tripTask.status, 'queued');
     });
+
+    test('stores backend detail message for blocking 409 responses', () async {
+      final now = DateTime.now().toUtc();
+      const localTripId = 'trip-http-409-1';
+      const remoteTripId = 'remote-trip-http-409-1';
+      const taskId = 'task-session-http-409-1';
+      await seedTripIdentity(
+        localTripId: localTripId,
+        serverTripId: remoteTripId,
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-http-409-1',
+          tripId: localTripId,
+          clientSessionId: 'client-session-http-409-1',
+          state: const Value('planned'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: taskId,
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-http-409-1',
+        operation: 'start',
+      );
+
+      final requestOptions =
+          RequestOptions(path: '/api/v1/trips/$remoteTripId/tracking/start');
+      fakeApi.startError = DioException(
+        requestOptions: requestOptions,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(
+          requestOptions: requestOptions,
+          statusCode: 409,
+          data: <String, dynamic>{
+            'detail': 'Tracking can only be started from planned trip status',
+          },
+        ),
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask(taskId);
+      expect(task['status'], 'blocked');
+      expect(task['error_code'], 'http_409');
+      expect(
+        task['error_message'],
+        'Tracking can only be started from planned trip status',
+      );
+    });
   });
 }

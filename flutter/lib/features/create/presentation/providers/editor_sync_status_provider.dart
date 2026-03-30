@@ -247,7 +247,9 @@ final liveTrackingSyncStatusProvider =
       SELECT
         t.entity_type,
         t.entity_id,
+        t.operation,
         t.status,
+        t.error_code,
         t.updated_at,
         t.error_message
       FROM sync_tasks AS t
@@ -270,6 +272,11 @@ final liveTrackingSyncStatusProvider =
       (
         SELECT COUNT(*) FROM scoped_tracking_tasks
         WHERE status = 'blocked'
+          AND NOT (
+            entity_type = 'tracking_session'
+            AND operation = 'start'
+            AND error_code = 'http_409'
+          )
       ) AS blocked_tasks,
       (
         SELECT COUNT(*) FROM scoped_tracking_tasks
@@ -303,6 +310,11 @@ final liveTrackingSyncStatusProvider =
         SELECT entity_type
         FROM scoped_tracking_tasks
         WHERE status = 'blocked'
+          AND NOT (
+            entity_type = 'tracking_session'
+            AND operation = 'start'
+            AND error_code = 'http_409'
+          )
         ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_entity_type,
@@ -310,6 +322,11 @@ final liveTrackingSyncStatusProvider =
         SELECT entity_id
         FROM scoped_tracking_tasks
         WHERE status = 'blocked'
+          AND NOT (
+            entity_type = 'tracking_session'
+            AND operation = 'start'
+            AND error_code = 'http_409'
+          )
         ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_entity_id,
@@ -317,6 +334,11 @@ final liveTrackingSyncStatusProvider =
         SELECT error_message
         FROM scoped_tracking_tasks
         WHERE status = 'blocked'
+          AND NOT (
+            entity_type = 'tracking_session'
+            AND operation = 'start'
+            AND error_code = 'http_409'
+          )
         ORDER BY updated_at DESC
         LIMIT 1
       ) AS first_blocked_task_error_message

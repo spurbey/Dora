@@ -162,12 +162,6 @@ class LiveCaptureBottomPanel extends StatelessWidget {
         ];
       case LiveCaptureShellState.ended:
         return [
-          FilledButton.icon(
-            key: const ValueKey('liveCaptureControlStartNew'),
-            onPressed: actionEnabled ? onStart : null,
-            icon: const Icon(Icons.play_arrow, size: 16),
-            label: const Text('Start New Session'),
-          ),
           OutlinedButton.icon(
             key: const ValueKey('liveCaptureControlOpenEditor'),
             onPressed: actionEnabled ? onOpenEditor : null,

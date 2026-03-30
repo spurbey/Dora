@@ -63,20 +63,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
+    final syncStatus = syncStatusAsync?.valueOrNull;
     final shellState = usePreview
         ? widget.previewState!
-        : _resolveShellState(
-            runtimeState: runtimeState,
-            syncStatus: syncStatusAsync?.valueOrNull,
-          );
+        : _resolveShellState(runtimeState: runtimeState);
     final syncLabel = _resolveSyncLabel(
       usePreview: usePreview,
       shellState: shellState,
       syncStatus: syncStatusAsync?.valueOrNull,
     );
-    final blockedMessage = syncStatusAsync
-        ?.valueOrNull?.snapshot.firstBlockedTaskErrorMessage
-        ?.trim();
+    final blockedMessage =
+        syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
     final capturePosition = mapOverlay?.currentMarker?.position;
 
     return Scaffold(
@@ -94,7 +91,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                   syncLabel: syncLabel,
                   onBack: () => context.pop(),
                 ),
-                if (shellState == LiveCaptureShellState.blocked &&
+                if (!usePreview &&
+                    syncStatus?.kind == EditorSyncStatusKind.blocked &&
                     blockedMessage != null &&
                     blockedMessage.isNotEmpty)
                   Positioned(
@@ -267,13 +265,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
 
   LiveCaptureShellState _resolveShellState({
     required LiveTrackingRuntimeState? runtimeState,
-    required EditorSyncStatus? syncStatus,
   }) {
     if (runtimeState == null) {
       return widget.previewState ?? LiveCaptureShellState.planned;
-    }
-    if (syncStatus?.kind == EditorSyncStatusKind.blocked) {
-      return LiveCaptureShellState.blocked;
     }
     switch (runtimeState) {
       case LiveTrackingRuntimeState.active:
@@ -441,31 +435,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     if (!mounted || _actionInFlight) {
       return;
     }
-    final controller = TextEditingController(text: defaultPrefix);
     final submitted = await showDialog<String?>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 4,
-          decoration: InputDecoration(hintText: hintText),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(dialogContext).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (dialogContext) => _TextCaptureDialog(
+        title: title,
+        hintText: hintText,
+        initialValue: defaultPrefix,
       ),
     );
-    controller.dispose();
     final note = submitted?.trim();
     if (note == null || note.isEmpty) {
       return;
@@ -607,6 +584,60 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TextCaptureDialog extends StatefulWidget {
+  const _TextCaptureDialog({
+    required this.title,
+    required this.hintText,
+    required this.initialValue,
+  });
+
+  final String title;
+  final String hintText;
+  final String initialValue;
+
+  @override
+  State<_TextCaptureDialog> createState() => _TextCaptureDialogState();
+}
+
+class _TextCaptureDialogState extends State<_TextCaptureDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: 4,
+        decoration: InputDecoration(hintText: widget.hintText),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

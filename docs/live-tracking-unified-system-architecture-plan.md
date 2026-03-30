@@ -541,7 +541,7 @@ Status: `[x]`
 
 #### Phase P2: Event and Session Pipeline
 Status: `[-]`
-1. [ ] Add local tables/DAOs for tracking events and advisory inbox.
+1. [ ] Add local tables/DAOs for tracking events and advisory inbox (tracking events done; advisory inbox pending).
 2. [ ] Add sync lanes for event/media tasks.
 3. [ ] Add backend `events:batch` ingest API contract.
 4. [x] Add identity recovery for stale remote trip mapping.
@@ -674,3 +674,23 @@ Use this block for each completed phase:
    - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
 4. Validation commands and outcomes are logged in:
    - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice B.3 Evidence (2026-03-30, Write-Through Command Path)`)
+
+### Phase P2 Incremental Evidence (2026-03-31, C2+C3 Data-First)
+
+1. Delivered in this slice:
+   - local `tracking_events` and `tracking_event_media` tables/DAOs in Flutter storage.
+   - live capture persistence switched from `tracking_moments` to `tracking_events`.
+   - live recent-captures strip now reads from local event stream.
+   - command-level gating for `photo/media` actions until place-binding upload path exists.
+2. Explicitly deferred in this slice:
+   - backend `POST /trips/{trip_id}/tracking/events:batch` contract.
+   - event/media sync lanes from Flutter to backend.
+   - place-binding-triggered media upload activation.
+3. Evidence files:
+   - `flutter/lib/core/storage/tables/tracking_events_table.dart`
+   - `flutter/lib/core/storage/tables/tracking_event_media_table.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
+4. Validation commands and outcomes are logged in:
+   - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice C Evidence (2026-03-31, C2+C3 Data-First)`)

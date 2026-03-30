@@ -3,6 +3,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -15,6 +17,8 @@ void main() {
     late TrackingPointBatchDao batchDao;
     late TrackingCandidateDao candidateDao;
     late TrackingMomentDao momentDao;
+    late TrackingEventDao eventDao;
+    late TrackingEventMediaDao eventMediaDao;
 
     setUp(() async {
       database = AppDatabase(NativeDatabase.memory());
@@ -22,6 +26,8 @@ void main() {
       batchDao = TrackingPointBatchDao(database);
       candidateDao = TrackingCandidateDao(database);
       momentDao = TrackingMomentDao(database);
+      eventDao = TrackingEventDao(database);
+      eventMediaDao = TrackingEventMediaDao(database);
     });
 
     tearDown(() async {
@@ -209,6 +215,53 @@ void main() {
       expect(names, contains('tracking_candidates_action_queue_idx'));
       expect(names, contains('tracking_moments_trip_captured_idx'));
       expect(names, contains('tracking_moments_sync_pending_idx'));
+      expect(names, contains('tracking_events_trip_created_idx'));
+      expect(names, contains('tracking_events_sync_updated_idx'));
+      expect(names, contains('tracking_event_media_event_created_idx'));
+      expect(names, contains('tracking_event_media_status_updated_idx'));
+    });
+
+    test('event dao and event-media dao persist local-only rows', () async {
+      final now = DateTime.now();
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-1',
+          tripId: 'trip-1',
+          eventType: 'note',
+          note: const Value('Quick capture'),
+          latitude: const Value(27.7),
+          longitude: const Value(85.3),
+          payloadJson: const Value('{"source":"live"}'),
+          syncStatus: const Value('local_only'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await eventMediaDao.upsertMedia(
+        TrackingEventMediaCompanion.insert(
+          id: 'event-media-1',
+          tripId: 'trip-1',
+          eventId: 'event-1',
+          localPath: '/tmp/photo.jpg',
+          uploadStatus: const Value('awaiting_place_binding'),
+          syncStatus: const Value('local_only'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      final event = await eventDao.getEventById('event-1');
+      expect(event, isNotNull);
+      expect(event!.eventType, 'note');
+      expect(event.syncStatus, 'local_only');
+
+      final mediaRows = await eventMediaDao.getMediaForEvent('event-1');
+      expect(mediaRows.length, 1);
+      expect(mediaRows.first.uploadStatus, 'awaiting_place_binding');
+      expect(mediaRows.first.syncStatus, 'local_only');
     });
   });
 }

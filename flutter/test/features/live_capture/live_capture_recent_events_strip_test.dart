@@ -15,7 +15,7 @@ void main() {
     testWidgets('shows empty placeholder when no events', (tester) async {
       await tester.pumpWidget(
         wrap(
-          const LiveCaptureRecentEventsStrip(events: <TrackingMomentRow>[]),
+          const LiveCaptureRecentEventsStrip(events: <TrackingEventRow>[]),
         ),
       );
 
@@ -46,28 +46,21 @@ void main() {
   });
 }
 
-TrackingMomentRow _row({
+TrackingEventRow _row({
   required String id,
   required String note,
 }) {
   final now = DateTime.utc(2026, 3, 29, 12, 0);
-  return TrackingMomentRow(
+  return TrackingEventRow(
     id: id,
     tripId: 'trip-1',
-    candidateId: null,
-    linkedTripPlaceId: null,
-    source: 'manual',
-    confidence: null,
-    capturedAt: now,
+    eventType: 'note',
+    note: note,
     latitude: 27.7,
     longitude: 85.3,
-    note: note,
-    mediaRefsJson: '[]',
-    extraPayloadJson: '{}',
-    lockedFieldsJson: '{}',
-    pendingOperation: 'create',
+    payloadJson: '{}',
     clientEventId: 'event-$id',
-    syncStatus: 'pending',
+    syncStatus: 'local_only',
     localUpdatedAt: now,
     serverUpdatedAt: null,
     createdAt: now,

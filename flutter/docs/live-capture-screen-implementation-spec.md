@@ -461,9 +461,9 @@ Status: `[x]`
 
 #### Slice C: Capture Actions and Local Persistence
 Status: `[-]`
-1. [x] Implement photo/note/warn/media/geotag actions.
-2. [ ] Persist `tracking_events` row before any network call.
-3. [ ] Persist local media refs and enqueue upload tasks.
+1. [x] Implement live-capture actions with command gating for unsupported media lanes.
+2. [x] Persist `tracking_events` row before any network call.
+3. [x] Add `tracking_event_media` foundation table/DAO and gate photo/media capture until place-binding upload path lands.
 4. [x] Render recent events strip from local stream.
 5. [x] Add tests for immediate local visibility.
 
@@ -631,6 +631,38 @@ All items must pass before merging any live screen PR:
 - Docs touched:
   - `flutter/docs/live-capture-screen-implementation-spec.md`
   - `docs/live-tracking-unified-system-architecture-plan.md`
+
+### Slice C Evidence (2026-03-31, C2+C3 Data-First)
+- Owner: Codex
+- Scope:
+  - Added local `tracking_events` and `tracking_event_media` storage foundations.
+  - Switched live screen capture persistence from `tracking_moments` to `tracking_events`.
+  - Kept backend untouched; no `events:batch` sync path in this slice.
+  - Enforced command-level gating for `photo/media` actions with deterministic feedback.
+- Files changed:
+  - `flutter/lib/core/storage/tables/tracking_events_table.dart`
+  - `flutter/lib/core/storage/tables/tracking_event_media_table.dart`
+  - `flutter/lib/core/storage/daos/tracking_event_dao.dart`
+  - `flutter/lib/core/storage/daos/tracking_event_media_dao.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+  - `flutter/lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart`
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart`
+  - `flutter/test/core/storage/drift_database_migration_test.dart`
+  - `flutter/test/core/storage/live_tracking_storage_dao_test.dart`
+  - `flutter/test/features/live_capture/live_capture_recent_events_strip_test.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
+- Commands run:
+  - `dart run build_runner build --delete-conflicting-outputs`
+  - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
+  - `flutter analyze lib/core/storage/database_provider.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
+- Results:
+  - passed: focused tests (`32`) and targeted analyze on touched files
+  - failed: none
+- Known follow-ups:
+  - Implement backend `events:batch` contract before enabling event-to-server sync.
+  - Add place-binding-aware media upload flow before enabling `photo/media` capture actions.
 
 ### Slice H Evidence (2026-03-30, Partial)
 - Owner: Codex

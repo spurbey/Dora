@@ -6,9 +6,9 @@ import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/live_tracking_map_overlay.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
+import 'package:dora/features/live_capture/presentation/providers/live_tracking_event_provider.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 
@@ -163,8 +163,8 @@ void main() {
             liveTrackingMapOverlayProvider('trip-123').overrideWith(
               (ref) => const LiveTrackingMapOverlay(),
             ),
-            liveTrackingMomentsProvider('trip-123').overrideWith(
-              (ref) => Stream.value(const <TrackingMomentRow>[]),
+            liveTrackingEventsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingEventRow>[]),
             ),
           ],
           child: const MaterialApp(
@@ -219,8 +219,8 @@ void main() {
             liveTrackingMapOverlayProvider('trip-123').overrideWith(
               (ref) => const LiveTrackingMapOverlay(),
             ),
-            liveTrackingMomentsProvider('trip-123').overrideWith(
-              (ref) => Stream.value(const <TrackingMomentRow>[]),
+            liveTrackingEventsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingEventRow>[]),
             ),
           ],
           child: const MaterialApp(
@@ -237,6 +237,72 @@ void main() {
       expect(
           find.byKey(const ValueKey('liveCaptureControlRetry')), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('media actions are command-gated with deterministic feedback',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            liveTrackingCaptureBootstrapProvider.overrideWith((ref) {}),
+            trackingSyncBootstrapProvider.overrideWith((ref) {}),
+            liveTrackingRuntimeSnapshotProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const LiveTrackingRuntimeSnapshot(
+                  tripId: 'trip-123',
+                  state: LiveTrackingRuntimeState.active,
+                  sessionId: 'session-1',
+                ),
+              ),
+            ),
+            liveTrackingSyncStatusProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const EditorSyncStatus(
+                  kind: EditorSyncStatusKind.synced,
+                  label: 'Synced',
+                  snapshot: EditorSyncSnapshot(
+                    blockedItems: 0,
+                    failedItems: 0,
+                    activeItems: 0,
+                    unsyncedRows: 0,
+                  ),
+                ),
+              ),
+            ),
+            liveTrackingMapOverlayProvider('trip-123').overrideWith(
+              (ref) => const LiveTrackingMapOverlay(),
+            ),
+            liveTrackingEventsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingEventRow>[]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LiveCaptureScreen(tripId: 'trip-123'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('liveCaptureActionPhoto')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Photo capture is temporarily disabled until place binding is available.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('liveCaptureActionMedia')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Media capture is temporarily disabled until place binding is available.',
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

@@ -13,6 +13,8 @@ import 'package:dora/core/storage/daos/public_trips_dao.dart';
 import 'package:dora/core/storage/daos/route_dao.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -24,6 +26,8 @@ import 'package:dora/core/storage/tables/public_trips_table.dart';
 import 'package:dora/core/storage/tables/routes_table.dart';
 import 'package:dora/core/storage/tables/sync_tasks_table.dart';
 import 'package:dora/core/storage/tables/tracking_candidates_table.dart';
+import 'package:dora/core/storage/tables/tracking_event_media_table.dart';
+import 'package:dora/core/storage/tables/tracking_events_table.dart';
 import 'package:dora/core/storage/tables/tracking_moments_table.dart';
 import 'package:dora/core/storage/tables/tracking_point_batches_table.dart';
 import 'package:dora/core/storage/tables/tracking_sessions_table.dart';
@@ -45,6 +49,8 @@ part 'drift_database.g.dart';
     TrackingPointBatches,
     TrackingCandidates,
     TrackingMoments,
+    TrackingEvents,
+    TrackingEventMedia,
   ],
   daos: [
     TripDao,
@@ -58,13 +64,15 @@ part 'drift_database.g.dart';
     TrackingPointBatchDao,
     TrackingCandidateDao,
     TrackingMomentDao,
+    TrackingEventDao,
+    TrackingEventMediaDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -172,6 +180,14 @@ class AppDatabase extends _$AppDatabase {
             await m.createIndex(trackingCandidatesActionQueueIdx);
             await m.createIndex(trackingMomentsTripCapturedIdx);
             await m.createIndex(trackingMomentsSyncPendingIdx);
+          }
+          if (from < 14) {
+            await m.createTable(trackingEvents);
+            await m.createTable(trackingEventMedia);
+            await m.createIndex(trackingEventsTripCreatedIdx);
+            await m.createIndex(trackingEventsSyncUpdatedIdx);
+            await m.createIndex(trackingEventMediaEventCreatedIdx);
+            await m.createIndex(trackingEventMediaStatusUpdatedIdx);
           }
         },
       );

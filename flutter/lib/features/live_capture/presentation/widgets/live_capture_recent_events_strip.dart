@@ -13,7 +13,7 @@ class LiveCaptureRecentEventsStrip extends StatelessWidget {
     this.loading = false,
   });
 
-  final List<TrackingMomentRow> events;
+  final List<TrackingEventRow> events;
   final bool loading;
 
   @override
@@ -76,7 +76,7 @@ class _Shell extends StatelessWidget {
 class _EventChip extends StatelessWidget {
   const _EventChip({required this.event});
 
-  final TrackingMomentRow event;
+  final TrackingEventRow event;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +108,7 @@ class _EventChip extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${_time(event.capturedAt)} | ${event.syncStatus}',
+            '${_time(event.createdAt)} | ${event.syncStatus}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.caption.copyWith(
@@ -120,12 +120,25 @@ class _EventChip extends StatelessWidget {
     );
   }
 
-  String _title(TrackingMomentRow row) {
+  String _title(TrackingEventRow row) {
     final note = row.note?.trim();
     if (note != null && note.isNotEmpty) {
       return note;
     }
-    return 'Moment';
+    switch (row.eventType) {
+      case 'note':
+        return 'Note';
+      case 'warn':
+        return 'Warning';
+      case 'tag':
+        return 'Tag';
+      case 'photo':
+        return 'Photo';
+      case 'media':
+        return 'Media';
+      default:
+        return 'Capture';
+    }
   }
 
   String _time(DateTime value) {

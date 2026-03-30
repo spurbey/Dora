@@ -12,11 +12,12 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
+import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
+import 'package:dora/features/live_capture/presentation/providers/live_tracking_event_provider.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_action_dock.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_map_canvas.dart';
@@ -57,9 +58,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final mapOverlay = usePreview
         ? null
         : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));
-    final momentsAsync = usePreview
+    final eventsAsync = usePreview
         ? null
-        : ref.watch(liveTrackingMomentsProvider(widget.tripId));
+        : ref.watch(liveTrackingEventsProvider(widget.tripId));
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
@@ -110,17 +111,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                   bottom: AppSpacing.md + 164,
                   child: usePreview
                       ? const _RecentEventsPlaceholder()
-                      : momentsAsync!.when(
+                      : eventsAsync!.when(
                           data: (events) => LiveCaptureRecentEventsStrip(
                             events: events,
                             loading: false,
                           ),
                           loading: () => const LiveCaptureRecentEventsStrip(
-                            events: <TrackingMomentRow>[],
+                            events: <TrackingEventRow>[],
                             loading: true,
                           ),
                           error: (_, __) => const LiveCaptureRecentEventsStrip(
-                            events: <TrackingMomentRow>[],
+                            events: <TrackingEventRow>[],
                             loading: false,
                           ),
                         ),
@@ -138,23 +139,18 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       isBusy: _actionInFlight,
                       onPhoto: usePreview
                           ? null
-                          : () => _captureQuickMoment(
-                                note: 'Photo marker',
-                                successMessage:
-                                    'Photo marker captured locally.',
-                                position: capturePosition,
+                          : () => _handleMediaCaptureDeferred(
+                                kindLabel: 'Photo',
                               ),
                       onMedia: usePreview
                           ? null
-                          : () => _captureQuickMoment(
-                                note: 'Media marker',
-                                successMessage:
-                                    'Media marker captured locally.',
-                                position: capturePosition,
+                          : () => _handleMediaCaptureDeferred(
+                                kindLabel: 'Media',
                               ),
                       onTag: usePreview
                           ? null
-                          : () => _captureQuickMoment(
+                          : () => _captureQuickEvent(
+                                eventType: LiveTrackingEventType.tag,
                                 note: 'Checkpoint',
                                 successMessage: 'Checkpoint captured locally.',
                                 position: capturePosition,
@@ -165,6 +161,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                                 title: 'Add Quick Note',
                                 hintText: 'Write note for this location...',
                                 defaultPrefix: '',
+                                eventType: LiveTrackingEventType.note,
                                 successMessage: 'Note captured locally.',
                                 position: capturePosition,
                               ),
@@ -174,6 +171,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                                 title: 'Add Warning',
                                 hintText: 'Write warning for this location...',
                                 defaultPrefix: '[Warn] ',
+                                eventType: LiveTrackingEventType.warn,
                                 successMessage: 'Warning captured locally.',
                                 position: capturePosition,
                               ),
@@ -389,7 +387,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     }
   }
 
-  Future<void> _captureQuickMoment({
+  Future<void> _captureQuickEvent({
+    required LiveTrackingEventType eventType,
     required String note,
     required String successMessage,
     required AppLatLng? position,
@@ -402,9 +401,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
       _actionLabel = 'Saving...';
     });
     try {
-      final repository = ref.read(liveTrackingMomentRepositoryProvider);
-      await repository.createMomentNow(
+      final repository = ref.read(liveTrackingEventRepositoryProvider);
+      await repository.createEventNow(
         tripId: widget.tripId,
+        eventType: eventType,
         note: note,
         latitude: position?.latitude,
         longitude: position?.longitude,
@@ -429,6 +429,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     required String title,
     required String hintText,
     required String defaultPrefix,
+    required LiveTrackingEventType eventType,
     required String successMessage,
     required AppLatLng? position,
   }) async {
@@ -447,10 +448,19 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     if (note == null || note.isEmpty) {
       return;
     }
-    await _captureQuickMoment(
+    await _captureQuickEvent(
+      eventType: eventType,
       note: note,
       successMessage: successMessage,
       position: position,
+    );
+  }
+
+  void _handleMediaCaptureDeferred({
+    required String kindLabel,
+  }) {
+    _showMessage(
+      '$kindLabel capture is temporarily disabled until place binding is available.',
     );
   }
 

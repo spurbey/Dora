@@ -28,7 +28,9 @@ Future<Set<String>> _trackingIndexNames(AppDatabase db) async {
         name LIKE 'tracking_sessions_%_idx' OR
         name LIKE 'tracking_point_batches_%_idx' OR
         name LIKE 'tracking_candidates_%_idx' OR
-        name LIKE 'tracking_moments_%_idx'
+        name LIKE 'tracking_moments_%_idx' OR
+        name LIKE 'tracking_events_%_idx' OR
+        name LIKE 'tracking_event_media_%_idx'
       )
     ''',
   ).get();
@@ -37,7 +39,7 @@ Future<Set<String>> _trackingIndexNames(AppDatabase db) async {
 
 void main() {
   group('AppDatabase migration', () {
-    test('upgrades schema v12 to v13 and creates live-tracking tables',
+    test('upgrades schema v13 to v14 and creates tracking event tables',
         () async {
       final tempDir = await Directory.systemTemp.createTemp('dora_drift_mig_');
       final dbFile = File(p.join(tempDir.path, 'app_migration_test.db'));
@@ -59,13 +61,10 @@ void main() {
               ),
             );
 
-        await seedDb.customStatement('DROP TABLE IF EXISTS tracking_moments');
         await seedDb
-            .customStatement('DROP TABLE IF EXISTS tracking_candidates');
-        await seedDb
-            .customStatement('DROP TABLE IF EXISTS tracking_point_batches');
-        await seedDb.customStatement('DROP TABLE IF EXISTS tracking_sessions');
-        await seedDb.customStatement('PRAGMA user_version = 12');
+            .customStatement('DROP TABLE IF EXISTS tracking_event_media');
+        await seedDb.customStatement('DROP TABLE IF EXISTS tracking_events');
+        await seedDb.customStatement('PRAGMA user_version = 13');
         await seedDb.close();
         seedDb = null;
 
@@ -76,6 +75,8 @@ void main() {
             await _tableExists(upgradedDb, 'tracking_point_batches'), isTrue);
         expect(await _tableExists(upgradedDb, 'tracking_candidates'), isTrue);
         expect(await _tableExists(upgradedDb, 'tracking_moments'), isTrue);
+        expect(await _tableExists(upgradedDb, 'tracking_events'), isTrue);
+        expect(await _tableExists(upgradedDb, 'tracking_event_media'), isTrue);
 
         final trackingIndexes = await _trackingIndexNames(upgradedDb);
         expect(
@@ -91,6 +92,10 @@ void main() {
             'tracking_candidates_action_queue_idx',
             'tracking_moments_trip_captured_idx',
             'tracking_moments_sync_pending_idx',
+            'tracking_events_trip_created_idx',
+            'tracking_events_sync_updated_idx',
+            'tracking_event_media_event_created_idx',
+            'tracking_event_media_status_updated_idx',
           }),
         );
 

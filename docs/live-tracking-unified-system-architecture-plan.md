@@ -1,7 +1,7 @@
 # Live Tracking + Editor Unified System Architecture Plan
 
 Date: 2026-03-29
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.
 Scope: End-to-end technical blueprint for a seamless live-capture-to-editor system that integrates in-app events with external travel signals.
 Execution addendum: `docs/live-tracking/live-tracking-agent-contract-addendum.md` (strict P2-P3 implementation contract).
@@ -111,7 +111,7 @@ Existing:
 
 New:
 1. `tracking_events`
-   - `id`, `trip_id`, `session_id`, `event_type`, `lat`, `lng`, `accuracy_m`, `captured_at`, `payload_json`, `resolved_place_id`, `bind_confidence`, `sync_status`
+   - `id`, `trip_id`, `session_id`, `event_type`, `lat`, `lng`, `accuracy_m`, `captured_at`, `payload_json`, `resolved_place_id`, `bind_confidence`, `resolver_reason_code`, `resolver_state`, `resolver_version`, `resolved_at`, `resolution_hint_json`, `sync_status`
 2. `tracking_event_media`
    - `id`, `event_id`, `local_file_uri`, `mime_type`, `size_bytes`, `upload_status`, `remote_media_id`
 3. `advisory_inbox`
@@ -155,6 +155,9 @@ Resolver steps (deterministic order):
 3. Reverse geocode fallback within `100m`.
 4. Nearby POI lookup within `150m`.
 5. Fallback status `on_route_unresolved`.
+6. Resolver runs in two stages:
+   - create-time local pass (non-blocking, immediate write)
+   - async network fallback pass (timeout bounded, merge-only, no downgrade)
 
 Confidence score:
 1. `score = distance_score + source_quality + temporal_consistency + user_override_bonus`
@@ -167,6 +170,8 @@ Resolver outputs:
 2. `bind_confidence` (0.0-1.0).
 3. `resolver_version` for replay/debug.
 4. `resolver_reason_code` for explainability in editor.
+5. `resolution_hint_json` for manual review candidate suggestions.
+6. High-confidence non-trip match auto-creates local draft place and enqueues standard place sync.
 
 ### 5.2 Sync
 1. Sync worker claims pending tasks by priority and dependency.
@@ -555,7 +560,7 @@ Status: `[-]`
 
 #### Phase P3: Resolver + Compiler
 Status: `[-]`
-1. [ ] Implement resolver thresholds and reason codes.
+1. [x] Implement resolver thresholds and reason codes.
 2. [ ] Add compiler worker projection updates for editor.
 3. [x] Add manual override persistence path for place rebinding.
 4. [ ] Add projection consistency checks (raw vs compiled counts).
@@ -730,3 +735,27 @@ Use this block for each completed phase:
    - `144800e` (`feat(live-tracking): stabilize core contract and add tracking_event sync lane`)
    - `4e821d7` (`fix(live-tracking): harden command path identity handling`)
    - `1d70dfc` (`fix(live-capture): allow start-new-session after ended state`)
+
+### Phase P3 Incremental Evidence (2026-04-01, Resolver Baseline)
+
+1. Delivered in this increment:
+   - Added deterministic resolver baseline for `tracking_events` with ordered passes:
+     - trip place (`50m`) -> anchor (`80m`) -> reverse geocode (`100m`) -> nearby POI (`150m`) -> unresolved fallback.
+   - Added persisted resolver contract fields and indexes in local Flutter storage.
+   - Added high-confidence POI auto-draft place creation with standard place-sync enqueue.
+   - Added unresolved reconciliation trigger + unresolved capture banner surfacing in live screen.
+2. Evidence files:
+   - `flutter/lib/core/storage/tables/tracking_events_table.dart`
+   - `flutter/lib/core/storage/drift_database.dart`
+   - `flutter/lib/core/storage/daos/tracking_event_dao.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+   - `flutter/lib/features/live_capture/domain/resolved_place_decision.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+   - `flutter/lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/test/features/live_capture/live_tracking_event_resolver_test.dart`
+3. Validation commands (executed in this slice):
+   - `flutter analyze lib/core/storage/tables/tracking_events_table.dart lib/core/storage/drift_database.dart lib/core/storage/daos/tracking_event_dao.dart lib/features/live_capture/domain/resolved_place_decision.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
+   - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
+4. Commit reference:
+   - `5c5c0a0` (`feat(live-capture): add deterministic resolver baseline for tracking events`)

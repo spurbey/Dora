@@ -1,6 +1,6 @@
 # Live Capture Screen Implementation Spec (Flutter)
 
-Last updated: 2026-03-31  
+Last updated: 2026-04-01  
 Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.  
 Owner: Flutter architecture  
 Parent docs:
@@ -231,9 +231,10 @@ Rules:
 ### 7.1 Local Write Order
 1. Create event in local DB.
 2. Attach local media pointers if present.
-3. Run place resolver locally.
-4. Emit UI stream update.
-5. Enqueue data-plane sync tasks.
+3. Run resolver create-time local pass immediately (deterministic, non-network).
+4. Run resolver network fallback asynchronously with timeout and merge-only decision policy.
+5. Emit UI stream updates (including unresolved summary state).
+6. Enqueue data-plane sync tasks.
 
 ### 7.2 Sync Worker Order
 1. Event tasks.
@@ -469,9 +470,9 @@ Status: `[x]`
 5. [x] Add tests for immediate local visibility.
 
 #### Slice D: Resolver and Place Badges
-Status: `[ ]`
-1. [ ] Add resolver pipeline (50m/80m/100m/150m steps).
-2. [ ] Persist `resolved_place_id`, confidence, reason code.
+Status: `[-]`
+1. [x] Add resolver pipeline (50m/80m/100m/150m steps).
+2. [x] Persist `resolved_place_id`, confidence, reason code.
 3. [ ] Show `Near X` or `On Route` badges in event cards.
 4. [ ] Add override-safe behavior (manual edits not auto-overwritten).
 5. [ ] Add regression tests for trip-id remap disappearance bug class.
@@ -780,3 +781,35 @@ All items must pass before merging any live screen PR:
 - Results:
   - passed: widget behavior regression covered
   - failed: none
+
+### Slice D Evidence (2026-04-01, Resolver Baseline)
+- Owner: Codex
+- PR/Commit: `5c5c0a0`
+- Scope:
+  - Implemented deterministic resolver baseline for `tracking_events` with ordered passes and fixed thresholds.
+  - Added persisted resolver metadata fields and indexes in Drift schema v15.
+  - Added auto-draft place creation for high-confidence non-trip candidates and place-sync enqueue.
+  - Added unresolved summary provider + live unresolved banner and reconcile trigger wiring.
+- Files changed:
+  - `flutter/lib/core/map/geocoding/app_geocoding_service.dart`
+  - `flutter/lib/core/map/geocoding/mapbox_geocoding_adapter.dart`
+  - `flutter/lib/core/storage/tables/tracking_events_table.dart`
+  - `flutter/lib/core/storage/drift_database.dart`
+  - `flutter/lib/core/storage/daos/tracking_event_dao.dart`
+  - `flutter/lib/features/live_capture/domain/resolved_place_decision.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+  - `flutter/lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart`
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/test/features/live_capture/live_tracking_event_resolver_test.dart`
+  - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+- Commands run:
+  - `flutter analyze lib/core/storage/tables/tracking_events_table.dart lib/core/storage/drift_database.dart lib/core/storage/daos/tracking_event_dao.dart lib/features/live_capture/domain/resolved_place_decision.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
+- Results:
+  - passed: targeted analyze clean; focused storage/repository/resolver/live-screen tests green
+  - failed: none
+- Known follow-ups:
+  - `Near X` / `On Route` event-card badge rendering remains open.
+  - override-safe manual-rebind protection and compiler projection integration remain in the next commit.

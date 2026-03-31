@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
-Last updated: 2026-03-26  
-Status: In Progress (Phase 4 validated; Phase 5 runtime slices 1-2 in progress; Phase 6 slices 1-11 in progress)  
+Last updated: 2026-04-01  
+Status: In Progress (Phase 4 validated; Phase 5 runtime stabilized; Phase 6 in progress; resolver baseline landed for P3)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -997,3 +997,27 @@ After each Flutter live-tracking slice:
    - `updateMoment` keeps backward-compatible defaults.
    - explicit clear requires include flags (`includeNote`, `includeLinkedTripPlaceId`).
    - non-clear edits keep include flags unset/false.
+
+- Date: 2026-04-01
+- Slice: Resolver baseline (P3, deterministic local-first event binding)
+- Implemented:
+  - Added resolver data contract for local `tracking_events`:
+    - `resolved_place_id`, `bind_confidence`, `resolver_reason_code`, `resolver_state`, `resolver_version`, `resolved_at`, `resolution_hint_json`.
+    - migration + indexes for unresolved and resolved-place query paths.
+  - Added deterministic resolver engine:
+    - ordered passes: trip place (`50m`) -> anchor (`80m`) -> reverse geocode (`100m`) -> nearby POI (`150m`).
+    - fixed thresholds: `>=0.75 resolved`, `0.45..0.74 review_required`, `<0.45 on_route_unresolved`.
+    - merge-only fallback policy: async network fallback cannot downgrade a stronger local decision.
+  - Added high-confidence draft place auto-create:
+    - creates local `auto_resolved` place row and enqueues place `create` sync task with trip dependency.
+  - Added live unresolved surfacing:
+    - unresolved summary provider and banner hook in live capture screen.
+  - Added resolver/repository/storage/widget regression coverage.
+- Validation:
+  - `cd flutter; flutter analyze lib/core/storage/tables/tracking_events_table.dart lib/core/storage/drift_database.dart lib/core/storage/daos/tracking_event_dao.dart lib/features/live_capture/domain/resolved_place_decision.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart` (pass)
+  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart` (pass)
+- Commit:
+  - `5c5c0a0` (`feat(live-capture): add deterministic resolver baseline for tracking events`)
+- Decision notes:
+  - This slice intentionally does not include compiler/projection write path changes.
+  - Event-card place badges and manual override-safe resolver reconciliation are next-slice work.

@@ -76,11 +76,11 @@ void main() {
       );
     });
 
-    testWidgets('ended state shows editor control', (tester) async {
+    testWidgets('ended state shows start-new and editor controls', (tester) async {
       await tester.pumpWidget(wrap(LiveCaptureShellState.ended));
 
       expect(find.byKey(const ValueKey('liveCaptureControlStartNew')),
-          findsNothing);
+          findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureControlOpenEditor')),
           findsOneWidget);
       expect(

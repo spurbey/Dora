@@ -39,7 +39,7 @@ Future<Set<String>> _trackingIndexNames(AppDatabase db) async {
 
 void main() {
   group('AppDatabase migration', () {
-    test('upgrades schema v13 to v14 and creates tracking event tables',
+    test('upgrades schema v13 to v15 and applies resolver columns/indexes',
         () async {
       final tempDir = await Directory.systemTemp.createTemp('dora_drift_mig_');
       final dbFile = File(p.join(tempDir.path, 'app_migration_test.db'));
@@ -78,6 +78,24 @@ void main() {
         expect(await _tableExists(upgradedDb, 'tracking_events'), isTrue);
         expect(await _tableExists(upgradedDb, 'tracking_event_media'), isTrue);
 
+        final eventColumns = await upgradedDb
+            .customSelect('PRAGMA table_info(tracking_events)')
+            .get();
+        final eventColumnNames =
+            eventColumns.map((row) => row.read<String>('name')).toSet();
+        expect(
+          eventColumnNames,
+          containsAll(<String>{
+            'resolved_place_id',
+            'bind_confidence',
+            'resolver_reason_code',
+            'resolver_state',
+            'resolver_version',
+            'resolved_at',
+            'resolution_hint_json',
+          }),
+        );
+
         final trackingIndexes = await _trackingIndexNames(upgradedDb);
         expect(
           trackingIndexes,
@@ -94,6 +112,8 @@ void main() {
             'tracking_moments_sync_pending_idx',
             'tracking_events_trip_created_idx',
             'tracking_events_sync_updated_idx',
+            'tracking_events_trip_resolver_created_idx',
+            'tracking_events_trip_resolved_place_created_idx',
             'tracking_event_media_event_created_idx',
             'tracking_event_media_status_updated_idx',
           }),

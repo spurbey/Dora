@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -41,6 +43,27 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
 class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
   bool _actionInFlight = false;
   String? _actionLabel;
+  Timer? _resolverReconcileTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.previewState == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _triggerResolverReconcile();
+      });
+      _resolverReconcileTimer = Timer.periodic(
+        const Duration(seconds: 45),
+        (_) => _triggerResolverReconcile(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _resolverReconcileTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +84,12 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final eventsAsync = usePreview
         ? null
         : ref.watch(liveTrackingEventsProvider(widget.tripId));
+    final unresolvedSummary = usePreview
+        ? const LiveTrackingUnresolvedSummary(
+            unresolvedCount: 0,
+            latestUnresolved: null,
+          )
+        : ref.watch(liveTrackingUnresolvedSummaryProvider(widget.tripId));
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
@@ -103,6 +132,22 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                     child: _SyncBlockedCallout(
                       message: blockedMessage,
                       onRetry: _actionInFlight ? null : _retrySyncNow,
+                    ),
+                  ),
+                if (!usePreview && unresolvedSummary.hasUnresolved)
+                  Positioned(
+                    left: AppSpacing.md,
+                    right: AppSpacing.md,
+                    top: syncStatus?.kind == EditorSyncStatusKind.blocked
+                        ? 154
+                        : 96,
+                    child: _UnresolvedCaptureBanner(
+                      unresolvedCount: unresolvedSummary.unresolvedCount,
+                      latestNote:
+                          unresolvedSummary.latestUnresolved?.note?.trim(),
+                      onReview: _actionInFlight
+                          ? null
+                          : () => context.push(Routes.editorPath(widget.tripId)),
                     ),
                   ),
                 Positioned(
@@ -374,6 +419,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
       if (!mounted) {
         return;
       }
+      _triggerResolverReconcile();
       _showMessage('Sync retry queued.');
     } catch (_) {
       _showMessage('Failed to trigger sync retry.');
@@ -385,6 +431,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         });
       }
     }
+  }
+
+  void _triggerResolverReconcile() {
+    if (!mounted || widget.previewState != null) {
+      return;
+    }
+    unawaited(
+      ref
+          .read(liveTrackingEventRepositoryProvider)
+          .reconcileUnresolved(widget.tripId, limit: 20),
+    );
   }
 
   Future<void> _captureQuickEvent({
@@ -749,6 +806,81 @@ class _SyncBlockedCallout extends StatelessWidget {
           TextButton(
             onPressed: onRetry,
             child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnresolvedCaptureBanner extends StatelessWidget {
+  const _UnresolvedCaptureBanner({
+    required this.unresolvedCount,
+    required this.latestNote,
+    required this.onReview,
+  });
+
+  final int unresolvedCount;
+  final String? latestNote;
+  final VoidCallback? onReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final headline = unresolvedCount == 1
+        ? '1 capture needs place selection'
+        : '$unresolvedCount captures need place selection';
+    final latest = latestNote != null && latestNote!.isNotEmpty
+        ? latestNote!
+        : 'Select nearby place in editor to finalize placement.';
+    return Container(
+      key: const ValueKey('liveCaptureUnresolvedBanner'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.place_outlined,
+            size: 18,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  headline,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  latest,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onReview,
+            child: const Text('Review'),
           ),
         ],
       ),

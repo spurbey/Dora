@@ -14,6 +14,12 @@ abstract class AppGeocodingService {
   });
 
   Future<GeocodingResult?> reverseGeocode(AppLatLng coordinates);
+
+  Future<List<GeocodingResult>> searchNearbyPoi(
+    AppLatLng center, {
+    int radiusMeters = 150,
+    int limit = 5,
+  });
 }
 
 @freezed

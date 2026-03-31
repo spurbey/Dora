@@ -217,6 +217,9 @@ void main() {
       expect(names, contains('tracking_moments_sync_pending_idx'));
       expect(names, contains('tracking_events_trip_created_idx'));
       expect(names, contains('tracking_events_sync_updated_idx'));
+      expect(names, contains('tracking_events_trip_resolver_created_idx'));
+      expect(
+          names, contains('tracking_events_trip_resolved_place_created_idx'));
       expect(names, contains('tracking_event_media_event_created_idx'));
       expect(names, contains('tracking_event_media_status_updated_idx'));
     });

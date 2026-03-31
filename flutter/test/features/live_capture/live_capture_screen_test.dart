@@ -239,6 +239,63 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('shows unresolved capture banner when resolver needs review',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            liveTrackingCaptureBootstrapProvider.overrideWith((ref) {}),
+            trackingSyncBootstrapProvider.overrideWith((ref) {}),
+            liveTrackingRuntimeSnapshotProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const LiveTrackingRuntimeSnapshot(
+                  tripId: 'trip-123',
+                  state: LiveTrackingRuntimeState.active,
+                  sessionId: 'session-1',
+                ),
+              ),
+            ),
+            liveTrackingSyncStatusProvider('trip-123').overrideWith(
+              (ref) => Stream.value(
+                const EditorSyncStatus(
+                  kind: EditorSyncStatusKind.syncing,
+                  label: 'Syncing...',
+                  snapshot: EditorSyncSnapshot(
+                    blockedItems: 0,
+                    failedItems: 0,
+                    activeItems: 1,
+                    unsyncedRows: 1,
+                  ),
+                ),
+              ),
+            ),
+            liveTrackingUnresolvedSummaryProvider('trip-123').overrideWith(
+              (ref) => const LiveTrackingUnresolvedSummary(
+                unresolvedCount: 2,
+                latestUnresolved: null,
+              ),
+            ),
+            liveTrackingMapOverlayProvider('trip-123').overrideWith(
+              (ref) => const LiveTrackingMapOverlay(),
+            ),
+            liveTrackingEventsProvider('trip-123').overrideWith(
+              (ref) => Stream.value(const <TrackingEventRow>[]),
+            ),
+          ],
+          child: const MaterialApp(
+            home: LiveCaptureScreen(tripId: 'trip-123'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('liveCaptureUnresolvedBanner')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('captures need place selection'), findsOne);
+    });
+
     testWidgets('media actions are command-gated with deterministic feedback',
         (tester) async {
       await tester.pumpWidget(

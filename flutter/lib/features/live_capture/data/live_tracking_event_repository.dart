@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
@@ -7,6 +8,8 @@ import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
+import 'package:dora/features/live_capture/data/live_tracking_event_resolver.dart';
+import 'package:dora/features/live_capture/domain/resolved_place_decision.dart';
 
 enum LiveTrackingEventType {
   note,
@@ -37,15 +40,18 @@ class LiveTrackingEventRepository {
   LiveTrackingEventRepository({
     required TrackingEventDao trackingEventDao,
     required SyncTaskDao syncTaskDao,
+    required LiveTrackingEventResolver resolver,
     DateTime Function()? now,
     Uuid? uuid,
   })  : _trackingEventDao = trackingEventDao,
         _syncTaskDao = syncTaskDao,
+        _resolver = resolver,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
   final TrackingEventDao _trackingEventDao;
   final SyncTaskDao _syncTaskDao;
+  final LiveTrackingEventResolver _resolver;
   final DateTime Function() _now;
   final Uuid _uuid;
 
@@ -90,8 +96,24 @@ class LiveTrackingEventRepository {
       entityId: eventId,
       operation: 'upload',
     );
+    unawaited(
+      _resolver.resolveEventNow(eventId).catchError((_) => const ResolvedPlaceDecision(
+            state: 'on_route_unresolved',
+            confidence: 0,
+            reasonCode: 'no_candidate',
+          )),
+    );
     return eventId;
   }
+
+  Future<ResolvedPlaceDecision> resolveEventNow(String eventId) =>
+      _resolver.resolveEventNow(eventId);
+
+  Future<int> reconcileUnresolved(
+    String tripId, {
+    int limit = 20,
+  }) =>
+      _resolver.reconcileUnresolved(tripId, limit: limit);
 
   static String? _normalizeNote(String? value) {
     if (value == null) {

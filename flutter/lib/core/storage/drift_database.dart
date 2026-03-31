@@ -72,7 +72,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -188,6 +188,55 @@ class AppDatabase extends _$AppDatabase {
             await m.createIndex(trackingEventsSyncUpdatedIdx);
             await m.createIndex(trackingEventMediaEventCreatedIdx);
             await m.createIndex(trackingEventMediaStatusUpdatedIdx);
+          }
+          if (from < 15) {
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolved_place_id',
+              definition: 'TEXT',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'bind_confidence',
+              definition: 'REAL',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolver_reason_code',
+              definition: 'TEXT',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolver_state',
+              definition: "TEXT NOT NULL DEFAULT 'on_route_unresolved'",
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolver_version',
+              definition: 'INTEGER NOT NULL DEFAULT 1',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolved_at',
+              definition: 'INTEGER',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_events',
+              columnName: 'resolution_hint_json',
+              definition: 'TEXT',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS tracking_events_trip_resolver_created_idx
+              ON tracking_events (trip_id, resolver_state, created_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS tracking_events_trip_resolved_place_created_idx
+              ON tracking_events (trip_id, resolved_place_id, created_at)
+              ''',
+            );
           }
         },
       );

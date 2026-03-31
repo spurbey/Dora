@@ -98,4 +98,61 @@ class MapboxGeocodingAdapter implements AppGeocodingService {
       ),
     );
   }
+
+  @override
+  Future<List<GeocodingResult>> searchNearbyPoi(
+    AppLatLng center, {
+    int radiusMeters = 150,
+    int limit = 5,
+  }) async {
+    final token = Env.mapboxToken;
+    if (token.isEmpty) return const <GeocodingResult>[];
+
+    final boundedRadius = radiusMeters.clamp(50, 500) as int;
+    final boundedLimit = limit.clamp(1, 10) as int;
+    final proximity = '${center.longitude},${center.latitude}';
+
+    final uri = Uri.parse('$_baseUrl/$proximity.json').replace(
+      queryParameters: {
+        'access_token': token,
+        'types': 'poi',
+        'limit': '$boundedLimit',
+        'language': 'en',
+        'proximity': proximity,
+        // Mapbox accepts free-form params; using bbox would need extra math.
+        // This marker is carried for debugging/telemetry parity with resolver.
+        'radius_m': '$boundedRadius',
+      },
+    );
+
+    final response = await http.get(uri);
+    if (response.statusCode != 200) return const <GeocodingResult>[];
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final features = data['features'] as List? ?? const [];
+    return features
+        .map((feature) {
+          final props = feature as Map<String, dynamic>;
+          final centerRaw = props['center'];
+          if (centerRaw is! List || centerRaw.length < 2) {
+            return null;
+          }
+          final lon = (centerRaw[0] as num?)?.toDouble();
+          final lat = (centerRaw[1] as num?)?.toDouble();
+          if (lon == null || lat == null) {
+            return null;
+          }
+          return GeocodingResult(
+            name: props['text'] as String? ??
+                props['place_name'] as String? ??
+                '',
+            coordinates: AppLatLng(
+              latitude: lat,
+              longitude: lon,
+            ),
+          );
+        })
+        .whereType<GeocodingResult>()
+        .toList(growable: false);
+  }
 }

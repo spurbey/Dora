@@ -9869,6 +9869,52 @@ class $TrackingEventsTable extends TrackingEvents
   late final GeneratedColumn<String> clientEventId = GeneratedColumn<String>(
       'client_event_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resolvedPlaceIdMeta =
+      const VerificationMeta('resolvedPlaceId');
+  @override
+  late final GeneratedColumn<String> resolvedPlaceId = GeneratedColumn<String>(
+      'resolved_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _bindConfidenceMeta =
+      const VerificationMeta('bindConfidence');
+  @override
+  late final GeneratedColumn<double> bindConfidence = GeneratedColumn<double>(
+      'bind_confidence', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _resolverReasonCodeMeta =
+      const VerificationMeta('resolverReasonCode');
+  @override
+  late final GeneratedColumn<String> resolverReasonCode =
+      GeneratedColumn<String>('resolver_reason_code', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resolverStateMeta =
+      const VerificationMeta('resolverState');
+  @override
+  late final GeneratedColumn<String> resolverState = GeneratedColumn<String>(
+      'resolver_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('on_route_unresolved'));
+  static const VerificationMeta _resolverVersionMeta =
+      const VerificationMeta('resolverVersion');
+  @override
+  late final GeneratedColumn<int> resolverVersion = GeneratedColumn<int>(
+      'resolver_version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _resolvedAtMeta =
+      const VerificationMeta('resolvedAt');
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+      'resolved_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _resolutionHintJsonMeta =
+      const VerificationMeta('resolutionHintJson');
+  @override
+  late final GeneratedColumn<String> resolutionHintJson =
+      GeneratedColumn<String>('resolution_hint_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _syncStatusMeta =
       const VerificationMeta('syncStatus');
   @override
@@ -9911,6 +9957,13 @@ class $TrackingEventsTable extends TrackingEvents
         longitude,
         payloadJson,
         clientEventId,
+        resolvedPlaceId,
+        bindConfidence,
+        resolverReasonCode,
+        resolverState,
+        resolverVersion,
+        resolvedAt,
+        resolutionHintJson,
         syncStatus,
         localUpdatedAt,
         serverUpdatedAt,
@@ -9967,6 +10020,48 @@ class $TrackingEventsTable extends TrackingEvents
           _clientEventIdMeta,
           clientEventId.isAcceptableOrUnknown(
               data['client_event_id']!, _clientEventIdMeta));
+    }
+    if (data.containsKey('resolved_place_id')) {
+      context.handle(
+          _resolvedPlaceIdMeta,
+          resolvedPlaceId.isAcceptableOrUnknown(
+              data['resolved_place_id']!, _resolvedPlaceIdMeta));
+    }
+    if (data.containsKey('bind_confidence')) {
+      context.handle(
+          _bindConfidenceMeta,
+          bindConfidence.isAcceptableOrUnknown(
+              data['bind_confidence']!, _bindConfidenceMeta));
+    }
+    if (data.containsKey('resolver_reason_code')) {
+      context.handle(
+          _resolverReasonCodeMeta,
+          resolverReasonCode.isAcceptableOrUnknown(
+              data['resolver_reason_code']!, _resolverReasonCodeMeta));
+    }
+    if (data.containsKey('resolver_state')) {
+      context.handle(
+          _resolverStateMeta,
+          resolverState.isAcceptableOrUnknown(
+              data['resolver_state']!, _resolverStateMeta));
+    }
+    if (data.containsKey('resolver_version')) {
+      context.handle(
+          _resolverVersionMeta,
+          resolverVersion.isAcceptableOrUnknown(
+              data['resolver_version']!, _resolverVersionMeta));
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+          _resolvedAtMeta,
+          resolvedAt.isAcceptableOrUnknown(
+              data['resolved_at']!, _resolvedAtMeta));
+    }
+    if (data.containsKey('resolution_hint_json')) {
+      context.handle(
+          _resolutionHintJsonMeta,
+          resolutionHintJson.isAcceptableOrUnknown(
+              data['resolution_hint_json']!, _resolutionHintJsonMeta));
     }
     if (data.containsKey('sync_status')) {
       context.handle(
@@ -10025,6 +10120,20 @@ class $TrackingEventsTable extends TrackingEvents
           .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
       clientEventId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}client_event_id']),
+      resolvedPlaceId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}resolved_place_id']),
+      bindConfidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}bind_confidence']),
+      resolverReasonCode: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}resolver_reason_code']),
+      resolverState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}resolver_state'])!,
+      resolverVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}resolver_version'])!,
+      resolvedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}resolved_at']),
+      resolutionHintJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}resolution_hint_json']),
       syncStatus: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
       localUpdatedAt: attachedDatabase.typeMapping.read(
@@ -10054,6 +10163,13 @@ class TrackingEventRow extends DataClass
   final double? longitude;
   final String payloadJson;
   final String? clientEventId;
+  final String? resolvedPlaceId;
+  final double? bindConfidence;
+  final String? resolverReasonCode;
+  final String resolverState;
+  final int resolverVersion;
+  final DateTime? resolvedAt;
+  final String? resolutionHintJson;
   final String syncStatus;
   final DateTime localUpdatedAt;
   final DateTime? serverUpdatedAt;
@@ -10068,6 +10184,13 @@ class TrackingEventRow extends DataClass
       this.longitude,
       required this.payloadJson,
       this.clientEventId,
+      this.resolvedPlaceId,
+      this.bindConfidence,
+      this.resolverReasonCode,
+      required this.resolverState,
+      required this.resolverVersion,
+      this.resolvedAt,
+      this.resolutionHintJson,
       required this.syncStatus,
       required this.localUpdatedAt,
       this.serverUpdatedAt,
@@ -10091,6 +10214,23 @@ class TrackingEventRow extends DataClass
     map['payload_json'] = Variable<String>(payloadJson);
     if (!nullToAbsent || clientEventId != null) {
       map['client_event_id'] = Variable<String>(clientEventId);
+    }
+    if (!nullToAbsent || resolvedPlaceId != null) {
+      map['resolved_place_id'] = Variable<String>(resolvedPlaceId);
+    }
+    if (!nullToAbsent || bindConfidence != null) {
+      map['bind_confidence'] = Variable<double>(bindConfidence);
+    }
+    if (!nullToAbsent || resolverReasonCode != null) {
+      map['resolver_reason_code'] = Variable<String>(resolverReasonCode);
+    }
+    map['resolver_state'] = Variable<String>(resolverState);
+    map['resolver_version'] = Variable<int>(resolverVersion);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    if (!nullToAbsent || resolutionHintJson != null) {
+      map['resolution_hint_json'] = Variable<String>(resolutionHintJson);
     }
     map['sync_status'] = Variable<String>(syncStatus);
     map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
@@ -10118,6 +10258,23 @@ class TrackingEventRow extends DataClass
       clientEventId: clientEventId == null && nullToAbsent
           ? const Value.absent()
           : Value(clientEventId),
+      resolvedPlaceId: resolvedPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedPlaceId),
+      bindConfidence: bindConfidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bindConfidence),
+      resolverReasonCode: resolverReasonCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolverReasonCode),
+      resolverState: Value(resolverState),
+      resolverVersion: Value(resolverVersion),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      resolutionHintJson: resolutionHintJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolutionHintJson),
       syncStatus: Value(syncStatus),
       localUpdatedAt: Value(localUpdatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -10140,6 +10297,15 @@ class TrackingEventRow extends DataClass
       longitude: serializer.fromJson<double?>(json['longitude']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
       clientEventId: serializer.fromJson<String?>(json['clientEventId']),
+      resolvedPlaceId: serializer.fromJson<String?>(json['resolvedPlaceId']),
+      bindConfidence: serializer.fromJson<double?>(json['bindConfidence']),
+      resolverReasonCode:
+          serializer.fromJson<String?>(json['resolverReasonCode']),
+      resolverState: serializer.fromJson<String>(json['resolverState']),
+      resolverVersion: serializer.fromJson<int>(json['resolverVersion']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      resolutionHintJson:
+          serializer.fromJson<String?>(json['resolutionHintJson']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
       serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
@@ -10159,6 +10325,13 @@ class TrackingEventRow extends DataClass
       'longitude': serializer.toJson<double?>(longitude),
       'payloadJson': serializer.toJson<String>(payloadJson),
       'clientEventId': serializer.toJson<String?>(clientEventId),
+      'resolvedPlaceId': serializer.toJson<String?>(resolvedPlaceId),
+      'bindConfidence': serializer.toJson<double?>(bindConfidence),
+      'resolverReasonCode': serializer.toJson<String?>(resolverReasonCode),
+      'resolverState': serializer.toJson<String>(resolverState),
+      'resolverVersion': serializer.toJson<int>(resolverVersion),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'resolutionHintJson': serializer.toJson<String?>(resolutionHintJson),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
       'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
@@ -10176,6 +10349,13 @@ class TrackingEventRow extends DataClass
           Value<double?> longitude = const Value.absent(),
           String? payloadJson,
           Value<String?> clientEventId = const Value.absent(),
+          Value<String?> resolvedPlaceId = const Value.absent(),
+          Value<double?> bindConfidence = const Value.absent(),
+          Value<String?> resolverReasonCode = const Value.absent(),
+          String? resolverState,
+          int? resolverVersion,
+          Value<DateTime?> resolvedAt = const Value.absent(),
+          Value<String?> resolutionHintJson = const Value.absent(),
           String? syncStatus,
           DateTime? localUpdatedAt,
           Value<DateTime?> serverUpdatedAt = const Value.absent(),
@@ -10191,6 +10371,20 @@ class TrackingEventRow extends DataClass
         payloadJson: payloadJson ?? this.payloadJson,
         clientEventId:
             clientEventId.present ? clientEventId.value : this.clientEventId,
+        resolvedPlaceId: resolvedPlaceId.present
+            ? resolvedPlaceId.value
+            : this.resolvedPlaceId,
+        bindConfidence:
+            bindConfidence.present ? bindConfidence.value : this.bindConfidence,
+        resolverReasonCode: resolverReasonCode.present
+            ? resolverReasonCode.value
+            : this.resolverReasonCode,
+        resolverState: resolverState ?? this.resolverState,
+        resolverVersion: resolverVersion ?? this.resolverVersion,
+        resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+        resolutionHintJson: resolutionHintJson.present
+            ? resolutionHintJson.value
+            : this.resolutionHintJson,
         syncStatus: syncStatus ?? this.syncStatus,
         localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
         serverUpdatedAt: serverUpdatedAt.present
@@ -10212,6 +10406,26 @@ class TrackingEventRow extends DataClass
       clientEventId: data.clientEventId.present
           ? data.clientEventId.value
           : this.clientEventId,
+      resolvedPlaceId: data.resolvedPlaceId.present
+          ? data.resolvedPlaceId.value
+          : this.resolvedPlaceId,
+      bindConfidence: data.bindConfidence.present
+          ? data.bindConfidence.value
+          : this.bindConfidence,
+      resolverReasonCode: data.resolverReasonCode.present
+          ? data.resolverReasonCode.value
+          : this.resolverReasonCode,
+      resolverState: data.resolverState.present
+          ? data.resolverState.value
+          : this.resolverState,
+      resolverVersion: data.resolverVersion.present
+          ? data.resolverVersion.value
+          : this.resolverVersion,
+      resolvedAt:
+          data.resolvedAt.present ? data.resolvedAt.value : this.resolvedAt,
+      resolutionHintJson: data.resolutionHintJson.present
+          ? data.resolutionHintJson.value
+          : this.resolutionHintJson,
       syncStatus:
           data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
       localUpdatedAt: data.localUpdatedAt.present
@@ -10236,6 +10450,13 @@ class TrackingEventRow extends DataClass
           ..write('longitude: $longitude, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('clientEventId: $clientEventId, ')
+          ..write('resolvedPlaceId: $resolvedPlaceId, ')
+          ..write('bindConfidence: $bindConfidence, ')
+          ..write('resolverReasonCode: $resolverReasonCode, ')
+          ..write('resolverState: $resolverState, ')
+          ..write('resolverVersion: $resolverVersion, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolutionHintJson: $resolutionHintJson, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -10255,6 +10476,13 @@ class TrackingEventRow extends DataClass
       longitude,
       payloadJson,
       clientEventId,
+      resolvedPlaceId,
+      bindConfidence,
+      resolverReasonCode,
+      resolverState,
+      resolverVersion,
+      resolvedAt,
+      resolutionHintJson,
       syncStatus,
       localUpdatedAt,
       serverUpdatedAt,
@@ -10272,6 +10500,13 @@ class TrackingEventRow extends DataClass
           other.longitude == this.longitude &&
           other.payloadJson == this.payloadJson &&
           other.clientEventId == this.clientEventId &&
+          other.resolvedPlaceId == this.resolvedPlaceId &&
+          other.bindConfidence == this.bindConfidence &&
+          other.resolverReasonCode == this.resolverReasonCode &&
+          other.resolverState == this.resolverState &&
+          other.resolverVersion == this.resolverVersion &&
+          other.resolvedAt == this.resolvedAt &&
+          other.resolutionHintJson == this.resolutionHintJson &&
           other.syncStatus == this.syncStatus &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -10288,6 +10523,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
   final Value<double?> longitude;
   final Value<String> payloadJson;
   final Value<String?> clientEventId;
+  final Value<String?> resolvedPlaceId;
+  final Value<double?> bindConfidence;
+  final Value<String?> resolverReasonCode;
+  final Value<String> resolverState;
+  final Value<int> resolverVersion;
+  final Value<DateTime?> resolvedAt;
+  final Value<String?> resolutionHintJson;
   final Value<String> syncStatus;
   final Value<DateTime> localUpdatedAt;
   final Value<DateTime?> serverUpdatedAt;
@@ -10303,6 +10545,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
     this.longitude = const Value.absent(),
     this.payloadJson = const Value.absent(),
     this.clientEventId = const Value.absent(),
+    this.resolvedPlaceId = const Value.absent(),
+    this.bindConfidence = const Value.absent(),
+    this.resolverReasonCode = const Value.absent(),
+    this.resolverState = const Value.absent(),
+    this.resolverVersion = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.resolutionHintJson = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -10319,6 +10568,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
     this.longitude = const Value.absent(),
     this.payloadJson = const Value.absent(),
     this.clientEventId = const Value.absent(),
+    this.resolvedPlaceId = const Value.absent(),
+    this.bindConfidence = const Value.absent(),
+    this.resolverReasonCode = const Value.absent(),
+    this.resolverState = const Value.absent(),
+    this.resolverVersion = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.resolutionHintJson = const Value.absent(),
     this.syncStatus = const Value.absent(),
     required DateTime localUpdatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -10340,6 +10596,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
     Expression<double>? longitude,
     Expression<String>? payloadJson,
     Expression<String>? clientEventId,
+    Expression<String>? resolvedPlaceId,
+    Expression<double>? bindConfidence,
+    Expression<String>? resolverReasonCode,
+    Expression<String>? resolverState,
+    Expression<int>? resolverVersion,
+    Expression<DateTime>? resolvedAt,
+    Expression<String>? resolutionHintJson,
     Expression<String>? syncStatus,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
@@ -10356,6 +10619,15 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
       if (longitude != null) 'longitude': longitude,
       if (payloadJson != null) 'payload_json': payloadJson,
       if (clientEventId != null) 'client_event_id': clientEventId,
+      if (resolvedPlaceId != null) 'resolved_place_id': resolvedPlaceId,
+      if (bindConfidence != null) 'bind_confidence': bindConfidence,
+      if (resolverReasonCode != null)
+        'resolver_reason_code': resolverReasonCode,
+      if (resolverState != null) 'resolver_state': resolverState,
+      if (resolverVersion != null) 'resolver_version': resolverVersion,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (resolutionHintJson != null)
+        'resolution_hint_json': resolutionHintJson,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -10374,6 +10646,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
       Value<double?>? longitude,
       Value<String>? payloadJson,
       Value<String?>? clientEventId,
+      Value<String?>? resolvedPlaceId,
+      Value<double?>? bindConfidence,
+      Value<String?>? resolverReasonCode,
+      Value<String>? resolverState,
+      Value<int>? resolverVersion,
+      Value<DateTime?>? resolvedAt,
+      Value<String?>? resolutionHintJson,
       Value<String>? syncStatus,
       Value<DateTime>? localUpdatedAt,
       Value<DateTime?>? serverUpdatedAt,
@@ -10389,6 +10668,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
       longitude: longitude ?? this.longitude,
       payloadJson: payloadJson ?? this.payloadJson,
       clientEventId: clientEventId ?? this.clientEventId,
+      resolvedPlaceId: resolvedPlaceId ?? this.resolvedPlaceId,
+      bindConfidence: bindConfidence ?? this.bindConfidence,
+      resolverReasonCode: resolverReasonCode ?? this.resolverReasonCode,
+      resolverState: resolverState ?? this.resolverState,
+      resolverVersion: resolverVersion ?? this.resolverVersion,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      resolutionHintJson: resolutionHintJson ?? this.resolutionHintJson,
       syncStatus: syncStatus ?? this.syncStatus,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -10425,6 +10711,27 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
     if (clientEventId.present) {
       map['client_event_id'] = Variable<String>(clientEventId.value);
     }
+    if (resolvedPlaceId.present) {
+      map['resolved_place_id'] = Variable<String>(resolvedPlaceId.value);
+    }
+    if (bindConfidence.present) {
+      map['bind_confidence'] = Variable<double>(bindConfidence.value);
+    }
+    if (resolverReasonCode.present) {
+      map['resolver_reason_code'] = Variable<String>(resolverReasonCode.value);
+    }
+    if (resolverState.present) {
+      map['resolver_state'] = Variable<String>(resolverState.value);
+    }
+    if (resolverVersion.present) {
+      map['resolver_version'] = Variable<int>(resolverVersion.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (resolutionHintJson.present) {
+      map['resolution_hint_json'] = Variable<String>(resolutionHintJson.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -10457,6 +10764,13 @@ class TrackingEventsCompanion extends UpdateCompanion<TrackingEventRow> {
           ..write('longitude: $longitude, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('clientEventId: $clientEventId, ')
+          ..write('resolvedPlaceId: $resolvedPlaceId, ')
+          ..write('bindConfidence: $bindConfidence, ')
+          ..write('resolverReasonCode: $resolverReasonCode, ')
+          ..write('resolverState: $resolverState, ')
+          ..write('resolverVersion: $resolverVersion, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolutionHintJson: $resolutionHintJson, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -11432,6 +11746,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index trackingEventsSyncUpdatedIdx = Index(
       'tracking_events_sync_updated_idx',
       'CREATE INDEX tracking_events_sync_updated_idx ON tracking_events (sync_status, updated_at)');
+  late final Index trackingEventsTripResolverCreatedIdx = Index(
+      'tracking_events_trip_resolver_created_idx',
+      'CREATE INDEX tracking_events_trip_resolver_created_idx ON tracking_events (trip_id, resolver_state, created_at)');
+  late final Index trackingEventsTripResolvedPlaceCreatedIdx = Index(
+      'tracking_events_trip_resolved_place_created_idx',
+      'CREATE INDEX tracking_events_trip_resolved_place_created_idx ON tracking_events (trip_id, resolved_place_id, created_at)');
   late final Index trackingEventMediaEventCreatedIdx = Index(
       'tracking_event_media_event_created_idx',
       'CREATE INDEX tracking_event_media_event_created_idx ON tracking_event_media (event_id, created_at)');
@@ -11488,6 +11808,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         trackingMomentsSyncPendingIdx,
         trackingEventsTripCreatedIdx,
         trackingEventsSyncUpdatedIdx,
+        trackingEventsTripResolverCreatedIdx,
+        trackingEventsTripResolvedPlaceCreatedIdx,
         trackingEventMediaEventCreatedIdx,
         trackingEventMediaStatusUpdatedIdx
       ];
@@ -15723,6 +16045,13 @@ typedef $$TrackingEventsTableCreateCompanionBuilder = TrackingEventsCompanion
   Value<double?> longitude,
   Value<String> payloadJson,
   Value<String?> clientEventId,
+  Value<String?> resolvedPlaceId,
+  Value<double?> bindConfidence,
+  Value<String?> resolverReasonCode,
+  Value<String> resolverState,
+  Value<int> resolverVersion,
+  Value<DateTime?> resolvedAt,
+  Value<String?> resolutionHintJson,
   Value<String> syncStatus,
   required DateTime localUpdatedAt,
   Value<DateTime?> serverUpdatedAt,
@@ -15740,6 +16069,13 @@ typedef $$TrackingEventsTableUpdateCompanionBuilder = TrackingEventsCompanion
   Value<double?> longitude,
   Value<String> payloadJson,
   Value<String?> clientEventId,
+  Value<String?> resolvedPlaceId,
+  Value<double?> bindConfidence,
+  Value<String?> resolverReasonCode,
+  Value<String> resolverState,
+  Value<int> resolverVersion,
+  Value<DateTime?> resolvedAt,
+  Value<String?> resolutionHintJson,
   Value<String> syncStatus,
   Value<DateTime> localUpdatedAt,
   Value<DateTime?> serverUpdatedAt,
@@ -15780,6 +16116,32 @@ class $$TrackingEventsTableFilterComposer
 
   ColumnFilters<String> get clientEventId => $composableBuilder(
       column: $table.clientEventId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolvedPlaceId => $composableBuilder(
+      column: $table.resolvedPlaceId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bindConfidence => $composableBuilder(
+      column: $table.bindConfidence,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolverReasonCode => $composableBuilder(
+      column: $table.resolverReasonCode,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolverState => $composableBuilder(
+      column: $table.resolverState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get resolverVersion => $composableBuilder(
+      column: $table.resolverVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolutionHintJson => $composableBuilder(
+      column: $table.resolutionHintJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
@@ -15833,6 +16195,33 @@ class $$TrackingEventsTableOrderingComposer
       column: $table.clientEventId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get resolvedPlaceId => $composableBuilder(
+      column: $table.resolvedPlaceId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get bindConfidence => $composableBuilder(
+      column: $table.bindConfidence,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolverReasonCode => $composableBuilder(
+      column: $table.resolverReasonCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolverState => $composableBuilder(
+      column: $table.resolverState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get resolverVersion => $composableBuilder(
+      column: $table.resolverVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolutionHintJson => $composableBuilder(
+      column: $table.resolutionHintJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 
@@ -15883,6 +16272,27 @@ class $$TrackingEventsTableAnnotationComposer
 
   GeneratedColumn<String> get clientEventId => $composableBuilder(
       column: $table.clientEventId, builder: (column) => column);
+
+  GeneratedColumn<String> get resolvedPlaceId => $composableBuilder(
+      column: $table.resolvedPlaceId, builder: (column) => column);
+
+  GeneratedColumn<double> get bindConfidence => $composableBuilder(
+      column: $table.bindConfidence, builder: (column) => column);
+
+  GeneratedColumn<String> get resolverReasonCode => $composableBuilder(
+      column: $table.resolverReasonCode, builder: (column) => column);
+
+  GeneratedColumn<String> get resolverState => $composableBuilder(
+      column: $table.resolverState, builder: (column) => column);
+
+  GeneratedColumn<int> get resolverVersion => $composableBuilder(
+      column: $table.resolverVersion, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get resolutionHintJson => $composableBuilder(
+      column: $table.resolutionHintJson, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
@@ -15935,6 +16345,13 @@ class $$TrackingEventsTableTableManager extends RootTableManager<
             Value<double?> longitude = const Value.absent(),
             Value<String> payloadJson = const Value.absent(),
             Value<String?> clientEventId = const Value.absent(),
+            Value<String?> resolvedPlaceId = const Value.absent(),
+            Value<double?> bindConfidence = const Value.absent(),
+            Value<String?> resolverReasonCode = const Value.absent(),
+            Value<String> resolverState = const Value.absent(),
+            Value<int> resolverVersion = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<String?> resolutionHintJson = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             Value<DateTime> localUpdatedAt = const Value.absent(),
             Value<DateTime?> serverUpdatedAt = const Value.absent(),
@@ -15951,6 +16368,13 @@ class $$TrackingEventsTableTableManager extends RootTableManager<
             longitude: longitude,
             payloadJson: payloadJson,
             clientEventId: clientEventId,
+            resolvedPlaceId: resolvedPlaceId,
+            bindConfidence: bindConfidence,
+            resolverReasonCode: resolverReasonCode,
+            resolverState: resolverState,
+            resolverVersion: resolverVersion,
+            resolvedAt: resolvedAt,
+            resolutionHintJson: resolutionHintJson,
             syncStatus: syncStatus,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
@@ -15967,6 +16391,13 @@ class $$TrackingEventsTableTableManager extends RootTableManager<
             Value<double?> longitude = const Value.absent(),
             Value<String> payloadJson = const Value.absent(),
             Value<String?> clientEventId = const Value.absent(),
+            Value<String?> resolvedPlaceId = const Value.absent(),
+            Value<double?> bindConfidence = const Value.absent(),
+            Value<String?> resolverReasonCode = const Value.absent(),
+            Value<String> resolverState = const Value.absent(),
+            Value<int> resolverVersion = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<String?> resolutionHintJson = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             required DateTime localUpdatedAt,
             Value<DateTime?> serverUpdatedAt = const Value.absent(),
@@ -15983,6 +16414,13 @@ class $$TrackingEventsTableTableManager extends RootTableManager<
             longitude: longitude,
             payloadJson: payloadJson,
             clientEventId: clientEventId,
+            resolvedPlaceId: resolvedPlaceId,
+            bindConfidence: bindConfidence,
+            resolverReasonCode: resolverReasonCode,
+            resolverState: resolverState,
+            resolverVersion: resolverVersion,
+            resolvedAt: resolvedAt,
+            resolutionHintJson: resolutionHintJson,
             syncStatus: syncStatus,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,

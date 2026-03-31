@@ -7,6 +7,7 @@ Parent docs:
 1. `docs/live-tracking-unified-system-architecture-plan.md`
 2. `docs/live-tracking/live-tracking-execution-plan.md`
 3. `flutter/docs/live-tracking-flutter-execution-plan.md`
+4. `docs/live-tracking/live-tracking-agent-contract-addendum.md` (strict P2-P3 execution semantics)
 
 ## 1. Objective
 

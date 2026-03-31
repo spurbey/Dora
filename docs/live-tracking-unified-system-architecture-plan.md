@@ -4,6 +4,7 @@ Date: 2026-03-29
 Last updated: 2026-03-31
 Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.
 Scope: End-to-end technical blueprint for a seamless live-capture-to-editor system that integrates in-app events with external travel signals.
+Execution addendum: `docs/live-tracking/live-tracking-agent-contract-addendum.md` (strict P2-P3 implementation contract).
 
 ## 1. Product Boundary and Core Principles
 
@@ -513,6 +514,7 @@ Every implementation agent must update this section in the same commit as code c
 |---|---|---|---|
 | Live/Editor boundary | Section 1, 2, 14 | Section 2, 3, 4 | `docs/live-tracking/live-tracking-execution-plan.md` |
 | Data model + identity | Section 4, 5 | Section 7, 8 | `flutter/docs/live-tracking-flutter-execution-plan.md` |
+| P2-P3 hard-slice contract | Addendum | Addendum-linked | `docs/live-tracking/live-tracking-agent-contract-addendum.md` |
 | APIs + workers | Section 6, 7 | Section 11, 15 | `docs/live-tracking/live-tracking-execution-plan.md` |
 | Notification + push | Section 9 | Section 10 | `flutter/docs/live-tracking-flutter-execution-plan.md` |
 | Animation contract | Section 10 | Section 9 | `flutter/docs/design_system.md` |

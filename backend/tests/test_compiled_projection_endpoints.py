@@ -122,6 +122,8 @@ def test_compiled_projection_returns_on_route_entries_and_route_segments(client,
     assert payload["stats"]["raw_event_count"] == 1
     assert payload["stats"]["compiled_event_count"] == 1
     assert payload["stats"]["compiled_route_segment_count"] >= 1
+    assert payload["stats"]["has_drift"] is False
+    assert payload["stats"]["raw_vs_compiled_event_delta"] == 0
     assert payload["timeline_entries"][0]["bucket_type"] == "on_route"
 
     second = client.get(f"/api/v1/trips/{trip.id}/compiled/projection")
@@ -258,7 +260,57 @@ def test_events_batch_marks_projection_dirty_and_projection_compiles(client, db,
     payload = compiled.json()
     assert payload["stats"]["raw_event_count"] == 1
     assert len(payload["timeline_entries"]) == 1
+    assert payload["stats"]["has_drift"] is False
 
     db.refresh(state)
     assert state.dirty is False
 
+
+def test_compiled_projection_surfaces_drift_when_artifacts_diverge(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = _create_trip(db, user_id=test_user.id)
+    now = datetime.now(timezone.utc)
+    session = _create_session(
+        db,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        started_at=now - timedelta(minutes=10),
+    )
+
+    event = TripTrackingEvent(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        client_event_id=uuid4(),
+        event_type="note",
+        captured_at=now - timedelta(minutes=5),
+        latitude=27.7000,
+        longitude=85.3000,
+        note="Drift check event",
+        payload={},
+    )
+    db.add(event)
+    db.commit()
+
+    baseline = client.get(f"/api/v1/trips/{trip.id}/compiled/projection")
+    assert baseline.status_code == 200
+    baseline_payload = baseline.json()
+    assert baseline_payload["stats"]["has_drift"] is False
+    assert baseline_payload["stats"]["raw_vs_compiled_event_delta"] == 0
+    assert len(baseline_payload["timeline_entries"]) == 1
+
+    db.query(TripCompiledProjectionItem).filter(
+        TripCompiledProjectionItem.trip_id == trip.id
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    drifted = client.get(f"/api/v1/trips/{trip.id}/compiled/projection")
+    assert drifted.status_code == 200
+    payload = drifted.json()
+    assert payload["stats"]["has_drift"] is True
+    assert payload["stats"]["raw_event_count_delta"] == 0
+    assert payload["stats"]["compiled_event_count_delta"] == -1
+    assert payload["stats"]["raw_vs_compiled_event_delta"] == 1
+    assert "compiled_event_state_mismatch" in payload["stats"]["drift_reasons"]
+    assert "raw_vs_compiled_event_mismatch" in payload["stats"]["drift_reasons"]

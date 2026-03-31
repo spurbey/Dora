@@ -655,6 +655,31 @@ class TripProjectionCompilerService:
             for segment in segments
         ]
 
+        actual_raw_event_count = self.db.query(TripTrackingEvent).filter(
+            TripTrackingEvent.trip_id == trip_id,
+            TripTrackingEvent.user_id == user_id,
+            TripTrackingEvent.event_type.in_(("note", "warn", "tag")),
+        ).count()
+        actual_compiled_event_count = len(items)
+        actual_compiled_route_segment_count = len(segments)
+
+        raw_event_count_delta = actual_raw_event_count - state.raw_event_count
+        compiled_event_count_delta = actual_compiled_event_count - state.compiled_event_count
+        compiled_route_segment_count_delta = (
+            actual_compiled_route_segment_count - state.compiled_route_segment_count
+        )
+        raw_vs_compiled_event_delta = actual_raw_event_count - actual_compiled_event_count
+
+        drift_reasons: list[str] = []
+        if raw_event_count_delta != 0:
+            drift_reasons.append("raw_event_state_mismatch")
+        if compiled_event_count_delta != 0:
+            drift_reasons.append("compiled_event_state_mismatch")
+        if compiled_route_segment_count_delta != 0:
+            drift_reasons.append("compiled_route_segment_state_mismatch")
+        if raw_vs_compiled_event_delta != 0:
+            drift_reasons.append("raw_vs_compiled_event_mismatch")
+
         return CompiledProjectionResponse(
             trip_id=trip_id,
             compiler_version=state.compiler_version,
@@ -668,5 +693,11 @@ class TripProjectionCompilerService:
                 compiled_event_count=state.compiled_event_count,
                 raw_point_count=state.raw_point_count,
                 compiled_route_segment_count=state.compiled_route_segment_count,
+                has_drift=bool(drift_reasons),
+                raw_event_count_delta=raw_event_count_delta,
+                compiled_event_count_delta=compiled_event_count_delta,
+                compiled_route_segment_count_delta=compiled_route_segment_count_delta,
+                raw_vs_compiled_event_delta=raw_vs_compiled_event_delta,
+                drift_reasons=drift_reasons,
             ),
         )

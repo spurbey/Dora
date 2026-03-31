@@ -48,6 +48,12 @@ class CompiledProjectionStats(BaseModel):
     compiled_event_count: int = 0
     raw_point_count: int = 0
     compiled_route_segment_count: int = 0
+    has_drift: bool = False
+    raw_event_count_delta: int = 0
+    compiled_event_count_delta: int = 0
+    compiled_route_segment_count_delta: int = 0
+    raw_vs_compiled_event_delta: int = 0
+    drift_reasons: list[str] = Field(default_factory=list)
 
 
 class CompiledProjectionResponse(BaseModel):
@@ -65,4 +71,3 @@ class CompiledRebindRequest(BaseModel):
     source_event_id: UUID
     action: str = Field(..., pattern="^(bind|unbind)$")
     trip_place_id: Optional[UUID] = None
-

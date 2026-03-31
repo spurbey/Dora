@@ -1,21 +1,26 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
 
 void main() {
   group('LiveTrackingEventRepository', () {
     late AppDatabase database;
+    late SyncTaskDao syncTaskDao;
     late TrackingEventDao eventDao;
     late LiveTrackingEventRepository repository;
 
     setUp(() {
       database = AppDatabase(NativeDatabase.memory());
+      syncTaskDao = SyncTaskDao(database);
       eventDao = TrackingEventDao(database);
       repository = LiveTrackingEventRepository(
         trackingEventDao: eventDao,
+        syncTaskDao: syncTaskDao,
       );
     });
 
@@ -23,7 +28,8 @@ void main() {
       await database.close();
     });
 
-    test('createEventNow persists local-only event rows', () async {
+    test('createEventNow persists pending event rows and queues sync task',
+        () async {
       final eventId = await repository.createEventNow(
         tripId: 'trip-1',
         eventType: LiveTrackingEventType.note,
@@ -40,8 +46,16 @@ void main() {
       expect(event!.tripId, 'trip-1');
       expect(event.eventType, 'note');
       expect(event.note, 'Reached hilltop');
-      expect(event.syncStatus, 'local_only');
+      expect(event.syncStatus, 'pending');
       expect(event.payloadJson, contains('"source":"live_capture"'));
+
+      final syncTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trackingEvent,
+        entityId: eventId,
+      );
+      expect(syncTask, isNotNull);
+      expect(syncTask!.status, 'queued');
+      expect(syncTask.operation, 'upload');
     });
 
     test('watchEventsForTrip returns rows ordered by recency', () async {

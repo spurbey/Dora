@@ -58,6 +58,17 @@ void main() {
           },
         ],
       );
+      await api.uploadEventsBatch(
+        tripId: 'trip-1',
+        idempotencyKey: 'idem-2b',
+        events: const <Map<String, dynamic>>[
+          <String, dynamic>{
+            'client_event_id': 'evt-live-1',
+            'event_type': 'note',
+            'captured_at': '2026-03-23T10:00:00Z',
+          },
+        ],
+      );
       await api.fetchTrackingPath(
         tripId: 'trip-1',
         sessionId: 'session-1',
@@ -101,6 +112,7 @@ void main() {
         <String>[
           '/api/v1/trips/trip-1/tracking/start',
           '/api/v1/trips/trip-1/tracking/points:batch',
+          '/api/v1/trips/trip-1/tracking/events:batch',
           '/api/v1/trips/trip-1/tracking/path',
           '/api/v1/checkins/candidate-1/confirm',
           '/api/v1/trips/trip-1/moments',
@@ -110,7 +122,7 @@ void main() {
         ],
       );
 
-      final pathRequest = adapter.captured[2];
+      final pathRequest = adapter.captured[3];
       expect(pathRequest.queryParameters['session_id'], 'session-1');
       expect(pathRequest.queryParameters['limit'], 10000);
     });

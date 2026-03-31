@@ -40,6 +40,7 @@ from app.models.api_idempotency_record import ApiIdempotencyRecord
 from app.models.user_device_token import UserDeviceToken
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
+from app.models.trip_tracking_event import TripTrackingEvent
 
 __all__ = [
     "User",
@@ -65,4 +66,5 @@ __all__ = [
     "UserDeviceToken",
     "TripTrackingNotification",
     "TripTrackingNotificationEvent",
+    "TripTrackingEvent",
 ]

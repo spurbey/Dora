@@ -98,6 +98,41 @@ class TrackingPointsBatchResponse(BaseModel):
     idempotency_replayed: bool
 
 
+class TrackingEventInput(BaseModel):
+    client_event_id: str = Field(..., min_length=1, max_length=128)
+    event_type: str = Field(..., min_length=1, max_length=32)
+    captured_at: Any
+    session_id: Optional[str] = Field(default=None, max_length=128)
+    note: Optional[str] = None
+    location: Optional[dict[str, Any]] = None
+    payload: Optional[dict[str, Any]] = None
+
+
+class TrackingEventsBatchRequest(BaseModel):
+    events: list[TrackingEventInput] = Field(default_factory=list, max_length=250)
+
+
+class TrackingEventAcceptedResponse(BaseModel):
+    client_event_id: str
+    event_id: UUID
+    duplicate: bool
+
+
+class TrackingEventRejectedResponse(BaseModel):
+    client_event_id: Optional[str] = None
+    reason_code: str
+    message: str
+
+
+class TrackingEventsBatchResponse(BaseModel):
+    trip_id: UUID
+    accepted: list[TrackingEventAcceptedResponse]
+    rejected: list[TrackingEventRejectedResponse]
+    accepted_count: int
+    rejected_count: int
+    idempotency_replayed: bool
+
+
 class TrackingPathPointResponse(BaseModel):
     recorded_at: datetime
     latitude: float

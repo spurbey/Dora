@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -24,6 +25,7 @@ class TrackingSyncWorker {
     required TrackingSessionDao trackingSessionDao,
     required TrackingPointBatchDao trackingPointBatchDao,
     required TrackingCandidateDao trackingCandidateDao,
+    required TrackingEventDao trackingEventDao,
     required TrackingMomentDao trackingMomentDao,
     required LiveTrackingApi liveTrackingApi,
     int maxConcurrency = 2,
@@ -32,6 +34,7 @@ class TrackingSyncWorker {
         _trackingSessionDao = trackingSessionDao,
         _trackingPointBatchDao = trackingPointBatchDao,
         _trackingCandidateDao = trackingCandidateDao,
+        _trackingEventDao = trackingEventDao,
         _trackingMomentDao = trackingMomentDao,
         _liveTrackingApi = liveTrackingApi,
         _maxConcurrency = maxConcurrency;
@@ -41,6 +44,7 @@ class TrackingSyncWorker {
   final TrackingSessionDao _trackingSessionDao;
   final TrackingPointBatchDao _trackingPointBatchDao;
   final TrackingCandidateDao _trackingCandidateDao;
+  final TrackingEventDao _trackingEventDao;
   final TrackingMomentDao _trackingMomentDao;
   final LiveTrackingApi _liveTrackingApi;
   final int _maxConcurrency;
@@ -104,6 +108,12 @@ class TrackingSyncWorker {
           break;
         case SyncEntityTypes.moment:
           await _processMomentTask(
+            task: task,
+            sessionId: sessionId,
+          );
+          break;
+        case SyncEntityTypes.trackingEvent:
+          await _processTrackingEventTask(
             task: task,
             sessionId: sessionId,
           );
@@ -558,6 +568,111 @@ class TrackingSyncWorker {
     }
   }
 
+  Future<void> _processTrackingEventTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
+    final row = await _trackingEventDao.getEventById(task.entityId);
+    if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
+      return;
+    }
+
+    final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
+    final payload = _decodeJsonMap(row.payloadJson);
+    final clientEventId = (row.clientEventId?.trim().isNotEmpty ?? false)
+        ? row.clientEventId!.trim()
+        : row.id;
+    final eventMap = <String, dynamic>{
+      'client_event_id': clientEventId,
+      'event_type': row.eventType,
+      'captured_at': row.createdAt.toUtc().toIso8601String(),
+      if (row.note != null && row.note!.trim().isNotEmpty)
+        'note': row.note!.trim(),
+      if (row.latitude != null && row.longitude != null)
+        'location': <String, dynamic>{
+          'latitude': row.latitude,
+          'longitude': row.longitude,
+        },
+      if (payload.isNotEmpty) 'payload': payload,
+    };
+
+    final response = await _liveTrackingApi.uploadEventsBatch(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(task.id, task.operation),
+      events: <Map<String, dynamic>>[eventMap],
+    );
+
+    final accepted = _asJsonList(response['accepted']) ?? const <dynamic>[];
+    final rejected = _asJsonList(response['rejected']) ?? const <dynamic>[];
+    Map<String, dynamic>? rejectedForCurrent;
+    for (final raw in rejected) {
+      final entry = _asJsonMap(raw);
+      if (entry == null) {
+        continue;
+      }
+      if (_asString(entry['client_event_id']) == clientEventId) {
+        rejectedForCurrent = entry;
+        break;
+      }
+    }
+    if (rejectedForCurrent != null) {
+      final reason = _asString(rejectedForCurrent['reason_code']) ??
+          'tracking_event_rejected';
+      final message = _asString(rejectedForCurrent['message']) ??
+          'Tracking event rejected by server.';
+      await _trackingEventDao.markBlocked(eventId: row.id);
+      throw _TrackingSyncTerminalException(
+        code: reason,
+        message: message,
+      );
+    }
+
+    var acceptedCurrent = false;
+    for (final raw in accepted) {
+      final entry = _asJsonMap(raw);
+      if (entry == null) {
+        continue;
+      }
+      if (_asString(entry['client_event_id']) == clientEventId) {
+        acceptedCurrent = true;
+        break;
+      }
+    }
+
+    if (!acceptedCurrent) {
+      throw const _TrackingSyncRetryableException(
+        code: 'tracking_event_missing_acceptance',
+        message:
+            'Tracking event upload response missing acceptance for client_event_id.',
+      );
+    }
+
+    final now = DateTime.now().toUtc();
+    await _persistSuccessAndCompleteTask(
+      task: task,
+      sessionId: sessionId,
+      applyLocalMutation: (shouldMarkEntitySynced) async {
+        if (shouldMarkEntitySynced) {
+          await _trackingEventDao.markSynced(
+            eventId: row.id,
+            serverUpdatedAt: now,
+            updatedAt: now,
+          );
+          return;
+        }
+        await _trackingEventDao.markPending(
+          eventId: row.id,
+          updatedAt: now,
+        );
+      },
+    );
+  }
+
   Future<void> _persistSuccessAndCompleteTask({
     required SyncTaskRow task,
     required String? sessionId,
@@ -974,7 +1089,8 @@ class TrackingSyncWorker {
   bool _isTripScopedTrackingTask(SyncTaskRow task) {
     return task.entityType == SyncEntityTypes.trackingSession ||
         task.entityType == SyncEntityTypes.trackingPointBatch ||
-        task.entityType == SyncEntityTypes.moment;
+        task.entityType == SyncEntityTypes.moment ||
+        task.entityType == SyncEntityTypes.trackingEvent;
   }
 
   Future<String?> _resolveLocalTripIdForTask(SyncTaskRow task) async {
@@ -987,6 +1103,9 @@ class TrackingSyncWorker {
         return row?.tripId;
       case SyncEntityTypes.moment:
         final row = await _trackingMomentDao.getMomentById(task.entityId);
+        return row?.tripId;
+      case SyncEntityTypes.trackingEvent:
+        final row = await _trackingEventDao.getEventById(task.entityId);
         return row?.tripId;
       default:
         return null;

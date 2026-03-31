@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
+import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 
 enum LiveTrackingEventType {
   note,
@@ -34,13 +36,16 @@ extension LiveTrackingEventTypeWire on LiveTrackingEventType {
 class LiveTrackingEventRepository {
   LiveTrackingEventRepository({
     required TrackingEventDao trackingEventDao,
+    required SyncTaskDao syncTaskDao,
     DateTime Function()? now,
     Uuid? uuid,
   })  : _trackingEventDao = trackingEventDao,
+        _syncTaskDao = syncTaskDao,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
   final TrackingEventDao _trackingEventDao;
+  final SyncTaskDao _syncTaskDao;
   final DateTime Function() _now;
   final Uuid _uuid;
 
@@ -72,12 +77,18 @@ class LiveTrackingEventRepository {
         longitude: Value(longitude),
         payloadJson: Value(_encodeJson(payload ?? const <String, dynamic>{})),
         clientEventId: Value(_uuid.v4()),
-        syncStatus: const Value('local_only'),
+        syncStatus: const Value('pending'),
         localUpdatedAt: now,
         serverUpdatedAt: const Value(null),
         createdAt: now,
         updatedAt: now,
       ),
+    );
+    await _syncTaskDao.upsertQueuedTask(
+      id: _uuid.v4(),
+      entityType: SyncEntityTypes.trackingEvent,
+      entityId: eventId,
+      operation: 'upload',
     );
     return eventId;
   }

@@ -26,6 +26,7 @@ from app.models.trip import Trip
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_moment import TripMoment
+from app.models.trip_tracking_event import TripTrackingEvent
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
@@ -35,6 +36,7 @@ from app.utils.geo import haversine_distance
 
 IDEMPOTENCY_TTL_HOURS = 72
 REJECT_COOLDOWN_HOURS = 24
+TRACKING_EVENT_TYPES = {"note", "warn", "tag", "photo", "media"}
 
 
 @dataclass
@@ -59,6 +61,37 @@ class LiveTrackingService:
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _parse_uuid(value: Any) -> Optional[UUID]:
+        if value is None:
+            return None
+        if isinstance(value, UUID):
+            return value
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            return UUID(raw)
+        except (ValueError, TypeError, AttributeError):
+            return None
+
+    def _coerce_datetime(self, value: Any) -> Optional[datetime]:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return self._to_utc(value)
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return None
+            normalized = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+            try:
+                parsed = datetime.fromisoformat(normalized)
+            except ValueError:
+                return None
+            return self._to_utc(parsed)
+        return None
 
     @staticmethod
     def _json_hash(payload: dict[str, Any]) -> str:
@@ -96,6 +129,7 @@ class LiveTrackingService:
             "uq_checkin_candidate_active_fingerprint",
             "uq_user_device_tokens_push_token",
             "uq_user_device_tokens_user_token",
+            "uq_tracking_event_trip_user_client_event",
         )
         for constraint in known_constraints:
             if constraint in message:
@@ -208,6 +242,7 @@ class LiveTrackingService:
                 "uq_checkin_candidate_active_fingerprint",
                 "uq_user_device_tokens_push_token",
                 "uq_user_device_tokens_user_token",
+                "uq_tracking_event_trip_user_client_event",
             }:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -398,12 +433,6 @@ class LiveTrackingService:
         if active:
             return status.HTTP_200_OK, self._session_payload(session=active, trip=trip)
 
-        if trip.status != "planned":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Tracking can only be started from planned trip status",
-            )
-
         started_at_utc = self._to_utc(started_at)
         session = TripTrackingSession(
             trip_id=trip_id,
@@ -416,7 +445,6 @@ class LiveTrackingService:
         )
         self.db.add(session)
 
-        trip.status = "tracking_active"
         trip.tracking_enabled = True
         if trip.tracking_started_at is None:
             trip.tracking_started_at = started_at_utc
@@ -447,7 +475,6 @@ class LiveTrackingService:
 
         session.state = "paused"
         session.paused_at = self._to_utc(paused_at)
-        trip.status = "tracking_paused"
 
         self.db.flush()
         return status.HTTP_200_OK, self._session_payload(session=session, trip=trip)
@@ -473,7 +500,6 @@ class LiveTrackingService:
 
         session.state = "active"
         session.resumed_at = self._to_utc(resumed_at)
-        trip.status = "tracking_active"
 
         self.db.flush()
         return status.HTTP_200_OK, self._session_payload(session=session, trip=trip)
@@ -500,7 +526,6 @@ class LiveTrackingService:
         ended_at = self._to_utc(stopped_at)
         session.state = "ended"
         session.ended_at = ended_at
-        trip.status = "review_pending"
         trip.tracking_ended_at = ended_at
 
         self.db.flush()
@@ -595,6 +620,222 @@ class LiveTrackingService:
             "accepted_points": accepted,
             "duplicate_points": duplicates,
             "ingest_job_id": uuid.uuid4(),
+        }
+
+    def ingest_events_batch(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        events: list[dict[str, Any]],
+    ) -> tuple[int, dict[str, Any]]:
+        self._get_owned_trip(trip_id=trip_id, user_id=user_id)
+
+        accepted: list[dict[str, Any]] = []
+        rejected: list[dict[str, Any]] = []
+        session_cache: dict[UUID, Optional[TripTrackingSession]] = {}
+
+        for raw_event in events:
+            item = dict(raw_event or {})
+            client_event_raw = item.get("client_event_id")
+            client_event_text = str(client_event_raw).strip() if client_event_raw is not None else ""
+            if not client_event_text:
+                rejected.append(
+                    {
+                        "client_event_id": None,
+                        "reason_code": "missing_client_event_id",
+                        "message": "client_event_id is required",
+                    }
+                )
+                continue
+
+            client_event_id = self._parse_uuid(client_event_text)
+            if client_event_id is None:
+                rejected.append(
+                    {
+                        "client_event_id": client_event_text,
+                        "reason_code": "invalid_client_event_id",
+                        "message": "client_event_id must be a valid UUID",
+                    }
+                )
+                continue
+
+            event_type = str(item.get("event_type") or "").strip().lower()
+            if event_type not in TRACKING_EVENT_TYPES:
+                rejected.append(
+                    {
+                        "client_event_id": client_event_text,
+                        "reason_code": "invalid_event_type",
+                        "message": "event_type must be one of note|warn|tag|photo|media",
+                    }
+                )
+                continue
+
+            captured_at = self._coerce_datetime(item.get("captured_at"))
+            if captured_at is None:
+                rejected.append(
+                    {
+                        "client_event_id": client_event_text,
+                        "reason_code": "invalid_captured_at",
+                        "message": "captured_at must be an ISO-8601 datetime",
+                    }
+                )
+                continue
+
+            session_id: Optional[UUID] = None
+            session_raw = item.get("session_id")
+            if session_raw is not None and str(session_raw).strip():
+                session_id = self._parse_uuid(session_raw)
+                if session_id is None:
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_session_id",
+                            "message": "session_id must be a valid UUID when provided",
+                        }
+                    )
+                    continue
+                if session_id not in session_cache:
+                    session_cache[session_id] = (
+                        self.db.query(TripTrackingSession)
+                        .filter(
+                            TripTrackingSession.id == session_id,
+                            TripTrackingSession.trip_id == trip_id,
+                            TripTrackingSession.user_id == user_id,
+                        )
+                        .first()
+                    )
+                if session_cache[session_id] is None:
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_session",
+                            "message": "session_id does not belong to this trip",
+                        }
+                    )
+                    continue
+
+            note = item.get("note")
+            if note is not None and not isinstance(note, str):
+                note = str(note)
+            if isinstance(note, str):
+                note = note.strip() or None
+                if note is not None and len(note) > 4000:
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_note",
+                            "message": "note length must be <= 4000 characters",
+                        }
+                    )
+                    continue
+
+            latitude: Optional[float] = None
+            longitude: Optional[float] = None
+            location = item.get("location")
+            if location is not None:
+                if not isinstance(location, dict):
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_location",
+                            "message": "location must be an object with latitude and longitude",
+                        }
+                    )
+                    continue
+                latitude_raw = location.get("latitude")
+                longitude_raw = location.get("longitude")
+                try:
+                    latitude = float(latitude_raw) if latitude_raw is not None else None
+                    longitude = float(longitude_raw) if longitude_raw is not None else None
+                except (TypeError, ValueError):
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_location",
+                            "message": "location latitude/longitude must be numeric values",
+                        }
+                    )
+                    continue
+                if (latitude is None) != (longitude is None):
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_location",
+                            "message": "location must include both latitude and longitude",
+                        }
+                    )
+                    continue
+                if latitude is not None and not self._is_valid_coordinate(latitude=latitude, longitude=longitude):
+                    rejected.append(
+                        {
+                            "client_event_id": client_event_text,
+                            "reason_code": "invalid_location",
+                            "message": "location coordinates are out of range",
+                        }
+                    )
+                    continue
+
+            payload = item.get("payload")
+            if payload is None:
+                payload = {}
+            if not isinstance(payload, dict):
+                rejected.append(
+                    {
+                        "client_event_id": client_event_text,
+                        "reason_code": "invalid_payload",
+                        "message": "payload must be an object",
+                    }
+                )
+                continue
+
+            existing = (
+                self.db.query(TripTrackingEvent)
+                .filter(
+                    TripTrackingEvent.trip_id == trip_id,
+                    TripTrackingEvent.user_id == user_id,
+                    TripTrackingEvent.client_event_id == client_event_id,
+                )
+                .first()
+            )
+            if existing is not None:
+                accepted.append(
+                    {
+                        "client_event_id": str(client_event_id),
+                        "event_id": str(existing.id),
+                        "duplicate": True,
+                    }
+                )
+                continue
+
+            event = TripTrackingEvent(
+                trip_id=trip_id,
+                user_id=user_id,
+                session_id=session_id,
+                client_event_id=client_event_id,
+                event_type=event_type,
+                captured_at=captured_at,
+                latitude=latitude,
+                longitude=longitude,
+                note=note,
+                payload=payload,
+            )
+            self.db.add(event)
+            self.db.flush()
+            accepted.append(
+                {
+                    "client_event_id": str(client_event_id),
+                    "event_id": str(event.id),
+                    "duplicate": False,
+                }
+            )
+
+        return status.HTTP_202_ACCEPTED, {
+            "trip_id": trip_id,
+            "accepted": accepted,
+            "rejected": rejected,
+            "accepted_count": len(accepted),
+            "rejected_count": len(rejected),
         }
 
     def get_tracking_path(
@@ -1034,10 +1275,20 @@ class LiveTrackingService:
         committed_at: datetime,
     ) -> tuple[int, dict[str, Any]]:
         trip = self._get_owned_trip(trip_id=trip_id, user_id=user_id)
-        if trip.status not in {"planned", "review_pending", "completed"}:
+        active_session_exists = (
+            self.db.query(TripTrackingSession.id)
+            .filter(
+                TripTrackingSession.trip_id == trip_id,
+                TripTrackingSession.user_id == user_id,
+                TripTrackingSession.state.in_(["active", "paused"]),
+            )
+            .first()
+            is not None
+        )
+        if active_session_exists:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Trip cannot be finalized from current status",
+                detail="Trip cannot be finalized while tracking session is active",
             )
 
         if trip.status != "completed":

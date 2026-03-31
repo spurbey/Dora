@@ -30,6 +30,10 @@ void main() {
         SyncLane.interactive,
       );
       expect(
+        SyncEntityTypes.laneForEntityType(SyncEntityTypes.trackingEvent),
+        SyncLane.interactive,
+      );
+      expect(
         SyncEntityTypes.laneForEntityType(SyncEntityTypes.trackingPointBatch),
         SyncLane.trackingBatch,
       );
@@ -55,6 +59,7 @@ void main() {
           SyncEntityTypes.trackingPointBatch,
           SyncEntityTypes.checkinDecision,
           SyncEntityTypes.moment,
+          SyncEntityTypes.trackingEvent,
         ]),
       );
       expect(

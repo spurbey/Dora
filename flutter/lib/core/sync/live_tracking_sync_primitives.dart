@@ -14,6 +14,7 @@ class SyncEntityTypes {
   static const String trackingPointBatch = 'tracking_point_batch';
   static const String checkinDecision = 'checkin_decision';
   static const String moment = 'moment';
+  static const String trackingEvent = 'tracking_event';
 
   static const Set<String> supportedByEntitySyncWorker = {
     trip,
@@ -26,6 +27,7 @@ class SyncEntityTypes {
     trackingPointBatch,
     checkinDecision,
     moment,
+    trackingEvent,
   };
 
   // Tracking point uploads are high-volume and should never block user-edit

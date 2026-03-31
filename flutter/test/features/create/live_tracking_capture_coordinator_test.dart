@@ -109,6 +109,15 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchTrackingPath({
     required String tripId,
     String? sessionId,

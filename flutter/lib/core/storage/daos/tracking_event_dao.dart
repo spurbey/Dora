@@ -37,4 +37,48 @@ class TrackingEventDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> upsertEvent(TrackingEventsCompanion row) =>
       into(trackingEvents).insertOnConflictUpdate(row);
+
+  Future<int> markPending({
+    required String eventId,
+    DateTime? updatedAt,
+  }) {
+    final now = updatedAt ?? DateTime.now().toUtc();
+    return (update(trackingEvents)..where((e) => e.id.equals(eventId))).write(
+      TrackingEventsCompanion(
+        syncStatus: const Value('pending'),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<int> markSynced({
+    required String eventId,
+    DateTime? serverUpdatedAt,
+    DateTime? updatedAt,
+  }) {
+    final now = updatedAt ?? DateTime.now().toUtc();
+    return (update(trackingEvents)..where((e) => e.id.equals(eventId))).write(
+      TrackingEventsCompanion(
+        syncStatus: const Value('synced'),
+        serverUpdatedAt: Value(serverUpdatedAt ?? now),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<int> markBlocked({
+    required String eventId,
+    DateTime? updatedAt,
+  }) {
+    final now = updatedAt ?? DateTime.now().toUtc();
+    return (update(trackingEvents)..where((e) => e.id.equals(eventId))).write(
+      TrackingEventsCompanion(
+        syncStatus: const Value('blocked'),
+        localUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
 }

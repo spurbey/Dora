@@ -558,6 +558,15 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,
@@ -729,6 +738,15 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,
@@ -895,6 +913,15 @@ class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
     required String clientBatchId,
     required DateTime sentAt,
     required List<Map<String, dynamic>> points,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
   }) {
     throw UnimplementedError();
   }

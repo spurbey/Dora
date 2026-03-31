@@ -29,6 +29,8 @@ from app.schemas.live_tracking import (
     TrackingPathResponse,
     TrackingPointsBatchRequest,
     TrackingPointsBatchResponse,
+    TrackingEventsBatchRequest,
+    TrackingEventsBatchResponse,
     TrackingResumeRequest,
     TrackingSessionResponse,
     TrackingStartRequest,
@@ -190,6 +192,37 @@ async def ingest_points_batch(
             session_id=request.session_id,
             client_batch_id=request.client_batch_id,
             points=[point.model_dump() for point in request.points],
+        ),
+    )
+    payload = dict(result.body)
+    payload["idempotency_replayed"] = result.replayed
+    response.status_code = result.status_code
+    _set_replay_header(response, result.replayed)
+    return payload
+
+
+@router.post(
+    "/trips/{trip_id}/tracking/events:batch",
+    response_model=TrackingEventsBatchResponse,
+)
+async def ingest_events_batch(
+    trip_id: UUID,
+    request: TrackingEventsBatchRequest,
+    response: Response,
+    x_idempotency_key: str = Header(..., alias="X-Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingService(db)
+    result = service.run_idempotent_mutation(
+        user_id=current_user.id,
+        endpoint_signature="POST:/trips/{trip_id}/tracking/events:batch",
+        idempotency_key=x_idempotency_key,
+        request_payload=_idempotency_payload(request.model_dump(mode="json"), trip_id=trip_id),
+        operation=lambda: service.ingest_events_batch(
+            trip_id=trip_id,
+            user_id=current_user.id,
+            events=[event.model_dump() for event in request.events],
         ),
     )
     payload = dict(result.body)

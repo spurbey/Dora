@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -19,16 +20,19 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   int startCalls = 0;
   int pauseCalls = 0;
   int batchCalls = 0;
+  int eventBatchCalls = 0;
   int decisionCalls = 0;
   int momentCalls = 0;
   final List<String> startTripIds = <String>[];
   final List<String> pauseTripIds = <String>[];
   final List<String> batchTripIds = <String>[];
+  final List<String> eventBatchTripIds = <String>[];
   final List<String> momentCreateTripIds = <String>[];
   final List<String> momentUpdateIds = <String>[];
   final List<bool> momentUpdateIncludeNote = <bool>[];
   final List<bool> momentUpdateIncludeLinkedTripPlaceId = <bool>[];
   Object? startError;
+  Object? eventBatchError;
   Object? decisionError;
   Completer<void>? startTrackingGate;
   Completer<void>? pauseTrackingGate;
@@ -151,6 +155,35 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'accepted_points': points.length,
       'duplicate_points': 0,
       'ingest_job_id': 'job-1',
+      'idempotency_replayed': false,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  }) async {
+    final forcedError = eventBatchError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
+    eventBatchCalls += 1;
+    eventBatchTripIds.add(tripId);
+    final accepted = events
+        .map((event) => <String, dynamic>{
+              'client_event_id': event['client_event_id'],
+              'event_id': 'remote-event-${event['client_event_id']}',
+              'duplicate': false,
+            })
+        .toList(growable: false);
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'accepted': accepted,
+      'rejected': const <Map<String, dynamic>>[],
+      'accepted_count': accepted.length,
+      'rejected_count': 0,
       'idempotency_replayed': false,
     };
   }
@@ -386,6 +419,7 @@ void main() {
     late TrackingSessionDao sessionDao;
     late TrackingPointBatchDao batchDao;
     late TrackingCandidateDao candidateDao;
+    late TrackingEventDao eventDao;
     late TrackingMomentDao momentDao;
     late _FakeLiveTrackingApi fakeApi;
     late TrackingSyncWorker worker;
@@ -474,6 +508,7 @@ void main() {
       sessionDao = TrackingSessionDao(database);
       batchDao = TrackingPointBatchDao(database);
       candidateDao = TrackingCandidateDao(database);
+      eventDao = TrackingEventDao(database);
       momentDao = TrackingMomentDao(database);
       fakeApi = _FakeLiveTrackingApi();
       worker = TrackingSyncWorker(
@@ -482,6 +517,7 @@ void main() {
         trackingSessionDao: sessionDao,
         trackingPointBatchDao: batchDao,
         trackingCandidateDao: candidateDao,
+        trackingEventDao: eventDao,
         trackingMomentDao: momentDao,
         liveTrackingApi: fakeApi,
         maxConcurrency: 1,
@@ -1203,6 +1239,107 @@ void main() {
       expect(tripTask, isNotNull);
       expect(tripTask!.operation, 'create');
       expect(tripTask.status, 'queued');
+    });
+
+    test('uploads tracking event task and marks local event as synced',
+        () async {
+      final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-event-1',
+        serverTripId: 'remote-trip-event-1',
+      );
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-local-1',
+          tripId: 'trip-event-1',
+          eventType: 'note',
+          note: const Value('Checkpoint'),
+          latitude: const Value(27.7172),
+          longitude: const Value(85.3240),
+          payloadJson: const Value('{"source":"live_capture"}'),
+          clientEventId: const Value('event-client-1'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-event-upload-1',
+        entityType: SyncEntityTypes.trackingEvent,
+        entityId: 'event-local-1',
+        operation: 'upload',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-event-upload-1');
+      expect(task['status'], 'completed');
+      final event = await eventDao.getEventById('event-local-1');
+      expect(event, isNotNull);
+      expect(event!.syncStatus, 'synced');
+      expect(event.serverUpdatedAt, isNotNull);
+      expect(fakeApi.eventBatchCalls, 1);
+      expect(fakeApi.eventBatchTripIds.single, 'remote-trip-event-1');
+    });
+
+    test(
+        'recovers stale trip identity for tracking event on 404 trip-not-found',
+        () async {
+      final now = DateTime.now().toUtc();
+      const localTripId = 'trip-event-stale-404-1';
+      const staleRemoteTripId = 'remote-trip-event-stale-404-1';
+      await seedTripIdentity(
+        localTripId: localTripId,
+        serverTripId: staleRemoteTripId,
+      );
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-stale-404-1',
+          tripId: localTripId,
+          eventType: 'warn',
+          note: const Value('Bridge closed'),
+          payloadJson: const Value('{"severity":"high"}'),
+          clientEventId: const Value('event-client-stale-404-1'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-event-stale-404-1',
+        entityType: SyncEntityTypes.trackingEvent,
+        entityId: 'event-stale-404-1',
+        operation: 'upload',
+      );
+
+      final requestOptions = RequestOptions(
+          path: '/api/v1/trips/$staleRemoteTripId/tracking/events:batch');
+      fakeApi.eventBatchError = DioException(
+        requestOptions: requestOptions,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(
+          requestOptions: requestOptions,
+          statusCode: 404,
+          data: <String, dynamic>{'detail': 'Trip not found'},
+        ),
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-event-stale-404-1');
+      expect(task['status'], 'pending');
+      expect(task['error_code'], 'tracking_trip_identity_stale');
+      expect(task['depends_on_entity_type'], SyncEntityTypes.trip);
+      expect(task['depends_on_entity_id'], localTripId);
+
+      final trip = await database.tripDao.getTripById(localTripId);
+      expect(trip, isNotNull);
+      expect(trip!.serverTripId, isNull);
+      expect(trip.syncStatus, 'pending');
     });
 
     test('stores backend detail message for blocking 409 responses', () async {

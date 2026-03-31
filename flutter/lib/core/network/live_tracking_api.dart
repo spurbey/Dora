@@ -47,6 +47,12 @@ abstract class LiveTrackingApi {
     required List<Map<String, dynamic>> points,
   });
 
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  });
+
   Future<Map<String, dynamic>> fetchTrackingPath({
     required String tripId,
     String? sessionId,
@@ -259,6 +265,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         'client_batch_id': clientBatchId,
         'sent_at': _toUtc(sentAt).toIso8601String(),
         'points': points,
+      },
+      options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadEventsBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> events,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/trips/$tripId/tracking/events:batch'),
+      data: <String, dynamic>{
+        'events': events,
       },
       options: _idempotentOptions(idempotencyKey),
     );

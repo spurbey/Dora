@@ -29,7 +29,7 @@ from app.workers.live_tracking_worker import (
 )
 
 
-def _create_trip(db, *, user_id, status="tracking_active", end_date=None):
+def _create_trip(db, *, user_id, status="planned", end_date=None):
     trip = Trip(
         id=uuid4(),
         user_id=user_id,
@@ -894,7 +894,7 @@ def test_dispatch_candidate_notifications_filters_due_before_limit(db, test_user
 
 def test_run_auto_end_pass_closes_stale_inactive_sessions(db, test_user):
     now = datetime.now(timezone.utc)
-    trip = _create_trip(db, user_id=test_user.id, status="tracking_active")
+    trip = _create_trip(db, user_id=test_user.id, status="planned")
     session = _create_session(
         db,
         trip_id=trip.id,
@@ -912,7 +912,7 @@ def test_run_auto_end_pass_closes_stale_inactive_sessions(db, test_user):
     db.refresh(session)
     db.refresh(trip)
     assert session.state == "ended"
-    assert trip.status == "review_pending"
+    assert trip.status == "planned"
     assert trip.auto_end_reason == "inactivity_threshold"
 
     second = run_auto_end_pass(db, now=now + timedelta(minutes=5))
@@ -924,7 +924,7 @@ def test_run_auto_end_pass_respects_trip_end_date(db, test_user):
     trip = _create_trip(
         db,
         user_id=test_user.id,
-        status="tracking_active",
+        status="planned",
         end_date=now.date() - timedelta(days=1),
     )
     session = _create_session(
@@ -957,7 +957,7 @@ def test_run_worker_cycle_isolates_single_session_failure(db, test_user, monkeyp
         started_at=now - timedelta(hours=1),
         last_point_at=now - timedelta(minutes=3),
     )
-    _create_session(
+    good = _create_session(
         db,
         trip_id=trip.id,
         user_id=test_user.id,
@@ -979,6 +979,11 @@ def test_run_worker_cycle_isolates_single_session_failure(db, test_user, monkeyp
         )
 
     monkeypatch.setattr(worker_module, "process_session_inference", _fake_process)
+    monkeypatch.setattr(
+        worker_module,
+        "_claim_sessions_for_inference",
+        lambda db_session, *, batch_size: [bad, good],
+    )
 
     summary = run_worker_cycle(db)
     db.flush()

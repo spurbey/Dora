@@ -7,8 +7,10 @@ import 'package:dora/features/live_capture/data/live_tracking_event_repository.d
 final liveTrackingEventRepositoryProvider =
     Provider<LiveTrackingEventRepository>((ref) {
   final trackingEventDao = ref.watch(trackingEventDaoProvider);
+  final syncTaskDao = ref.watch(syncTaskDaoProvider);
   return LiveTrackingEventRepository(
     trackingEventDao: trackingEventDao,
+    syncTaskDao: syncTaskDao,
   );
 });
 

@@ -14,6 +14,7 @@ from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
+from app.models.trip_tracking_event import TripTrackingEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user import User
 from app.models.user_device_token import UserDeviceToken
@@ -202,7 +203,7 @@ def test_idempotency_key_cannot_be_reused_across_different_trip_resources(client
     assert second.json()["detail"]["error_code"] == "idempotency_conflict"
 
 
-def test_tracking_start_rejects_non_planned_trip_status(client, db, test_user, auth_as):
+def test_tracking_start_allows_restart_for_legacy_review_pending_trip(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = create_trip(db, test_user.id, title="Review Pending", status="review_pending")
 
@@ -216,8 +217,8 @@ def test_tracking_start_rejects_non_planned_trip_status(client, db, test_user, a
         },
         headers={"X-Idempotency-Key": _idem()},
     )
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Tracking can only be started from planned trip status"
+    assert response.status_code == 200
+    assert response.json()["state"] == "active"
 
 
 def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
@@ -234,6 +235,8 @@ def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
         },
         headers={"X-Idempotency-Key": _idem()},
     )
+    assert start.status_code == 200
+    assert start.json()["trip_status"] == "planned"
     session_id = start.json()["session_id"]
 
     paused = client.post(
@@ -248,6 +251,7 @@ def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
     )
     assert paused.status_code == 200
     assert paused.json()["state"] == "paused"
+    assert paused.json()["trip_status"] == "planned"
 
     resumed = client.post(
         f"/api/v1/trips/{trip.id}/tracking/resume",
@@ -260,6 +264,7 @@ def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
     )
     assert resumed.status_code == 200
     assert resumed.json()["state"] == "active"
+    assert resumed.json()["trip_status"] == "planned"
 
     stopped = client.post(
         f"/api/v1/trips/{trip.id}/tracking/stop",
@@ -273,7 +278,51 @@ def test_tracking_pause_resume_stop_transitions(client, db, test_user, auth_as):
     )
     assert stopped.status_code == 200
     assert stopped.json()["state"] == "ended"
-    assert stopped.json()["trip_status"] == "review_pending"
+    assert stopped.json()["trip_status"] == "planned"
+
+
+def test_tracking_can_start_new_session_after_stop_on_same_trip(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Restart Same Trip")
+
+    first_start = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/start",
+        json={
+            "client_session_id": "restart-flow-1",
+            "started_at": _iso_now(),
+            "timezone": "UTC",
+            "device_context": {"platform": "android"},
+        },
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert first_start.status_code == 200
+    first_session_id = first_start.json()["session_id"]
+
+    stopped = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/stop",
+        json={
+            "client_event_id": str(uuid4()),
+            "session_id": first_session_id,
+            "stopped_at": _iso_now(1),
+        },
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert stopped.status_code == 200
+    assert stopped.json()["state"] == "ended"
+
+    second_start = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/start",
+        json={
+            "client_session_id": "restart-flow-2",
+            "started_at": _iso_now(2),
+            "timezone": "UTC",
+            "device_context": {"platform": "android"},
+        },
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert second_start.status_code == 200
+    assert second_start.json()["state"] == "active"
+    assert second_start.json()["session_id"] != first_session_id
 
 
 def test_points_batch_dedup_and_replay(client, db, test_user, auth_as):
@@ -351,6 +400,81 @@ def test_points_batch_dedup_and_replay(client, db, test_user, auth_as):
     assert second_key.status_code == 202
     assert second_key.json()["accepted_points"] == 0
     assert second_key.json()["duplicate_points"] == 3
+
+
+def test_events_batch_partial_accept_and_replay(client, db, test_user, auth_as):
+    auth_as(test_user)
+    # Tests use a shared transactional DB; ensure the new table exists even if
+    # local migration state lags behind the code branch.
+    TripTrackingEvent.__table__.create(bind=db.get_bind(), checkfirst=True)
+
+    trip = create_trip(db, test_user.id, title="Event Batch")
+    session = create_session(db, trip.id, test_user.id, state="active")
+
+    payload = {
+        "events": [
+            {
+                "client_event_id": str(uuid4()),
+                "event_type": "note",
+                "captured_at": _iso_now(),
+                "session_id": str(session.id),
+                "note": "Reached viewpoint",
+                "location": {"latitude": 27.7172, "longitude": 85.3240},
+                "payload": {"source": "live_capture"},
+            },
+            {
+                "client_event_id": str(uuid4()),
+                "event_type": "invalid_kind",
+                "captured_at": _iso_now(1),
+                "payload": {"source": "live_capture"},
+            },
+            {
+                "client_event_id": str(uuid4()),
+                "event_type": "warn",
+                "captured_at": _iso_now(2),
+                "note": "Road closed",
+                "location": {"latitude": 27.7180, "longitude": 85.3250},
+                "payload": {"severity": "medium"},
+            },
+        ]
+    }
+    key = _idem()
+
+    first = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/events:batch",
+        json=payload,
+        headers={"X-Idempotency-Key": key},
+    )
+    assert first.status_code == 202
+    assert first.headers["Idempotency-Replayed"] == "false"
+    body = first.json()
+    assert body["accepted_count"] == 2
+    assert body["rejected_count"] == 1
+    assert body["idempotency_replayed"] is False
+    assert any(item["reason_code"] == "invalid_event_type" for item in body["rejected"])
+    assert all(item["event_id"] for item in body["accepted"])
+
+    replay = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/events:batch",
+        json=payload,
+        headers={"X-Idempotency-Key": key},
+    )
+    assert replay.status_code == 202
+    replay_body = replay.json()
+    assert replay_body["accepted_count"] == 2
+    assert replay_body["rejected_count"] == 1
+    assert replay_body["idempotency_replayed"] is True
+
+    second_key = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/events:batch",
+        json=payload,
+        headers={"X-Idempotency-Key": _idem()},
+    )
+    assert second_key.status_code == 202
+    second_body = second_key.json()
+    assert second_body["accepted_count"] == 2
+    assert second_body["rejected_count"] == 1
+    assert all(item["duplicate"] is True for item in second_body["accepted"])
 
 
 def test_tracking_path_endpoint_orders_and_filters_points(client, db, test_user, auth_as):

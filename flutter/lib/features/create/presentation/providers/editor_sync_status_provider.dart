@@ -94,6 +94,9 @@ final editorSyncStatusProvider =
           OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
             SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
           ))
+          OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
+            SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
+          ))
       )
     )
     SELECT
@@ -186,6 +189,7 @@ final editorSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -197,6 +201,7 @@ final editorSyncStatusProvider =
       db.trackingPointBatches,
       db.trackingMoments,
       db.trackingCandidates,
+      db.trackingEvents,
     },
   );
 
@@ -266,6 +271,9 @@ final liveTrackingSyncStatusProvider =
           OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
             SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
           ))
+          OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
+            SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
+          ))
       )
     )
     SELECT
@@ -306,6 +314,11 @@ final liveTrackingSyncStatusProvider =
         FROM tracking_candidates AS c
         WHERE c.trip_id = ? AND c.sync_status <> 'synced'
       ) AS unsynced_candidate_rows,
+      (
+        SELECT COUNT(*)
+        FROM tracking_events AS e
+        WHERE e.trip_id = ? AND e.sync_status <> 'synced'
+      ) AS unsynced_event_rows,
       (
         SELECT entity_type
         FROM scoped_tracking_tasks
@@ -352,6 +365,8 @@ final liveTrackingSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -359,6 +374,7 @@ final liveTrackingSyncStatusProvider =
       db.trackingPointBatches,
       db.trackingMoments,
       db.trackingCandidates,
+      db.trackingEvents,
     },
   );
 
@@ -369,7 +385,8 @@ final liveTrackingSyncStatusProvider =
     final unsyncedRows = row.read<int>('unsynced_session_rows') +
         row.read<int>('unsynced_batch_rows') +
         row.read<int>('unsynced_moment_rows') +
-        row.read<int>('unsynced_candidate_rows');
+        row.read<int>('unsynced_candidate_rows') +
+        row.read<int>('unsynced_event_rows');
     final firstBlockedTaskEntityType =
         row.data['first_blocked_task_entity_type'] as String?;
     final firstBlockedTaskEntityId =

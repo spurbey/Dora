@@ -1083,7 +1083,6 @@ def run_auto_end_pass(
         if session.ended_at is None:
             session.ended_at = as_of
 
-        trip.status = "review_pending"
         if trip.tracking_ended_at is None:
             trip.tracking_ended_at = as_of
         trip.auto_end_reason = reason

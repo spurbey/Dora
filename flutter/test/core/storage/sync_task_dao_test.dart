@@ -805,5 +805,87 @@ void main() {
       expect(momentTask!.status, 'queued');
       expect(momentTask.errorCode, equals(null));
     });
+
+    test(
+        'completeLegacyTrackingLifecycleTasksForTrip marks queued lifecycle tasks as completed',
+        () async {
+      final now = DateTime.now().toUtc();
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-legacy-lifecycle',
+          userId: 'user-legacy',
+          name: 'Trip Legacy',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+      await database.into(database.trackingSessions).insert(
+            TrackingSessionsCompanion.insert(
+              id: 'session-legacy-lifecycle',
+              tripId: 'trip-legacy-lifecycle',
+              clientSessionId: 'client-session-legacy-lifecycle',
+              state: const Value('planned'),
+              localUpdatedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      await database.into(database.trackingSessions).insert(
+            TrackingSessionsCompanion.insert(
+              id: 'session-legacy-lifecycle-2',
+              tripId: 'trip-legacy-lifecycle',
+              clientSessionId: 'client-session-legacy-lifecycle-2',
+              state: const Value('planned'),
+              localUpdatedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      await dao.upsertQueuedTask(
+        id: 'task-legacy-start',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-legacy-lifecycle',
+        operation: 'start',
+      );
+      await dao.upsertQueuedTask(
+        id: 'task-legacy-pause',
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'session-legacy-lifecycle-2',
+        operation: 'pause',
+      );
+      await dao.markBlocked(
+        taskId: 'task-legacy-pause',
+        errorCode: 'http_409',
+        errorMessage: 'legacy conflict',
+      );
+      await dao.upsertQueuedTask(
+        id: 'task-unrelated',
+        entityType: SyncEntityTypes.moment,
+        entityId: 'moment-legacy',
+        operation: 'create',
+      );
+
+      final affected = await dao.completeLegacyTrackingLifecycleTasksForTrip(
+        tripId: 'trip-legacy-lifecycle',
+      );
+      expect(affected, 2);
+
+      final startTask = await dao.getTaskById('task-legacy-start');
+      expect(startTask, isNot(equals(null)));
+      expect(startTask!.status, 'completed');
+      expect(startTask.errorCode, equals(null));
+
+      final pauseTask = await dao.getTaskById('task-legacy-pause');
+      expect(pauseTask, isNot(equals(null)));
+      expect(pauseTask!.status, 'completed');
+      expect(pauseTask.errorCode, equals(null));
+
+      final unrelatedTask = await dao.getTaskById('task-unrelated');
+      expect(unrelatedTask, isNot(equals(null)));
+      expect(unrelatedTask!.status, 'queued');
+    });
   });
 }

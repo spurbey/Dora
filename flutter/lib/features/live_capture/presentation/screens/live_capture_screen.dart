@@ -480,10 +480,29 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
       case 'location_permission_denied':
         _showMessage('Location permission denied.');
         return;
+      case 'tracking_trip_identity_missing':
+      case 'tracking_trip_identity_stale':
+        _showSyncRecoveryMessage(error.message);
+        return;
       default:
         _showMessage(error.message);
         return;
     }
+  }
+
+  void _showSyncRecoveryMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Retry sync',
+          onPressed: _retrySyncNow,
+        ),
+      ),
+    );
   }
 
   void _showMessage(String message) {

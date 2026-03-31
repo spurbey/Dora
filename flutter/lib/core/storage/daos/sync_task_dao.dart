@@ -537,6 +537,41 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     return updated;
   }
 
+  Future<int> completeLegacyTrackingLifecycleTasksForTrip({
+    required String tripId,
+  }) {
+    final now = DateTime.now();
+    return customUpdate(
+      '''
+      UPDATE sync_tasks
+      SET
+        status = 'completed',
+        pending_requeue = 0,
+        retry_count = 0,
+        next_attempt_at = NULL,
+        error_code = NULL,
+        error_message = NULL,
+        worker_session_id = NULL,
+        updated_at = ?
+      WHERE entity_type = ?
+        AND operation IN ('start', 'pause', 'resume', 'stop')
+        AND status IN ('queued', 'failed', 'pending', 'blocked')
+        AND EXISTS (
+          SELECT 1
+          FROM tracking_sessions AS s
+          WHERE s.id = sync_tasks.entity_id
+            AND s.trip_id = ?
+        )
+      ''',
+      variables: [
+        Variable<DateTime>(now),
+        const Variable<String>(SyncEntityTypes.trackingSession),
+        Variable<String>(tripId),
+      ],
+      updates: {syncTasks, attachedDatabase.trackingSessions},
+    );
+  }
+
   Future<int> _updateTaskState({
     required String taskId,
     required SyncTasksCompanion companion,

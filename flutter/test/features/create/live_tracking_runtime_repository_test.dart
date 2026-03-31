@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +12,7 @@ import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 
 class _FakeClock {
   _FakeClock(this.now);
@@ -25,6 +27,8 @@ class _FakeClock {
 }
 
 class _FakeLiveTrackingApi implements LiveTrackingApi {
+  DioException? startTrackingError;
+
   @override
   Future<Map<String, dynamic>> startTracking({
     required String tripId,
@@ -34,6 +38,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
+    final error = startTrackingError;
+    if (error != null) {
+      throw error;
+    }
     return <String, dynamic>{
       'session_id': 'remote-$tripId',
       'trip_id': tripId,
@@ -282,6 +290,104 @@ void main() {
 
       final sessions = await sessionDao.getSessionsForTrip('trip-1');
       expect(sessions.length, 1);
+    });
+
+    test('start session fails fast when remote trip identity is missing',
+        () async {
+      final failingRepository = LiveTrackingRuntimeRepository(
+        database,
+        syncTaskDao: syncTaskDao,
+        trackingSessionDao: sessionDao,
+        trackingPointBatchDao: batchDao,
+        liveTrackingApi: liveTrackingApi,
+        resolveRemoteTripId: (localTripId) async {
+          throw const TripIdentityException(
+            'Trip must be synced before tracking start.',
+            retryable: true,
+          );
+        },
+        now: clock.call,
+      );
+
+      await expectLater(
+        () => failingRepository.startSession(tripId: 'trip-missing-identity'),
+        throwsA(
+          isA<LiveTrackingCommandException>()
+              .having((e) => e.code, 'code', 'tracking_trip_identity_missing'),
+        ),
+      );
+
+      final trackingSessionTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trackingSession,
+        entityId: 'trip-missing-identity',
+      );
+      expect(trackingSessionTask, isNull);
+    });
+
+    test('start session repairs stale trip identity on command 404', () async {
+      final now = clock.now.toUtc();
+      await database.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-404',
+          serverTripId: const Value('remote-trip-trip-404'),
+          userId: 'user-404',
+          name: 'Trip 404',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+
+      var clearCalled = false;
+      String? clearLocalTripId;
+      String? clearExpectedRemoteTripId;
+
+      final requestOptions = RequestOptions(path: '/tracking/start');
+      liveTrackingApi.startTrackingError = DioException(
+        requestOptions: requestOptions,
+        response: Response<Map<String, dynamic>>(
+          requestOptions: requestOptions,
+          statusCode: 404,
+          data: const <String, dynamic>{'detail': 'Trip not found'},
+        ),
+        type: DioExceptionType.badResponse,
+      );
+
+      final staleRepository = LiveTrackingRuntimeRepository(
+        database,
+        syncTaskDao: syncTaskDao,
+        trackingSessionDao: sessionDao,
+        trackingPointBatchDao: batchDao,
+        liveTrackingApi: liveTrackingApi,
+        resolveRemoteTripId: (localTripId) async => 'remote-trip-trip-404',
+        clearRemoteTripId: (localTripId, {expectedServerTripId}) async {
+          clearCalled = true;
+          clearLocalTripId = localTripId;
+          clearExpectedRemoteTripId = expectedServerTripId;
+        },
+        now: clock.call,
+      );
+
+      await expectLater(
+        () => staleRepository.startSession(tripId: 'trip-404'),
+        throwsA(
+          isA<LiveTrackingCommandException>()
+              .having((e) => e.code, 'code', 'tracking_trip_identity_stale'),
+        ),
+      );
+
+      expect(clearCalled, isTrue);
+      expect(clearLocalTripId, 'trip-404');
+      expect(clearExpectedRemoteTripId, 'remote-trip-trip-404');
+
+      final tripTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trip,
+        entityId: 'trip-404',
+      );
+      expect(tripTask, isNotNull);
+      expect(tripTask!.operation, 'create');
+      expect(tripTask.status, 'queued');
     });
 
     test('start session hydrates existing active session missing remote id',

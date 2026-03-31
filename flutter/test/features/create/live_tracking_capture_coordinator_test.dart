@@ -12,6 +12,7 @@ import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 
 class _FakeClock {
   _FakeClock(this.current);
@@ -464,6 +465,50 @@ void main() {
         ),
       );
       expect(streamFactoryCalls, 0);
+    });
+
+    test(
+        'startTracking maps command identity errors to capture exception with same code',
+        () async {
+      final identityMissingRepository = LiveTrackingRuntimeRepository(
+        database,
+        trackingSessionDao: sessionDao,
+        trackingPointBatchDao: batchDao,
+        syncTaskDao: syncTaskDao,
+        liveTrackingApi: _FakeLiveTrackingApi(),
+        resolveRemoteTripId: (localTripId) async {
+          throw const TripIdentityException(
+            'Trip identity missing',
+            retryable: true,
+          );
+        },
+        now: clock.now,
+      );
+
+      await coordinator.dispose();
+      coordinator = LiveTrackingCaptureCoordinator(
+        repository: identityMissingRepository,
+        trackingSessionDao: sessionDao,
+        ensureLocationAccess: ({required bool requestIfDenied}) async {
+          lastPermissionRequested = requestIfDenied;
+          return permissionState;
+        },
+        pointStreamFactory: () {
+          streamFactoryCalls += 1;
+          return pointController.stream;
+        },
+      );
+
+      await expectLater(
+        () => coordinator.startTracking(tripId: 'trip-command-fail'),
+        throwsA(
+          isA<LiveTrackingCaptureException>().having(
+            (e) => e.code,
+            'code',
+            'tracking_trip_identity_missing',
+          ),
+        ),
+      );
     });
 
     test('restarts capture stream with bounded backoff after failures',

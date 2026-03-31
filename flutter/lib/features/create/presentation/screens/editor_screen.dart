@@ -1049,10 +1049,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       case 'location_permission_denied':
         _showLocationMessage('Location permission denied.');
         return;
+      case 'tracking_trip_identity_missing':
+      case 'tracking_trip_identity_stale':
+        _showTrackingSyncRecoveryMessage(error.message);
+        return;
       default:
         _showLocationMessage(error.message);
         return;
     }
+  }
+
+  void _showTrackingSyncRecoveryMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Retry sync',
+          onPressed: () => unawaited(_retrySyncNow()),
+        ),
+      ),
+    );
   }
 
   Future<void> _resolveDeviceCenter() async {

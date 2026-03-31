@@ -62,10 +62,12 @@ class LiveTrackingCaptureCoordinator {
     Map<String, dynamic>? deviceContext,
   }) async {
     await _requireLocationAccess(requestIfDenied: true);
-    final session = await _repository.startSession(
-      tripId: tripId,
-      timezone: timezone,
-      deviceContext: deviceContext,
+    final session = await _runCommand(
+      () => _repository.startSession(
+        tripId: tripId,
+        timezone: timezone,
+        deviceContext: deviceContext,
+      ),
     );
     _activeSessions[session.id] = _ActiveTrackingSession(
       sessionId: session.id,
@@ -78,7 +80,9 @@ class LiveTrackingCaptureCoordinator {
   Future<TrackingSessionRow?> pauseTracking({
     required String tripId,
   }) async {
-    final paused = await _repository.pauseSession(tripId: tripId);
+    final paused = await _runCommand(
+      () => _repository.pauseSession(tripId: tripId),
+    );
     if (paused == null) {
       return null;
     }
@@ -91,7 +95,9 @@ class LiveTrackingCaptureCoordinator {
     required String tripId,
   }) async {
     await _requireLocationAccess(requestIfDenied: true);
-    final resumed = await _repository.resumeSession(tripId: tripId);
+    final resumed = await _runCommand(
+      () => _repository.resumeSession(tripId: tripId),
+    );
     if (resumed == null) {
       return null;
     }
@@ -106,7 +112,9 @@ class LiveTrackingCaptureCoordinator {
   Future<TrackingSessionRow?> stopTracking({
     required String tripId,
   }) async {
-    final stopped = await _repository.stopSession(tripId: tripId);
+    final stopped = await _runCommand(
+      () => _repository.stopSession(tripId: tripId),
+    );
     if (stopped == null) {
       return null;
     }
@@ -256,6 +264,17 @@ class LiveTrackingCaptureCoordinator {
       code: 'location_permission_denied',
       message: 'Location permission denied.',
     );
+  }
+
+  Future<T> _runCommand<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } on LiveTrackingCommandException catch (error) {
+      throw LiveTrackingCaptureException(
+        code: error.code,
+        message: error.message,
+      );
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,6 +11,7 @@ import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 
 enum LiveTrackingRuntimeState {
   planned,
@@ -72,6 +74,21 @@ class TrackingPointSample {
   final double? speedMps;
 }
 
+class LiveTrackingCommandException implements Exception {
+  const LiveTrackingCommandException({
+    required this.code,
+    required this.message,
+    this.retryable = false,
+  });
+
+  final String code;
+  final String message;
+  final bool retryable;
+
+  @override
+  String toString() => 'LiveTrackingCommandException($code): $message';
+}
+
 class LiveTrackingRuntimeRepository {
   LiveTrackingRuntimeRepository(
     AppDatabase db, {
@@ -80,6 +97,8 @@ class LiveTrackingRuntimeRepository {
     SyncTaskDao? syncTaskDao,
     LiveTrackingApi? liveTrackingApi,
     Future<String> Function(String localTripId)? resolveRemoteTripId,
+    Future<void> Function(String localTripId, {String? expectedServerTripId})?
+        clearRemoteTripId,
     LiveTrackingBatchingPolicy policy = const LiveTrackingBatchingPolicy(),
     DateTime Function()? now,
     Uuid? uuid,
@@ -90,6 +109,7 @@ class LiveTrackingRuntimeRepository {
         _syncTaskDao = syncTaskDao ?? SyncTaskDao(db),
         _liveTrackingApi = liveTrackingApi,
         _resolveRemoteTripId = resolveRemoteTripId,
+        _clearRemoteTripId = clearRemoteTripId,
         _policy = policy,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
@@ -100,6 +120,8 @@ class LiveTrackingRuntimeRepository {
   final SyncTaskDao _syncTaskDao;
   final LiveTrackingApi? _liveTrackingApi;
   final Future<String> Function(String localTripId)? _resolveRemoteTripId;
+  final Future<void> Function(String localTripId,
+      {String? expectedServerTripId})? _clearRemoteTripId;
   final LiveTrackingBatchingPolicy _policy;
   final DateTime Function() _now;
   final Uuid _uuid;
@@ -120,6 +142,9 @@ class LiveTrackingRuntimeRepository {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
+    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
+      tripId: tripId,
+    );
     final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
@@ -140,13 +165,18 @@ class LiveTrackingRuntimeRepository {
 
     final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
     final api = _requireLiveTrackingApi();
-    final snapshot = await api.startTracking(
-      tripId: remoteTripId,
-      idempotencyKey: _idempotencyKey(operation: 'start'),
-      clientSessionId: clientSessionId,
-      startedAt: startedAt,
-      timezone: effectiveTimezone,
-      deviceContext: effectiveDeviceContext,
+    final snapshot = await _executeLifecycleCommand(
+      localTripId: tripId,
+      remoteTripId: remoteTripId,
+      commandName: 'start',
+      request: (resolvedRemoteTripId) => api.startTracking(
+        tripId: resolvedRemoteTripId,
+        idempotencyKey: _idempotencyKey(operation: 'start'),
+        clientSessionId: clientSessionId,
+        startedAt: startedAt,
+        timezone: effectiveTimezone,
+        deviceContext: effectiveDeviceContext,
+      ),
     );
 
     return _upsertSessionSnapshot(
@@ -162,6 +192,9 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> pauseSession({
     required String tripId,
   }) async {
+    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
+      tripId: tripId,
+    );
     final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
@@ -175,12 +208,17 @@ class LiveTrackingRuntimeRepository {
     final now = _now().toUtc();
     final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
     final api = _requireLiveTrackingApi();
-    final snapshot = await api.pauseTracking(
-      tripId: remoteTripId,
-      idempotencyKey: _idempotencyKey(operation: 'pause'),
-      clientEventId: _uuid.v4(),
-      pausedAt: now,
-      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    final snapshot = await _executeLifecycleCommand(
+      localTripId: tripId,
+      remoteTripId: remoteTripId,
+      commandName: 'pause',
+      request: (resolvedRemoteTripId) => api.pauseTracking(
+        tripId: resolvedRemoteTripId,
+        idempotencyKey: _idempotencyKey(operation: 'pause'),
+        clientEventId: _uuid.v4(),
+        pausedAt: now,
+        sessionId: _nonEmptyOrNull(session.remoteSessionId),
+      ),
     );
 
     return _upsertSessionSnapshot(
@@ -196,6 +234,9 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> resumeSession({
     required String tripId,
   }) async {
+    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
+      tripId: tripId,
+    );
     final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
@@ -212,12 +253,17 @@ class LiveTrackingRuntimeRepository {
     final now = _now().toUtc();
     final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
     final api = _requireLiveTrackingApi();
-    final snapshot = await api.resumeTracking(
-      tripId: remoteTripId,
-      idempotencyKey: _idempotencyKey(operation: 'resume'),
-      clientEventId: _uuid.v4(),
-      resumedAt: now,
-      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    final snapshot = await _executeLifecycleCommand(
+      localTripId: tripId,
+      remoteTripId: remoteTripId,
+      commandName: 'resume',
+      request: (resolvedRemoteTripId) => api.resumeTracking(
+        tripId: resolvedRemoteTripId,
+        idempotencyKey: _idempotencyKey(operation: 'resume'),
+        clientEventId: _uuid.v4(),
+        resumedAt: now,
+        sessionId: _nonEmptyOrNull(session.remoteSessionId),
+      ),
     );
 
     return _upsertSessionSnapshot(
@@ -233,6 +279,9 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> stopSession({
     required String tripId,
   }) async {
+    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
+      tripId: tripId,
+    );
     final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
@@ -243,12 +292,17 @@ class LiveTrackingRuntimeRepository {
     final now = _now().toUtc();
     final remoteTripId = await _resolveRemoteTripIdForCommand(tripId);
     final api = _requireLiveTrackingApi();
-    final snapshot = await api.stopTracking(
-      tripId: remoteTripId,
-      idempotencyKey: _idempotencyKey(operation: 'stop'),
-      clientEventId: _uuid.v4(),
-      stoppedAt: now,
-      sessionId: _nonEmptyOrNull(session.remoteSessionId),
+    final snapshot = await _executeLifecycleCommand(
+      localTripId: tripId,
+      remoteTripId: remoteTripId,
+      commandName: 'stop',
+      request: (resolvedRemoteTripId) => api.stopTracking(
+        tripId: resolvedRemoteTripId,
+        idempotencyKey: _idempotencyKey(operation: 'stop'),
+        clientEventId: _uuid.v4(),
+        stoppedAt: now,
+        sessionId: _nonEmptyOrNull(session.remoteSessionId),
+      ),
     );
 
     return _upsertSessionSnapshot(
@@ -364,24 +418,141 @@ class LiveTrackingRuntimeRepository {
     });
   }
 
+  Future<Map<String, dynamic>> _executeLifecycleCommand({
+    required String localTripId,
+    required String remoteTripId,
+    required String commandName,
+    required Future<Map<String, dynamic>> Function(String remoteTripId) request,
+  }) async {
+    try {
+      return await request(remoteTripId);
+    } on DioException catch (error) {
+      if (_isTripNotFound(error)) {
+        await _handleCommandTripIdentityMismatch(
+          localTripId: localTripId,
+          staleRemoteTripId: remoteTripId,
+        );
+        throw LiveTrackingCommandException(
+          code: 'tracking_trip_identity_stale',
+          message:
+              'Trip identity is stale on server. Sync trip, then retry $commandName.',
+          retryable: true,
+        );
+      }
+      throw _mapLifecycleDioException(error, commandName: commandName);
+    }
+  }
+
   Future<String> _resolveRemoteTripIdForCommand(String localTripId) async {
     final resolver = _resolveRemoteTripId;
     if (resolver == null) {
-      throw StateError(
-        'Live tracking remote trip resolver is unavailable for command path.',
+      throw const LiveTrackingCommandException(
+        code: 'tracking_trip_identity_missing',
+        message: 'Sync this trip first before starting live tracking.',
+        retryable: true,
       );
     }
-    return resolver(localTripId);
+    try {
+      return await resolver(localTripId);
+    } on TripIdentityException catch (error) {
+      throw LiveTrackingCommandException(
+        code: 'tracking_trip_identity_missing',
+        message:
+            'This trip is not synced to server yet. Sync trip, then retry.',
+        retryable: error.retryable,
+      );
+    } on StateError catch (_) {
+      throw const LiveTrackingCommandException(
+        code: 'tracking_trip_identity_missing',
+        message: 'Sync this trip first before starting live tracking.',
+        retryable: true,
+      );
+    }
   }
 
   LiveTrackingApi _requireLiveTrackingApi() {
     final api = _liveTrackingApi;
     if (api == null) {
-      throw StateError(
-        'Live tracking API client is unavailable for command path.',
+      throw const LiveTrackingCommandException(
+        code: 'tracking_api_unavailable',
+        message: 'Live tracking service is unavailable. Please try again.',
+        retryable: true,
       );
     }
     return api;
+  }
+
+  Future<void> _handleCommandTripIdentityMismatch({
+    required String localTripId,
+    required String staleRemoteTripId,
+  }) async {
+    final clearRemoteTripId = _clearRemoteTripId;
+    if (clearRemoteTripId != null) {
+      await clearRemoteTripId(
+        localTripId,
+        expectedServerTripId: staleRemoteTripId,
+      );
+    } else {
+      await (_db.update(_db.trips)..where((t) => t.id.equals(localTripId)))
+          .write(
+        const TripsCompanion(
+          serverTripId: Value(null),
+        ),
+      );
+    }
+    await _syncTaskDao.upsertQueuedTask(
+      id: _uuid.v4(),
+      entityType: SyncEntityTypes.trip,
+      entityId: localTripId,
+      operation: 'create',
+    );
+    await _syncTaskDao.requeueIdentityBlockedTasks(tripId: localTripId);
+  }
+
+  bool _isTripNotFound(DioException error) {
+    if (error.response?.statusCode != 404) {
+      return false;
+    }
+    final detail = _dioResponseDetail(error.response?.data);
+    return detail.toLowerCase().contains('trip not found');
+  }
+
+  LiveTrackingCommandException _mapLifecycleDioException(
+    DioException error, {
+    required String commandName,
+  }) {
+    final statusCode = error.response?.statusCode;
+    final detail = _dioResponseDetail(error.response?.data);
+    final code =
+        statusCode == null ? 'tracking_network_error' : 'http_$statusCode';
+    final retryable = statusCode == null ||
+        statusCode == 408 ||
+        statusCode == 429 ||
+        statusCode >= 500;
+    return LiveTrackingCommandException(
+      code: code,
+      message: detail.isEmpty
+          ? 'Unable to $commandName tracking right now. Please retry.'
+          : detail,
+      retryable: retryable,
+    );
+  }
+
+  String _dioResponseDetail(dynamic data) {
+    if (data is Map) {
+      final detail = data['detail'];
+      if (detail is String && detail.trim().isNotEmpty) {
+        return detail.trim();
+      }
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message.trim();
+      }
+    }
+    if (data is String && data.trim().isNotEmpty) {
+      return data.trim();
+    }
+    return '';
   }
 
   Future<TrackingSessionRow> _upsertSessionSnapshot({

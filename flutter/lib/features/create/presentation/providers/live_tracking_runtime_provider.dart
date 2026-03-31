@@ -31,7 +31,9 @@ final liveTrackingRuntimeRepositoryProvider =
     trackingPointBatchDao: trackingPointBatchDao,
     syncTaskDao: syncTaskDao,
     liveTrackingApi: liveTrackingApi,
-    resolveRemoteTripId: (tripId) => tripRepository.ensureRemoteTripId(tripId),
+    resolveRemoteTripId: (tripId) =>
+        tripRepository.ensureRemoteTripId(tripId, allowCreate: false),
+    clearRemoteTripId: tripRepository.clearServerTripId,
   );
 });
 

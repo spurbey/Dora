@@ -1,6 +1,6 @@
 # Live Capture Screen Implementation Spec (Flutter)
 
-Last updated: 2026-03-29  
+Last updated: 2026-03-31  
 Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.  
 Owner: Flutter architecture  
 Parent docs:
@@ -36,13 +36,13 @@ This spec defines:
 Live screen is for capture and runtime monitoring.  
 Editor is for curation and restructuring.
 
-### 2.4 Command vs Data Contract (Hotfix Alignment: 2026-03-30)
+### 2.4 Command vs Data Contract (Stabilization Alignment: 2026-03-31)
 1. Session lifecycle commands (`start`, `pause`, `resume`, `stop`) are server-authoritative commands.
 2. Capture artifacts (`note`, `warn`, `photo/media marker`, `tag/checkpoint`, path points) are offline-first data writes.
 3. Command failures must not permanently lock local capture artifacts; they surface actionable callouts and leave local data intact.
-4. Current hotfix in branch:
-   - removes ended-state `Start New Session` CTA to avoid invalid backend `409` replay loop.
-   - keeps command-path migration to pure write-through execution tracked in Slice B follow-up.
+4. Current stabilized behavior:
+   - ended-state `Start New Session` is enabled and executes write-through `start` after backend command contract fixes.
+   - lifecycle command-path is write-through with fail-fast identity preconditions and stale-identity repair path.
 
 ## 3. Navigation and Entry Points
 
@@ -203,10 +203,10 @@ Rules:
 5. Show summary CTA: `Review in Editor`.
 
 ### 6.5 Capture Photo
-1. Acquire location snapshot + timestamp.
-2. Save event row with local media reference.
-3. Show immediate visual confirmation.
-4. Enqueue media upload + event sync tasks.
+1. Photo/media capture remains command-gated in this wave.
+2. User receives deterministic feedback: capture is disabled until place-binding upload contract is enabled.
+3. No local media row is created from the live action until gate is lifted.
+4. `tracking_events` continues for supported event types (`note`, `warn`, `tag`).
 
 ### 6.6 Capture Note
 1. Open quick text composer.
@@ -242,7 +242,7 @@ Rules:
 
 ### 7.2.1 Command-Plane Note
 1. Session lifecycle commands are not part of deferred data-plane queue in target architecture.
-2. Existing queued command behavior is temporary legacy behavior pending Slice B migration closeout.
+2. Legacy queued lifecycle tasks are drained as safe no-op/completed during stabilization.
 
 ### 7.3 Identity Recovery Rule
 If tracking endpoint returns trip identity mismatch:
@@ -457,10 +457,10 @@ Status: `[x]`
 3. [x] Migrate lifecycle commands to server write-through execution (remove deferred session-task queue path).
 4. [x] Show actionable blocked-state callout and retry action.
 5. [x] Add unit/integration tests for transition rules.
-6. [x] Hotfix: remove ended-state restart CTA that triggers backend `start` policy `409` loop.
+6. [x] Enable ended-state `Start New Session` after command contract stabilization (no 409 policy loop).
 
 #### Slice C: Capture Actions and Local Persistence
-Status: `[-]`
+Status: `[x]`
 1. [x] Implement live-capture actions with command gating for unsupported media lanes.
 2. [x] Persist `tracking_events` row before any network call.
 3. [x] Add `tracking_event_media` foundation table/DAO and gate photo/media capture until place-binding upload path lands.
@@ -484,12 +484,12 @@ Status: `[ ]`
 5. [ ] Add widget and provider tests.
 
 #### Slice F: Sync/Identity Recovery Hardening
-Status: `[ ]`
-1. [ ] Add identity mismatch recovery in tracking sync worker.
-2. [ ] Requeue trip create task when stale remote identity detected.
-3. [ ] Requeue dependent tracking tasks to pending (not terminal block).
-4. [ ] Expose blocked/pending counts in sync status.
-5. [ ] Add stale-identity replay tests.
+Status: `[x]`
+1. [x] Add identity mismatch recovery in tracking sync worker.
+2. [x] Requeue trip create task when stale remote identity detected.
+3. [x] Requeue dependent tracking tasks to pending (not terminal block).
+4. [x] Expose blocked/pending counts in sync status.
+5. [x] Add stale-identity replay tests.
 
 #### Slice G: Animation and Motion Tokens
 Status: `[ ]`
@@ -661,7 +661,7 @@ All items must pass before merging any live screen PR:
   - passed: focused tests (`32`) and targeted analyze on touched files
   - failed: none
 - Known follow-ups:
-  - Implement backend `events:batch` contract before enabling event-to-server sync.
+  - Historical note: backend `events:batch` was deferred at this checkpoint; later delivered in `Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)`.
   - Add place-binding-aware media upload flow before enabling `photo/media` capture actions.
 
 ### Slice H Evidence (2026-03-30, Partial)
@@ -733,4 +733,49 @@ All items must pass before merging any live screen PR:
   - `flutter analyze lib/features/create/data/live_tracking_runtime_repository.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
 - Results:
   - passed: focused tests (`12`) and targeted analyze on touched files
+  - failed: none
+
+### Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)
+- Owner: Codex
+- PR/Commit: `144800e`, `4e821d7`
+- Scope:
+  - Activated `tracking_event` sync lane with backend batch upload.
+  - Added partial-accept handling for per-event accepted/rejected responses.
+  - Hardened identity mismatch handling (`404 Trip not found`) to repair mapping and requeue via dependency graph.
+  - Added command-path safeguards for lifecycle calls (fail-fast identity precondition + legacy queued task draining).
+- Files changed:
+  - `flutter/lib/core/network/live_tracking_api.dart`
+  - `flutter/lib/core/sync/tracking_sync_worker.dart`
+  - `flutter/lib/core/storage/daos/sync_task_dao.dart`
+  - `flutter/lib/features/create/data/live_tracking_runtime_repository.dart`
+  - `flutter/lib/features/create/data/live_tracking_capture_coordinator.dart`
+  - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+  - `flutter/test/core/network/live_tracking_api_test.dart`
+  - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+  - `flutter/test/core/storage/sync_task_dao_test.dart`
+  - `flutter/test/features/create/live_tracking_runtime_repository_test.dart`
+  - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
+- Commands run:
+  - `flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart`
+  - `flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
+- Results:
+  - passed: targeted analyze + focused sync/runtime suites
+  - failed: none
+- Known follow-ups:
+  - media upload lane remains gated until resolver/place-binding contract lands.
+
+### Slice B.4 Evidence (2026-03-31, Ended-State Restart UX Fix)
+- Owner: Codex
+- PR/Commit: `1d70dfc`
+- Scope:
+  - Restored ended-state `Start New Session` CTA in live capture bottom panel.
+  - Prevented prior dead-end behavior where ended state could not restart directly.
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+- Commands run:
+  - `flutter test test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter analyze lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart test/features/live_capture/live_capture_screen_test.dart`
+- Results:
+  - passed: widget behavior regression covered
   - failed: none

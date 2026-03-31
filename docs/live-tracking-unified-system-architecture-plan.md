@@ -1,6 +1,7 @@
 # Live Tracking + Editor Unified System Architecture Plan
 
 Date: 2026-03-29
+Last updated: 2026-03-31
 Checkpoint: Doc-only memory checkpoint committed on 2026-03-29.
 Scope: End-to-end technical blueprint for a seamless live-capture-to-editor system that integrates in-app events with external travel signals.
 
@@ -541,12 +542,14 @@ Status: `[x]`
 
 #### Phase P2: Event and Session Pipeline
 Status: `[-]`
-1. [ ] Add local tables/DAOs for tracking events and advisory inbox (tracking events done; advisory inbox pending).
-2. [ ] Add sync lanes for event/media tasks.
-3. [ ] Add backend `events:batch` ingest API contract.
+1. [x] Add local tables/DAOs for tracking events.
+2. [ ] Add local advisory inbox storage (table/DAO/repository).
+3. [x] Add backend `events:batch` ingest API contract.
 4. [x] Add identity recovery for stale remote trip mapping.
-5. [ ] Validate offline-first replay on upgraded DB path.
-6. [x] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
+5. [x] Add `tracking_event` sync lane wiring (Flutter producer + worker consumer).
+6. [ ] Add media sync lane wiring.
+7. [ ] Validate offline-first replay on upgraded DB path.
+8. [x] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
 
 #### Phase P3: Resolver + Compiler
 Status: `[-]`
@@ -686,6 +689,7 @@ Use this block for each completed phase:
    - backend `POST /trips/{trip_id}/tracking/events:batch` contract.
    - event/media sync lanes from Flutter to backend.
    - place-binding-triggered media upload activation.
+   - note: the first two deferred items were later delivered in `Phase P2 Contract Stabilization Evidence (2026-03-31)`.
 3. Evidence files:
    - `flutter/lib/core/storage/tables/tracking_events_table.dart`
    - `flutter/lib/core/storage/tables/tracking_event_media_table.dart`
@@ -694,3 +698,33 @@ Use this block for each completed phase:
    - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
 4. Validation commands and outcomes are logged in:
    - `flutter/docs/live-capture-screen-implementation-spec.md` (`Slice C Evidence (2026-03-31, C2+C3 Data-First)`)
+
+### Phase P2 Contract Stabilization Evidence (2026-03-31)
+
+1. Delivered in this increment:
+   - backend `trip_tracking_events` model + migration + `POST /trips/{trip_id}/tracking/events:batch`.
+   - backend trip-status decoupling for tracking lifecycle and legacy status backfill.
+   - Flutter `tracking_event` sync lane upload via `LiveTrackingApi.uploadEventsBatch(...)`.
+   - command-path hardening: identity fail-fast on lifecycle commands, 404 trip identity repair, and safe draining of legacy queued lifecycle tasks.
+   - live ended-state now supports `Start New Session` (runtime parity after backend contract fix).
+2. Evidence files:
+   - `backend/alembic/versions/c9e4b7a1d2f6_add_trip_tracking_events_and_backfill_trip_statuses.py`
+   - `backend/app/api/v1/live_tracking.py`
+   - `backend/app/models/trip_tracking_event.py`
+   - `backend/app/services/live_tracking_service.py`
+   - `backend/tests/test_live_tracking_endpoints.py`
+   - `backend/tests/test_live_tracking_worker.py`
+   - `flutter/lib/core/network/live_tracking_api.dart`
+   - `flutter/lib/core/sync/tracking_sync_worker.dart`
+   - `flutter/lib/features/create/data/live_tracking_runtime_repository.dart`
+   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+3. Validation commands (executed in this stabilization window):
+   - `alembic upgrade head`
+   - `alembic current`
+   - `pytest backend/tests/test_live_tracking_endpoints.py backend/tests/test_live_tracking_worker.py`
+   - `flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart`
+   - `flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/live_capture/live_capture_screen_test.dart`
+4. Commit references:
+   - `144800e` (`feat(live-tracking): stabilize core contract and add tracking_event sync lane`)
+   - `4e821d7` (`fix(live-tracking): harden command path identity handling`)
+   - `1d70dfc` (`fix(live-capture): allow start-new-session after ended state`)

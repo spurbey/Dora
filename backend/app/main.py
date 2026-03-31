@@ -48,6 +48,7 @@ from app.api.v1 import (
     components,
     exports,
     live_tracking,
+    compiled_projection,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,7 @@ app.include_router(routes.router, prefix="/api/v1")
 app.include_router(components.router, prefix="/api/v1")
 app.include_router(exports.router, prefix="/api/v1")
 app.include_router(live_tracking.router, prefix="/api/v1")
+app.include_router(compiled_projection.router, prefix="/api/v1")
 
 
 @app.on_event("startup")

@@ -20,9 +20,12 @@ import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
+import 'package:dora/features/create/domain/compiled_projection.dart';
+import 'package:dora/features/create/data/compiled_projection_repository.dart';
 import 'package:dora/features/create/data/live_tracking_candidate_repository.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
@@ -40,6 +43,7 @@ import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
+import 'package:dora/features/create/presentation/widgets/captured_storyline_panel.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/place_picker_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/route_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/route_creation_strip.dart';
@@ -119,6 +123,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final mapState = ref.watch(mapStateProvider(widget.tripId));
         final syncStatusAsync =
             ref.watch(editorSyncStatusProvider(widget.tripId));
+        final compiledProjectionAsync =
+            ref.watch(compiledProjectionViewProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
         final candidateInboxAsync = _showLegacyTrackingWidgets
@@ -148,6 +154,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
         ];
         final routes = [...mapState.routes];
+        final compiledView = compiledProjectionAsync.valueOrNull;
+        if (compiledView != null) {
+          for (final segment in compiledView.routeSegments) {
+            if (segment.coordinates.length < 2) {
+              continue;
+            }
+            routes.add(
+              AppRoute(
+                id: '_compiled_${segment.segmentId}',
+                coordinates: segment.coordinates,
+                color: AppColors.accent.withValues(alpha: 0.58),
+                width: 3,
+                dashed: false,
+              ),
+            );
+          }
+        }
 
         final selectedName = _getSelectedItemName(editor);
         final selectedIcon = _getSelectedItemIcon(editor);
@@ -213,7 +236,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             selectedName,
                             selectedIcon,
                             pendingMediaCount,
-                            selectedPlaceId)
+                            selectedPlaceId,
+                            compiledProjectionAsync)
                         : _buildMobileLayout(
                             editor,
                             markers,
@@ -224,13 +248,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             selectedName,
                             selectedIcon,
                             pendingMediaCount,
-                            selectedPlaceId),
+                            selectedPlaceId,
+                            compiledProjectionAsync),
                   ),
                 ],
               ),
             ),
-            floatingActionButton:
-                showFab ? _buildMobileFab(editor, controller) : null,
+            floatingActionButton: showFab
+                ? _buildMobileFab(
+                    editor,
+                    controller,
+                    compiledProjectionAsync,
+                  )
+                : null,
             floatingActionButtonLocation:
                 FloatingActionButtonLocation.startFloat,
           ),
@@ -239,7 +269,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  Widget _buildMobileFab(EditorState editor, EditorController controller) {
+  Widget _buildMobileFab(
+    EditorState editor,
+    EditorController controller,
+    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
+  ) {
     if (editor.places.isEmpty) {
       return FloatingActionButton.extended(
         onPressed: () => controller.setMode(EditorMode.addCity),
@@ -250,7 +284,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       );
     }
     return FloatingActionButton(
-      onPressed: () => _showTimelineSheet(editor, controller),
+      onPressed: () =>
+          _showTimelineSheet(editor, controller, compiledProjectionAsync),
       backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
       child: const Icon(Icons.timeline),
@@ -1405,6 +1440,124 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  Widget? _buildCapturedStorylinePanel({
+    required EditorState editor,
+    required AsyncValue<CompiledProjectionView> projectionAsync,
+  }) {
+    return projectionAsync.when(
+      data: (view) {
+        if (!view.hasEntries && !view.remoteUnavailable) {
+          return null;
+        }
+        return CapturedStorylinePanel(
+          view: view,
+          resolvePlaceName: (placeId) {
+            for (final place in editor.places) {
+              if (place.id == placeId) {
+                return place.name;
+              }
+            }
+            return null;
+          },
+          onAssignPlace: (entry) => unawaited(
+            _assignPlaceToCompiledEntry(
+              entry: entry,
+              editor: editor,
+            ),
+          ),
+        );
+      },
+      loading: () => null,
+      error: (_, __) => null,
+    );
+  }
+
+  Future<void> _assignPlaceToCompiledEntry({
+    required CompiledTimelineEntry entry,
+    required EditorState editor,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+    if (entry.isLocalPending || entry.sourceKind != 'tracking_event') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wait for sync, then assign this capture to a place.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final assignablePlaces =
+        editor.places.where((place) => place.placeType != 'city').toList();
+    if (assignablePlaces.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add a place first, then assign captured items.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final selectedPlaceId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView.builder(
+            itemCount: assignablePlaces.length,
+            itemBuilder: (context, index) {
+              final place = assignablePlaces[index];
+              return ListTile(
+                leading: const Icon(Icons.place_outlined),
+                title: Text(place.name),
+                subtitle: place.address?.trim().isNotEmpty == true
+                    ? Text(place.address!.trim())
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(place.id),
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    if (selectedPlaceId == null || selectedPlaceId.isEmpty || !mounted) {
+      return;
+    }
+
+    try {
+      final repository = ref.read(compiledProjectionRepositoryProvider);
+      await repository.rebind(
+        tripId: widget.tripId,
+        sourceEventId: entry.sourceId,
+        action: CompiledRebindAction.bind,
+        tripPlaceId: selectedPlaceId,
+      );
+      ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Capture assigned to place.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to assign place. Try again.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Widget _buildWideLayout(
     EditorState editor,
     List<AppMarker> markers,
@@ -1416,6 +1569,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
+    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
   ) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
@@ -1451,6 +1605,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               _clearMediaFocus();
               controller.startDrawingRoute();
             },
+            capturedStorylinePanel: _buildCapturedStorylinePanel(
+              editor: editor,
+              projectionAsync: compiledProjectionAsync,
+            ),
           ),
         Expanded(
           child: Stack(
@@ -1535,6 +1693,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
+    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
   ) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
@@ -1610,6 +1769,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void _showTimelineSheet(
     EditorState editor,
     EditorController controller,
+    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
   ) {
     showModalBottomSheet(
       context: context,
@@ -1670,6 +1830,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   _clearMediaFocus();
                   controller.startDrawingRoute();
                 },
+                capturedStorylinePanel: _buildCapturedStorylinePanel(
+                  editor: editor,
+                  projectionAsync: compiledProjectionAsync,
+                ),
               ),
             ),
           ],

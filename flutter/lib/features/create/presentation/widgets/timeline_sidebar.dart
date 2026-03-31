@@ -21,6 +21,7 @@ class TimelineSidebar extends StatelessWidget {
     this.onAddCity,
     this.onAddRoute,
     this.width = 280,
+    this.capturedStorylinePanel,
   });
 
   final List<Place> places;
@@ -33,6 +34,7 @@ class TimelineSidebar extends StatelessWidget {
   final VoidCallback? onAddCity;
   final VoidCallback? onAddRoute;
   final double width;
+  final Widget? capturedStorylinePanel;
 
   /// Find the route that connects place at [fromIndex] to the next place.
   /// Prefers an exact direction match (from→to), falls back to reverse (to→from).
@@ -57,16 +59,14 @@ class TimelineSidebar extends StatelessWidget {
     final sortedPlaces = List<Place>.from(places)
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
-    final itemCount =
-        sortedPlaces.where((p) => p.placeType != 'city').length +
-            sortedPlaces.where((p) => p.placeType == 'city').length;
+    final itemCount = sortedPlaces.where((p) => p.placeType != 'city').length +
+        sortedPlaces.where((p) => p.placeType == 'city').length;
 
     return Container(
       width: width,
       decoration: const BoxDecoration(
         color: AppColors.card,
-        border:
-            Border(right: BorderSide(color: AppColors.divider, width: 0.5)),
+        border: Border(right: BorderSide(color: AppColors.divider, width: 0.5)),
       ),
       child: Column(
         children: [
@@ -106,6 +106,7 @@ class TimelineSidebar extends StatelessWidget {
                 ? _buildEmptyState()
                 : _buildTimeline(sortedPlaces),
           ),
+          if (capturedStorylinePanel != null) capturedStorylinePanel!,
           // Add button with menu
           Padding(
             padding: AppSpacing.allMd,
@@ -114,8 +115,7 @@ class TimelineSidebar extends StatelessWidget {
               child: sortedPlaces.isEmpty
                   ? ElevatedButton.icon(
                       onPressed: onAddCity ?? onAddPlace,
-                      icon:
-                          const Icon(Icons.add_location_alt, size: 18),
+                      icon: const Icon(Icons.add_location_alt, size: 18),
                       label: const Text('Add Your First Destination'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent,
@@ -124,8 +124,7 @@ class TimelineSidebar extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: AppRadius.borderMd,
                         ),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     )
                   : _AddMenuButton(
@@ -219,8 +218,7 @@ class TimelineSidebar extends StatelessWidget {
           orderNumber: isCity ? 0 : placeNumber,
           title: place.name,
           subtitle: subtitle,
-          selected:
-              selectedItemId == place.id && selectedItemType == 'place',
+          selected: selectedItemId == place.id && selectedItemType == 'place',
           onTap: () => onItemTap(place.id, 'place'),
           isFirst: isFirst,
           isLast: isLast && _findRouteBetween(i, sortedPlaces) == null,
@@ -238,8 +236,7 @@ class TimelineSidebar extends StatelessWidget {
             distance: route.distance,
             duration: route.duration,
             waypointCount: route.waypoints.length,
-            selected:
-                selectedItemId == route.id && selectedItemType == 'route',
+            selected: selectedItemId == route.id && selectedItemType == 'route',
             onTap: () => onItemTap(route.id, 'route'),
           ),
         );

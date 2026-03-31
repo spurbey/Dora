@@ -69,6 +69,13 @@ void main() {
           },
         ],
       );
+      await api.fetchCompiledProjection(tripId: 'trip-1');
+      await api.rebindCompiledProjection(
+        tripId: 'trip-1',
+        sourceEventId: 'event-1',
+        action: 'bind',
+        tripPlaceId: 'place-1',
+      );
       await api.fetchTrackingPath(
         tripId: 'trip-1',
         sessionId: 'session-1',
@@ -113,6 +120,8 @@ void main() {
           '/api/v1/trips/trip-1/tracking/start',
           '/api/v1/trips/trip-1/tracking/points:batch',
           '/api/v1/trips/trip-1/tracking/events:batch',
+          '/api/v1/trips/trip-1/compiled/projection',
+          '/api/v1/trips/trip-1/compiled/rebind',
           '/api/v1/trips/trip-1/tracking/path',
           '/api/v1/checkins/candidate-1/confirm',
           '/api/v1/trips/trip-1/moments',
@@ -122,7 +131,9 @@ void main() {
         ],
       );
 
-      final pathRequest = adapter.captured[3];
+      final pathRequest = adapter.captured.firstWhere(
+        (request) => request.path == '/api/v1/trips/trip-1/tracking/path',
+      );
       expect(pathRequest.queryParameters['session_id'], 'session-1');
       expect(pathRequest.queryParameters['limit'], 10000);
     });

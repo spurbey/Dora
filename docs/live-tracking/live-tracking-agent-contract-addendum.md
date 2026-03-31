@@ -151,3 +151,14 @@ Before marking a hard slice complete:
 1. External source scraping infrastructure implementation details.
 2. Final UI polish/theming decisions beyond contract requirements.
 3. Full rollout policy beyond existing phase gates.
+
+## 11. Execution Snapshot (2026-04-01)
+
+1. Implemented:
+   - backend compiled projection artifact model + compiler service + additive APIs (`GET /compiled/projection`, `POST /compiled/rebind`).
+   - manual rebind persistence with manual precedence retained across recompiles.
+   - Flutter editor integration with backend projection + local pending overlay merge and route overlay rendering.
+2. Still open under this contract:
+   - projection drift threshold alerting/gating policy (Section 5.4).
+   - media lane activation gate conditions (Section 6.1) and upload lifecycle activation.
+   - advisory pipeline in-app/push execution slices (Section 7).

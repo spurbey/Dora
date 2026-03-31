@@ -561,7 +561,7 @@ Status: `[-]`
 #### Phase P3: Resolver + Compiler
 Status: `[-]`
 1. [x] Implement resolver thresholds and reason codes.
-2. [ ] Add compiler worker projection updates for editor.
+2. [x] Add compiler worker projection updates for editor.
 3. [x] Add manual override persistence path for place rebinding.
 4. [ ] Add projection consistency checks (raw vs compiled counts).
 5. [x] Add regression tests for "captured item disappears" class bugs.
@@ -759,3 +759,45 @@ Use this block for each completed phase:
    - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
 4. Commit reference:
    - `5c5c0a0` (`feat(live-capture): add deterministic resolver baseline for tracking events`)
+
+### Phase P3 Incremental Evidence (2026-04-01, Projection/Compiler Baseline)
+
+1. Delivered in this increment:
+   - Added backend-authoritative compiled projection artifacts (`state`, `items`, `route_segments`, `overrides`) and migration.
+   - Added compiler service with deterministic ordering, idempotent artifact rewrite, manual override precedence, and stale fallback behavior.
+   - Added additive backend APIs:
+     - `GET /api/v1/trips/{trip_id}/compiled/projection`
+     - `POST /api/v1/trips/{trip_id}/compiled/rebind`
+   - Added dirty-mark triggers on event ingest, points ingest, place mutation, and component reorder.
+   - Added Flutter integration:
+     - compiled projection repository/provider in editor stack
+     - backend projection + local unsynced overlay merge with dedupe by source/client identity
+     - read-only `Captured Storyline` panel with `Near {Place}` / `On Route` badges and assign-place action
+     - compiled route trace overlay on editor map as an additive visual layer
+2. Evidence files:
+   - `backend/alembic/versions/9d1c4e7b2a6f_add_compiled_projection_tables.py`
+   - `backend/app/models/trip_compiled_projection_state.py`
+   - `backend/app/models/trip_compiled_projection_item.py`
+   - `backend/app/models/trip_compiled_route_segment.py`
+   - `backend/app/models/trip_compiled_projection_override.py`
+   - `backend/app/services/trip_projection_compiler.py`
+   - `backend/app/api/v1/compiled_projection.py`
+   - `backend/app/schemas/compiled_projection.py`
+   - `backend/tests/test_compiled_projection_endpoints.py`
+   - `flutter/lib/core/network/live_tracking_api.dart`
+   - `flutter/lib/features/create/domain/compiled_projection.dart`
+   - `flutter/lib/features/create/data/compiled_projection_repository.dart`
+   - `flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart`
+   - `flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart`
+   - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+   - `flutter/test/core/network/live_tracking_api_test.dart`
+   - `flutter/test/features/create/compiled_projection_view_test.dart`
+3. Validation commands (executed in this slice):
+   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_compiled_projection_endpoints.py -q`
+   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py -q`
+   - `flutter test test/core/network/live_tracking_api_test.dart test/features/create/compiled_projection_view_test.dart`
+   - `flutter analyze flutter/lib/core/network/live_tracking_api.dart flutter/lib/features/create/domain/compiled_projection.dart flutter/lib/features/create/data/compiled_projection_repository.dart flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart flutter/lib/features/create/presentation/screens/editor_screen.dart flutter/test/core/network/live_tracking_api_test.dart flutter/test/features/create/compiled_projection_view_test.dart`
+4. Remaining follow-ups:
+   - projection drift threshold alerts/gates (raw vs compiled consistency policy) remain open.
+   - `enable_compiled_projection_v1` staged rollout flag is pending operational wiring.
+   - media projection details remain gated until media lane activation slice.

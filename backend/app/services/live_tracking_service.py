@@ -31,6 +31,7 @@ from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.user_device_token import UserDeviceToken
+from app.services.trip_projection_compiler import TripProjectionCompilerService
 from app.utils.geo import haversine_distance
 
 
@@ -611,6 +612,11 @@ class LiveTrackingService:
             existing_marker = session.oldest_uninferred_point_at
             if existing_marker is None or earliest_accepted_recorded < self._to_utc(existing_marker):
                 session.oldest_uninferred_point_at = earliest_accepted_recorded
+            TripProjectionCompilerService(self.db).mark_dirty(
+                trip_id=trip_id,
+                user_id=user_id,
+                reason="points_batch_ingested",
+            )
         self.db.flush()
 
         return status.HTTP_202_ACCEPTED, {
@@ -634,6 +640,7 @@ class LiveTrackingService:
         accepted: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
         session_cache: dict[UUID, Optional[TripTrackingSession]] = {}
+        created_events = 0
 
         for raw_event in events:
             item = dict(raw_event or {})
@@ -822,12 +829,20 @@ class LiveTrackingService:
             )
             self.db.add(event)
             self.db.flush()
+            created_events += 1
             accepted.append(
                 {
                     "client_event_id": str(client_event_id),
                     "event_id": str(event.id),
                     "duplicate": False,
                 }
+            )
+
+        if created_events > 0:
+            TripProjectionCompilerService(self.db).mark_dirty(
+                trip_id=trip_id,
+                user_id=user_id,
+                reason="tracking_events_ingested",
             )
 
         return status.HTTP_202_ACCEPTED, {

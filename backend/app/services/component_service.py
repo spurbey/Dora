@@ -10,7 +10,9 @@ from typing import Optional
 
 from app.models.place import TripPlace
 from app.models.route import Route
+from app.models.trip import Trip
 from app.models.trip_component import TripComponent
+from app.services.trip_projection_compiler import TripProjectionCompilerService
 
 
 class ComponentService:
@@ -82,6 +84,14 @@ class ComponentService:
                     route.order_in_trip = idx
                     updated_count += 1
 
+        if updated_count > 0:
+            trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
+            if trip is not None:
+                TripProjectionCompilerService(self.db).mark_dirty(
+                    trip_id=trip_id,
+                    user_id=trip.user_id,
+                    reason="components_reordered",
+                )
         self.db.commit()
         return updated_count
 

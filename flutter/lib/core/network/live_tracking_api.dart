@@ -53,6 +53,17 @@ abstract class LiveTrackingApi {
     required List<Map<String, dynamic>> events,
   });
 
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  });
+
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  });
+
   Future<Map<String, dynamic>> fetchTrackingPath({
     required String tripId,
     String? sessionId,
@@ -283,6 +294,35 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         'events': events,
       },
       options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      _v1Path('/trips/$tripId/compiled/projection'),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/trips/$tripId/compiled/rebind'),
+      data: <String, dynamic>{
+        'source_event_id': sourceEventId,
+        'action': action,
+        if (tripPlaceId != null && tripPlaceId.isNotEmpty)
+          'trip_place_id': tripPlaceId,
+      },
     );
     return _asJsonMap(response.data);
   }

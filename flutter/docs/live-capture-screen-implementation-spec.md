@@ -508,6 +508,7 @@ Status: `[-]`
 3. [x] Run full test matrix from Section 14.
 4. [ ] Validate no overflow/crash in long live sessions.
 5. [ ] Update all related docs and add final evidence entry.
+6. [x] Add additive `Captured Storyline` projection panel + assign-place action in editor.
 
 ### 16.3 Definition of Slice Completion
 A slice is complete only when all are true:
@@ -813,3 +814,31 @@ All items must pass before merging any live screen PR:
 - Known follow-ups:
   - `Near X` / `On Route` event-card badge rendering remains open.
   - override-safe manual-rebind protection and compiler projection integration remain in the next commit.
+
+### Slice H Evidence (2026-04-01, Projection/Compiler Baseline Integration)
+- Owner: Codex
+- Scope:
+  - Integrated backend compiled projection into editor as additive data source.
+  - Added local unsynced overlay merge for `tracking_events` to prevent disappearance during sync lag.
+  - Added read-only `Captured Storyline` panel with `Near {Place}` / `On Route` badges.
+  - Wired `Assign Place` action for on-route compiled items via `POST /compiled/rebind`.
+  - Added compiled route trace overlay on editor map as a separate visual layer.
+- Files changed:
+  - `flutter/lib/core/network/live_tracking_api.dart`
+  - `flutter/lib/features/create/domain/compiled_projection.dart`
+  - `flutter/lib/features/create/data/compiled_projection_repository.dart`
+  - `flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart`
+  - `flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart`
+  - `flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart`
+  - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter/test/core/network/live_tracking_api_test.dart`
+  - `flutter/test/features/create/compiled_projection_view_test.dart`
+- Commands run:
+  - `flutter test test/core/network/live_tracking_api_test.dart test/features/create/compiled_projection_view_test.dart`
+  - `flutter analyze flutter/lib/core/network/live_tracking_api.dart flutter/lib/features/create/domain/compiled_projection.dart flutter/lib/features/create/data/compiled_projection_repository.dart flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart flutter/lib/features/create/presentation/screens/editor_screen.dart flutter/test/core/network/live_tracking_api_test.dart flutter/test/features/create/compiled_projection_view_test.dart`
+- Results:
+  - passed: targeted tests (`5`) for API and overlay merge
+  - failed: none
+- Known follow-ups:
+  - add full timeline-place picker UX polish for rebind flow in later UX slice.
+  - complete long-soak manual QA before closing Slice H.

@@ -19,16 +19,36 @@ class CompiledProjectionRepository {
 
   Future<CompiledProjectionSnapshot> rebind({
     required String tripId,
-    required String sourceEventId,
+    required String sourceKind,
     required CompiledRebindAction action,
+    String? sourceEventId,
+    String? sourceMediaId,
     String? tripPlaceId,
   }) async {
-    final response = await _liveTrackingApi.rebindCompiledProjection(
-      tripId: tripId,
-      sourceEventId: sourceEventId,
-      action: action.name,
-      tripPlaceId: tripPlaceId,
-    );
+    final normalizedSourceKind = sourceKind.trim().toLowerCase();
+    final selectedSourceId =
+        (normalizedSourceKind == 'tracking_event_media'
+                ? sourceMediaId
+                : sourceEventId)
+            ?.trim();
+    if (selectedSourceId == null || selectedSourceId.isEmpty) {
+      throw ArgumentError(
+        'source id is required for compiled projection rebind',
+      );
+    }
+    final response = normalizedSourceKind == 'tracking_event_media'
+        ? await _liveTrackingApi.rebindCompiledProjectionMedia(
+            tripId: tripId,
+            sourceMediaId: selectedSourceId,
+            action: action.name,
+            tripPlaceId: tripPlaceId,
+          )
+        : await _liveTrackingApi.rebindCompiledProjection(
+            tripId: tripId,
+            sourceEventId: selectedSourceId,
+            action: action.name,
+            tripPlaceId: tripPlaceId,
+          );
     return CompiledProjectionSnapshot.fromJson(response);
   }
 }

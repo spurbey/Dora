@@ -46,6 +46,12 @@ class _Point:
     longitude: float
 
 
+@dataclass(frozen=True)
+class _RouteAssociation:
+    segment_key: str
+    distance_m: float
+
+
 class TripProjectionCompilerService:
     """Compiler and projection retrieval service."""
 
@@ -54,6 +60,7 @@ class TripProjectionCompilerService:
     SEGMENT_BREAK_SECONDS = 15 * 60
     SEGMENT_MAX_JUMP_M = 2500.0
     MAX_SIMPLIFIED_POINTS = 250
+    ROUTE_ASSOCIATION_RADIUS_M = 120.0
 
     def __init__(self, db: Session):
         self.db = db
@@ -325,6 +332,11 @@ class TripProjectionCompilerService:
             asc(TripLocationPoint.recorded_at),
             asc(TripLocationPoint.id),
         ).all()
+        route_rows = self._compile_route_segments(
+            trip_id=trip_id,
+            user_id=user_id,
+            point_rows=point_rows,
+        )
 
         item_rows: list[TripCompiledProjectionItem] = []
         for event in events:
@@ -395,10 +407,25 @@ class TripProjectionCompilerService:
                         "longitude": media.anchor_longitude,
                     },
                 )
+            route_association = (
+                self._resolve_route_association(
+                    latitude=float(media.anchor_latitude),
+                    longitude=float(media.anchor_longitude),
+                    route_segments=route_rows,
+                )
+                if bind["bucket_type"] == "on_route"
+                and media.anchor_latitude is not None
+                and media.anchor_longitude is not None
+                else None
+            )
+            if route_association is not None:
+                media_payload["route_segment_key"] = route_association.segment_key
+                media_payload["route_distance_m"] = round(route_association.distance_m, 3)
             title = "Photo" if media.media_type == "photo" else "Media"
             subtitle = self._build_compiled_subtitle(
                 captured_at=media.captured_at,
                 bind=bind,
+                route_association=route_association,
             )
             item_rows.append(
                 TripCompiledProjectionItem(
@@ -429,12 +456,6 @@ class TripProjectionCompilerService:
         )
         for index, row in enumerate(item_rows):
             row.order_index = index
-
-        route_rows = self._compile_route_segments(
-            trip_id=trip_id,
-            user_id=user_id,
-            point_rows=point_rows,
-        )
 
         self.db.query(TripCompiledProjectionItem).filter(
             TripCompiledProjectionItem.trip_id == trip_id
@@ -702,8 +723,78 @@ class TripProjectionCompilerService:
         local = captured if captured.tzinfo else captured.replace(tzinfo=timezone.utc)
         hh = local.strftime("%H:%M")
         if bind["bucket_type"] == "place" and bind.get("place_name"):
-            return f"{hh} · Near {bind['place_name']}"
-        return f"{hh} · On Route"
+            return f"{hh} - Near {bind['place_name']}"
+        return f"{hh} - On Route"
+
+    @staticmethod
+    def _build_compiled_subtitle(
+        *,
+        captured_at: datetime,
+        bind: dict[str, Any],
+        route_association: Optional[_RouteAssociation] = None,
+    ) -> str:
+        local = captured_at if captured_at.tzinfo else captured_at.replace(tzinfo=timezone.utc)
+        hh = local.strftime("%H:%M")
+        if bind["bucket_type"] == "place" and bind.get("place_name"):
+            return f"{hh} - Near {bind['place_name']}"
+        if route_association is not None:
+            return f"{hh} - On Route ({route_association.segment_key})"
+        return f"{hh} - On Route"
+
+    def _resolve_route_association(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        route_segments: list[TripCompiledRouteSegment],
+    ) -> Optional[_RouteAssociation]:
+        nearest: Optional[_RouteAssociation] = None
+        for segment in route_segments:
+            distance_m = self._distance_to_route_segment(
+                latitude=latitude,
+                longitude=longitude,
+                segment=segment,
+            )
+            if distance_m is None:
+                continue
+            if nearest is None or distance_m < nearest.distance_m:
+                nearest = _RouteAssociation(
+                    segment_key=segment.segment_key,
+                    distance_m=distance_m,
+                )
+        if nearest is None or nearest.distance_m > self.ROUTE_ASSOCIATION_RADIUS_M:
+            return None
+        return nearest
+
+    @staticmethod
+    def _distance_to_route_segment(
+        *,
+        latitude: float,
+        longitude: float,
+        segment: TripCompiledRouteSegment,
+    ) -> Optional[float]:
+        geometry = segment.geometry or {}
+        coordinates_raw = geometry.get("coordinates")
+        if not isinstance(coordinates_raw, list):
+            return None
+        nearest = float("inf")
+        found = False
+        for raw_point in coordinates_raw:
+            if not isinstance(raw_point, (list, tuple)) or len(raw_point) < 2:
+                continue
+            lng_raw, lat_raw = raw_point[0], raw_point[1]
+            try:
+                point_lat = float(lat_raw)
+                point_lng = float(lng_raw)
+            except (TypeError, ValueError):
+                continue
+            distance = haversine_distance(latitude, longitude, point_lat, point_lng)
+            if distance < nearest:
+                nearest = distance
+            found = True
+        if not found:
+            return None
+        return nearest
 
     @staticmethod
     def _nearest_place(
@@ -845,3 +936,4 @@ class TripProjectionCompilerService:
                 drift_reasons=drift_reasons,
             ),
         )
+

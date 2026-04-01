@@ -10804,12 +10804,64 @@ class $TrackingEventMediaTable extends TrackingEventMedia
   late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
       'event_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bindModeMeta =
+      const VerificationMeta('bindMode');
+  @override
+  late final GeneratedColumn<String> bindMode = GeneratedColumn<String>(
+      'bind_mode', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('route'));
+  static const VerificationMeta _bindStateMeta =
+      const VerificationMeta('bindState');
+  @override
+  late final GeneratedColumn<String> bindState = GeneratedColumn<String>(
+      'bind_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('awaiting_bind_choice'));
+  static const VerificationMeta _tripPlaceIdMeta =
+      const VerificationMeta('tripPlaceId');
+  @override
+  late final GeneratedColumn<String> tripPlaceId = GeneratedColumn<String>(
+      'trip_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _anchorLatitudeMeta =
+      const VerificationMeta('anchorLatitude');
+  @override
+  late final GeneratedColumn<double> anchorLatitude = GeneratedColumn<double>(
+      'anchor_latitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _anchorLongitudeMeta =
+      const VerificationMeta('anchorLongitude');
+  @override
+  late final GeneratedColumn<double> anchorLongitude = GeneratedColumn<double>(
+      'anchor_longitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   static const VerificationMeta _localPathMeta =
       const VerificationMeta('localPath');
   @override
   late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
       'local_path', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _uploadRefMeta =
+      const VerificationMeta('uploadRef');
+  @override
+  late final GeneratedColumn<String> uploadRef = GeneratedColumn<String>(
+      'upload_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _remoteMediaIdMeta =
+      const VerificationMeta('remoteMediaId');
+  @override
+  late final GeneratedColumn<String> remoteMediaId = GeneratedColumn<String>(
+      'remote_media_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _mimeTypeMeta =
       const VerificationMeta('mimeType');
   @override
@@ -10839,7 +10891,7 @@ class $TrackingEventMediaTable extends TrackingEventMedia
       'upload_status', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('awaiting_place_binding'));
+      defaultValue: const Constant('awaiting_bind_choice'));
   static const VerificationMeta _uploadProgressMeta =
       const VerificationMeta('uploadProgress');
   @override
@@ -10889,7 +10941,7 @@ class $TrackingEventMediaTable extends TrackingEventMedia
       'sync_status', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('local_only'));
+      defaultValue: const Constant('pending'));
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -10913,7 +10965,15 @@ class $TrackingEventMediaTable extends TrackingEventMedia
         id,
         tripId,
         eventId,
+        bindMode,
+        bindState,
+        tripPlaceId,
+        anchorLatitude,
+        anchorLongitude,
+        capturedAt,
         localPath,
+        uploadRef,
+        remoteMediaId,
         mimeType,
         fileSizeBytes,
         width,
@@ -10958,11 +11018,55 @@ class $TrackingEventMediaTable extends TrackingEventMedia
     } else if (isInserting) {
       context.missing(_eventIdMeta);
     }
+    if (data.containsKey('bind_mode')) {
+      context.handle(_bindModeMeta,
+          bindMode.isAcceptableOrUnknown(data['bind_mode']!, _bindModeMeta));
+    }
+    if (data.containsKey('bind_state')) {
+      context.handle(_bindStateMeta,
+          bindState.isAcceptableOrUnknown(data['bind_state']!, _bindStateMeta));
+    }
+    if (data.containsKey('trip_place_id')) {
+      context.handle(
+          _tripPlaceIdMeta,
+          tripPlaceId.isAcceptableOrUnknown(
+              data['trip_place_id']!, _tripPlaceIdMeta));
+    }
+    if (data.containsKey('anchor_latitude')) {
+      context.handle(
+          _anchorLatitudeMeta,
+          anchorLatitude.isAcceptableOrUnknown(
+              data['anchor_latitude']!, _anchorLatitudeMeta));
+    }
+    if (data.containsKey('anchor_longitude')) {
+      context.handle(
+          _anchorLongitudeMeta,
+          anchorLongitude.isAcceptableOrUnknown(
+              data['anchor_longitude']!, _anchorLongitudeMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
     if (data.containsKey('local_path')) {
       context.handle(_localPathMeta,
           localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta));
     } else if (isInserting) {
       context.missing(_localPathMeta);
+    }
+    if (data.containsKey('upload_ref')) {
+      context.handle(_uploadRefMeta,
+          uploadRef.isAcceptableOrUnknown(data['upload_ref']!, _uploadRefMeta));
+    }
+    if (data.containsKey('remote_media_id')) {
+      context.handle(
+          _remoteMediaIdMeta,
+          remoteMediaId.isAcceptableOrUnknown(
+              data['remote_media_id']!, _remoteMediaIdMeta));
     }
     if (data.containsKey('mime_type')) {
       context.handle(_mimeTypeMeta,
@@ -11065,8 +11169,24 @@ class $TrackingEventMediaTable extends TrackingEventMedia
           .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
       eventId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}event_id'])!,
+      bindMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bind_mode'])!,
+      bindState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bind_state'])!,
+      tripPlaceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_place_id']),
+      anchorLatitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}anchor_latitude']),
+      anchorLongitude: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}anchor_longitude']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}captured_at'])!,
       localPath: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}local_path'])!,
+      uploadRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_ref']),
+      remoteMediaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}remote_media_id']),
       mimeType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
       fileSizeBytes: attachedDatabase.typeMapping
@@ -11111,7 +11231,15 @@ class TrackingEventMediaRow extends DataClass
   final String id;
   final String tripId;
   final String eventId;
+  final String bindMode;
+  final String bindState;
+  final String? tripPlaceId;
+  final double? anchorLatitude;
+  final double? anchorLongitude;
+  final DateTime capturedAt;
   final String localPath;
+  final String? uploadRef;
+  final String? remoteMediaId;
   final String? mimeType;
   final int? fileSizeBytes;
   final int? width;
@@ -11131,7 +11259,15 @@ class TrackingEventMediaRow extends DataClass
       {required this.id,
       required this.tripId,
       required this.eventId,
+      required this.bindMode,
+      required this.bindState,
+      this.tripPlaceId,
+      this.anchorLatitude,
+      this.anchorLongitude,
+      required this.capturedAt,
       required this.localPath,
+      this.uploadRef,
+      this.remoteMediaId,
       this.mimeType,
       this.fileSizeBytes,
       this.width,
@@ -11153,7 +11289,25 @@ class TrackingEventMediaRow extends DataClass
     map['id'] = Variable<String>(id);
     map['trip_id'] = Variable<String>(tripId);
     map['event_id'] = Variable<String>(eventId);
+    map['bind_mode'] = Variable<String>(bindMode);
+    map['bind_state'] = Variable<String>(bindState);
+    if (!nullToAbsent || tripPlaceId != null) {
+      map['trip_place_id'] = Variable<String>(tripPlaceId);
+    }
+    if (!nullToAbsent || anchorLatitude != null) {
+      map['anchor_latitude'] = Variable<double>(anchorLatitude);
+    }
+    if (!nullToAbsent || anchorLongitude != null) {
+      map['anchor_longitude'] = Variable<double>(anchorLongitude);
+    }
+    map['captured_at'] = Variable<DateTime>(capturedAt);
     map['local_path'] = Variable<String>(localPath);
+    if (!nullToAbsent || uploadRef != null) {
+      map['upload_ref'] = Variable<String>(uploadRef);
+    }
+    if (!nullToAbsent || remoteMediaId != null) {
+      map['remote_media_id'] = Variable<String>(remoteMediaId);
+    }
     if (!nullToAbsent || mimeType != null) {
       map['mime_type'] = Variable<String>(mimeType);
     }
@@ -11191,7 +11345,25 @@ class TrackingEventMediaRow extends DataClass
       id: Value(id),
       tripId: Value(tripId),
       eventId: Value(eventId),
+      bindMode: Value(bindMode),
+      bindState: Value(bindState),
+      tripPlaceId: tripPlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tripPlaceId),
+      anchorLatitude: anchorLatitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorLatitude),
+      anchorLongitude: anchorLongitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorLongitude),
+      capturedAt: Value(capturedAt),
       localPath: Value(localPath),
+      uploadRef: uploadRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadRef),
+      remoteMediaId: remoteMediaId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteMediaId),
       mimeType: mimeType == null && nullToAbsent
           ? const Value.absent()
           : Value(mimeType),
@@ -11229,7 +11401,15 @@ class TrackingEventMediaRow extends DataClass
       id: serializer.fromJson<String>(json['id']),
       tripId: serializer.fromJson<String>(json['tripId']),
       eventId: serializer.fromJson<String>(json['eventId']),
+      bindMode: serializer.fromJson<String>(json['bindMode']),
+      bindState: serializer.fromJson<String>(json['bindState']),
+      tripPlaceId: serializer.fromJson<String?>(json['tripPlaceId']),
+      anchorLatitude: serializer.fromJson<double?>(json['anchorLatitude']),
+      anchorLongitude: serializer.fromJson<double?>(json['anchorLongitude']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
       localPath: serializer.fromJson<String>(json['localPath']),
+      uploadRef: serializer.fromJson<String?>(json['uploadRef']),
+      remoteMediaId: serializer.fromJson<String?>(json['remoteMediaId']),
       mimeType: serializer.fromJson<String?>(json['mimeType']),
       fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
       width: serializer.fromJson<int?>(json['width']),
@@ -11254,7 +11434,15 @@ class TrackingEventMediaRow extends DataClass
       'id': serializer.toJson<String>(id),
       'tripId': serializer.toJson<String>(tripId),
       'eventId': serializer.toJson<String>(eventId),
+      'bindMode': serializer.toJson<String>(bindMode),
+      'bindState': serializer.toJson<String>(bindState),
+      'tripPlaceId': serializer.toJson<String?>(tripPlaceId),
+      'anchorLatitude': serializer.toJson<double?>(anchorLatitude),
+      'anchorLongitude': serializer.toJson<double?>(anchorLongitude),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
       'localPath': serializer.toJson<String>(localPath),
+      'uploadRef': serializer.toJson<String?>(uploadRef),
+      'remoteMediaId': serializer.toJson<String?>(remoteMediaId),
       'mimeType': serializer.toJson<String?>(mimeType),
       'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
       'width': serializer.toJson<int?>(width),
@@ -11277,7 +11465,15 @@ class TrackingEventMediaRow extends DataClass
           {String? id,
           String? tripId,
           String? eventId,
+          String? bindMode,
+          String? bindState,
+          Value<String?> tripPlaceId = const Value.absent(),
+          Value<double?> anchorLatitude = const Value.absent(),
+          Value<double?> anchorLongitude = const Value.absent(),
+          DateTime? capturedAt,
           String? localPath,
+          Value<String?> uploadRef = const Value.absent(),
+          Value<String?> remoteMediaId = const Value.absent(),
           Value<String?> mimeType = const Value.absent(),
           Value<int?> fileSizeBytes = const Value.absent(),
           Value<int?> width = const Value.absent(),
@@ -11297,7 +11493,19 @@ class TrackingEventMediaRow extends DataClass
         id: id ?? this.id,
         tripId: tripId ?? this.tripId,
         eventId: eventId ?? this.eventId,
+        bindMode: bindMode ?? this.bindMode,
+        bindState: bindState ?? this.bindState,
+        tripPlaceId: tripPlaceId.present ? tripPlaceId.value : this.tripPlaceId,
+        anchorLatitude:
+            anchorLatitude.present ? anchorLatitude.value : this.anchorLatitude,
+        anchorLongitude: anchorLongitude.present
+            ? anchorLongitude.value
+            : this.anchorLongitude,
+        capturedAt: capturedAt ?? this.capturedAt,
         localPath: localPath ?? this.localPath,
+        uploadRef: uploadRef.present ? uploadRef.value : this.uploadRef,
+        remoteMediaId:
+            remoteMediaId.present ? remoteMediaId.value : this.remoteMediaId,
         mimeType: mimeType.present ? mimeType.value : this.mimeType,
         fileSizeBytes:
             fileSizeBytes.present ? fileSizeBytes.value : this.fileSizeBytes,
@@ -11324,7 +11532,23 @@ class TrackingEventMediaRow extends DataClass
       id: data.id.present ? data.id.value : this.id,
       tripId: data.tripId.present ? data.tripId.value : this.tripId,
       eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      bindMode: data.bindMode.present ? data.bindMode.value : this.bindMode,
+      bindState: data.bindState.present ? data.bindState.value : this.bindState,
+      tripPlaceId:
+          data.tripPlaceId.present ? data.tripPlaceId.value : this.tripPlaceId,
+      anchorLatitude: data.anchorLatitude.present
+          ? data.anchorLatitude.value
+          : this.anchorLatitude,
+      anchorLongitude: data.anchorLongitude.present
+          ? data.anchorLongitude.value
+          : this.anchorLongitude,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
       localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      uploadRef: data.uploadRef.present ? data.uploadRef.value : this.uploadRef,
+      remoteMediaId: data.remoteMediaId.present
+          ? data.remoteMediaId.value
+          : this.remoteMediaId,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
       fileSizeBytes: data.fileSizeBytes.present
           ? data.fileSizeBytes.value
@@ -11366,7 +11590,15 @@ class TrackingEventMediaRow extends DataClass
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
           ..write('eventId: $eventId, ')
+          ..write('bindMode: $bindMode, ')
+          ..write('bindState: $bindState, ')
+          ..write('tripPlaceId: $tripPlaceId, ')
+          ..write('anchorLatitude: $anchorLatitude, ')
+          ..write('anchorLongitude: $anchorLongitude, ')
+          ..write('capturedAt: $capturedAt, ')
           ..write('localPath: $localPath, ')
+          ..write('uploadRef: $uploadRef, ')
+          ..write('remoteMediaId: $remoteMediaId, ')
           ..write('mimeType: $mimeType, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('width: $width, ')
@@ -11387,26 +11619,35 @@ class TrackingEventMediaRow extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      tripId,
-      eventId,
-      localPath,
-      mimeType,
-      fileSizeBytes,
-      width,
-      height,
-      uploadStatus,
-      uploadProgress,
-      retryCount,
-      errorMessage,
-      nextAttemptAt,
-      workerSessionId,
-      payloadJson,
-      syncStatus,
-      localUpdatedAt,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        tripId,
+        eventId,
+        bindMode,
+        bindState,
+        tripPlaceId,
+        anchorLatitude,
+        anchorLongitude,
+        capturedAt,
+        localPath,
+        uploadRef,
+        remoteMediaId,
+        mimeType,
+        fileSizeBytes,
+        width,
+        height,
+        uploadStatus,
+        uploadProgress,
+        retryCount,
+        errorMessage,
+        nextAttemptAt,
+        workerSessionId,
+        payloadJson,
+        syncStatus,
+        localUpdatedAt,
+        createdAt,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -11414,7 +11655,15 @@ class TrackingEventMediaRow extends DataClass
           other.id == this.id &&
           other.tripId == this.tripId &&
           other.eventId == this.eventId &&
+          other.bindMode == this.bindMode &&
+          other.bindState == this.bindState &&
+          other.tripPlaceId == this.tripPlaceId &&
+          other.anchorLatitude == this.anchorLatitude &&
+          other.anchorLongitude == this.anchorLongitude &&
+          other.capturedAt == this.capturedAt &&
           other.localPath == this.localPath &&
+          other.uploadRef == this.uploadRef &&
+          other.remoteMediaId == this.remoteMediaId &&
           other.mimeType == this.mimeType &&
           other.fileSizeBytes == this.fileSizeBytes &&
           other.width == this.width &&
@@ -11437,7 +11686,15 @@ class TrackingEventMediaCompanion
   final Value<String> id;
   final Value<String> tripId;
   final Value<String> eventId;
+  final Value<String> bindMode;
+  final Value<String> bindState;
+  final Value<String?> tripPlaceId;
+  final Value<double?> anchorLatitude;
+  final Value<double?> anchorLongitude;
+  final Value<DateTime> capturedAt;
   final Value<String> localPath;
+  final Value<String?> uploadRef;
+  final Value<String?> remoteMediaId;
   final Value<String?> mimeType;
   final Value<int?> fileSizeBytes;
   final Value<int?> width;
@@ -11458,7 +11715,15 @@ class TrackingEventMediaCompanion
     this.id = const Value.absent(),
     this.tripId = const Value.absent(),
     this.eventId = const Value.absent(),
+    this.bindMode = const Value.absent(),
+    this.bindState = const Value.absent(),
+    this.tripPlaceId = const Value.absent(),
+    this.anchorLatitude = const Value.absent(),
+    this.anchorLongitude = const Value.absent(),
+    this.capturedAt = const Value.absent(),
     this.localPath = const Value.absent(),
+    this.uploadRef = const Value.absent(),
+    this.remoteMediaId = const Value.absent(),
     this.mimeType = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
     this.width = const Value.absent(),
@@ -11480,7 +11745,15 @@ class TrackingEventMediaCompanion
     required String id,
     required String tripId,
     required String eventId,
+    this.bindMode = const Value.absent(),
+    this.bindState = const Value.absent(),
+    this.tripPlaceId = const Value.absent(),
+    this.anchorLatitude = const Value.absent(),
+    this.anchorLongitude = const Value.absent(),
+    required DateTime capturedAt,
     required String localPath,
+    this.uploadRef = const Value.absent(),
+    this.remoteMediaId = const Value.absent(),
     this.mimeType = const Value.absent(),
     this.fileSizeBytes = const Value.absent(),
     this.width = const Value.absent(),
@@ -11500,6 +11773,7 @@ class TrackingEventMediaCompanion
   })  : id = Value(id),
         tripId = Value(tripId),
         eventId = Value(eventId),
+        capturedAt = Value(capturedAt),
         localPath = Value(localPath),
         localUpdatedAt = Value(localUpdatedAt),
         createdAt = Value(createdAt),
@@ -11508,7 +11782,15 @@ class TrackingEventMediaCompanion
     Expression<String>? id,
     Expression<String>? tripId,
     Expression<String>? eventId,
+    Expression<String>? bindMode,
+    Expression<String>? bindState,
+    Expression<String>? tripPlaceId,
+    Expression<double>? anchorLatitude,
+    Expression<double>? anchorLongitude,
+    Expression<DateTime>? capturedAt,
     Expression<String>? localPath,
+    Expression<String>? uploadRef,
+    Expression<String>? remoteMediaId,
     Expression<String>? mimeType,
     Expression<int>? fileSizeBytes,
     Expression<int>? width,
@@ -11530,7 +11812,15 @@ class TrackingEventMediaCompanion
       if (id != null) 'id': id,
       if (tripId != null) 'trip_id': tripId,
       if (eventId != null) 'event_id': eventId,
+      if (bindMode != null) 'bind_mode': bindMode,
+      if (bindState != null) 'bind_state': bindState,
+      if (tripPlaceId != null) 'trip_place_id': tripPlaceId,
+      if (anchorLatitude != null) 'anchor_latitude': anchorLatitude,
+      if (anchorLongitude != null) 'anchor_longitude': anchorLongitude,
+      if (capturedAt != null) 'captured_at': capturedAt,
       if (localPath != null) 'local_path': localPath,
+      if (uploadRef != null) 'upload_ref': uploadRef,
+      if (remoteMediaId != null) 'remote_media_id': remoteMediaId,
       if (mimeType != null) 'mime_type': mimeType,
       if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
       if (width != null) 'width': width,
@@ -11554,7 +11844,15 @@ class TrackingEventMediaCompanion
       {Value<String>? id,
       Value<String>? tripId,
       Value<String>? eventId,
+      Value<String>? bindMode,
+      Value<String>? bindState,
+      Value<String?>? tripPlaceId,
+      Value<double?>? anchorLatitude,
+      Value<double?>? anchorLongitude,
+      Value<DateTime>? capturedAt,
       Value<String>? localPath,
+      Value<String?>? uploadRef,
+      Value<String?>? remoteMediaId,
       Value<String?>? mimeType,
       Value<int?>? fileSizeBytes,
       Value<int?>? width,
@@ -11575,7 +11873,15 @@ class TrackingEventMediaCompanion
       id: id ?? this.id,
       tripId: tripId ?? this.tripId,
       eventId: eventId ?? this.eventId,
+      bindMode: bindMode ?? this.bindMode,
+      bindState: bindState ?? this.bindState,
+      tripPlaceId: tripPlaceId ?? this.tripPlaceId,
+      anchorLatitude: anchorLatitude ?? this.anchorLatitude,
+      anchorLongitude: anchorLongitude ?? this.anchorLongitude,
+      capturedAt: capturedAt ?? this.capturedAt,
       localPath: localPath ?? this.localPath,
+      uploadRef: uploadRef ?? this.uploadRef,
+      remoteMediaId: remoteMediaId ?? this.remoteMediaId,
       mimeType: mimeType ?? this.mimeType,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
       width: width ?? this.width,
@@ -11607,8 +11913,32 @@ class TrackingEventMediaCompanion
     if (eventId.present) {
       map['event_id'] = Variable<String>(eventId.value);
     }
+    if (bindMode.present) {
+      map['bind_mode'] = Variable<String>(bindMode.value);
+    }
+    if (bindState.present) {
+      map['bind_state'] = Variable<String>(bindState.value);
+    }
+    if (tripPlaceId.present) {
+      map['trip_place_id'] = Variable<String>(tripPlaceId.value);
+    }
+    if (anchorLatitude.present) {
+      map['anchor_latitude'] = Variable<double>(anchorLatitude.value);
+    }
+    if (anchorLongitude.present) {
+      map['anchor_longitude'] = Variable<double>(anchorLongitude.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
     if (localPath.present) {
       map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (uploadRef.present) {
+      map['upload_ref'] = Variable<String>(uploadRef.value);
+    }
+    if (remoteMediaId.present) {
+      map['remote_media_id'] = Variable<String>(remoteMediaId.value);
     }
     if (mimeType.present) {
       map['mime_type'] = Variable<String>(mimeType.value);
@@ -11667,7 +11997,15 @@ class TrackingEventMediaCompanion
           ..write('id: $id, ')
           ..write('tripId: $tripId, ')
           ..write('eventId: $eventId, ')
+          ..write('bindMode: $bindMode, ')
+          ..write('bindState: $bindState, ')
+          ..write('tripPlaceId: $tripPlaceId, ')
+          ..write('anchorLatitude: $anchorLatitude, ')
+          ..write('anchorLongitude: $anchorLongitude, ')
+          ..write('capturedAt: $capturedAt, ')
           ..write('localPath: $localPath, ')
+          ..write('uploadRef: $uploadRef, ')
+          ..write('remoteMediaId: $remoteMediaId, ')
           ..write('mimeType: $mimeType, ')
           ..write('fileSizeBytes: $fileSizeBytes, ')
           ..write('width: $width, ')
@@ -11758,6 +12096,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index trackingEventMediaStatusUpdatedIdx = Index(
       'tracking_event_media_status_updated_idx',
       'CREATE INDEX tracking_event_media_status_updated_idx ON tracking_event_media (upload_status, updated_at)');
+  late final Index trackingEventMediaTripBindStateCreatedIdx = Index(
+      'tracking_event_media_trip_bind_state_created_idx',
+      'CREATE INDEX tracking_event_media_trip_bind_state_created_idx ON tracking_event_media (trip_id, bind_state, created_at)');
+  late final Index trackingEventMediaSyncUpdatedIdx = Index(
+      'tracking_event_media_sync_updated_idx',
+      'CREATE INDEX tracking_event_media_sync_updated_idx ON tracking_event_media (sync_status, updated_at)');
   late final TripDao tripDao = TripDao(this as AppDatabase);
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
@@ -11811,7 +12155,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         trackingEventsTripResolverCreatedIdx,
         trackingEventsTripResolvedPlaceCreatedIdx,
         trackingEventMediaEventCreatedIdx,
-        trackingEventMediaStatusUpdatedIdx
+        trackingEventMediaStatusUpdatedIdx,
+        trackingEventMediaTripBindStateCreatedIdx,
+        trackingEventMediaSyncUpdatedIdx
       ];
 }
 
@@ -16455,7 +16801,15 @@ typedef $$TrackingEventMediaTableCreateCompanionBuilder
   required String id,
   required String tripId,
   required String eventId,
+  Value<String> bindMode,
+  Value<String> bindState,
+  Value<String?> tripPlaceId,
+  Value<double?> anchorLatitude,
+  Value<double?> anchorLongitude,
+  required DateTime capturedAt,
   required String localPath,
+  Value<String?> uploadRef,
+  Value<String?> remoteMediaId,
   Value<String?> mimeType,
   Value<int?> fileSizeBytes,
   Value<int?> width,
@@ -16478,7 +16832,15 @@ typedef $$TrackingEventMediaTableUpdateCompanionBuilder
   Value<String> id,
   Value<String> tripId,
   Value<String> eventId,
+  Value<String> bindMode,
+  Value<String> bindState,
+  Value<String?> tripPlaceId,
+  Value<double?> anchorLatitude,
+  Value<double?> anchorLongitude,
+  Value<DateTime> capturedAt,
   Value<String> localPath,
+  Value<String?> uploadRef,
+  Value<String?> remoteMediaId,
   Value<String?> mimeType,
   Value<int?> fileSizeBytes,
   Value<int?> width,
@@ -16515,8 +16877,34 @@ class $$TrackingEventMediaTableFilterComposer
   ColumnFilters<String> get eventId => $composableBuilder(
       column: $table.eventId, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get bindMode => $composableBuilder(
+      column: $table.bindMode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get bindState => $composableBuilder(
+      column: $table.bindState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripPlaceId => $composableBuilder(
+      column: $table.tripPlaceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get localPath => $composableBuilder(
       column: $table.localPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadRef => $composableBuilder(
+      column: $table.uploadRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteMediaId => $composableBuilder(
+      column: $table.remoteMediaId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get mimeType => $composableBuilder(
       column: $table.mimeType, builder: (column) => ColumnFilters(column));
@@ -16585,8 +16973,35 @@ class $$TrackingEventMediaTableOrderingComposer
   ColumnOrderings<String> get eventId => $composableBuilder(
       column: $table.eventId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get bindMode => $composableBuilder(
+      column: $table.bindMode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get bindState => $composableBuilder(
+      column: $table.bindState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripPlaceId => $composableBuilder(
+      column: $table.tripPlaceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get localPath => $composableBuilder(
       column: $table.localPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadRef => $composableBuilder(
+      column: $table.uploadRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteMediaId => $composableBuilder(
+      column: $table.remoteMediaId,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get mimeType => $composableBuilder(
       column: $table.mimeType, builder: (column) => ColumnOrderings(column));
@@ -16659,8 +17074,32 @@ class $$TrackingEventMediaTableAnnotationComposer
   GeneratedColumn<String> get eventId =>
       $composableBuilder(column: $table.eventId, builder: (column) => column);
 
+  GeneratedColumn<String> get bindMode =>
+      $composableBuilder(column: $table.bindMode, builder: (column) => column);
+
+  GeneratedColumn<String> get bindState =>
+      $composableBuilder(column: $table.bindState, builder: (column) => column);
+
+  GeneratedColumn<String> get tripPlaceId => $composableBuilder(
+      column: $table.tripPlaceId, builder: (column) => column);
+
+  GeneratedColumn<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude, builder: (column) => column);
+
+  GeneratedColumn<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+
   GeneratedColumn<String> get localPath =>
       $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadRef =>
+      $composableBuilder(column: $table.uploadRef, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteMediaId => $composableBuilder(
+      column: $table.remoteMediaId, builder: (column) => column);
 
   GeneratedColumn<String> get mimeType =>
       $composableBuilder(column: $table.mimeType, builder: (column) => column);
@@ -16740,7 +17179,15 @@ class $$TrackingEventMediaTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> tripId = const Value.absent(),
             Value<String> eventId = const Value.absent(),
+            Value<String> bindMode = const Value.absent(),
+            Value<String> bindState = const Value.absent(),
+            Value<String?> tripPlaceId = const Value.absent(),
+            Value<double?> anchorLatitude = const Value.absent(),
+            Value<double?> anchorLongitude = const Value.absent(),
+            Value<DateTime> capturedAt = const Value.absent(),
             Value<String> localPath = const Value.absent(),
+            Value<String?> uploadRef = const Value.absent(),
+            Value<String?> remoteMediaId = const Value.absent(),
             Value<String?> mimeType = const Value.absent(),
             Value<int?> fileSizeBytes = const Value.absent(),
             Value<int?> width = const Value.absent(),
@@ -16762,7 +17209,15 @@ class $$TrackingEventMediaTableTableManager extends RootTableManager<
             id: id,
             tripId: tripId,
             eventId: eventId,
+            bindMode: bindMode,
+            bindState: bindState,
+            tripPlaceId: tripPlaceId,
+            anchorLatitude: anchorLatitude,
+            anchorLongitude: anchorLongitude,
+            capturedAt: capturedAt,
             localPath: localPath,
+            uploadRef: uploadRef,
+            remoteMediaId: remoteMediaId,
             mimeType: mimeType,
             fileSizeBytes: fileSizeBytes,
             width: width,
@@ -16784,7 +17239,15 @@ class $$TrackingEventMediaTableTableManager extends RootTableManager<
             required String id,
             required String tripId,
             required String eventId,
+            Value<String> bindMode = const Value.absent(),
+            Value<String> bindState = const Value.absent(),
+            Value<String?> tripPlaceId = const Value.absent(),
+            Value<double?> anchorLatitude = const Value.absent(),
+            Value<double?> anchorLongitude = const Value.absent(),
+            required DateTime capturedAt,
             required String localPath,
+            Value<String?> uploadRef = const Value.absent(),
+            Value<String?> remoteMediaId = const Value.absent(),
             Value<String?> mimeType = const Value.absent(),
             Value<int?> fileSizeBytes = const Value.absent(),
             Value<int?> width = const Value.absent(),
@@ -16806,7 +17269,15 @@ class $$TrackingEventMediaTableTableManager extends RootTableManager<
             id: id,
             tripId: tripId,
             eventId: eventId,
+            bindMode: bindMode,
+            bindState: bindState,
+            tripPlaceId: tripPlaceId,
+            anchorLatitude: anchorLatitude,
+            anchorLongitude: anchorLongitude,
+            capturedAt: capturedAt,
             localPath: localPath,
+            uploadRef: uploadRef,
+            remoteMediaId: remoteMediaId,
             mimeType: mimeType,
             fileSizeBytes: fileSizeBytes,
             width: width,

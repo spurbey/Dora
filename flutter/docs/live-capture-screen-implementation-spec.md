@@ -204,14 +204,13 @@ Rules:
 5. Show summary CTA: `Review in Editor`.
 
 ### 6.5 Capture Photo
-1. Media capture contract is `bind_mode`-driven:
-   - `place` (attach to selected place)
-   - `route` (save as route geotag with capture coordinates)
-2. Every media capture must persist local event/media records immediately before any network sync.
-3. Place assignment is optional at capture time; route-geotag is first-class behavior.
-4. Current implementation status:
-   - backend contract is live (`POST /tracking/media:batch`)
-   - Flutter live action wiring for media producer/sync lane is still pending activation.
+1. Media capture is resolver-driven and local-first (no capture-time bind-choice modal).
+2. Every capture writes local `tracking_event` + `tracking_event_media` immediately before network sync.
+3. Resolver outcomes:
+   - `resolved` => auto-bind to place (`bind_mode=place`)
+   - `review_required` => keep route-ready + show probable-place prompt
+   - `on_route_unresolved` => remain route-geotag (`bind_mode=route`)
+4. Missing GPS anchor is fail-fast: capture is rejected and no media row is persisted.
 
 ### 6.6 Capture Note
 1. Open quick text composer.
@@ -477,7 +476,7 @@ Status: `[x]`
 3. [x] Add `tracking_event_media` foundation table/DAO.
 4. [x] Render recent events strip from local stream.
 5. [x] Add tests for immediate local visibility.
-6. [ ] Activate Flutter media producer/sync lane with bind intent (`place|route`) and route-geotag upload path.
+6. [x] Activate Flutter media producer/sync lane with resolver-driven `bind_mode` (`place|route`) and route-geotag upload path.
 
 #### Slice D: Resolver and Place Badges
 Status: `[-]`
@@ -651,7 +650,7 @@ All items must pass before merging any live screen PR:
   - Added local `tracking_events` and `tracking_event_media` storage foundations.
   - Switched live screen capture persistence from `tracking_moments` to `tracking_events`.
   - Kept backend untouched; no `events:batch` sync path in this slice.
-  - Enforced command-level gating for `photo/media` actions with deterministic feedback.
+  - Historical checkpoint: `photo/media` actions were temporarily command-gated before media lane activation.
 - Files changed:
   - `flutter/lib/core/storage/tables/tracking_events_table.dart`
   - `flutter/lib/core/storage/tables/tracking_event_media_table.dart`
@@ -675,7 +674,7 @@ All items must pass before merging any live screen PR:
   - failed: none
 - Known follow-ups:
   - Historical note: backend `events:batch` was deferred at this checkpoint; later delivered in `Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)`.
-  - Add bind-mode-aware (`place|route`) media upload flow before enabling `photo/media` capture actions in live UI.
+  - Historical note: media producer/worker activation moved to resolver-driven flow (no explicit bind-choice UI).
 
 ### Slice H Evidence (2026-03-30, Partial)
 - Owner: Codex
@@ -775,7 +774,7 @@ All items must pass before merging any live screen PR:
   - passed: targeted analyze + focused sync/runtime suites
   - failed: none
 - Known follow-ups:
-  - backend media contract now supports `bind_mode=place|route`; Flutter producer/worker activation remains pending.
+  - backend media contract supports `bind_mode=place|route`; next follow-up is resolver-driven prompt hardening and route-association polish.
 
 ### Slice B.4 Evidence (2026-03-31, Ended-State Restart UX Fix)
 - Owner: Codex
@@ -852,3 +851,33 @@ All items must pass before merging any live screen PR:
 - Known follow-ups:
   - add full timeline-place picker UX polish for rebind flow in later UX slice.
   - complete long-soak manual QA before closing Slice H.
+
+### Media Flow v3 Evidence (2026-04-01, Resolver-Driven Activation + Cleanup)
+- Owner: Codex
+- Scope:
+  - Removed legacy capture-time bind-choice path and command-gated media-disabled behavior.
+  - Activated resolver-driven live media capture flow (auto-bind / review-required prompt / keep-on-route).
+  - Enforced GPS-anchor fail-fast for media capture (no null-geotag media rows).
+  - Activated `tracking_event_media` worker lane with dependency rules and identity-repair handling.
+  - Added compiler route-association payload metadata for route-geotag media (`route_segment_key`, `route_distance_m`).
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+  - `flutter/lib/core/storage/tables/tracking_event_media_table.dart`
+  - `flutter/lib/core/storage/daos/tracking_event_media_dao.dart`
+  - `flutter/lib/core/storage/drift_database.dart`
+  - `flutter/lib/core/storage/drift_database.g.dart`
+  - `flutter/lib/core/sync/tracking_sync_worker.dart`
+  - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+  - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
+  - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+  - `flutter/test/core/storage/live_tracking_storage_dao_test.dart`
+- Commands run:
+  - `flutter pub run build_runner build --delete-conflicting-outputs`
+  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/core/sync/tracking_sync_worker.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_event_media_table.dart lib/features/create/data/compiled_projection_repository.dart lib/features/create/presentation/providers/compiled_projection_provider.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart`
+  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/network/live_tracking_api_test.dart`
+- Results:
+  - passed: codegen completed, focused analyze clean, focused tests passed
+  - failed: none

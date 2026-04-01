@@ -1479,7 +1479,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!mounted) {
       return;
     }
-    if (entry.isLocalPending || entry.sourceKind != 'tracking_event') {
+    final supportedSourceKind = entry.sourceKind == 'tracking_event' ||
+        entry.sourceKind == 'tracking_event_media';
+    if (entry.isLocalPending || !supportedSourceKind) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Wait for sync, then assign this capture to a place.'),
@@ -1531,7 +1533,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final repository = ref.read(compiledProjectionRepositoryProvider);
       await repository.rebind(
         tripId: widget.tripId,
-        sourceEventId: entry.sourceId,
+        sourceKind: entry.sourceKind,
+        sourceEventId:
+            entry.sourceKind == 'tracking_event' ? entry.sourceId : null,
+        sourceMediaId:
+            entry.sourceKind == 'tracking_event_media' ? entry.sourceId : null,
         action: CompiledRebindAction.bind,
         tripPlaceId: selectedPlaceId,
       );

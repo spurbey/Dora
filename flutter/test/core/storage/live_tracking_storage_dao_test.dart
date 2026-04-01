@@ -224,7 +224,7 @@ void main() {
       expect(names, contains('tracking_event_media_status_updated_idx'));
     });
 
-    test('event dao and event-media dao persist local-only rows', () async {
+    test('event dao and event-media dao persist media-lane rows', () async {
       final now = DateTime.now();
       await eventDao.upsertEvent(
         TrackingEventsCompanion.insert(
@@ -247,9 +247,12 @@ void main() {
           id: 'event-media-1',
           tripId: 'trip-1',
           eventId: 'event-1',
+          bindMode: const Value('route'),
+          bindState: const Value('awaiting_bind_choice'),
+          capturedAt: now,
           localPath: '/tmp/photo.jpg',
-          uploadStatus: const Value('awaiting_place_binding'),
-          syncStatus: const Value('local_only'),
+          uploadStatus: const Value('awaiting_bind_choice'),
+          syncStatus: const Value('pending'),
           localUpdatedAt: now,
           createdAt: now,
           updatedAt: now,
@@ -263,8 +266,10 @@ void main() {
 
       final mediaRows = await eventMediaDao.getMediaForEvent('event-1');
       expect(mediaRows.length, 1);
-      expect(mediaRows.first.uploadStatus, 'awaiting_place_binding');
-      expect(mediaRows.first.syncStatus, 'local_only');
+      expect(mediaRows.first.bindMode, 'route');
+      expect(mediaRows.first.bindState, 'awaiting_bind_choice');
+      expect(mediaRows.first.uploadStatus, 'awaiting_bind_choice');
+      expect(mediaRows.first.syncStatus, 'pending');
     });
   });
 }

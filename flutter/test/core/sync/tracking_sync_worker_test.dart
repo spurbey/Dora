@@ -5,10 +5,12 @@ import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -21,18 +23,23 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   int pauseCalls = 0;
   int batchCalls = 0;
   int eventBatchCalls = 0;
+  int mediaBinaryCalls = 0;
+  int mediaBatchCalls = 0;
   int decisionCalls = 0;
   int momentCalls = 0;
   final List<String> startTripIds = <String>[];
   final List<String> pauseTripIds = <String>[];
   final List<String> batchTripIds = <String>[];
   final List<String> eventBatchTripIds = <String>[];
+  final List<String> mediaBinaryTripIds = <String>[];
+  final List<String> mediaBatchTripIds = <String>[];
   final List<String> momentCreateTripIds = <String>[];
   final List<String> momentUpdateIds = <String>[];
   final List<bool> momentUpdateIncludeNote = <bool>[];
   final List<bool> momentUpdateIncludeLinkedTripPlaceId = <bool>[];
   Object? startError;
   Object? eventBatchError;
+  Object? mediaBatchError;
   Object? decisionError;
   Completer<void>? startTrackingGate;
   Completer<void>? pauseTrackingGate;
@@ -186,6 +193,97 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
       'rejected_count': 0,
       'idempotency_replayed': false,
     };
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  }) async {
+    mediaBinaryCalls += 1;
+    mediaBinaryTripIds.add(tripId);
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'upload_ref': 'upload://$tripId/${fileName ?? 'capture.jpg'}',
+      'mime_type': 'image/jpeg',
+      'file_size_bytes': 1024,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  }) async {
+    final forcedError = mediaBatchError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
+    mediaBatchCalls += 1;
+    mediaBatchTripIds.add(tripId);
+    final accepted = media
+        .map((item) => <String, dynamic>{
+              'client_media_id': item['client_media_id'],
+              'media_id': 'remote-media-${item['client_media_id']}',
+              'duplicate': false,
+            })
+        .toList(growable: false);
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'accepted': accepted,
+      'rejected': const <Map<String, dynamic>>[],
+      'accepted_count': accepted.length,
+      'rejected_count': 0,
+      'idempotency_replayed': false,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  }) async {
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'compiler_version': 1,
+      'stale': false,
+      'timeline_entries': const <Map<String, dynamic>>[],
+      'timeline_groups': const <Map<String, dynamic>>[],
+      'route_segments': const <Map<String, dynamic>>[],
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  }) async {
+    return <String, dynamic>{
+      'trip_id': tripId,
+      'compiler_version': 1,
+      'stale': false,
+      'timeline_entries': const <Map<String, dynamic>>[],
+      'timeline_groups': const <Map<String, dynamic>>[],
+      'route_segments': const <Map<String, dynamic>>[],
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    return rebindCompiledProjection(
+      tripId: tripId,
+      sourceEventId: sourceMediaId,
+      action: action,
+      tripPlaceId: tripPlaceId,
+    );
   }
 
   @override
@@ -420,6 +518,7 @@ void main() {
     late TrackingPointBatchDao batchDao;
     late TrackingCandidateDao candidateDao;
     late TrackingEventDao eventDao;
+    late TrackingEventMediaDao mediaDao;
     late TrackingMomentDao momentDao;
     late _FakeLiveTrackingApi fakeApi;
     late TrackingSyncWorker worker;
@@ -509,6 +608,7 @@ void main() {
       batchDao = TrackingPointBatchDao(database);
       candidateDao = TrackingCandidateDao(database);
       eventDao = TrackingEventDao(database);
+      mediaDao = TrackingEventMediaDao(database);
       momentDao = TrackingMomentDao(database);
       fakeApi = _FakeLiveTrackingApi();
       worker = TrackingSyncWorker(
@@ -518,6 +618,7 @@ void main() {
         trackingPointBatchDao: batchDao,
         trackingCandidateDao: candidateDao,
         trackingEventDao: eventDao,
+        trackingEventMediaDao: mediaDao,
         trackingMomentDao: momentDao,
         liveTrackingApi: fakeApi,
         maxConcurrency: 1,
@@ -1331,6 +1432,210 @@ void main() {
       await worker.startIfIdle();
 
       final task = await readTask('task-event-stale-404-1');
+      expect(task['status'], 'pending');
+      expect(task['error_code'], 'tracking_trip_identity_stale');
+      expect(task['depends_on_entity_type'], SyncEntityTypes.trip);
+      expect(task['depends_on_entity_id'], localTripId);
+
+      final trip = await database.tripDao.getTripById(localTripId);
+      expect(trip, isNotNull);
+      expect(trip!.serverTripId, isNull);
+      expect(trip.syncStatus, 'pending');
+    });
+
+    test('uploads route-bound tracking media and marks local row synced',
+        () async {
+      final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-media-route-1',
+        serverTripId: 'remote-trip-media-route-1',
+      );
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-media-route-1',
+          tripId: 'trip-media-route-1',
+          eventType: 'photo',
+          clientEventId: const Value('event-client-media-route-1'),
+          syncStatus: const Value('synced'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: Value(now),
+        ),
+      );
+      await mediaDao.upsertMedia(
+        TrackingEventMediaCompanion.insert(
+          id: 'media-route-1',
+          tripId: 'trip-media-route-1',
+          eventId: 'event-media-route-1',
+          bindMode: const Value('route'),
+          bindState: const Value('queued_route_upload'),
+          anchorLatitude: const Value(27.7172),
+          anchorLongitude: const Value(85.3240),
+          capturedAt: now,
+          localPath: 'C:/tmp/media-route-1.jpg',
+          uploadRef: const Value(null),
+          remoteMediaId: const Value(null),
+          uploadStatus: const Value('queued_route_upload'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-media-route-1',
+        entityType: SyncEntityTypes.trackingEventMedia,
+        entityId: 'media-route-1',
+        operation: 'upload',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-media-route-1');
+      expect(task['status'], 'completed');
+      final media = await mediaDao.getMediaById('media-route-1');
+      expect(media, isNotNull);
+      expect(media!.syncStatus, 'synced');
+      expect(media.bindState, 'linked_to_event');
+      expect(media.remoteMediaId, isNotNull);
+      expect(fakeApi.mediaBinaryCalls, 1);
+      expect(fakeApi.mediaBatchCalls, 1);
+      expect(fakeApi.mediaBatchTripIds.single, 'remote-trip-media-route-1');
+    });
+
+    test('keeps place-bound tracking media pending until place has remote id',
+        () async {
+      final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-media-place-1',
+        serverTripId: 'remote-trip-media-place-1',
+      );
+      await database.placeDao.insertPlace(
+        PlacesCompanion.insert(
+          id: 'place-local-media-1',
+          tripId: 'trip-media-place-1',
+          name: 'Local Place',
+          coordinates: const AppLatLng(latitude: 27.7172, longitude: 85.3240),
+          orderIndex: 0,
+          placeType: const Value('landmark'),
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'pending',
+        ),
+      );
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-media-place-1',
+          tripId: 'trip-media-place-1',
+          eventType: 'photo',
+          clientEventId: const Value('event-client-media-place-1'),
+          syncStatus: const Value('synced'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: Value(now),
+        ),
+      );
+      await mediaDao.upsertMedia(
+        TrackingEventMediaCompanion.insert(
+          id: 'media-place-1',
+          tripId: 'trip-media-place-1',
+          eventId: 'event-media-place-1',
+          bindMode: const Value('place'),
+          bindState: const Value('queued_place_upload'),
+          tripPlaceId: const Value('place-local-media-1'),
+          capturedAt: now,
+          localPath: 'C:/tmp/media-place-1.jpg',
+          uploadStatus: const Value('queued_place_upload'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-media-place-1',
+        entityType: SyncEntityTypes.trackingEventMedia,
+        entityId: 'media-place-1',
+        operation: 'upload',
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-media-place-1');
+      expect(task['status'], 'pending');
+      expect(task['error_code'], 'tracking_media_place_remote_id_missing');
+      expect(task['depends_on_entity_type'], SyncEntityTypes.place);
+      expect(task['depends_on_entity_id'], 'place-local-media-1');
+      expect(fakeApi.mediaBinaryCalls, 0);
+      expect(fakeApi.mediaBatchCalls, 0);
+    });
+
+    test('recovers stale trip identity for tracking media on 404 trip-not-found',
+        () async {
+      final now = DateTime.now().toUtc();
+      const localTripId = 'trip-media-stale-404-1';
+      const staleRemoteTripId = 'remote-trip-media-stale-404-1';
+      await seedTripIdentity(
+        localTripId: localTripId,
+        serverTripId: staleRemoteTripId,
+      );
+      await eventDao.upsertEvent(
+        TrackingEventsCompanion.insert(
+          id: 'event-media-stale-404-1',
+          tripId: localTripId,
+          eventType: 'media',
+          clientEventId: const Value('event-client-media-stale-404-1'),
+          syncStatus: const Value('synced'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: Value(now),
+        ),
+      );
+      await mediaDao.upsertMedia(
+        TrackingEventMediaCompanion.insert(
+          id: 'media-stale-404-1',
+          tripId: localTripId,
+          eventId: 'event-media-stale-404-1',
+          bindMode: const Value('route'),
+          bindState: const Value('queued_route_upload'),
+          anchorLatitude: const Value(27.7180),
+          anchorLongitude: const Value(85.3260),
+          capturedAt: now,
+          localPath: 'C:/tmp/media-stale-404-1.jpg',
+          uploadRef: const Value('upload://existing-ref'),
+          uploadStatus: const Value('queued_route_upload'),
+          syncStatus: const Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-media-stale-404-1',
+        entityType: SyncEntityTypes.trackingEventMedia,
+        entityId: 'media-stale-404-1',
+        operation: 'upload',
+      );
+
+      final requestOptions = RequestOptions(
+        path: '/api/v1/trips/$staleRemoteTripId/tracking/media:batch',
+      );
+      fakeApi.mediaBatchError = DioException(
+        requestOptions: requestOptions,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(
+          requestOptions: requestOptions,
+          statusCode: 404,
+          data: <String, dynamic>{'detail': 'Trip not found'},
+        ),
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-media-stale-404-1');
       expect(task['status'], 'pending');
       expect(task['error_code'], 'tracking_trip_identity_stale');
       expect(task['depends_on_entity_type'], SyncEntityTypes.trip);

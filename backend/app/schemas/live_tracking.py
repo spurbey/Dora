@@ -176,6 +176,13 @@ class TrackingMediaBatchResponse(BaseModel):
     idempotency_replayed: bool
 
 
+class TrackingMediaUploadResponse(BaseModel):
+    trip_id: UUID
+    upload_ref: str
+    mime_type: Optional[str] = None
+    file_size_bytes: int
+
+
 class TrackingPathPointResponse(BaseModel):
     recorded_at: datetime
     latitude: float

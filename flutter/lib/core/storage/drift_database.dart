@@ -72,7 +72,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -235,6 +235,86 @@ class AppDatabase extends _$AppDatabase {
               '''
               CREATE INDEX IF NOT EXISTS tracking_events_trip_resolved_place_created_idx
               ON tracking_events (trip_id, resolved_place_id, created_at)
+              ''',
+            );
+          }
+          if (from < 16) {
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'bind_mode',
+              definition: "TEXT NOT NULL DEFAULT 'route'",
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'bind_state',
+              definition: "TEXT NOT NULL DEFAULT 'awaiting_bind_choice'",
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'trip_place_id',
+              definition: 'TEXT',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'anchor_latitude',
+              definition: 'REAL',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'anchor_longitude',
+              definition: 'REAL',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'captured_at',
+              definition: 'INTEGER NOT NULL DEFAULT 0',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'upload_ref',
+              definition: 'TEXT',
+            );
+            await _addColumnIfMissing(
+              tableName: 'tracking_event_media',
+              columnName: 'remote_media_id',
+              definition: 'TEXT',
+            );
+            await customStatement(
+              '''
+              UPDATE tracking_event_media
+              SET bind_state = CASE
+                WHEN upload_status = 'awaiting_place_binding' THEN 'awaiting_bind_choice'
+                WHEN upload_status = 'queued' THEN 'queued_route_upload'
+                WHEN upload_status = 'uploaded' THEN 'linked_to_event'
+                WHEN upload_status = 'failed' THEN 'failed_retryable'
+                WHEN upload_status = 'blocked' THEN 'blocked_validation'
+                ELSE bind_state
+              END
+              ''',
+            );
+            await customStatement(
+              '''
+              UPDATE tracking_event_media
+              SET captured_at = COALESCE(captured_at, created_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              UPDATE tracking_event_media
+              SET sync_status = 'pending'
+              WHERE sync_status = 'local_only'
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS tracking_event_media_trip_bind_state_created_idx
+              ON tracking_event_media (trip_id, bind_state, created_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS tracking_event_media_sync_updated_idx
+              ON tracking_event_media (sync_status, updated_at)
               ''',
             );
           }

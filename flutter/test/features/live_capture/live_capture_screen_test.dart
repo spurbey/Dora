@@ -8,6 +8,7 @@ import 'package:dora/features/create/presentation/live_tracking_map_overlay.dart
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
+import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
 import 'package:dora/features/live_capture/presentation/providers/live_tracking_event_provider.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
@@ -241,6 +242,11 @@ void main() {
 
     testWidgets('shows unresolved capture banner when resolver needs review',
         (tester) async {
+      final unresolvedRow = _trackingEventRow(
+        id: 'event-unresolved-1',
+        tripId: 'trip-123',
+        resolverState: 'on_route_unresolved',
+      );
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -270,9 +276,11 @@ void main() {
               ),
             ),
             liveTrackingUnresolvedSummaryProvider('trip-123').overrideWith(
-              (ref) => const LiveTrackingUnresolvedSummary(
+              (ref) => LiveTrackingUnresolvedSummary(
                 unresolvedCount: 2,
-                latestUnresolved: null,
+                latestUnresolved: unresolvedRow,
+                latestReviewRequired: null,
+                reviewHints: const <LiveTrackingPlaceHint>[],
               ),
             ),
             liveTrackingMapOverlayProvider('trip-123').overrideWith(
@@ -296,8 +304,15 @@ void main() {
       expect(find.textContaining('captures need place selection'), findsOne);
     });
 
-    testWidgets('media actions are command-gated with deterministic feedback',
+    testWidgets('shows probable place prompt for review-required captures',
         (tester) async {
+      final reviewRow = _trackingEventRow(
+        id: 'event-review-1',
+        tripId: 'trip-123',
+        resolverState: 'review_required',
+        resolutionHintJson:
+            '[{"name":"Cafe House","latitude":27.7,"longitude":85.3,"confidence":0.62,"reason":"ambiguous_candidates","place_id":"place-1"}]',
+      );
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -329,6 +344,23 @@ void main() {
             liveTrackingMapOverlayProvider('trip-123').overrideWith(
               (ref) => const LiveTrackingMapOverlay(),
             ),
+            liveTrackingUnresolvedSummaryProvider('trip-123').overrideWith(
+              (ref) => LiveTrackingUnresolvedSummary(
+                unresolvedCount: 1,
+                latestUnresolved: reviewRow,
+                latestReviewRequired: reviewRow,
+                reviewHints: const <LiveTrackingPlaceHint>[
+                  LiveTrackingPlaceHint(
+                    name: 'Cafe House',
+                    latitude: 27.7,
+                    longitude: 85.3,
+                    confidence: 0.62,
+                    reason: 'ambiguous_candidates',
+                    placeId: 'place-1',
+                  ),
+                ],
+              ),
+            ),
             liveTrackingEventsProvider('trip-123').overrideWith(
               (ref) => Stream.value(const <TrackingEventRow>[]),
             ),
@@ -340,26 +372,45 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('liveCaptureActionPhoto')));
-      await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Photo capture is temporarily disabled until place binding is available.',
-        ),
+        find.byKey(const ValueKey('liveCaptureProbablePlacePrompt')),
         findsOneWidget,
       );
-
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('liveCaptureActionMedia')));
-      await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Media capture is temporarily disabled until place binding is available.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Probable places'), findsOneWidget);
+      expect(find.text('Confirm place'), findsOneWidget);
+      expect(find.text('Keep on route'), findsOneWidget);
     });
   });
+}
+
+TrackingEventRow _trackingEventRow({
+  required String id,
+  required String tripId,
+  required String resolverState,
+  String eventType = 'note',
+  String? resolutionHintJson,
+}) {
+  final now = DateTime.utc(2026, 3, 31, 10, 0, 0);
+  return TrackingEventRow(
+    id: id,
+    tripId: tripId,
+    eventType: eventType,
+    note: null,
+    latitude: 27.7,
+    longitude: 85.3,
+    payloadJson: '{}',
+    clientEventId: id,
+    resolvedPlaceId: null,
+    bindConfidence: null,
+    resolverReasonCode: null,
+    resolverState: resolverState,
+    resolverVersion: 1,
+    resolvedAt: null,
+    resolutionHintJson: resolutionHintJson,
+    syncStatus: 'pending',
+    localUpdatedAt: now,
+    serverUpdatedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  );
 }

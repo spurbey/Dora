@@ -15,6 +15,7 @@ from app.models.trip_compiled_projection_state import TripCompiledProjectionStat
 from app.models.trip_compiled_route_segment import TripCompiledRouteSegment
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_tracking_event import TripTrackingEvent
+from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.models.trip_tracking_session import TripTrackingSession
 
 
@@ -131,6 +132,100 @@ def test_compiled_projection_returns_on_route_entries_and_route_segments(client,
     payload2 = second.json()
     assert payload2["timeline_entries"][0]["entry_id"] == payload["timeline_entries"][0]["entry_id"]
     assert len(payload2["timeline_entries"]) == 1
+
+
+def test_compiled_projection_route_media_includes_segment_association(
+    client,
+    db,
+    test_user,
+    auth_as,
+):
+    auth_as(test_user)
+    trip = _create_trip(db, user_id=test_user.id)
+    now = datetime.now(timezone.utc)
+    session = _create_session(
+        db,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        started_at=now - timedelta(minutes=12),
+    )
+
+    event = TripTrackingEvent(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        session_id=session.id,
+        client_event_id=uuid4(),
+        event_type="photo",
+        captured_at=now - timedelta(minutes=4),
+        latitude=27.7002,
+        longitude=85.3003,
+        payload={},
+    )
+    db.add(event)
+
+    media = TripTrackingEventMedia(
+        id=uuid4(),
+        trip_id=trip.id,
+        user_id=test_user.id,
+        event_id=event.id,
+        client_media_id=uuid4(),
+        client_event_id=event.client_event_id,
+        media_type="photo",
+        bind_mode="route",
+        captured_at=event.captured_at,
+        upload_ref="https://example.test/photo.jpg",
+        mime_type="image/jpeg",
+        file_size_bytes=1024,
+        anchor_latitude=27.7002,
+        anchor_longitude=85.3003,
+        payload={},
+    )
+    db.add(media)
+
+    p1 = TripLocationPoint(
+        id=uuid4(),
+        session_id=session.id,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        client_batch_id=uuid4(),
+        point_id=uuid4(),
+        recorded_at=now - timedelta(minutes=8),
+        latitude=27.7000,
+        longitude=85.3000,
+        accuracy_m=5.0,
+    )
+    p2 = TripLocationPoint(
+        id=uuid4(),
+        session_id=session.id,
+        trip_id=trip.id,
+        user_id=test_user.id,
+        client_batch_id=uuid4(),
+        point_id=uuid4(),
+        recorded_at=now - timedelta(minutes=7),
+        latitude=27.7006,
+        longitude=85.3008,
+        accuracy_m=5.0,
+    )
+    db.add_all([p1, p2])
+    db.commit()
+
+    response = client.get(f"/api/v1/trips/{trip.id}/compiled/projection")
+    assert response.status_code == 200
+    payload = response.json()
+
+    media_entries = [
+        entry
+        for entry in payload["timeline_entries"]
+        if entry["source_kind"] == "tracking_event_media"
+    ]
+    assert len(media_entries) == 1
+    media_entry = media_entries[0]
+    assert media_entry["bucket_type"] == "on_route"
+    assert media_entry["payload"]["route_segment_key"]
+    assert media_entry["payload"]["route_distance_m"] is not None
+    assert media_entry["payload"]["route_distance_m"] <= 120.0
+    assert "On Route" in (media_entry.get("subtitle") or "")
 
 
 def test_compiled_projection_manual_rebind_persists_across_recompile(client, db, test_user, auth_as):

@@ -1052,3 +1052,64 @@ def test_ingest_points_marks_uninferred_marker_for_late_points(db, test_user):
     # last_point_at remains at max timestamp, but marker captures late arrival.
     assert session.last_point_at == base + timedelta(minutes=10)
     assert session.oldest_uninferred_point_at == late_timestamp
+
+
+def test_tracking_media_binary_upload_success(client, db, test_user, auth_as, monkeypatch):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Tracking Media Upload")
+
+    captured = {}
+
+    class FakeStorageService:
+        async def upload_file(
+            self,
+            *,
+            file,
+            bucket,
+            user_id,
+            is_premium=False,
+            allowed_types=None,
+            max_size_mb=10,
+            contents=None,
+        ):
+            captured["bucket"] = bucket
+            captured["user_id"] = user_id
+            captured["is_premium"] = is_premium
+            captured["allowed_types"] = allowed_types or []
+            captured["max_size_mb"] = max_size_mb
+            captured["content_type"] = file.content_type
+            captured["size"] = len(contents or b"")
+            return "https://example.supabase.co/storage/v1/object/public/photos/tracking-upload.jpg"
+
+    import app.services.live_tracking_service as live_tracking_service_module
+
+    monkeypatch.setattr(live_tracking_service_module, "StorageService", FakeStorageService)
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/media:upload",
+        files={"file": ("capture.jpg", b"test-media-binary", "image/jpeg")},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["trip_id"] == str(trip.id)
+    assert payload["upload_ref"].startswith("https://example.supabase.co/storage/")
+    assert payload["mime_type"] == "image/jpeg"
+    assert payload["file_size_bytes"] == len(b"test-media-binary")
+    assert captured["bucket"] == "photos"
+    assert captured["user_id"] == test_user.id
+    assert captured["content_type"] == "image/jpeg"
+    assert "image/jpeg" in captured["allowed_types"]
+
+
+def test_tracking_media_binary_upload_rejects_invalid_file_type(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_trip(db, test_user.id, title="Tracking Media Upload Invalid")
+
+    response = client.post(
+        f"/api/v1/trips/{trip.id}/tracking/media:upload",
+        files={"file": ("capture.txt", b"plain-text", "text/plain")},
+    )
+
+    assert response.status_code == 400
+    assert "Invalid file type" in response.json()["detail"]

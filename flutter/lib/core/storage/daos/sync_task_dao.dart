@@ -469,14 +469,22 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
             )
           )
           OR (
-            t.entity_type IN (?, ?, ?, ?)
+            t.entity_type = ?
+            AND EXISTS (
+              SELECT 1 FROM tracking_event_media AS em
+              WHERE em.id = t.entity_id
+                AND em.trip_id = ?
+            )
+          )
+          OR (
+            t.entity_type IN (?, ?, ?, ?, ?)
             AND t.depends_on_entity_type = ?
             AND t.depends_on_entity_id = ?
           )
         )
         AND (
           t.error_code IS NULL
-          OR t.error_code IN ('http_404', 'tracking_trip_remote_id_missing')
+          OR t.error_code IN ('http_404', 'tracking_trip_remote_id_missing', 'tracking_trip_identity_stale')
         )
       ''',
       variables: [
@@ -488,10 +496,13 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
         Variable<String>(tripId),
         const Variable<String>(SyncEntityTypes.trackingEvent),
         Variable<String>(tripId),
+        const Variable<String>(SyncEntityTypes.trackingEventMedia),
+        Variable<String>(tripId),
         const Variable<String>(SyncEntityTypes.trackingSession),
         const Variable<String>(SyncEntityTypes.trackingPointBatch),
         const Variable<String>(SyncEntityTypes.moment),
         const Variable<String>(SyncEntityTypes.trackingEvent),
+        const Variable<String>(SyncEntityTypes.trackingEventMedia),
         const Variable<String>(SyncEntityTypes.trip),
         Variable<String>(tripId),
       ],
@@ -501,6 +512,7 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
         attachedDatabase.trackingPointBatches,
         attachedDatabase.trackingMoments,
         attachedDatabase.trackingEvents,
+        attachedDatabase.trackingEventMedia,
       },
     ).get();
 
@@ -523,11 +535,13 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
         workerSessionId: const Value(null),
         updatedAt: Value(now),
         dependsOnEntityType: entityType == SyncEntityTypes.trackingSession ||
-                entityType == SyncEntityTypes.trackingEvent
+                entityType == SyncEntityTypes.trackingEvent ||
+                entityType == SyncEntityTypes.trackingEventMedia
             ? const Value(SyncEntityTypes.trip)
             : const Value.absent(),
         dependsOnEntityId: entityType == SyncEntityTypes.trackingSession ||
-                entityType == SyncEntityTypes.trackingEvent
+                entityType == SyncEntityTypes.trackingEvent ||
+                entityType == SyncEntityTypes.trackingEventMedia
             ? Value(tripId)
             : const Value.absent(),
       );

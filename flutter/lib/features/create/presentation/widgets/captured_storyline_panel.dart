@@ -227,6 +227,10 @@ class _DayGroupSection extends StatelessWidget {
         return Icons.warning_amber_rounded;
       case 'tag':
         return Icons.bookmark_added_outlined;
+      case 'photo':
+        return Icons.photo_camera_outlined;
+      case 'media':
+        return Icons.videocam_outlined;
       default:
         return Icons.note_alt_outlined;
     }

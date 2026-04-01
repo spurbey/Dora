@@ -5,6 +5,7 @@ import 'package:dora/core/map/geocoding/app_geocoding_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
@@ -15,6 +16,7 @@ void main() {
     late AppDatabase database;
     late SyncTaskDao syncTaskDao;
     late TrackingEventDao eventDao;
+    late TrackingEventMediaDao eventMediaDao;
     late LiveTrackingEventRepository repository;
     late LiveTrackingEventResolver resolver;
 
@@ -22,6 +24,7 @@ void main() {
       database = AppDatabase(NativeDatabase.memory());
       syncTaskDao = SyncTaskDao(database);
       eventDao = TrackingEventDao(database);
+      eventMediaDao = TrackingEventMediaDao(database);
       resolver = LiveTrackingEventResolver(
         trackingEventDao: eventDao,
         placeDao: database.placeDao,
@@ -30,6 +33,7 @@ void main() {
       );
       repository = LiveTrackingEventRepository(
         trackingEventDao: eventDao,
+        trackingEventMediaDao: eventMediaDao,
         syncTaskDao: syncTaskDao,
         resolver: resolver,
       );
@@ -85,6 +89,50 @@ void main() {
       expect(rows.length, 2);
       expect(rows.first.note, 'Second');
       expect(rows.last.note, 'First');
+    });
+
+    test('createMediaCaptureNow writes media row and queues media sync task',
+        () async {
+      final result = await repository.createMediaCaptureNow(
+        tripId: 'trip-2',
+        eventType: LiveTrackingEventType.photo,
+        localPath: 'C:/tmp/photo.jpg',
+        latitude: 27.7,
+        longitude: 85.3,
+      );
+      final mediaId = result.mediaId;
+
+      final media = await eventMediaDao.getMediaById(mediaId);
+      expect(media, isNotNull);
+      expect(media!.bindMode, 'route');
+      expect(media.bindState, 'queued_route_upload');
+      expect(media.syncStatus, 'pending');
+      expect(media.anchorLatitude, 27.7);
+      expect(media.anchorLongitude, 85.3);
+      expect(result.decision.state, 'on_route_unresolved');
+
+      final eventTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trackingEvent,
+        entityId: media.eventId,
+      );
+      expect(eventTask, isNotNull);
+
+      final mediaTask = await syncTaskDao.getTaskByEntity(
+        entityType: SyncEntityTypes.trackingEventMedia,
+        entityId: mediaId,
+      );
+      expect(mediaTask, isNotNull);
+      expect(mediaTask!.dependsOnEntityType, SyncEntityTypes.trackingEvent);
+      expect(mediaTask.dependsOnEntityId, media.eventId);
+    });
+
+    test('parsePlaceHints parses place ids when present', () {
+      final hints = repository.parsePlaceHints(
+        '[{"place_id":"p1","name":"Cafe","latitude":27.7,"longitude":85.3,"confidence":0.6,"reason":"trip_place_radius_match"}]',
+      );
+      expect(hints, hasLength(1));
+      expect(hints.first.placeId, 'p1');
+      expect(hints.first.name, 'Cafe');
     });
   });
 }

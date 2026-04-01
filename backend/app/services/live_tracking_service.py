@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy import and_, desc, func, or_
@@ -31,7 +31,9 @@ from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
 from app.models.trip_tracking_event_media import TripTrackingEventMedia
+from app.models.user import User
 from app.models.user_device_token import UserDeviceToken
+from app.services.storage_service import StorageConfigurationError, StorageService
 from app.services.trip_projection_compiler import TripProjectionCompilerService
 from app.utils.geo import haversine_distance
 
@@ -41,6 +43,14 @@ REJECT_COOLDOWN_HOURS = 24
 TRACKING_EVENT_TYPES = {"note", "warn", "tag", "photo", "media"}
 TRACKING_MEDIA_TYPES = {"photo", "media"}
 TRACKING_MEDIA_BIND_MODES = {"place", "route"}
+TRACKING_MEDIA_UPLOAD_ALLOWED_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+}
 
 
 @dataclass
@@ -1144,6 +1154,67 @@ class LiveTrackingService:
             "rejected": rejected,
             "accepted_count": len(accepted),
             "rejected_count": len(rejected),
+        }
+
+    async def upload_tracking_media_binary(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        file: UploadFile,
+    ) -> dict[str, Any]:
+        self._get_owned_trip(trip_id=trip_id, user_id=user_id)
+        if file.content_type is None or file.content_type.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="file content type is required",
+            )
+        content_type = file.content_type.strip().lower()
+        if content_type not in TRACKING_MEDIA_UPLOAD_ALLOWED_MIME_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Invalid file type. Allowed types: "
+                    + ", ".join(sorted(TRACKING_MEDIA_UPLOAD_ALLOWED_MIME_TYPES))
+                ),
+            )
+
+        file_bytes = await file.read()
+        if not file_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file is empty",
+            )
+
+        if file.filename is None or not str(file.filename).strip():
+            file.filename = "tracking-media.bin"
+
+        is_premium = bool(
+            self.db.query(User.is_premium).filter(User.id == user_id).scalar()
+        )
+        try:
+            storage_service = StorageService()
+        except StorageConfigurationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Storage service misconfigured",
+            ) from exc
+
+        upload_ref = await storage_service.upload_file(
+            file=file,
+            bucket="photos",
+            user_id=user_id,
+            is_premium=is_premium,
+            allowed_types=list(TRACKING_MEDIA_UPLOAD_ALLOWED_MIME_TYPES),
+            max_size_mb=25,
+            contents=file_bytes,
+        )
+
+        return {
+            "trip_id": trip_id,
+            "upload_ref": upload_ref,
+            "mime_type": content_type,
+            "file_size_bytes": len(file_bytes),
         }
 
     def get_tracking_path(

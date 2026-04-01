@@ -210,7 +210,11 @@ List<CompiledProjectionDayGroup> _groupEntriesByDay(
 }
 
 bool _isStorylineEventType(String eventType) =>
-    eventType == 'note' || eventType == 'warn' || eventType == 'tag';
+    eventType == 'note' ||
+    eventType == 'warn' ||
+    eventType == 'tag' ||
+    eventType == 'photo' ||
+    eventType == 'media';
 
 bool _isSynced(String syncStatus) => syncStatus.toLowerCase() == 'synced';
 

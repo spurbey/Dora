@@ -4,7 +4,7 @@ Live-tracking Phase 2 API endpoints.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, File, Header, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -33,6 +33,7 @@ from app.schemas.live_tracking import (
     TrackingEventsBatchResponse,
     TrackingMediaBatchRequest,
     TrackingMediaBatchResponse,
+    TrackingMediaUploadResponse,
     TrackingResumeRequest,
     TrackingSessionResponse,
     TrackingStartRequest,
@@ -263,6 +264,25 @@ async def ingest_media_batch(
     response.status_code = result.status_code
     _set_replay_header(response, result.replayed)
     return payload
+
+
+@router.post(
+    "/trips/{trip_id}/tracking/media:upload",
+    response_model=TrackingMediaUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_tracking_media_binary(
+    trip_id: UUID,
+    file: UploadFile = File(..., description="Tracking media file"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingService(db)
+    return await service.upload_tracking_media_binary(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        file=file,
+    )
 
 
 @router.get("/trips/{trip_id}/tracking/path", response_model=TrackingPathResponse)

@@ -97,6 +97,9 @@ final editorSyncStatusProvider =
           OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
             SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
           ))
+          OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
+            SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
+          ))
       )
     )
     SELECT
@@ -144,6 +147,11 @@ final editorSyncStatusProvider =
         WHERE r.trip_id = ? AND r.sync_status <> 'synced'
       ) AS unsynced_route_rows,
       (
+        SELECT COUNT(*)
+        FROM tracking_event_media AS em
+        WHERE em.trip_id = ? AND em.sync_status <> 'synced'
+      ) AS unsynced_tracking_media_rows,
+      (
         SELECT entity_type
         FROM scoped_sync_tasks
         WHERE status = 'blocked'
@@ -190,6 +198,8 @@ final editorSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -202,6 +212,7 @@ final editorSyncStatusProvider =
       db.trackingMoments,
       db.trackingCandidates,
       db.trackingEvents,
+      db.trackingEventMedia,
     },
   );
 
@@ -214,7 +225,8 @@ final editorSyncStatusProvider =
         row.read<int>('active_tasks') + row.read<int>('active_media');
     final unsyncedRows = row.read<int>('unsynced_trip_rows') +
         row.read<int>('unsynced_place_rows') +
-        row.read<int>('unsynced_route_rows');
+        row.read<int>('unsynced_route_rows') +
+        row.read<int>('unsynced_tracking_media_rows');
     final blockedMediaItems = row.read<int>('blocked_media');
     final failedMediaItems = row.read<int>('failed_media');
     final firstBlockedTaskEntityType =
@@ -274,6 +286,9 @@ final liveTrackingSyncStatusProvider =
           OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
             SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
           ))
+          OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
+            SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
+          ))
       )
     )
     SELECT
@@ -319,6 +334,11 @@ final liveTrackingSyncStatusProvider =
         FROM tracking_events AS e
         WHERE e.trip_id = ? AND e.sync_status <> 'synced'
       ) AS unsynced_event_rows,
+      (
+        SELECT COUNT(*)
+        FROM tracking_event_media AS em
+        WHERE em.trip_id = ? AND em.sync_status <> 'synced'
+      ) AS unsynced_tracking_media_rows,
       (
         SELECT entity_type
         FROM scoped_tracking_tasks
@@ -367,6 +387,8 @@ final liveTrackingSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -375,6 +397,7 @@ final liveTrackingSyncStatusProvider =
       db.trackingMoments,
       db.trackingCandidates,
       db.trackingEvents,
+      db.trackingEventMedia,
     },
   );
 
@@ -386,7 +409,8 @@ final liveTrackingSyncStatusProvider =
         row.read<int>('unsynced_batch_rows') +
         row.read<int>('unsynced_moment_rows') +
         row.read<int>('unsynced_candidate_rows') +
-        row.read<int>('unsynced_event_rows');
+        row.read<int>('unsynced_event_rows') +
+        row.read<int>('unsynced_tracking_media_rows');
     final firstBlockedTaskEntityType =
         row.data['first_blocked_task_entity_type'] as String?;
     final firstBlockedTaskEntityId =

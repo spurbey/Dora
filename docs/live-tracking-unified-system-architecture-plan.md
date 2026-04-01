@@ -834,5 +834,42 @@ Use this block for each completed phase:
 4. Commit reference:
    - `1e33562` (`feat(live-tracking): add route-aware media batch ingest and projection support`)
 5. Remaining follow-ups:
-   - Flutter media producer/sync-worker lane activation is still pending.
-   - Live capture UI explicit bind-mode choice (`Attach place` / `Save on route`) is still pending.
+   - Flutter media producer/sync-worker lane activation is implemented; next focus is soak validation and UX polish.
+   - Live capture media UX must be resolver-driven (no bind-choice modal):
+     - high-confidence place => auto-bind
+     - medium-confidence => non-blocking probable-place prompt
+     - rejected/unknown => keep as route geotag
+
+### Phase P3 Incremental Evidence (2026-04-01, Media Flow v3 Cleanup + Resolver Activation)
+
+1. Delivered in this increment:
+   - Removed capture-time media bind-choice coupling and shifted to resolver-first behavior.
+   - Activated Flutter media capture + sync lane with route/place dependency rules.
+   - Added backend tracking media binary upload endpoint:
+     - `POST /api/v1/trips/{trip_id}/tracking/media:upload`
+   - Added compiler route association metadata for route-geotag media:
+     - `payload.route_segment_key`
+     - `payload.route_distance_m`
+2. Evidence files:
+   - `backend/app/api/v1/live_tracking.py`
+   - `backend/app/schemas/live_tracking.py`
+   - `backend/app/services/live_tracking_service.py`
+   - `backend/app/services/trip_projection_compiler.py`
+   - `backend/tests/test_live_tracking_endpoints.py`
+   - `backend/tests/test_compiled_projection_endpoints.py`
+   - `flutter/lib/core/network/live_tracking_api.dart`
+   - `flutter/lib/core/sync/tracking_sync_worker.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
+3. Validation commands (executed in this increment):
+   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_compiled_projection_endpoints.py -q`
+   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py -k tracking_media_binary_upload -q`
+   - `flutter pub run build_runner build --delete-conflicting-outputs`
+   - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/core/sync/tracking_sync_worker.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_event_media_table.dart lib/features/create/data/compiled_projection_repository.dart lib/features/create/presentation/providers/compiled_projection_provider.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart`
+   - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/network/live_tracking_api_test.dart`
+4. Remaining follow-ups:
+   - Add manual QA soak run for camera/gallery permission edge cases on device.
+   - Advisory pipeline and push fanout remain out of scope for this increment.

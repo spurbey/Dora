@@ -43,6 +43,9 @@ class LiveTrackingEventResolver {
   static const int _reverseRadiusM = 100;
   static const int _poiRadiusM = 150;
 
+  // Route-media association keeps geotag media near nearby route segments.
+  static const double _manualResolvedConfidence = 1.0;
+
   Future<ResolvedPlaceDecision> resolveEventNow(String eventId) async {
     final row = await _trackingEventDao.getEventById(eventId);
     if (row == null) {
@@ -87,6 +90,84 @@ class LiveTrackingEventResolver {
       }
     }
     return resolvedCount;
+  }
+
+  Future<ResolvedPlaceDecision> confirmPlaceForEvent({
+    required String eventId,
+    String? tripPlaceId,
+    String? suggestedName,
+    AppLatLng? suggestedCoordinate,
+  }) async {
+    final row = await _trackingEventDao.getEventById(eventId);
+    if (row == null) {
+      return const ResolvedPlaceDecision(
+        state: 'on_route_unresolved',
+        confidence: 0,
+        reasonCode: 'no_candidate',
+      );
+    }
+
+    final places = await _placeDao.getPlacesForTrip(row.tripId);
+    String? resolvedPlaceId = _normalizeText(tripPlaceId);
+    if (resolvedPlaceId != null &&
+        !places.any((place) => place.id == resolvedPlaceId)) {
+      resolvedPlaceId = null;
+    }
+
+    if (resolvedPlaceId == null &&
+        suggestedCoordinate != null &&
+        _normalizeText(suggestedName) != null) {
+      resolvedPlaceId = await _ensureDraftPlace(
+        tripId: row.tripId,
+        candidate: _ResolverCandidate(
+          placeId: null,
+          name: _normalizeText(suggestedName)!,
+          coordinate: suggestedCoordinate,
+          score: _manualResolvedConfidence,
+          reasonCode: 'manual_confirm_place',
+        ),
+        capturedAt: row.createdAt,
+        existingPlaces: places,
+      );
+    }
+
+    if (resolvedPlaceId == null) {
+      return const ResolvedPlaceDecision(
+        state: 'on_route_unresolved',
+        confidence: 0,
+        reasonCode: 'no_candidate',
+      );
+    }
+
+    final decision = ResolvedPlaceDecision(
+      state: 'resolved',
+      confidence: _manualResolvedConfidence,
+      reasonCode: 'manual_confirm_place',
+      placeId: resolvedPlaceId,
+      hintJson: row.resolutionHintJson,
+    );
+    await _persistDecision(eventId: row.id, decision: decision);
+    return decision;
+  }
+
+  Future<ResolvedPlaceDecision> keepEventOnRoute(String eventId) async {
+    final row = await _trackingEventDao.getEventById(eventId);
+    if (row == null) {
+      return const ResolvedPlaceDecision(
+        state: 'on_route_unresolved',
+        confidence: 0,
+        reasonCode: 'no_candidate',
+      );
+    }
+    final decision = ResolvedPlaceDecision(
+      state: 'on_route_unresolved',
+      confidence: row.bindConfidence ?? 0,
+      reasonCode: 'manual_keep_on_route',
+      placeId: null,
+      hintJson: row.resolutionHintJson,
+    );
+    await _persistDecision(eventId: row.id, decision: decision);
+    return decision;
   }
 
   Future<ResolvedPlaceDecision> _resolveLocally(TrackingEventRow row) async {
@@ -535,6 +616,9 @@ class LiveTrackingEventResolver {
         .take(3)
         .map(
           (candidate) => <String, dynamic>{
+            if (candidate.placeId != null &&
+                candidate.placeId!.trim().isNotEmpty)
+              'place_id': candidate.placeId,
             'name': candidate.name,
             'latitude': candidate.coordinate.latitude,
             'longitude': candidate.coordinate.longitude,
@@ -552,6 +636,17 @@ class LiveTrackingEventResolver {
 
   static String _normalizedName(String value) {
     return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  static String? _normalizeText(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
   }
 
   static double _distanceMeters(AppLatLng a, AppLatLng b) {

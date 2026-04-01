@@ -87,16 +87,22 @@ Backend media ingest contract is now finalized with two valid bind intents:
 Flutter activation gate remains open until all are true:
 1. Local producer writes `tracking_event_media` with bind intent from live capture flow.
 2. Sync worker media lane is active with dependency rules from Section 6.3.
-3. Live UX exposes explicit `Attach place` and `Save on route` choices.
+3. Live UX is resolver-driven and non-blocking:
+   - high-confidence place => auto-bind media to place,
+   - medium-confidence => probable-place prompt (`Confirm place` / `Keep on route` / `Add place`),
+   - low-confidence or rejected => route-geotag is first-class outcome.
 
 ## 6.2 Media Lifecycle FSM
 1. `awaiting_bind_choice`
 2. `queued_place_upload`
 3. `queued_route_upload`
-4. `uploaded_remote`
-5. `linked_to_event`
-6. `failed_retryable`
-7. `blocked_validation`
+4. `linked_to_event`
+5. `failed_retryable`
+6. `blocked_validation`
+
+Notes:
+1. `upload_status` mirrors `bind_state` for compatibility/UI continuity and must not be treated as an independent state machine.
+2. Route-geotag media remains upload-ready even when place binding is unresolved.
 
 ## 6.3 Dependency Rules
 1. `tracking_event` can sync without media.
@@ -105,6 +111,22 @@ Flutter activation gate remains open until all are true:
 4. Route-mode media does not depend on place identity and must upload with route geotag.
 5. Linking to compiled/editor surface depends on upload success and bind mode.
 6. Retryable transport failures must keep local media pointer and user-visible pending state.
+
+## 6.4 Implementation Status (2026-04-01)
+1. Binary upload + metadata ingest path is active:
+   - `POST /api/v1/trips/{trip_id}/tracking/media:upload`
+   - `POST /api/v1/trips/{trip_id}/tracking/media:batch`
+2. Resolver-driven capture flow is active on Flutter live screen:
+   - no capture-time bind-choice modal
+   - probable-place prompt for `review_required`
+   - explicit keep-on-route action
+3. Worker semantics are active:
+   - always depends on trip + event identity
+   - place dependency only for `bind_mode=place`
+   - route mode uploads without place identity wait
+4. Compiler emits route-association metadata for route-geotag media:
+   - `route_segment_key`
+   - `route_distance_m`
 
 ## 7. Advisory Pipeline Contract (In-App First)
 

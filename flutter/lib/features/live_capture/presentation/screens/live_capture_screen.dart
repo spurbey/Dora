@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
@@ -12,8 +15,10 @@ import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/features/create/data/compiled_projection_repository.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
@@ -41,6 +46,8 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
+  final Set<String> _dismissedReviewPromptEventIds = <String>{};
   bool _actionInFlight = false;
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
@@ -88,6 +95,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         ? const LiveTrackingUnresolvedSummary(
             unresolvedCount: 0,
             latestUnresolved: null,
+            latestReviewRequired: null,
+            reviewHints: <LiveTrackingPlaceHint>[],
           )
         : ref.watch(liveTrackingUnresolvedSummaryProvider(widget.tripId));
 
@@ -105,6 +114,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final blockedMessage =
         syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
     final capturePosition = mapOverlay?.currentMarker?.position;
+    final unresolvedTop = syncStatus?.kind == EditorSyncStatusKind.blocked
+        ? 154.0
+        : 96.0;
+    final reviewEvent = unresolvedSummary.latestReviewRequired;
+    final reviewHints = unresolvedSummary.reviewHints;
+    final showReviewPrompt = !usePreview &&
+        reviewEvent != null &&
+        reviewHints.isNotEmpty &&
+        !_dismissedReviewPromptEventIds.contains(reviewEvent.id);
+    final reviewPromptTop =
+        unresolvedTop + (unresolvedSummary.hasUnresolved ? 74.0 : 0.0);
 
     return Scaffold(
       body: Stack(
@@ -138,9 +158,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                   Positioned(
                     left: AppSpacing.md,
                     right: AppSpacing.md,
-                    top: syncStatus?.kind == EditorSyncStatusKind.blocked
-                        ? 154
-                        : 96,
+                    top: unresolvedTop,
                     child: _UnresolvedCaptureBanner(
                       unresolvedCount: unresolvedSummary.unresolvedCount,
                       latestNote:
@@ -148,6 +166,27 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       onReview: _actionInFlight
                           ? null
                           : () => context.push(Routes.editorPath(widget.tripId)),
+                    ),
+                  ),
+                if (showReviewPrompt)
+                  Positioned(
+                    left: AppSpacing.md,
+                    right: AppSpacing.md,
+                    top: reviewPromptTop,
+                    child: _ProbablePlacePromptCard(
+                      hints: reviewHints,
+                      onConfirmHint: _actionInFlight
+                          ? null
+                          : (hint) => _confirmProbablePlace(
+                                eventId: reviewEvent.id,
+                                hint: hint,
+                              ),
+                      onKeepOnRoute: _actionInFlight
+                          ? null
+                          : () => _keepEventOnRoute(reviewEvent.id),
+                      onAddPlace: _actionInFlight
+                          ? null
+                          : () => _openEditorForManualPlace(reviewEvent.id),
                     ),
                   ),
                 Positioned(
@@ -184,13 +223,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                       isBusy: _actionInFlight,
                       onPhoto: usePreview
                           ? null
-                          : () => _handleMediaCaptureDeferred(
-                                kindLabel: 'Photo',
+                          : () => _captureMedia(
+                                eventType: LiveTrackingEventType.photo,
+                                fromCamera: true,
+                                position: capturePosition,
                               ),
                       onMedia: usePreview
                           ? null
-                          : () => _handleMediaCaptureDeferred(
-                                kindLabel: 'Media',
+                          : () => _captureMedia(
+                                eventType: LiveTrackingEventType.media,
+                                fromCamera: false,
+                                position: capturePosition,
                               ),
                       onTag: usePreview
                           ? null
@@ -513,11 +556,188 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     );
   }
 
-  void _handleMediaCaptureDeferred({
-    required String kindLabel,
-  }) {
-    _showMessage(
-      '$kindLabel capture is temporarily disabled until place binding is available.',
+  Future<void> _captureMedia({
+    required LiveTrackingEventType eventType,
+    required bool fromCamera,
+    required AppLatLng? position,
+  }) async {
+    if (_actionInFlight || !mounted) {
+      return;
+    }
+
+    const permissions = MediaPermissions();
+    final permissionState = fromCamera
+        ? await permissions.ensureCameraPermission()
+        : await permissions.ensureGalleryPermission();
+    if (permissionState != MediaPermissionState.granted) {
+      await _promptToOpenMediaSettings(permissions);
+      return;
+    }
+
+    final picked = fromCamera
+        ? await _imagePicker.pickImage(source: ImageSource.camera)
+        : await _imagePicker.pickMedia();
+    if (picked == null || picked.path.trim().isEmpty) {
+      return;
+    }
+    if (!File(picked.path).existsSync()) {
+      _showMessage('Captured file is unavailable. Please try again.');
+      return;
+    }
+    if (position == null) {
+      _showMessage('Waiting for GPS fix. Try again in a few seconds.');
+      return;
+    }
+
+    setState(() {
+      _actionInFlight = true;
+      _actionLabel = 'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
+    });
+    try {
+      final repository = ref.read(liveTrackingEventRepositoryProvider);
+      final result = await repository.createMediaCaptureNow(
+        tripId: widget.tripId,
+        eventType: eventType,
+        localPath: picked.path,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        mimeType: picked.mimeType,
+        payload: <String, dynamic>{
+          'file_name': picked.name,
+          'capture_source': fromCamera ? 'camera' : 'gallery',
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      _dismissedReviewPromptEventIds.remove(result.eventId);
+      if (result.decision.state == 'resolved') {
+        _showMessage('Captured and auto-bound to nearby place.');
+      } else if (result.decision.state == 'review_required') {
+        _showMessage('Captured. Review probable places when ready.');
+      } else {
+        _showMessage('Captured and saved on route.');
+      }
+    } catch (_) {
+      _showMessage('Failed to capture media. Try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actionInFlight = false;
+          _actionLabel = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirmProbablePlace({
+    required String eventId,
+    required LiveTrackingPlaceHint hint,
+  }) async {
+    if (_actionInFlight || !mounted) {
+      return;
+    }
+    setState(() {
+      _actionInFlight = true;
+      _actionLabel = 'Confirming place...';
+    });
+    try {
+      final repository = ref.read(liveTrackingEventRepositoryProvider);
+      final result = await repository.confirmPlaceForReviewEvent(
+        eventId: eventId,
+        hint: hint,
+      );
+      if (result == null) {
+        _showMessage('Could not confirm place for this capture.');
+        return;
+      }
+      if (result.syncedRouteMediaIds.isNotEmpty) {
+        final projectionRepository =
+            ref.read(compiledProjectionRepositoryProvider);
+        for (final mediaId in result.syncedRouteMediaIds) {
+          try {
+            await projectionRepository.rebind(
+              tripId: widget.tripId,
+              sourceKind: 'tracking_event_media',
+              sourceMediaId: mediaId,
+              action: CompiledRebindAction.bind,
+              tripPlaceId: result.placeId,
+            );
+          } catch (_) {
+            // Local bind is already persisted; remote projection will catch up on next rebind.
+          }
+        }
+      }
+      _dismissedReviewPromptEventIds.add(eventId);
+      _showMessage('Capture attached to place.');
+    } catch (_) {
+      _showMessage('Failed to confirm place. Try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actionInFlight = false;
+          _actionLabel = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _keepEventOnRoute(String eventId) async {
+    if (_actionInFlight || !mounted) {
+      return;
+    }
+    setState(() {
+      _actionInFlight = true;
+      _actionLabel = 'Keeping on route...';
+    });
+    try {
+      await ref
+          .read(liveTrackingEventRepositoryProvider)
+          .keepReviewEventOnRoute(eventId);
+      _dismissedReviewPromptEventIds.add(eventId);
+      _showMessage('Capture kept on route.');
+    } catch (_) {
+      _showMessage('Failed to keep capture on route.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actionInFlight = false;
+          _actionLabel = null;
+        });
+      }
+    }
+  }
+
+  void _openEditorForManualPlace(String eventId) {
+    _dismissedReviewPromptEventIds.add(eventId);
+    context.push(Routes.editorPath(widget.tripId));
+  }
+
+  Future<void> _promptToOpenMediaSettings(MediaPermissions permissions) async {
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission required'),
+        content: const Text(
+          'Camera or gallery permission is required for media capture. Open app settings to continue.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await permissions.openSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -881,6 +1101,89 @@ class _UnresolvedCaptureBanner extends StatelessWidget {
           TextButton(
             onPressed: onReview,
             child: const Text('Review'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProbablePlacePromptCard extends StatelessWidget {
+  const _ProbablePlacePromptCard({
+    required this.hints,
+    required this.onConfirmHint,
+    required this.onKeepOnRoute,
+    required this.onAddPlace,
+  });
+
+  final List<LiveTrackingPlaceHint> hints;
+  final ValueChanged<LiveTrackingPlaceHint>? onConfirmHint;
+  final VoidCallback? onKeepOnRoute;
+  final VoidCallback? onAddPlace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('liveCaptureProbablePlacePrompt'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.accentSoft.withValues(alpha: 0.92),
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Probable places for this capture',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...hints.take(3).map(
+            (hint) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${hint.name} (${(hint.confidence * 100).round()}%)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed:
+                        onConfirmHint == null ? null : () => onConfirmHint!(hint),
+                    child: const Text('Confirm place'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              TextButton(
+                onPressed: onKeepOnRoute,
+                child: const Text('Keep on route'),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              OutlinedButton(
+                onPressed: onAddPlace,
+                child: const Text('Add place'),
+              ),
+            ],
           ),
         ],
       ),

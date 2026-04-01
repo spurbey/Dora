@@ -12,6 +12,7 @@ final trackingSyncWorkerProvider = Provider<TrackingSyncWorker>((ref) {
   final trackingPointBatchDao = ref.watch(trackingPointBatchDaoProvider);
   final trackingCandidateDao = ref.watch(trackingCandidateDaoProvider);
   final trackingEventDao = ref.watch(trackingEventDaoProvider);
+  final trackingEventMediaDao = ref.watch(trackingEventMediaDaoProvider);
   final trackingMomentDao = ref.watch(trackingMomentDaoProvider);
   final liveTrackingApi = ref.watch(liveTrackingApiProvider);
   return TrackingSyncWorker(
@@ -21,6 +22,7 @@ final trackingSyncWorkerProvider = Provider<TrackingSyncWorker>((ref) {
     trackingPointBatchDao: trackingPointBatchDao,
     trackingCandidateDao: trackingCandidateDao,
     trackingEventDao: trackingEventDao,
+    trackingEventMediaDao: trackingEventMediaDao,
     trackingMomentDao: trackingMomentDao,
     liveTrackingApi: liveTrackingApi,
   );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 
@@ -53,6 +54,18 @@ abstract class LiveTrackingApi {
     required List<Map<String, dynamic>> events,
   });
 
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  });
+
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  });
+
   Future<Map<String, dynamic>> fetchCompiledProjection({
     required String tripId,
   });
@@ -63,6 +76,20 @@ abstract class LiveTrackingApi {
     required String action,
     String? tripPlaceId,
   });
+
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    return rebindCompiledProjection(
+      tripId: tripId,
+      sourceEventId: sourceMediaId,
+      action: action,
+      tripPlaceId: tripPlaceId,
+    );
+  }
 
   Future<Map<String, dynamic>> fetchTrackingPath({
     required String tripId,
@@ -299,6 +326,46 @@ class DioLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  }) async {
+    final resolvedFileName = (fileName != null && fileName.trim().isNotEmpty)
+        ? fileName.trim()
+        : filePath.split(Platform.pathSeparator).last;
+    final formData = FormData.fromMap(
+      <String, dynamic>{
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: resolvedFileName,
+        ),
+      },
+    );
+    final response = await _dio.post<dynamic>(
+      _v1Path('/trips/$tripId/tracking/media:upload'),
+      data: formData,
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/trips/$tripId/tracking/media:batch'),
+      data: <String, dynamic>{
+        'media': media,
+      },
+      options: _idempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchCompiledProjection({
     required String tripId,
   }) async {
@@ -318,7 +385,28 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     final response = await _dio.post<dynamic>(
       _v1Path('/trips/$tripId/compiled/rebind'),
       data: <String, dynamic>{
+        'source_kind': 'tracking_event',
         'source_event_id': sourceEventId,
+        'action': action,
+        if (tripPlaceId != null && tripPlaceId.isNotEmpty)
+          'trip_place_id': tripPlaceId,
+      },
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v1Path('/trips/$tripId/compiled/rebind'),
+      data: <String, dynamic>{
+        'source_kind': 'tracking_event_media',
+        'source_media_id': sourceMediaId,
         'action': action,
         if (tripPlaceId != null && tripPlaceId.isNotEmpty)
           'trip_place_id': tripPlaceId,

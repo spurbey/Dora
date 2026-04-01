@@ -12,6 +12,7 @@ import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_candidate_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
+import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/daos/tracking_moment_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
@@ -26,6 +27,7 @@ class TrackingSyncWorker {
     required TrackingPointBatchDao trackingPointBatchDao,
     required TrackingCandidateDao trackingCandidateDao,
     required TrackingEventDao trackingEventDao,
+    required TrackingEventMediaDao trackingEventMediaDao,
     required TrackingMomentDao trackingMomentDao,
     required LiveTrackingApi liveTrackingApi,
     int maxConcurrency = 2,
@@ -35,6 +37,7 @@ class TrackingSyncWorker {
         _trackingPointBatchDao = trackingPointBatchDao,
         _trackingCandidateDao = trackingCandidateDao,
         _trackingEventDao = trackingEventDao,
+        _trackingEventMediaDao = trackingEventMediaDao,
         _trackingMomentDao = trackingMomentDao,
         _liveTrackingApi = liveTrackingApi,
         _maxConcurrency = maxConcurrency;
@@ -45,6 +48,7 @@ class TrackingSyncWorker {
   final TrackingPointBatchDao _trackingPointBatchDao;
   final TrackingCandidateDao _trackingCandidateDao;
   final TrackingEventDao _trackingEventDao;
+  final TrackingEventMediaDao _trackingEventMediaDao;
   final TrackingMomentDao _trackingMomentDao;
   final LiveTrackingApi _liveTrackingApi;
   final int _maxConcurrency;
@@ -114,6 +118,12 @@ class TrackingSyncWorker {
           break;
         case SyncEntityTypes.trackingEvent:
           await _processTrackingEventTask(
+            task: task,
+            sessionId: sessionId,
+          );
+          break;
+        case SyncEntityTypes.trackingEventMedia:
+          await _processTrackingEventMediaTask(
             task: task,
             sessionId: sessionId,
           );
@@ -583,7 +593,16 @@ class TrackingSyncWorker {
     }
 
     final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
-    final payload = _decodeJsonMap(row.payloadJson);
+    final payload = <String, dynamic>{
+      ..._decodeJsonMap(row.payloadJson),
+      if (row.resolvedPlaceId != null && row.resolvedPlaceId!.trim().isNotEmpty)
+        'resolved_place_id': row.resolvedPlaceId,
+      if (row.bindConfidence != null) 'bind_confidence': row.bindConfidence,
+      if (row.resolverReasonCode != null &&
+          row.resolverReasonCode!.trim().isNotEmpty)
+        'resolver_reason_code': row.resolverReasonCode,
+      if (row.resolverState.trim().isNotEmpty) 'resolver_state': row.resolverState,
+    };
     final clientEventId = (row.clientEventId?.trim().isNotEmpty ?? false)
         ? row.clientEventId!.trim()
         : row.id;
@@ -667,6 +686,242 @@ class TrackingSyncWorker {
         }
         await _trackingEventDao.markPending(
           eventId: row.id,
+          updatedAt: now,
+        );
+      },
+    );
+  }
+
+  Future<void> _processTrackingEventMediaTask({
+    required SyncTaskRow task,
+    required String? sessionId,
+  }) async {
+    final row = await _trackingEventMediaDao.getMediaById(task.entityId);
+    if (row == null) {
+      await _persistSuccessAndCompleteTask(
+        task: task,
+        sessionId: sessionId,
+        applyLocalMutation: (_) async {},
+      );
+      return;
+    }
+
+    final event = await _trackingEventDao.getEventById(row.eventId);
+    if (event == null) {
+      await _trackingEventMediaDao.markBlockedValidation(
+        mediaId: row.id,
+        message: 'Missing parent tracking event for media sync.',
+      );
+      throw const _TrackingSyncTerminalException(
+        code: 'tracking_media_event_missing',
+        message: 'Tracking media row references a missing parent event.',
+      );
+    }
+    if (event.syncStatus.toLowerCase() != 'synced') {
+      throw _TrackingSyncDeferredException(
+        code: 'tracking_media_event_pending',
+        message: 'Tracking media upload waits for parent event sync.',
+        dependsOnEntityType: SyncEntityTypes.trackingEvent,
+        dependsOnEntityId: event.id,
+      );
+    }
+
+    final remoteTripId = await _resolveRemoteTripIdForTask(row.tripId);
+    final bindMode = row.bindMode.trim().toLowerCase();
+    String? serverPlaceId;
+    if (bindMode == 'place') {
+      final localPlaceId = row.tripPlaceId?.trim();
+      if (localPlaceId == null || localPlaceId.isEmpty) {
+        await _trackingEventMediaDao.markBlockedValidation(
+          mediaId: row.id,
+          message: 'Place bind requires trip_place_id.',
+        );
+        throw const _TrackingSyncTerminalException(
+          code: 'tracking_media_missing_place',
+          message: 'Place-bound media requires trip_place_id.',
+        );
+      }
+      final place = await _db.placeDao.getPlaceById(localPlaceId);
+      if (place == null) {
+        await _trackingEventMediaDao.markBlockedValidation(
+          mediaId: row.id,
+          message: 'Referenced place no longer exists locally.',
+        );
+        throw const _TrackingSyncTerminalException(
+          code: 'tracking_media_place_missing',
+          message: 'Place-bound media references a deleted place.',
+        );
+      }
+      final remotePlaceId = place.serverPlaceId?.trim();
+      if (remotePlaceId == null || remotePlaceId.isEmpty) {
+        throw _TrackingSyncDeferredException(
+          code: 'tracking_media_place_remote_id_missing',
+          message: 'Place-bound media requires synced place identity.',
+          dependsOnEntityType: SyncEntityTypes.place,
+          dependsOnEntityId: localPlaceId,
+        );
+      }
+      serverPlaceId = remotePlaceId;
+    } else if (bindMode == 'route') {
+      if (row.anchorLatitude == null || row.anchorLongitude == null) {
+        await _trackingEventMediaDao.markBlockedValidation(
+          mediaId: row.id,
+          message: 'Route mode requires anchor coordinates.',
+        );
+        throw const _TrackingSyncTerminalException(
+          code: 'tracking_media_missing_anchor',
+          message: 'Route-bound media requires anchor coordinates.',
+        );
+      }
+    } else {
+      await _trackingEventMediaDao.markBlockedValidation(
+        mediaId: row.id,
+        message: 'Unsupported media bind_mode: ${row.bindMode}.',
+      );
+      throw _TrackingSyncTerminalException(
+        code: 'tracking_media_invalid_bind_mode',
+        message: 'Unsupported tracking media bind mode: ${row.bindMode}',
+      );
+    }
+
+    var uploadRef = row.uploadRef?.trim();
+    if (uploadRef == null || uploadRef.isEmpty) {
+      final mediaUpload = await _liveTrackingApi.uploadTrackingMediaBinary(
+        tripId: remoteTripId,
+        filePath: row.localPath,
+      );
+      uploadRef = _asString(mediaUpload['upload_ref'])?.trim();
+      if (uploadRef == null || uploadRef.isEmpty) {
+        throw const _TrackingSyncRetryableException(
+          code: 'tracking_media_missing_upload_ref',
+          message: 'Tracking media upload did not return upload_ref.',
+        );
+      }
+      await _trackingEventMediaDao.markUploadRef(
+        mediaId: row.id,
+        uploadRef: uploadRef,
+        mimeType: _asString(mediaUpload['mime_type']) ?? row.mimeType,
+        fileSizeBytes:
+            _asInt(mediaUpload['file_size_bytes']) ?? row.fileSizeBytes,
+        updatedAt: DateTime.now().toUtc(),
+      );
+    }
+
+    final payload = _decodeJsonMap(row.payloadJson);
+    final mediaType = event.eventType.trim().toLowerCase() == 'photo'
+        ? 'photo'
+        : 'media';
+    final clientEventId = (event.clientEventId?.trim().isNotEmpty ?? false)
+        ? event.clientEventId!.trim()
+        : event.id;
+    final item = <String, dynamic>{
+      'client_media_id': row.id,
+      'client_event_id': clientEventId,
+      'media_type': mediaType,
+      'bind_mode': bindMode,
+      'captured_at': row.capturedAt.toUtc().toIso8601String(),
+      'upload_ref': uploadRef,
+      if (serverPlaceId != null) 'trip_place_id': serverPlaceId,
+      if (bindMode == 'route')
+        'location': <String, dynamic>{
+          'latitude': row.anchorLatitude,
+          'longitude': row.anchorLongitude,
+        },
+      if (row.mimeType != null && row.mimeType!.trim().isNotEmpty)
+        'mime_type': row.mimeType!.trim(),
+      if (row.fileSizeBytes != null) 'file_size_bytes': row.fileSizeBytes,
+      if (payload.isNotEmpty) 'payload': payload,
+    };
+
+    final response = await _liveTrackingApi.uploadMediaBatch(
+      tripId: remoteTripId,
+      idempotencyKey: _idempotencyKey(task.id, task.operation),
+      media: <Map<String, dynamic>>[item],
+    );
+
+    final accepted = _asJsonList(response['accepted']) ?? const <dynamic>[];
+    final rejected = _asJsonList(response['rejected']) ?? const <dynamic>[];
+    Map<String, dynamic>? rejectedForCurrent;
+    for (final raw in rejected) {
+      final entry = _asJsonMap(raw);
+      if (entry == null) {
+        continue;
+      }
+      if (_asString(entry['client_media_id']) == row.id) {
+        rejectedForCurrent = entry;
+        break;
+      }
+    }
+
+    if (rejectedForCurrent != null) {
+      final reason =
+          _asString(rejectedForCurrent['reason_code']) ?? 'tracking_media_rejected';
+      final message = _asString(rejectedForCurrent['message']) ??
+          'Tracking media rejected by server.';
+      if (reason == 'event_not_synced') {
+        throw _TrackingSyncDeferredException(
+          code: reason,
+          message: message,
+          dependsOnEntityType: SyncEntityTypes.trackingEvent,
+          dependsOnEntityId: event.id,
+        );
+      }
+      await _trackingEventMediaDao.markBlockedValidation(
+        mediaId: row.id,
+        message: message,
+        updatedAt: DateTime.now().toUtc(),
+      );
+      throw _TrackingSyncTerminalException(
+        code: reason,
+        message: message,
+      );
+    }
+
+    Map<String, dynamic>? acceptedCurrent;
+    for (final raw in accepted) {
+      final entry = _asJsonMap(raw);
+      if (entry == null) {
+        continue;
+      }
+      if (_asString(entry['client_media_id']) == row.id) {
+        acceptedCurrent = entry;
+        break;
+      }
+    }
+    if (acceptedCurrent == null) {
+      throw const _TrackingSyncRetryableException(
+        code: 'tracking_media_missing_acceptance',
+        message:
+            'Tracking media upload response missing acceptance for client_media_id.',
+      );
+    }
+
+    final remoteMediaId = _asString(acceptedCurrent['media_id']);
+    if (remoteMediaId == null || remoteMediaId.trim().isEmpty) {
+      throw const _TrackingSyncRetryableException(
+        code: 'tracking_media_missing_remote_id',
+        message: 'Tracking media upload acceptance missing media_id.',
+      );
+    }
+
+    final now = DateTime.now().toUtc();
+    await _persistSuccessAndCompleteTask(
+      task: task,
+      sessionId: sessionId,
+      applyLocalMutation: (shouldMarkEntitySynced) async {
+        if (shouldMarkEntitySynced) {
+          await _trackingEventMediaDao.markSynced(
+            mediaId: row.id,
+            remoteMediaId: remoteMediaId,
+            updatedAt: now,
+          );
+          return;
+        }
+        await _trackingEventMediaDao.markPendingUpload(
+          mediaId: row.id,
+          bindState: bindMode == 'place'
+              ? 'queued_place_upload'
+              : 'queued_route_upload',
           updatedAt: now,
         );
       },
@@ -948,6 +1203,15 @@ class TrackingSyncWorker {
     final nextRetryCount = math.min(task.retryCount + 1, _maxRetryAttempts);
     final shouldRetry = retryable && task.retryCount < (_maxRetryAttempts - 1);
     if (shouldRetry) {
+      if (task.entityType == SyncEntityTypes.trackingEventMedia) {
+        await _trackingEventMediaDao.markRetryableFailure(
+          mediaId: task.entityId,
+          message: message,
+          retryCount: nextRetryCount,
+          nextAttemptAt: DateTime.now().add(_backoffForRetry(nextRetryCount)),
+          updatedAt: DateTime.now().toUtc(),
+        );
+      }
       await _syncTaskDao.markFailed(
         taskId: task.id,
         retryCount: nextRetryCount,
@@ -962,6 +1226,13 @@ class TrackingSyncWorker {
       return;
     }
 
+    if (task.entityType == SyncEntityTypes.trackingEventMedia) {
+      await _trackingEventMediaDao.markBlockedValidation(
+        mediaId: task.entityId,
+        message: message,
+        updatedAt: DateTime.now().toUtc(),
+      );
+    }
     await _syncTaskDao.markBlocked(
       taskId: task.id,
       errorCode: code,
@@ -1090,7 +1361,8 @@ class TrackingSyncWorker {
     return task.entityType == SyncEntityTypes.trackingSession ||
         task.entityType == SyncEntityTypes.trackingPointBatch ||
         task.entityType == SyncEntityTypes.moment ||
-        task.entityType == SyncEntityTypes.trackingEvent;
+        task.entityType == SyncEntityTypes.trackingEvent ||
+        task.entityType == SyncEntityTypes.trackingEventMedia;
   }
 
   Future<String?> _resolveLocalTripIdForTask(SyncTaskRow task) async {
@@ -1106,6 +1378,9 @@ class TrackingSyncWorker {
         return row?.tripId;
       case SyncEntityTypes.trackingEvent:
         final row = await _trackingEventDao.getEventById(task.entityId);
+        return row?.tripId;
+      case SyncEntityTypes.trackingEventMedia:
+        final row = await _trackingEventMediaDao.getMediaById(task.entityId);
         return row?.tripId;
       default:
         return null;
@@ -1253,6 +1528,19 @@ class TrackingSyncWorker {
       return raw.toDouble();
     }
     return double.tryParse(raw.toString());
+  }
+
+  static int? _asInt(dynamic raw) {
+    if (raw == null) {
+      return null;
+    }
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw.toInt();
+    }
+    return int.tryParse(raw.toString());
   }
 
   static bool _asBool(dynamic raw) {

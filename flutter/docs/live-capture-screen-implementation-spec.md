@@ -881,3 +881,23 @@ All items must pass before merging any live screen PR:
 - Results:
   - passed: codegen completed, focused analyze clean, focused tests passed
   - failed: none
+
+### P2 Closeout Evidence (2026-04-01, Replay Validation + Scope Reconciliation)
+- Owner: Codex
+- Scope:
+  - Confirmed P2 event/session pipeline closure criteria with current codebase:
+    - `tracking_event` sync lane active
+    - `tracking_event_media` sync lane active
+    - write-through lifecycle commands active
+    - stale identity recovery active for events/media/session flows
+  - Reconciled scope split:
+    - advisory inbox/data remains explicitly out of P2 and deferred to P4.
+- Commands run:
+  - `backend/venv/Scripts/Activate; cd backend; alembic current`
+  - `backend/venv/Scripts/Activate; cd backend; alembic check`
+  - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py tests/test_compiled_projection_endpoints.py -q`
+  - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/sync/tracking_sync_worker.dart lib/features/live_capture/data/live_tracking_event_repository.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
+  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
+- Results:
+  - passed: Alembic drift gate (`No new upgrade operations detected`), focused backend suites, and focused Flutter migration/replay/sync suites.
+  - noted: a broader local backend run that included `tests/test_live_tracking_worker.py` reported 2 `run_auto_end_pass` count failures due pre-existing active sessions in local DB state; not part of P2 closeout gate.

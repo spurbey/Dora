@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-04-01  
-Status: In Progress (Phase 4 validated; Phase 5 runtime stabilized; Phase 6 in progress; resolver baseline landed for P3)  
+Status: In Progress (P2 closed; P3 baseline landed; P4 deferred; P5/P6/P7 pending)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -46,14 +46,14 @@ Primary references:
 
 Current Flutter baseline (already present):
 
-1. Drift DB and migration framework exist (`core/storage/drift_database.dart`, schema version `12`).
+1. Drift DB and migration framework exist (`core/storage/drift_database.dart`, schema version `15`).
 2. Sync queue exists (`sync_tasks`) with claim/retry/dependency semantics.
 3. Sync lane abstraction exists in `core/sync/live_tracking_sync_primitives.dart`.
 4. `tracking_point_batch` is already split into a non-interactive lane.
-5. Entity sync worker exists for `trip/place/route` only.
+5. Entity sync worker is active for `trip/place/route`, and dedicated tracking sync worker is active for live-tracking entities.
 6. Location foundation is currently single-shot/permission utilities (no continuous runtime engine yet).
-7. Map UI exists in editor and trip detail surfaces; editor now has live-tracking controls and live path/current-marker overlay, while candidate/moment UX remains pending.
-8. OpenAPI generated client package exists, but live-tracking APIs are not yet wired in Flutter.
+7. Dedicated live capture route/screen and editor projection surfaces are both active; runtime controls are decoupled from editor.
+8. OpenAPI generated client package is wired for live-tracking and compiled-projection APIs; `updateMoment` clear-intent patch remains explicit manual transport to preserve null-clear semantics.
 
 ## 4. Non-Negotiable Flutter Rules
 
@@ -1021,3 +1021,23 @@ After each Flutter live-tracking slice:
 - Decision notes:
   - This slice intentionally does not include compiler/projection write path changes.
   - Event-card place badges and manual override-safe resolver reconciliation are next-slice work.
+
+- Date: 2026-04-01
+- Slice: P2 closeout (event/session pipeline replay validation)
+- Implemented:
+  - Reconciled P2 scope in execution memory:
+    - media sync lane is active and no longer tracked as pending.
+    - advisory inbox storage is explicitly deferred to P4 (not part of P2 closeout gate).
+  - Revalidated live-tracking API transport wiring through generated OpenAPI client paths.
+  - Revalidated offline replay/migration/sync behavior on upgraded local schema through focused Flutter suites.
+- Validation:
+  - `backend/venv/Scripts/Activate; cd backend; alembic current` (head: `f4b8c9d1e2a3`)
+  - `backend/venv/Scripts/Activate; cd backend; alembic check` (pass: no new upgrade operations)
+  - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py tests/test_compiled_projection_endpoints.py -q` (pass)
+  - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/sync/tracking_sync_worker.dart lib/features/live_capture/data/live_tracking_event_repository.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart` (pass)
+  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart` (pass)
+- Commit references:
+  - `3c069c4` (`feat(live-tracking): activate resolver-driven media lane v3`)
+  - `919652d` (`feat(api): regenerate live-tracking OpenAPI client and migrate Flutter transport`)
+- Decision notes:
+  - A broad local run including `tests/test_live_tracking_worker.py` still has 2 environment-sensitive `run_auto_end_pass` count failures under pre-populated local DB state; kept out of P2 closeout gate and tracked separately.

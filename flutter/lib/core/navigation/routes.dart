@@ -3,6 +3,7 @@ class Routes {
 
   static const String feed = '/feed';
   static const String create = '/create';
+  static const String liveHub = '/live';
   static const String trips = '/trips';
   static const String profile = '/profile';
   static const String search = '/search';
@@ -25,6 +26,7 @@ class Routes {
   static String tripDetailPath(String id) => '/trip/$id';
   static String editorPath(String id) => '/trips/$id/edit';
   static String liveCapturePath(String id) => '/trips/$id/live';
+  static String liveHubPath() => liveHub;
   static String placeSearchPath(String id) => '/trips/$id/places/search';
   static String citySearchPath(String id) => '/trips/$id/cities/search';
   static String mediaUploadPath(String tripId, String placeId) =>

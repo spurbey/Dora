@@ -14,6 +14,7 @@ import 'package:dora/features/auth/presentation/screens/startup_screen.dart';
 import 'package:dora/features/create/presentation/screens/create_screen.dart';
 import 'package:dora/features/create/presentation/screens/editor_screen.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
+import 'package:dora/features/live_capture/presentation/screens/live_hub_screen.dart';
 import 'package:dora/features/create/presentation/screens/city_search_screen.dart';
 import 'package:dora/features/create/presentation/screens/media_upload_screen.dart';
 import 'package:dora/features/create/presentation/screens/place_search_screen.dart';
@@ -130,6 +131,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: Routes.create,
             builder: (context, state) => const CreateScreen(),
+          ),
+          GoRoute(
+            path: Routes.liveHub,
+            builder: (context, state) => const LiveHubScreen(),
           ),
           GoRoute(
             path: Routes.trips,

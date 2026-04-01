@@ -50,15 +50,22 @@ Editor is for curation and restructuring.
 ### 3.1 New Route
 1. Add route constant: `Routes.liveCapture = '/trips/:id/live'`.
 2. Add helper: `Routes.liveCapturePath(String id) => '/trips/$id/live'`.
+3. Add shell route constant: `Routes.liveHub = '/live'` as dedicated bottom-nav entry.
 
 ### 3.2 Router Entry
 1. Register `GoRoute(path: Routes.liveCapture, builder: ...LiveCaptureScreen(tripId))`.
-2. Keep route outside bottom-nav shell if fullscreen immersive behavior is required.
+2. Register `GoRoute(path: Routes.liveHub, builder: ...LiveHubScreen())` inside shell navigation.
+3. Keep `Routes.liveCapture` outside bottom-nav shell for immersive runtime behavior.
 
 ### 3.3 Launch Paths
 1. From trip detail: `Start Live Tracking` CTA.
 2. From editor header: `Open Live Capture` secondary action.
-3. From push deep link: open live route when session is active, else open editor/trip detail.
+3. From create flow: mandatory chooser after trip creation:
+   - `Edit from scratch` -> editor route
+   - `Start live trip` -> live runtime route
+   - dismiss chooser -> editor fallback
+4. From bottom-nav: Live tab opens live hub; user selects trip or resumes active session.
+5. From push deep link: open live route when session is `active|paused`, else open editor.
 
 ## 4. Screen Blueprint (UI/UX)
 

@@ -1,7 +1,7 @@
 # Live Tracking Flutter Execution Plan (Phases 4-6)
 
 Last updated: 2026-04-01  
-Status: In Progress (P2 closed; P3 baseline landed; P4 deferred; P5/P6/P7 pending)  
+Status: In Progress (P2 closed; P3 baseline landed; P4 deferred; P5 routing slice landed; P6/P7 pending)  
 Parent high-level plan: `docs/live-tracking/live-tracking-execution-plan.md`
 
 ## 1. Purpose and Why
@@ -54,6 +54,8 @@ Current Flutter baseline (already present):
 6. Location foundation is currently single-shot/permission utilities (no continuous runtime engine yet).
 7. Dedicated live capture route/screen and editor projection surfaces are both active; runtime controls are decoupled from editor.
 8. OpenAPI generated client package is wired for live-tracking and compiled-projection APIs; `updateMoment` clear-intent patch remains explicit manual transport to preserve null-clear semantics.
+9. Create-to-live chooser + dedicated Live tab/hub entry route are active.
+10. Deep-link route decision bootstrap is active (`active|paused` -> live, ended/none -> editor).
 
 ## 4. Non-Negotiable Flutter Rules
 

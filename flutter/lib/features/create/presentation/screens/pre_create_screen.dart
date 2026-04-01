@@ -60,7 +60,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
     if (_startDate == null || _endDate == null) {
       return true;
     }
-    return _endDate!.isAfter(_startDate!) || _endDate!.isAtSameMomentAs(_startDate!);
+    return _endDate!.isAfter(_startDate!) ||
+        _endDate!.isAtSameMomentAs(_startDate!);
   }
 
   Future<void> _handleClose() async {
@@ -118,12 +119,52 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
         const SnackBar(content: Text("Let's build your journey!")),
       );
 
-      context.go(Routes.editorPath(trip.id));
+      final target = await _showPostCreateChooser();
+      if (!mounted) {
+        return;
+      }
+      switch (target) {
+        case _PostCreateTarget.live:
+          context.go(Routes.liveCapturePath(trip.id));
+          break;
+        case _PostCreateTarget.editor:
+          context.go(Routes.editorPath(trip.id));
+          break;
+      }
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
       }
     }
+  }
+
+  Future<_PostCreateTarget> _showPostCreateChooser() async {
+    final choice = await showDialog<_PostCreateTarget>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('What next?'),
+          content: const Text(
+            'Choose how you want to continue this trip.',
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('postCreateChooserEditor'),
+              onPressed: () =>
+                  Navigator.of(context).pop(_PostCreateTarget.editor),
+              child: const Text('Edit from scratch'),
+            ),
+            FilledButton(
+              key: const ValueKey('postCreateChooserLive'),
+              onPressed: () =>
+                  Navigator.of(context).pop(_PostCreateTarget.live),
+              child: const Text('Start live trip'),
+            ),
+          ],
+        );
+      },
+    );
+    return choice ?? _PostCreateTarget.editor;
   }
 
   @override
@@ -147,7 +188,7 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
           ),
           Positioned.fill(
             child: Container(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
             ),
           ),
           SafeArea(
@@ -168,7 +209,7 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                         width: 327,
                         padding: AppSpacing.allLg,
                         decoration: BoxDecoration(
-                          color: AppColors.card.withOpacity(0.95),
+                          color: AppColors.card.withValues(alpha: 0.95),
                           borderRadius: AppRadius.borderXl,
                           boxShadow: AppShadows.soft,
                         ),
@@ -177,7 +218,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Start Your Journey', style: AppTypography.h2),
+                              const Text('Start Your Journey',
+                                  style: AppTypography.h2),
                               const SizedBox(height: AppSpacing.md),
                               TextFormField(
                                 controller: _nameController,
@@ -203,7 +245,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.md),
-                              Text('When did you go?', style: AppTypography.caption),
+                              const Text('When did you go?',
+                                  style: AppTypography.caption),
                               const SizedBox(height: AppSpacing.sm),
                               Row(
                                 children: [
@@ -230,7 +273,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                               ),
                               if (!_isValidDateRange)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                                  padding:
+                                      const EdgeInsets.only(top: AppSpacing.sm),
                                   child: Text(
                                     'End date must be after start date',
                                     style: AppTypography.caption.copyWith(
@@ -239,7 +283,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                                   ),
                                 ),
                               const SizedBox(height: AppSpacing.md),
-                              Text('Tags (Optional)', style: AppTypography.caption),
+                              const Text('Tags (Optional)',
+                                  style: AppTypography.caption),
                               const SizedBox(height: AppSpacing.sm),
                               TagSelector(
                                 selectedTags: _tags,
@@ -252,7 +297,8 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                                   'Budget',
                                   'Luxury',
                                 ],
-                                onTagsChanged: (tags) => setState(() => _tags = tags),
+                                onTagsChanged: (tags) =>
+                                    setState(() => _tags = tags),
                                 maxTags: 5,
                               ),
                               const SizedBox(height: AppSpacing.lg),
@@ -268,11 +314,13 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
                                     padding: const EdgeInsets.symmetric(
                                       vertical: AppSpacing.sm,
                                     ),
-                                    shape: RoundedRectangleBorder(
+                                    shape: const RoundedRectangleBorder(
                                       borderRadius: AppRadius.borderMd,
                                     ),
                                   ),
-                                  child: Text(_submitting ? 'Creating...' : 'Create Trip'),
+                                  child: Text(_submitting
+                                      ? 'Creating...'
+                                      : 'Create Trip'),
                                 ),
                               ),
                             ],
@@ -289,4 +337,9 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
       ),
     );
   }
+}
+
+enum _PostCreateTarget {
+  editor,
+  live,
 }

@@ -581,7 +581,7 @@ Status: `[ ]`
 Status: `[-]`
 1. [ ] Add advisory delivery worker for push fanout.
 2. [x] Add auth-generation-safe token lifecycle guards.
-3. [ ] Add deep-link routing for active vs ended sessions.
+3. [x] Add deep-link routing for active vs ended sessions.
 4. [ ] Add source adapters incrementally (one source per PR).
 5. [ ] Add push delivery observability dashboards and alerts.
 
@@ -653,6 +653,24 @@ Use this block for each completed phase:
    - editor header stack now surfaces a dedicated "Live Capture" entry card and hides legacy live runtime strips by default
    - editor map now renders only editor projection artifacts (places/routes/media focus), with runtime live overlays removed from editor
    - compact-viewport overflow guardrails added for live-capture top bar + bottom panel with widget regression coverage
+
+### Phase P5 Incremental Evidence (2026-04-01, Create-to-Live Routing Stabilization)
+
+1. Create flow now shows mandatory post-create chooser:
+   - `Edit from scratch` -> editor
+   - `Start live trip` -> live runtime route
+   - dismiss fallback -> editor
+2. Shell navigation now includes dedicated Live tab in slot order:
+   - Feed / Create / Live / My Trips / Profile
+3. Live hub entry path added with active-session resume and trip-based live entry.
+4. Push/deep-link routing decision now resolves active/paused -> live, ended/none -> editor, with idempotent route handling.
+5. Evidence files:
+   - `flutter/lib/features/create/presentation/screens/pre_create_screen.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_hub_screen.dart`
+   - `flutter/lib/core/navigation/navigation_shell.dart`
+   - `flutter/lib/core/navigation/live_deep_link_route_decider.dart`
+   - `flutter/lib/core/notifications/live_tracking_deep_link_bootstrap.dart`
+   - `flutter/lib/core/notifications/live_tracking_deep_link_provider.dart`
 
 ### Phase P0 Hotfix Evidence (2026-03-30)
 

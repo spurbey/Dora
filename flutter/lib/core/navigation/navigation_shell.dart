@@ -7,51 +7,54 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 
+int locationToTabIndex(String location) {
+  if (location.startsWith(Routes.create)) {
+    return 1;
+  }
+  if (location.startsWith(Routes.liveHub)) {
+    return 2;
+  }
+  if (location.startsWith(Routes.trips)) {
+    return 3;
+  }
+  if (location.startsWith(Routes.profile)) {
+    return 4;
+  }
+  return 0;
+}
+
+String tabIndexToRoute(int index) {
+  switch (index) {
+    case 0:
+      return Routes.feed;
+    case 1:
+      return Routes.create;
+    case 2:
+      return Routes.liveHub;
+    case 3:
+      return Routes.trips;
+    case 4:
+      return Routes.profile;
+    default:
+      return Routes.feed;
+  }
+}
+
 class NavigationShell extends StatelessWidget {
   const NavigationShell({super.key, required this.child});
 
   final Widget child;
 
-  int _locationToIndex(String location) {
-    if (location.startsWith(Routes.create)) {
-      return 1;
-    }
-    if (location.startsWith(Routes.trips)) {
-      return 2;
-    }
-    if (location.startsWith(Routes.profile)) {
-      return 3;
-    }
-    return 0;
-  }
-
-  void _onItemTapped(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(Routes.feed);
-        break;
-      case 1:
-        context.go(Routes.create);
-        break;
-      case 2:
-        context.go(Routes.trips);
-        break;
-      case 3:
-        context.go(Routes.profile);
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    final currentIndex = _locationToIndex(location);
+    final currentIndex = locationToTabIndex(location);
 
     return Scaffold(
       body: child,
       bottomNavigationBar: _CustomTabBar(
         currentIndex: currentIndex,
-        onTap: (index) => _onItemTapped(context, index),
+        onTap: (index) => context.go(tabIndexToRoute(index)),
       ),
     );
   }
@@ -71,6 +74,7 @@ class _CustomTabBar extends StatelessWidget {
     const items = <_TabItemData>[
       _TabItemData(label: 'Feed', icon: Icons.home_outlined),
       _TabItemData(label: 'Create', icon: Icons.add_circle_outline),
+      _TabItemData(label: 'Live', icon: Icons.radio_button_checked_outlined),
       _TabItemData(label: 'My Trips', icon: Icons.book_outlined),
       _TabItemData(label: 'Profile', icon: Icons.person_outline),
     ];

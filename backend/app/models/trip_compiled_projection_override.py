@@ -31,7 +31,7 @@ class TripCompiledProjectionOverride(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    source_kind = Column(String(32), nullable=False, comment="tracking_event")
+    source_kind = Column(String(32), nullable=False, comment="tracking_event|tracking_event_media")
     source_id = Column(UUID(as_uuid=True), nullable=False)
     action = Column(String(16), nullable=False, comment="bind|unbind")
     trip_place_id = Column(
@@ -55,7 +55,7 @@ class TripCompiledProjectionOverride(Base):
             name="uq_trip_compiled_projection_overrides_source",
         ),
         CheckConstraint(
-            "source_kind IN ('tracking_event')",
+            "source_kind IN ('tracking_event', 'tracking_event_media')",
             name="check_compiled_projection_override_source_kind",
         ),
         CheckConstraint(
@@ -63,4 +63,3 @@ class TripCompiledProjectionOverride(Base):
             name="check_compiled_projection_override_action",
         ),
     )
-

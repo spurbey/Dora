@@ -68,6 +68,8 @@ class CompiledProjectionResponse(BaseModel):
 
 
 class CompiledRebindRequest(BaseModel):
-    source_event_id: UUID
+    source_event_id: Optional[UUID] = None
+    source_media_id: Optional[UUID] = None
+    source_kind: str = Field(default="tracking_event", pattern="^(tracking_event|tracking_event_media)$")
     action: str = Field(..., pattern="^(bind|unbind)$")
     trip_place_id: Optional[UUID] = None

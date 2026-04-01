@@ -47,10 +47,13 @@ async def rebind_compiled_projection_item(
     db: Session = Depends(get_db),
 ):
     service = TripProjectionCompilerService(db)
+    source_kind = request.source_kind.strip().lower()
+    source_id = request.source_event_id if source_kind == "tracking_event" else request.source_media_id
     service.save_manual_rebind(
         trip_id=trip_id,
         user_id=current_user.id,
-        source_event_id=request.source_event_id,
+        source_kind=source_kind,
+        source_id=source_id,
         action=request.action,
         trip_place_id=request.trip_place_id,
     )
@@ -58,4 +61,3 @@ async def rebind_compiled_projection_item(
         trip_id=trip_id,
         user_id=current_user.id,
     )
-

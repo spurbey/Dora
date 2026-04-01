@@ -41,6 +41,7 @@ from app.models.user_device_token import UserDeviceToken
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_event import TripTrackingEvent
+from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.models.trip_compiled_projection_state import TripCompiledProjectionState
 from app.models.trip_compiled_projection_item import TripCompiledProjectionItem
 from app.models.trip_compiled_route_segment import TripCompiledRouteSegment
@@ -71,6 +72,7 @@ __all__ = [
     "TripTrackingNotification",
     "TripTrackingNotificationEvent",
     "TripTrackingEvent",
+    "TripTrackingEventMedia",
     "TripCompiledProjectionState",
     "TripCompiledProjectionItem",
     "TripCompiledRouteSegment",

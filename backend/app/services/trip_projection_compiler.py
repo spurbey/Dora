@@ -28,6 +28,7 @@ from app.models.trip_compiled_projection_state import TripCompiledProjectionStat
 from app.models.trip_compiled_route_segment import TripCompiledRouteSegment
 from app.models.trip_location_point import TripLocationPoint
 from app.models.trip_tracking_event import TripTrackingEvent
+from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.schemas.compiled_projection import (
     CompiledProjectionResponse,
     CompiledProjectionStats,
@@ -156,19 +157,40 @@ class TripProjectionCompilerService:
         *,
         trip_id: UUID,
         user_id: UUID,
-        source_event_id: UUID,
+        source_kind: str,
+        source_id: Optional[UUID],
         action: str,
         trip_place_id: Optional[UUID],
     ) -> None:
         self._get_owned_trip(trip_id=trip_id, user_id=user_id)
 
-        source_event = self.db.query(TripTrackingEvent).filter(
-            TripTrackingEvent.id == source_event_id,
-            TripTrackingEvent.trip_id == trip_id,
-            TripTrackingEvent.user_id == user_id,
-        ).first()
-        if source_event is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracking event not found")
+        normalized_source_kind = source_kind.strip().lower()
+        if normalized_source_kind not in {"tracking_event", "tracking_event_media"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="source_kind must be tracking_event|tracking_event_media",
+            )
+        if source_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="source id is required for rebind",
+            )
+        if normalized_source_kind == "tracking_event":
+            source_row = self.db.query(TripTrackingEvent).filter(
+                TripTrackingEvent.id == source_id,
+                TripTrackingEvent.trip_id == trip_id,
+                TripTrackingEvent.user_id == user_id,
+            ).first()
+            if source_row is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracking event not found")
+        else:
+            source_row = self.db.query(TripTrackingEventMedia).filter(
+                TripTrackingEventMedia.id == source_id,
+                TripTrackingEventMedia.trip_id == trip_id,
+                TripTrackingEventMedia.user_id == user_id,
+            ).first()
+            if source_row is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracking media not found")
 
         normalized_action = action.strip().lower()
         if normalized_action not in {"bind", "unbind"}:
@@ -193,8 +215,8 @@ class TripProjectionCompilerService:
         insert_stmt = pg_insert(TripCompiledProjectionOverride).values(
             trip_id=trip_id,
             user_id=user_id,
-            source_kind="tracking_event",
-            source_id=source_event_id,
+            source_kind=normalized_source_kind,
+            source_id=source_id,
             action=normalized_action,
             trip_place_id=trip_place_id,
         )
@@ -265,6 +287,14 @@ class TripProjectionCompilerService:
             asc(TripTrackingEvent.captured_at),
             asc(TripTrackingEvent.id),
         ).all()
+        media_rows = self.db.query(TripTrackingEventMedia).filter(
+            TripTrackingEventMedia.trip_id == trip_id,
+            TripTrackingEventMedia.user_id == user_id,
+            TripTrackingEventMedia.media_type.in_(("photo", "media")),
+        ).order_by(
+            asc(TripTrackingEventMedia.captured_at),
+            asc(TripTrackingEventMedia.id),
+        ).all()
 
         places = self.db.query(TripPlace).filter(
             TripPlace.trip_id == trip_id,
@@ -275,9 +305,17 @@ class TripProjectionCompilerService:
         overrides = self.db.query(TripCompiledProjectionOverride).filter(
             TripCompiledProjectionOverride.trip_id == trip_id,
             TripCompiledProjectionOverride.user_id == user_id,
-            TripCompiledProjectionOverride.source_kind == "tracking_event",
         ).all()
-        override_by_source = {override.source_id: override for override in overrides}
+        event_override_by_source = {
+            override.source_id: override
+            for override in overrides
+            if override.source_kind == "tracking_event"
+        }
+        media_override_by_source = {
+            override.source_id: override
+            for override in overrides
+            if override.source_kind == "tracking_event_media"
+        }
 
         point_rows = self.db.query(TripLocationPoint).filter(
             TripLocationPoint.trip_id == trip_id,
@@ -289,14 +327,14 @@ class TripProjectionCompilerService:
         ).all()
 
         item_rows: list[TripCompiledProjectionItem] = []
-        for order_index, event in enumerate(events):
+        for event in events:
             payload = dict(event.payload or {})
             bind = self._resolve_binding(
                 event=event,
                 payload=payload,
                 place_by_id=place_by_id,
                 places=places,
-                override=override_by_source.get(event.id),
+                override=event_override_by_source.get(event.id),
             )
             title = (event.note or "").strip() or self._default_title_for_event(event.event_type)
             subtitle = self._build_subtitle(event=event, bind=bind)
@@ -328,10 +366,69 @@ class TripProjectionCompilerService:
                     title=title[:255],
                     subtitle=subtitle,
                     payload=event_payload,
-                    order_index=order_index,
+                    order_index=0,
                     compiler_version=self.COMPILER_VERSION,
                 )
             )
+
+        for media in media_rows:
+            bind = self._resolve_media_binding(
+                media=media,
+                place_by_id=place_by_id,
+                override=media_override_by_source.get(media.id),
+            )
+            media_payload = dict(media.payload or {})
+            media_payload.setdefault("upload_ref", media.upload_ref)
+            if media.mime_type:
+                media_payload.setdefault("mime_type", media.mime_type)
+            if media.file_size_bytes is not None:
+                media_payload.setdefault("file_size_bytes", media.file_size_bytes)
+            if media.client_media_id:
+                media_payload.setdefault("client_media_id", str(media.client_media_id))
+            if media.client_event_id:
+                media_payload.setdefault("client_event_id", str(media.client_event_id))
+            if media.anchor_latitude is not None and media.anchor_longitude is not None:
+                media_payload.setdefault(
+                    "location",
+                    {
+                        "latitude": media.anchor_latitude,
+                        "longitude": media.anchor_longitude,
+                    },
+                )
+            title = "Photo" if media.media_type == "photo" else "Media"
+            subtitle = self._build_compiled_subtitle(
+                captured_at=media.captured_at,
+                bind=bind,
+            )
+            item_rows.append(
+                TripCompiledProjectionItem(
+                    trip_id=trip_id,
+                    user_id=user_id,
+                    entry_id=f"tracking_event_media:{media.id}",
+                    source_kind="tracking_event_media",
+                    source_id=media.id,
+                    event_type=media.media_type,
+                    captured_at=self._to_utc(media.captured_at),
+                    day_key=self._to_utc(media.captured_at).date(),
+                    bucket_type=bind["bucket_type"],
+                    place_id=bind["place_id"],
+                    place_name=bind["place_name"],
+                    bind_source=bind["bind_source"],
+                    bind_confidence=bind["bind_confidence"],
+                    reason_code=bind["reason_code"],
+                    title=title,
+                    subtitle=subtitle,
+                    payload=media_payload,
+                    order_index=0,
+                    compiler_version=self.COMPILER_VERSION,
+                )
+            )
+
+        item_rows.sort(
+            key=lambda row: (row.captured_at, row.entry_id, str(row.source_id)),
+        )
+        for index, row in enumerate(item_rows):
+            row.order_index = index
 
         route_rows = self._compile_route_segments(
             trip_id=trip_id,
@@ -354,7 +451,7 @@ class TripProjectionCompilerService:
         state.compiler_version = self.COMPILER_VERSION
         state.dirty = False
         state.stale = False
-        state.raw_event_count = len(events)
+        state.raw_event_count = len(events) + len(media_rows)
         state.compiled_event_count = len(item_rows)
         state.raw_point_count = len(point_rows)
         state.compiled_route_segment_count = len(route_rows)
@@ -542,6 +639,53 @@ class TripProjectionCompilerService:
             "bind_source": "none",
             "bind_confidence": None,
             "reason_code": "no_candidate",
+        }
+
+    def _resolve_media_binding(
+        self,
+        *,
+        media: TripTrackingEventMedia,
+        place_by_id: dict[UUID, TripPlace],
+        override: Optional[TripCompiledProjectionOverride],
+    ) -> dict[str, Any]:
+        if override is not None:
+            if override.action == "bind" and override.trip_place_id in place_by_id:
+                place = place_by_id[override.trip_place_id]
+                return {
+                    "bucket_type": "place",
+                    "place_id": place.id,
+                    "place_name": place.name,
+                    "bind_source": "manual",
+                    "bind_confidence": 1.0,
+                    "reason_code": "manual_bind",
+                }
+            return {
+                "bucket_type": "on_route",
+                "place_id": None,
+                "place_name": None,
+                "bind_source": "manual",
+                "bind_confidence": None,
+                "reason_code": "manual_unbind",
+            }
+
+        if media.bind_mode == "place" and media.trip_place_id in place_by_id:
+            place = place_by_id[media.trip_place_id]
+            return {
+                "bucket_type": "place",
+                "place_id": place.id,
+                "place_name": place.name,
+                "bind_source": "auto",
+                "bind_confidence": 1.0,
+                "reason_code": "media_place_bind",
+            }
+
+        return {
+            "bucket_type": "on_route",
+            "place_id": None,
+            "place_name": None,
+            "bind_source": "auto",
+            "bind_confidence": 1.0,
+            "reason_code": "media_route_geotag",
         }
 
     @staticmethod

@@ -133,6 +133,49 @@ class TrackingEventsBatchResponse(BaseModel):
     idempotency_replayed: bool
 
 
+TrackingMediaBindMode = Literal["place", "route"]
+TrackingMediaType = Literal["photo", "media"]
+
+
+class TrackingMediaInput(BaseModel):
+    client_media_id: str = Field(..., min_length=1, max_length=128)
+    client_event_id: str = Field(..., min_length=1, max_length=128)
+    media_type: TrackingMediaType
+    bind_mode: TrackingMediaBindMode
+    captured_at: Any
+    trip_place_id: Optional[str] = Field(default=None, max_length=128)
+    location: Optional[dict[str, Any]] = None
+    upload_ref: str = Field(..., min_length=1, max_length=2048)
+    mime_type: Optional[str] = Field(default=None, max_length=128)
+    file_size_bytes: Optional[int] = Field(default=None, ge=0)
+    payload: Optional[dict[str, Any]] = None
+
+
+class TrackingMediaBatchRequest(BaseModel):
+    media: list[TrackingMediaInput] = Field(default_factory=list, max_length=100)
+
+
+class TrackingMediaAcceptedResponse(BaseModel):
+    client_media_id: str
+    media_id: UUID
+    duplicate: bool
+
+
+class TrackingMediaRejectedResponse(BaseModel):
+    client_media_id: Optional[str] = None
+    reason_code: str
+    message: str
+
+
+class TrackingMediaBatchResponse(BaseModel):
+    trip_id: UUID
+    accepted: list[TrackingMediaAcceptedResponse]
+    rejected: list[TrackingMediaRejectedResponse]
+    accepted_count: int
+    rejected_count: int
+    idempotency_replayed: bool
+
+
 class TrackingPathPointResponse(BaseModel):
     recorded_at: datetime
     latitude: float

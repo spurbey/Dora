@@ -28,9 +28,9 @@ class TripCompiledProjectionItem(Base):
         nullable=False,
     )
     entry_id = Column(String(160), nullable=False, comment="Deterministic projection entry identity")
-    source_kind = Column(String(32), nullable=False, comment="tracking_event")
+    source_kind = Column(String(32), nullable=False, comment="tracking_event|tracking_event_media")
     source_id = Column(UUID(as_uuid=True), nullable=False, comment="Source row UUID")
-    event_type = Column(String(32), nullable=False, comment="note|warn|tag")
+    event_type = Column(String(32), nullable=False, comment="note|warn|tag|photo|media")
     captured_at = Column(DateTime(timezone=True), nullable=False)
     day_key = Column(Date, nullable=False)
     bucket_type = Column(String(32), nullable=False, comment="place|on_route")
@@ -64,11 +64,11 @@ class TripCompiledProjectionItem(Base):
             name="uq_trip_compiled_projection_items_trip_entry_version",
         ),
         CheckConstraint(
-            "source_kind IN ('tracking_event')",
+            "source_kind IN ('tracking_event', 'tracking_event_media')",
             name="check_compiled_projection_source_kind",
         ),
         CheckConstraint(
-            "event_type IN ('note', 'warn', 'tag')",
+            "event_type IN ('note', 'warn', 'tag', 'photo', 'media')",
             name="check_compiled_projection_event_type",
         ),
         CheckConstraint(
@@ -83,4 +83,3 @@ class TripCompiledProjectionItem(Base):
         Index("idx_compiled_projection_items_trip_captured", "trip_id", "captured_at"),
         Index("idx_compiled_projection_items_trip_bucket", "trip_id", "bucket_type"),
     )
-

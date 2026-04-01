@@ -30,6 +30,7 @@ from app.models.trip_tracking_event import TripTrackingEvent
 from app.models.trip_tracking_notification import TripTrackingNotification
 from app.models.trip_tracking_notification_event import TripTrackingNotificationEvent
 from app.models.trip_tracking_session import TripTrackingSession
+from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.models.user_device_token import UserDeviceToken
 from app.services.trip_projection_compiler import TripProjectionCompilerService
 from app.utils.geo import haversine_distance
@@ -38,6 +39,8 @@ from app.utils.geo import haversine_distance
 IDEMPOTENCY_TTL_HOURS = 72
 REJECT_COOLDOWN_HOURS = 24
 TRACKING_EVENT_TYPES = {"note", "warn", "tag", "photo", "media"}
+TRACKING_MEDIA_TYPES = {"photo", "media"}
+TRACKING_MEDIA_BIND_MODES = {"place", "route"}
 
 
 @dataclass
@@ -131,6 +134,7 @@ class LiveTrackingService:
             "uq_user_device_tokens_push_token",
             "uq_user_device_tokens_user_token",
             "uq_tracking_event_trip_user_client_event",
+            "uq_tracking_event_media_trip_user_client_media",
         )
         for constraint in known_constraints:
             if constraint in message:
@@ -244,6 +248,7 @@ class LiveTrackingService:
                 "uq_user_device_tokens_push_token",
                 "uq_user_device_tokens_user_token",
                 "uq_tracking_event_trip_user_client_event",
+                "uq_tracking_event_media_trip_user_client_media",
             }:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -843,6 +848,294 @@ class LiveTrackingService:
                 trip_id=trip_id,
                 user_id=user_id,
                 reason="tracking_events_ingested",
+            )
+
+        return status.HTTP_202_ACCEPTED, {
+            "trip_id": trip_id,
+            "accepted": accepted,
+            "rejected": rejected,
+            "accepted_count": len(accepted),
+            "rejected_count": len(rejected),
+        }
+
+    def ingest_media_batch(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        media: list[dict[str, Any]],
+    ) -> tuple[int, dict[str, Any]]:
+        self._get_owned_trip(trip_id=trip_id, user_id=user_id)
+
+        accepted: list[dict[str, Any]] = []
+        rejected: list[dict[str, Any]] = []
+        created_media = 0
+
+        for raw_item in media:
+            item = dict(raw_item or {})
+            client_media_raw = item.get("client_media_id")
+            client_media_text = str(client_media_raw).strip() if client_media_raw is not None else ""
+            if not client_media_text:
+                rejected.append(
+                    {
+                        "client_media_id": None,
+                        "reason_code": "missing_client_media_id",
+                        "message": "client_media_id is required",
+                    }
+                )
+                continue
+            client_media_id = self._parse_uuid(client_media_text)
+            if client_media_id is None:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_client_media_id",
+                        "message": "client_media_id must be a valid UUID",
+                    }
+                )
+                continue
+
+            client_event_raw = item.get("client_event_id")
+            client_event_text = str(client_event_raw).strip() if client_event_raw is not None else ""
+            if not client_event_text:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "missing_client_event_id",
+                        "message": "client_event_id is required",
+                    }
+                )
+                continue
+            client_event_id = self._parse_uuid(client_event_text)
+            if client_event_id is None:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_client_event_id",
+                        "message": "client_event_id must be a valid UUID",
+                    }
+                )
+                continue
+
+            event = (
+                self.db.query(TripTrackingEvent)
+                .filter(
+                    TripTrackingEvent.trip_id == trip_id,
+                    TripTrackingEvent.user_id == user_id,
+                    TripTrackingEvent.client_event_id == client_event_id,
+                )
+                .first()
+            )
+            if event is None:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "event_not_synced",
+                        "message": "client_event_id is not available on server for this trip",
+                    }
+                )
+                continue
+
+            media_type = str(item.get("media_type") or "").strip().lower()
+            if media_type not in TRACKING_MEDIA_TYPES:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_media_type",
+                        "message": "media_type must be one of photo|media",
+                    }
+                )
+                continue
+
+            bind_mode = str(item.get("bind_mode") or "").strip().lower()
+            if bind_mode not in TRACKING_MEDIA_BIND_MODES:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_bind_mode",
+                        "message": "bind_mode must be one of place|route",
+                    }
+                )
+                continue
+
+            captured_at = self._coerce_datetime(item.get("captured_at"))
+            if captured_at is None:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_captured_at",
+                        "message": "captured_at must be an ISO-8601 datetime",
+                    }
+                )
+                continue
+
+            trip_place_id: Optional[UUID] = None
+            anchor_latitude: Optional[float] = None
+            anchor_longitude: Optional[float] = None
+            if bind_mode == "place":
+                trip_place_id = self._parse_uuid(item.get("trip_place_id"))
+                if trip_place_id is None:
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "missing_trip_place_id",
+                            "message": "trip_place_id is required for place bind_mode",
+                        }
+                    )
+                    continue
+                try:
+                    self._get_owned_trip_place(
+                        place_id=trip_place_id,
+                        trip_id=trip_id,
+                        user_id=user_id,
+                    )
+                except HTTPException:
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_trip_place_id",
+                            "message": "trip_place_id does not belong to this trip",
+                        }
+                    )
+                    continue
+            else:
+                location = item.get("location")
+                if not isinstance(location, dict):
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_location",
+                            "message": "location is required for route bind_mode",
+                        }
+                    )
+                    continue
+                try:
+                    anchor_latitude = float(location.get("latitude"))
+                    anchor_longitude = float(location.get("longitude"))
+                except (TypeError, ValueError):
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_location",
+                            "message": "location latitude/longitude must be numeric values",
+                        }
+                    )
+                    continue
+                if not self._is_valid_coordinate(
+                    latitude=anchor_latitude,
+                    longitude=anchor_longitude,
+                ):
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_location",
+                            "message": "location coordinates are out of range",
+                        }
+                    )
+                    continue
+
+            upload_ref = str(item.get("upload_ref") or "").strip()
+            if not upload_ref:
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "missing_upload_ref",
+                        "message": "upload_ref is required",
+                    }
+                )
+                continue
+
+            mime_type = item.get("mime_type")
+            if mime_type is not None:
+                mime_type = str(mime_type).strip() or None
+            file_size_bytes = item.get("file_size_bytes")
+            if file_size_bytes is not None:
+                try:
+                    file_size_bytes = int(file_size_bytes)
+                except (TypeError, ValueError):
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_file_size_bytes",
+                            "message": "file_size_bytes must be an integer when provided",
+                        }
+                    )
+                    continue
+                if file_size_bytes < 0:
+                    rejected.append(
+                        {
+                            "client_media_id": client_media_text,
+                            "reason_code": "invalid_file_size_bytes",
+                            "message": "file_size_bytes must be >= 0",
+                        }
+                    )
+                    continue
+
+            payload = item.get("payload")
+            if payload is None:
+                payload = {}
+            if not isinstance(payload, dict):
+                rejected.append(
+                    {
+                        "client_media_id": client_media_text,
+                        "reason_code": "invalid_payload",
+                        "message": "payload must be an object",
+                    }
+                )
+                continue
+
+            existing = (
+                self.db.query(TripTrackingEventMedia)
+                .filter(
+                    TripTrackingEventMedia.trip_id == trip_id,
+                    TripTrackingEventMedia.user_id == user_id,
+                    TripTrackingEventMedia.client_media_id == client_media_id,
+                )
+                .first()
+            )
+            if existing is not None:
+                accepted.append(
+                    {
+                        "client_media_id": str(client_media_id),
+                        "media_id": str(existing.id),
+                        "duplicate": True,
+                    }
+                )
+                continue
+
+            media_row = TripTrackingEventMedia(
+                trip_id=trip_id,
+                user_id=user_id,
+                event_id=event.id,
+                client_media_id=client_media_id,
+                client_event_id=client_event_id,
+                media_type=media_type,
+                bind_mode=bind_mode,
+                trip_place_id=trip_place_id,
+                captured_at=captured_at,
+                anchor_latitude=anchor_latitude,
+                anchor_longitude=anchor_longitude,
+                upload_ref=upload_ref,
+                mime_type=mime_type,
+                file_size_bytes=file_size_bytes,
+                payload=payload,
+            )
+            self.db.add(media_row)
+            self.db.flush()
+            created_media += 1
+            accepted.append(
+                {
+                    "client_media_id": str(client_media_id),
+                    "media_id": str(media_row.id),
+                    "duplicate": False,
+                }
+            )
+
+        if created_media > 0:
+            TripProjectionCompilerService(self.db).mark_dirty(
+                trip_id=trip_id,
+                user_id=user_id,
+                reason="tracking_media_ingested",
             )
 
         return status.HTTP_202_ACCEPTED, {

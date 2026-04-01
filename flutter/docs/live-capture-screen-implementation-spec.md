@@ -204,10 +204,14 @@ Rules:
 5. Show summary CTA: `Review in Editor`.
 
 ### 6.5 Capture Photo
-1. Photo/media capture remains command-gated in this wave.
-2. User receives deterministic feedback: capture is disabled until place-binding upload contract is enabled.
-3. No local media row is created from the live action until gate is lifted.
-4. `tracking_events` continues for supported event types (`note`, `warn`, `tag`).
+1. Media capture contract is `bind_mode`-driven:
+   - `place` (attach to selected place)
+   - `route` (save as route geotag with capture coordinates)
+2. Every media capture must persist local event/media records immediately before any network sync.
+3. Place assignment is optional at capture time; route-geotag is first-class behavior.
+4. Current implementation status:
+   - backend contract is live (`POST /tracking/media:batch`)
+   - Flutter live action wiring for media producer/sync lane is still pending activation.
 
 ### 6.6 Capture Note
 1. Open quick text composer.
@@ -241,6 +245,11 @@ Rules:
 2. Media tasks.
 3. Point batch tasks.
 4. Advisory ack actions.
+
+Media dependency rules:
+1. Media always depends on event identity sync.
+2. `bind_mode=place` media additionally depends on place identity sync.
+3. `bind_mode=route` media syncs without place dependency.
 
 ### 7.2.1 Command-Plane Note
 1. Session lifecycle commands are not part of deferred data-plane queue in target architecture.
@@ -463,11 +472,12 @@ Status: `[x]`
 
 #### Slice C: Capture Actions and Local Persistence
 Status: `[x]`
-1. [x] Implement live-capture actions with command gating for unsupported media lanes.
+1. [x] Implement live-capture actions and local event persistence baseline.
 2. [x] Persist `tracking_events` row before any network call.
-3. [x] Add `tracking_event_media` foundation table/DAO and gate photo/media capture until place-binding upload path lands.
+3. [x] Add `tracking_event_media` foundation table/DAO.
 4. [x] Render recent events strip from local stream.
 5. [x] Add tests for immediate local visibility.
+6. [ ] Activate Flutter media producer/sync lane with bind intent (`place|route`) and route-geotag upload path.
 
 #### Slice D: Resolver and Place Badges
 Status: `[-]`
@@ -665,7 +675,7 @@ All items must pass before merging any live screen PR:
   - failed: none
 - Known follow-ups:
   - Historical note: backend `events:batch` was deferred at this checkpoint; later delivered in `Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)`.
-  - Add place-binding-aware media upload flow before enabling `photo/media` capture actions.
+  - Add bind-mode-aware (`place|route`) media upload flow before enabling `photo/media` capture actions in live UI.
 
 ### Slice H Evidence (2026-03-30, Partial)
 - Owner: Codex
@@ -765,7 +775,7 @@ All items must pass before merging any live screen PR:
   - passed: targeted analyze + focused sync/runtime suites
   - failed: none
 - Known follow-ups:
-  - media upload lane remains gated until resolver/place-binding contract lands.
+  - backend media contract now supports `bind_mode=place|route`; Flutter producer/worker activation remains pending.
 
 ### Slice B.4 Evidence (2026-03-31, Ended-State Restart UX Fix)
 - Owner: Codex

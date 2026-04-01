@@ -80,24 +80,31 @@ When docs conflict, precedence is:
 ## 6. Media Lane Activation Contract
 
 ## 6.1 Activation Gate
-Media capture/upload remains gated until all are true:
-1. Resolver output fields are persisted and stable.
-2. Upload contract for media without mandatory pre-bound place is finalized.
-3. Dependency model for `event -> media -> projection` is implemented and tested.
+Backend media ingest contract is now finalized with two valid bind intents:
+1. `bind_mode=place` (requires `trip_place_id`)
+2. `bind_mode=route` (requires location anchor)
+
+Flutter activation gate remains open until all are true:
+1. Local producer writes `tracking_event_media` with bind intent from live capture flow.
+2. Sync worker media lane is active with dependency rules from Section 6.3.
+3. Live UX exposes explicit `Attach place` and `Save on route` choices.
 
 ## 6.2 Media Lifecycle FSM
-1. `gated_local_only` (current)
-2. `pending_upload`
-3. `uploaded_remote`
-4. `linked_to_event`
-5. `failed_retryable`
-6. `blocked_validation`
+1. `awaiting_bind_choice`
+2. `queued_place_upload`
+3. `queued_route_upload`
+4. `uploaded_remote`
+5. `linked_to_event`
+6. `failed_retryable`
+7. `blocked_validation`
 
 ## 6.3 Dependency Rules
 1. `tracking_event` can sync without media.
-2. Media task depends on event identity mapping.
-3. Linking to compiled/editor surface depends on resolver state + upload success.
-4. Retryable transport failures must keep local media pointer and user-visible pending state.
+2. Media task always depends on event identity mapping.
+3. Place-mode media additionally depends on place identity sync.
+4. Route-mode media does not depend on place identity and must upload with route geotag.
+5. Linking to compiled/editor surface depends on upload success and bind mode.
+6. Retryable transport failures must keep local media pointer and user-visible pending state.
 
 ## 7. Advisory Pipeline Contract (In-App First)
 
@@ -156,9 +163,10 @@ Before marking a hard slice complete:
 
 1. Implemented:
    - backend compiled projection artifact model + compiler service + additive APIs (`GET /compiled/projection`, `POST /compiled/rebind`).
+   - backend media ingest contract for route/place bind intents (`POST /tracking/media:batch`, `bind_mode=place|route`).
    - manual rebind persistence with manual precedence retained across recompiles.
    - Flutter editor integration with backend projection + local pending overlay merge and route overlay rendering.
 2. Still open under this contract:
    - projection drift threshold alerting/gating policy (Section 5.4).
-   - media lane activation gate conditions (Section 6.1) and upload lifecycle activation.
+   - Flutter media lane activation gate conditions (Section 6.1) and upload lifecycle activation.
    - advisory pipeline in-app/push execution slices (Section 7).

@@ -206,8 +206,11 @@ Resolver outputs:
    - payload: `events[]` with event type and metadata
    - returns: accepted IDs + rejected reasons
 2. `POST /trips/{trip_id}/tracking/media:batch`
-   - payload: media metadata + upload references
-   - returns: upload mapping and status
+   - payload: media metadata + upload references + `bind_mode` (`place|route`)
+   - validation:
+     - `bind_mode=place` requires `trip_place_id`
+     - `bind_mode=route` requires `location` anchor (`lat/lng`)
+   - returns: partial-accept upload mapping + per-item rejection reasons
 3. `GET /trips/{trip_id}/tracking/runtime`
    - returns: active session, current marker, last N events, advisory summary
 4. `GET /trips/{trip_id}/tracking/advisories`
@@ -554,7 +557,7 @@ Status: `[-]`
 3. [x] Add backend `events:batch` ingest API contract.
 4. [x] Add identity recovery for stale remote trip mapping.
 5. [x] Add `tracking_event` sync lane wiring (Flutter producer + worker consumer).
-6. [ ] Add media sync lane wiring.
+6. [ ] Add media sync lane wiring (backend media contract landed; Flutter producer/worker wiring pending).
 7. [ ] Validate offline-first replay on upgraded DB path.
 8. [x] Migrate session lifecycle actions to write-through server command path (remove deferred session-task queue for start/pause/resume/stop).
 
@@ -563,7 +566,7 @@ Status: `[-]`
 1. [x] Implement resolver thresholds and reason codes.
 2. [x] Add compiler worker projection updates for editor.
 3. [x] Add manual override persistence path for place rebinding.
-4. [ ] Add projection consistency checks (raw vs compiled counts).
+4. [x] Add projection consistency checks (raw vs compiled counts).
 5. [x] Add regression tests for "captured item disappears" class bugs.
 
 #### Phase P4: Advisory MVP (Single Source)
@@ -691,11 +694,11 @@ Use this block for each completed phase:
    - local `tracking_events` and `tracking_event_media` tables/DAOs in Flutter storage.
    - live capture persistence switched from `tracking_moments` to `tracking_events`.
    - live recent-captures strip now reads from local event stream.
-   - command-level gating for `photo/media` actions until place-binding upload path exists.
+   - command-level gating for `photo/media` actions (historical state at this checkpoint).
 2. Explicitly deferred in this slice:
    - backend `POST /trips/{trip_id}/tracking/events:batch` contract.
    - event/media sync lanes from Flutter to backend.
-   - place-binding-triggered media upload activation.
+   - media upload activation (later split into route/place bind-mode contract).
    - note: the first two deferred items were later delivered in `Phase P2 Contract Stabilization Evidence (2026-03-31)`.
 3. Evidence files:
    - `flutter/lib/core/storage/tables/tracking_events_table.dart`
@@ -798,6 +801,38 @@ Use this block for each completed phase:
    - `flutter test test/core/network/live_tracking_api_test.dart test/features/create/compiled_projection_view_test.dart`
    - `flutter analyze flutter/lib/core/network/live_tracking_api.dart flutter/lib/features/create/domain/compiled_projection.dart flutter/lib/features/create/data/compiled_projection_repository.dart flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart flutter/lib/features/create/presentation/screens/editor_screen.dart flutter/test/core/network/live_tracking_api_test.dart flutter/test/features/create/compiled_projection_view_test.dart`
 4. Remaining follow-ups:
-   - projection drift threshold alerts/gates (raw vs compiled consistency policy) remain open.
+   - raw-vs-compiled drift checks are now emitted in compiler response; threshold-based alert policy remains open.
    - `enable_compiled_projection_v1` staged rollout flag is pending operational wiring.
    - media projection details remain gated until media lane activation slice.
+
+### Phase P3 Incremental Evidence (2026-04-01, Media Gating v2 Backend Contract)
+
+1. Delivered in this increment:
+   - Added backend media source model and migration:
+     - `trip_tracking_event_media`
+   - Added additive media ingest API:
+     - `POST /api/v1/trips/{trip_id}/tracking/media:batch`
+   - Locked backend bind intent contract:
+     - `bind_mode=place` requires `trip_place_id`
+     - `bind_mode=route` requires `location` and supports route-geotag uploads without place dependency
+   - Expanded compiled projection/rebind source support to include `tracking_event_media` (non-breaking additive change).
+2. Evidence files:
+   - `backend/alembic/versions/f4b8c9d1e2a3_add_tracking_media_batch_and_compiler_source_kinds.py`
+   - `backend/app/models/trip_tracking_event_media.py`
+   - `backend/app/api/v1/live_tracking.py`
+   - `backend/app/schemas/live_tracking.py`
+   - `backend/app/services/live_tracking_service.py`
+   - `backend/app/services/trip_projection_compiler.py`
+   - `backend/app/api/v1/compiled_projection.py`
+   - `backend/app/schemas/compiled_projection.py`
+   - `backend/app/models/trip_compiled_projection_item.py`
+   - `backend/app/models/trip_compiled_projection_override.py`
+3. Validation commands (executed in this increment):
+   - `backend/venv/Scripts/Activate; cd backend; alembic upgrade head`
+   - `backend/venv/Scripts/Activate; cd backend; alembic current`
+   - `backend/venv/Scripts/Activate; cd backend; alembic check`
+4. Commit reference:
+   - `1e33562` (`feat(live-tracking): add route-aware media batch ingest and projection support`)
+5. Remaining follow-ups:
+   - Flutter media producer/sync-worker lane activation is still pending.
+   - Live capture UI explicit bind-mode choice (`Attach place` / `Save on route`) is still pending.

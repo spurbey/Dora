@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:built_value/serializer.dart';
 import 'package:dio/dio.dart';
+
+import 'package:dora/core/auth/auth_service.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 abstract class LiveTrackingApi {
   Future<Map<String, dynamic>> startTracking({
@@ -165,14 +169,32 @@ abstract class LiveTrackingApi {
 }
 
 class DioLiveTrackingApi implements LiveTrackingApi {
-  DioLiveTrackingApi(this._dio);
+  DioLiveTrackingApi(
+    this._dio, {
+    AuthTokenProvider? authTokenProvider,
+    openapi.LiveTrackingApi? liveTrackingApi,
+    openapi.CompiledProjectionApi? compiledProjectionApi,
+  })  : _authTokenProvider = authTokenProvider,
+        _liveTrackingApi = liveTrackingApi ??
+            openapi.LiveTrackingApi(_dio, openapi.standardSerializers),
+        _compiledProjectionApi = compiledProjectionApi ??
+            openapi.CompiledProjectionApi(_dio, openapi.standardSerializers);
 
   final Dio _dio;
+  final AuthTokenProvider? _authTokenProvider;
+  final openapi.LiveTrackingApi _liveTrackingApi;
+  final openapi.CompiledProjectionApi _compiledProjectionApi;
+
   static const String _apiV1Prefix = '/api/v1';
 
   static DateTime _toUtc(DateTime value) => value.toUtc();
 
+  static String _v1Path(String path) => '$_apiV1Prefix$path';
+
   static Map<String, dynamic> _asJsonMap(dynamic data) {
+    if (data == null) {
+      return <String, dynamic>{};
+    }
     if (data is Map<String, dynamic>) {
       return data;
     }
@@ -188,7 +210,54 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         return Map<String, dynamic>.from(decoded);
       }
     }
+    try {
+      final serialized = openapi.standardSerializers.serialize(data);
+      if (serialized is Map<String, dynamic>) {
+        return serialized;
+      }
+      if (serialized is Map) {
+        return Map<String, dynamic>.from(serialized);
+      }
+      final normalized = jsonDecode(jsonEncode(serialized));
+      if (normalized is Map<String, dynamic>) {
+        return normalized;
+      }
+      if (normalized is Map) {
+        return Map<String, dynamic>.from(normalized);
+      }
+    } catch (_) {
+      // Keep compatibility with legacy call-sites by returning empty map.
+    }
     return <String, dynamic>{};
+  }
+
+  T _deserialize<T>(Map<String, dynamic> data, FullType type) {
+    final deserialized = openapi.standardSerializers.deserialize(
+      data,
+      specifiedType: type,
+    );
+    return deserialized as T;
+  }
+
+  Future<String> _authorizationHeader() async {
+    final authTokenProvider = _authTokenProvider;
+    if (authTokenProvider != null) {
+      final token = await authTokenProvider.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        if (token.toLowerCase().startsWith('bearer ')) {
+          return token;
+        }
+        return 'Bearer $token';
+      }
+    }
+
+    final header = _dio.options.headers['Authorization'] ??
+        _dio.options.headers['authorization'];
+    if (header is String && header.trim().isNotEmpty) {
+      return header.trim();
+    }
+
+    return '';
   }
 
   Options _idempotentOptions(String key) {
@@ -199,8 +268,6 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     );
   }
 
-  static String _v1Path(String path) => '$_apiV1Prefix$path';
-
   @override
   Future<Map<String, dynamic>> startTracking({
     required String tripId,
@@ -210,15 +277,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/start'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.TrackingStartRequest>(
+      <String, dynamic>{
         'client_session_id': clientSessionId,
         'started_at': _toUtc(startedAt).toIso8601String(),
         if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
         'device_context': deviceContext ?? <String, dynamic>{},
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.TrackingStartRequest),
+    );
+
+    final response =
+        await _liveTrackingApi.startTrackingApiV1TripsTripIdTrackingStartPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingStartRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -232,15 +306,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? sessionId,
     String? reason,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/pause'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.TrackingPauseRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
         'paused_at': _toUtc(pausedAt).toIso8601String(),
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.TrackingPauseRequest),
+    );
+
+    final response =
+        await _liveTrackingApi.pauseTrackingApiV1TripsTripIdTrackingPausePost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingPauseRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -253,14 +334,21 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required DateTime resumedAt,
     String? sessionId,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/resume'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.TrackingResumeRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
         'resumed_at': _toUtc(resumedAt).toIso8601String(),
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.TrackingResumeRequest),
+    );
+
+    final response =
+        await _liveTrackingApi.resumeTrackingApiV1TripsTripIdTrackingResumePost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingResumeRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -274,15 +362,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? sessionId,
     String? reason,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/stop'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.TrackingStopRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
         'stopped_at': _toUtc(stoppedAt).toIso8601String(),
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.TrackingStopRequest),
+    );
+
+    final response =
+        await _liveTrackingApi.stopTrackingApiV1TripsTripIdTrackingStopPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingStopRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -296,15 +391,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required DateTime sentAt,
     required List<Map<String, dynamic>> points,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/points:batch'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.TrackingPointsBatchRequest>(
+      <String, dynamic>{
         'session_id': sessionId,
         'client_batch_id': clientBatchId,
         'sent_at': _toUtc(sentAt).toIso8601String(),
         'points': points,
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.TrackingPointsBatchRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .ingestPointsBatchApiV1TripsTripIdTrackingPointsBatchPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingPointsBatchRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -315,12 +417,17 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String idempotencyKey,
     required List<Map<String, dynamic>> events,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/events:batch'),
-      data: <String, dynamic>{
-        'events': events,
-      },
-      options: _idempotentOptions(idempotencyKey),
+    final request = _deserialize<openapi.TrackingEventsBatchRequest>(
+      <String, dynamic>{'events': events},
+      const FullType(openapi.TrackingEventsBatchRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .ingestEventsBatchApiV1TripsTripIdTrackingEventsBatchPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingEventsBatchRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -334,17 +441,15 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     final resolvedFileName = (fileName != null && fileName.trim().isNotEmpty)
         ? fileName.trim()
         : filePath.split(Platform.pathSeparator).last;
-    final formData = FormData.fromMap(
-      <String, dynamic>{
-        'file': await MultipartFile.fromFile(
-          filePath,
-          filename: resolvedFileName,
-        ),
-      },
+    final multipart = await MultipartFile.fromFile(
+      filePath,
+      filename: resolvedFileName,
     );
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/media:upload'),
-      data: formData,
+    final response = await _liveTrackingApi
+        .uploadTrackingMediaBinaryApiV1TripsTripIdTrackingMediaUploadPost(
+      tripId: tripId,
+      authorization: await _authorizationHeader(),
+      file: multipart,
     );
     return _asJsonMap(response.data);
   }
@@ -355,12 +460,17 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String idempotencyKey,
     required List<Map<String, dynamic>> media,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/tracking/media:batch'),
-      data: <String, dynamic>{
-        'media': media,
-      },
-      options: _idempotentOptions(idempotencyKey),
+    final request = _deserialize<openapi.TrackingMediaBatchRequest>(
+      <String, dynamic>{'media': media},
+      const FullType(openapi.TrackingMediaBatchRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .ingestMediaBatchApiV1TripsTripIdTrackingMediaBatchPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      trackingMediaBatchRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -369,8 +479,10 @@ class DioLiveTrackingApi implements LiveTrackingApi {
   Future<Map<String, dynamic>> fetchCompiledProjection({
     required String tripId,
   }) async {
-    final response = await _dio.get<dynamic>(
-      _v1Path('/trips/$tripId/compiled/projection'),
+    final response = await _compiledProjectionApi
+        .getCompiledProjectionApiV1TripsTripIdCompiledProjectionGet(
+      tripId: tripId,
+      authorization: await _authorizationHeader(),
     );
     return _asJsonMap(response.data);
   }
@@ -382,15 +494,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String action,
     String? tripPlaceId,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/compiled/rebind'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.CompiledRebindRequest>(
+      <String, dynamic>{
         'source_kind': 'tracking_event',
         'source_event_id': sourceEventId,
         'action': action,
         if (tripPlaceId != null && tripPlaceId.isNotEmpty)
           'trip_place_id': tripPlaceId,
       },
+      const FullType(openapi.CompiledRebindRequest),
+    );
+
+    final response = await _compiledProjectionApi
+        .rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost(
+      tripId: tripId,
+      authorization: await _authorizationHeader(),
+      compiledRebindRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -402,15 +521,22 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String action,
     String? tripPlaceId,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/compiled/rebind'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.CompiledRebindRequest>(
+      <String, dynamic>{
         'source_kind': 'tracking_event_media',
         'source_media_id': sourceMediaId,
         'action': action,
         if (tripPlaceId != null && tripPlaceId.isNotEmpty)
           'trip_place_id': tripPlaceId,
       },
+      const FullType(openapi.CompiledRebindRequest),
+    );
+
+    final response = await _compiledProjectionApi
+        .rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost(
+      tripId: tripId,
+      authorization: await _authorizationHeader(),
+      compiledRebindRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -422,12 +548,12 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     int limit = 5000,
   }) async {
     final clampedLimit = limit.clamp(1, 10000);
-    final response = await _dio.get<dynamic>(
-      _v1Path('/trips/$tripId/tracking/path'),
-      queryParameters: <String, dynamic>{
-        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
-        'limit': clampedLimit,
-      },
+    final response =
+        await _liveTrackingApi.getTrackingPathApiV1TripsTripIdTrackingPathGet(
+      tripId: tripId,
+      authorization: await _authorizationHeader(),
+      sessionId: (sessionId != null && sessionId.isNotEmpty) ? sessionId : null,
+      limit: clampedLimit,
     );
     return _asJsonMap(response.data);
   }
@@ -439,13 +565,20 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     required DateTime confirmedAt,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/checkins/$candidateId/confirm'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.CheckinConfirmRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'confirmed_at': _toUtc(confirmedAt).toIso8601String(),
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.CheckinConfirmRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .confirmCheckinCandidateApiV1CheckinsCandidateIdConfirmPost(
+      candidateId: candidateId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      checkinConfirmRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -458,14 +591,21 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required DateTime rejectedAt,
     String? reason,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/checkins/$candidateId/reject'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.CheckinRejectRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'rejected_at': _toUtc(rejectedAt).toIso8601String(),
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.CheckinRejectRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .rejectCheckinCandidateApiV1CheckinsCandidateIdRejectPost(
+      candidateId: candidateId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      checkinRejectRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -477,13 +617,20 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     required DateTime snoozedUntil,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/checkins/$candidateId/snooze'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.CheckinSnoozeRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'snoozed_until': _toUtc(snoozedUntil).toIso8601String(),
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.CheckinSnoozeRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .snoozeCheckinCandidateApiV1CheckinsCandidateIdSnoozePost(
+      candidateId: candidateId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      checkinSnoozeRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -500,9 +647,8 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? linkedTripPlaceId,
     Map<String, dynamic>? extraPayload,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/trips/$tripId/moments'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.MomentCreateRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'captured_at': _toUtc(capturedAt).toIso8601String(),
         if (note != null) 'note': note,
@@ -512,7 +658,15 @@ class DioLiveTrackingApi implements LiveTrackingApi {
           'linked_trip_place_id': linkedTripPlaceId,
         'extra_payload': extraPayload ?? <String, dynamic>{},
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.MomentCreateRequest),
+    );
+
+    final response =
+        await _liveTrackingApi.createTripMomentApiV1TripsTripIdMomentsPost(
+      tripId: tripId,
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      momentCreateRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -531,6 +685,8 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     bool includeLinkedTripPlaceId = false,
     Map<String, dynamic>? extraPayload,
   }) async {
+    // Keep manual payload construction here to preserve explicit-null patch
+    // semantics for clear-intent fields (note / linked_trip_place_id).
     final response = await _dio.patch<dynamic>(
       _v1Path('/moments/$momentId'),
       data: <String, dynamic>{
@@ -561,9 +717,8 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? appVersion,
     String? locale,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/notifications/device-tokens/register'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.DeviceTokenRegisterRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'platform': platform,
         'push_token': pushToken,
@@ -573,7 +728,14 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         if (locale != null && locale.isNotEmpty) 'locale': locale,
         'seen_at': _toUtc(seenAt ?? DateTime.now()).toIso8601String(),
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.DeviceTokenRegisterRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .registerDeviceTokenApiV1NotificationsDeviceTokensRegisterPost(
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      deviceTokenRegisterRequest: request,
     );
     return _asJsonMap(response.data);
   }
@@ -585,15 +747,21 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String pushToken,
     DateTime? deactivatedAt,
   }) async {
-    final response = await _dio.post<dynamic>(
-      _v1Path('/notifications/device-tokens/deactivate'),
-      data: <String, dynamic>{
+    final request = _deserialize<openapi.DeviceTokenDeactivateRequest>(
+      <String, dynamic>{
         'client_event_id': clientEventId,
         'push_token': pushToken,
         'deactivated_at':
             _toUtc(deactivatedAt ?? DateTime.now()).toIso8601String(),
       },
-      options: _idempotentOptions(idempotencyKey),
+      const FullType(openapi.DeviceTokenDeactivateRequest),
+    );
+
+    final response = await _liveTrackingApi
+        .deactivateDeviceTokenApiV1NotificationsDeviceTokensDeactivatePost(
+      xIdempotencyKey: idempotencyKey,
+      authorization: await _authorizationHeader(),
+      deviceTokenDeactivateRequest: request,
     );
     return _asJsonMap(response.data);
   }

@@ -8,7 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:dora/core/media/media_permissions.dart';
+import 'package:dora/core/map/app_map_view.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/map/models/app_marker.dart';
+import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -27,7 +30,6 @@ import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart'
 import 'package:dora/features/live_capture/presentation/providers/live_tracking_event_provider.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_action_dock.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
-import 'package:dora/features/live_capture/presentation/widgets/live_capture_map_canvas.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 
@@ -48,6 +50,10 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
 class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final Set<String> _dismissedReviewPromptEventIds = <String>{};
+  static const AppLatLng _defaultLiveCenter = AppLatLng(
+    latitude: 20.5937,
+    longitude: 78.9629,
+  );
   bool _actionInFlight = false;
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
@@ -114,6 +120,16 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final blockedMessage =
         syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
     final capturePosition = mapOverlay?.currentMarker?.position;
+    final mapMarkers = mapOverlay?.currentMarker == null
+        ? const <AppMarker>[]
+        : <AppMarker>[mapOverlay!.currentMarker!];
+    final mapRoutes = mapOverlay?.pathRoute == null
+        ? const <AppRoute>[]
+        : <AppRoute>[mapOverlay!.pathRoute!];
+    final mapInitialCenter = mapOverlay?.currentMarker?.position ??
+        (mapRoutes.isNotEmpty
+            ? mapRoutes.first.coordinates.first
+            : _defaultLiveCenter);
     final unresolvedTop = syncStatus?.kind == EditorSyncStatusKind.blocked
         ? 154.0
         : 96.0;
@@ -129,8 +145,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(
-            child: LiveCaptureMapCanvas(),
+          Positioned.fill(
+            child: AppMapView(
+              key: ValueKey(
+                'liveCaptureMap-${widget.tripId}-${mapOverlay?.currentMarker?.id ?? 'default'}',
+              ),
+              initialCenter: mapInitialCenter,
+              initialZoom: 13,
+              markers: mapMarkers,
+              routes: mapRoutes,
+              showUserLocation: true,
+            ),
           ),
           SafeArea(
             child: Stack(

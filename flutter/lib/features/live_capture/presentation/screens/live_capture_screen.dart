@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/map/app_map_view.dart';
+import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
@@ -72,7 +73,8 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<LiveCaptureScreen> createState() => _LiveCaptureScreenState();
 }
 
-class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
+class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
+    with TickerProviderStateMixin {
   final ImagePicker _imagePicker = ImagePicker();
   final Set<String> _dismissedReviewPromptEventIds = <String>{};
   static const AppLatLng _defaultLiveCenter = AppLatLng(
@@ -83,13 +85,39 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
 
+  // Entrance animations
+  late final AnimationController _entranceCtrl;
+  late final Animation<double> _topBarAnim;
+  late final Animation<double> _dockAnim;
+  late final Animation<double> _panelAnim;
+
   @override
   void initState() {
     super.initState();
-    if (widget.previewState == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: AnimationTokens.slow,
+    );
+    _topBarAnim = CurvedAnimation(
+      parent: _entranceCtrl,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    );
+    _dockAnim = CurvedAnimation(
+      parent: _entranceCtrl,
+      curve: const Interval(0.15, 0.75, curve: Curves.easeOut),
+    );
+    _panelAnim = CurvedAnimation(
+      parent: _entranceCtrl,
+      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _entranceCtrl.forward();
+      if (widget.previewState == null) {
         _triggerResolverReconcile();
-      });
+      }
+    });
+    if (widget.previewState == null) {
       _resolverReconcileTimer = Timer.periodic(
         const Duration(seconds: 45),
         (_) => _triggerResolverReconcile(),
@@ -99,8 +127,32 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
 
   @override
   void dispose() {
+    _entranceCtrl.dispose();
     _resolverReconcileTimer?.cancel();
     super.dispose();
+  }
+
+  Widget _withEntrance(
+    Widget child,
+    Animation<double> anim, {
+    double slideX = 0,
+    double slideY = 0,
+  }) {
+    return AnimatedBuilder(
+      animation: anim,
+      child: child,
+      builder: (context, child) {
+        if (MediaQuery.of(context).disableAnimations) return child!;
+        final t = anim.value;
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(slideX * (1.0 - t), slideY * (1.0 - t)),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -143,6 +195,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final shellState = usePreview
         ? widget.previewState!
         : _resolveShellState(runtimeState: runtimeState);
+    final syncKind = syncStatus?.kind;
     final syncLabel = _resolveSyncLabel(
       usePreview: usePreview,
       shellState: shellState,
@@ -201,189 +254,207 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         ),
     ];
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: AppMapView(
-              key: ValueKey(
-                'liveCaptureMap-${widget.tripId}-${mapOverlay?.currentMarker?.id ?? 'default'}',
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _handleBack(),
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: AppMapView(
+                // Key is stable for the screen's lifetime — keying by marker ID
+                // would recreate the full Mapbox instance on session start.
+                key: ValueKey('liveCaptureMap-${widget.tripId}'),
+                initialCenter: mapInitialCenter,
+                initialZoom: 13,
+                markers: mapMarkers,
+                routes: mapRoutes,
+                showUserLocation: true,
+                showCompass: false,
+                showScaleBar: false,
               ),
-              initialCenter: mapInitialCenter,
-              initialZoom: 13,
-              markers: mapMarkers,
-              routes: mapRoutes,
-              showUserLocation: true,
-              showCompass: false,
-              showScaleBar: false,
             ),
-          ),
-          SafeArea(
-            child: Stack(
-              children: [
-                LiveCaptureTopBar(
-                  tripName: tripName,
-                  state: shellState,
-                  syncLabel: syncLabel,
-                  onBack: _handleBack,
-                ),
-                if (topNotices.isNotEmpty)
+            SafeArea(
+              child: Stack(
+                children: [
+                  _withEntrance(
+                    LiveCaptureTopBar(
+                      tripName: tripName,
+                      state: shellState,
+                      syncLabel: syncLabel,
+                      syncKind: syncKind,
+                      onBack: _handleBack,
+                    ),
+                    _topBarAnim,
+                    slideY: -8,
+                  ),
+                  if (topNotices.isNotEmpty)
+                    Positioned(
+                      left: AppSpacing.md,
+                      right: AppSpacing.md,
+                      top: 74,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < topNotices.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 6),
+                            topNotices[i],
+                          ],
+                        ],
+                      ),
+                    ),
                   Positioned(
                     left: AppSpacing.md,
                     right: AppSpacing.md,
-                    top: 96,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < topNotices.length; i++) ...[
-                          if (i > 0) const SizedBox(height: AppSpacing.xs),
-                          topNotices[i],
-                        ],
-                      ],
-                    ),
+                    bottom: AppSpacing.md + 86,
+                    child: usePreview
+                        ? const _RecentEventsPlaceholder()
+                        : eventsAsync!.when(
+                            data: (events) => LiveCaptureRecentEventsStrip(
+                              events: events,
+                              loading: false,
+                            ),
+                            loading: () => const LiveCaptureRecentEventsStrip(
+                              events: <TrackingEventRow>[],
+                              loading: true,
+                            ),
+                            error: (_, __) =>
+                                const LiveCaptureRecentEventsStrip(
+                              events: <TrackingEventRow>[],
+                              loading: false,
+                            ),
+                          ),
                   ),
-                Positioned(
-                  left: AppSpacing.md,
-                  right: AppSpacing.md,
-                  bottom: AppSpacing.md + 104,
-                  child: usePreview
-                      ? const _RecentEventsPlaceholder()
-                      : eventsAsync!.when(
-                          data: (events) => LiveCaptureRecentEventsStrip(
-                            events: events,
-                            loading: false,
-                          ),
-                          loading: () => const LiveCaptureRecentEventsStrip(
-                            events: <TrackingEventRow>[],
-                            loading: true,
-                          ),
-                          error: (_, __) => const LiveCaptureRecentEventsStrip(
-                            events: <TrackingEventRow>[],
-                            loading: false,
-                          ),
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 98, 0, 100),
+                      child: _withEntrance(
+                        LiveCaptureActionDock(
+                        state: shellState,
+                        isBusy: _actionInFlight,
+                        onPhoto: usePreview
+                            ? null
+                            : () => _captureMedia(
+                                  eventType: LiveTrackingEventType.photo,
+                                  fromCamera: true,
+                                  position: capturePosition,
+                                ),
+                        onMedia: usePreview
+                            ? null
+                            : () => _captureMedia(
+                                  eventType: LiveTrackingEventType.media,
+                                  fromCamera: false,
+                                  position: capturePosition,
+                                ),
+                        onTag: usePreview
+                            ? null
+                            : () => _captureQuickEvent(
+                                  eventType: LiveTrackingEventType.tag,
+                                  note: 'Checkpoint',
+                                  successMessage:
+                                      'Checkpoint captured locally.',
+                                  position: capturePosition,
+                                ),
+                        onNote: usePreview
+                            ? null
+                            : () => _promptForTextCapture(
+                                  title: 'Add Quick Note',
+                                  hintText: 'Write note for this location...',
+                                  defaultPrefix: '',
+                                  eventType: LiveTrackingEventType.note,
+                                  successMessage: 'Note captured locally.',
+                                  position: capturePosition,
+                                ),
+                        onWarn: usePreview
+                            ? null
+                            : () => _promptForTextCapture(
+                                  title: 'Add Warning',
+                                  hintText:
+                                      'Write warning for this location...',
+                                  defaultPrefix: '[Warn] ',
+                                  eventType: LiveTrackingEventType.warn,
+                                  successMessage: 'Warning captured locally.',
+                                  position: capturePosition,
+                                ),
                         ),
-                ),
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      0,
-                      118,
-                      0,
-                      120,
-                    ),
-                    child: LiveCaptureActionDock(
-                      state: shellState,
-                      isBusy: _actionInFlight,
-                      onPhoto: usePreview
-                          ? null
-                          : () => _captureMedia(
-                                eventType: LiveTrackingEventType.photo,
-                                fromCamera: true,
-                                position: capturePosition,
-                              ),
-                      onMedia: usePreview
-                          ? null
-                          : () => _captureMedia(
-                                eventType: LiveTrackingEventType.media,
-                                fromCamera: false,
-                                position: capturePosition,
-                              ),
-                      onTag: usePreview
-                          ? null
-                          : () => _captureQuickEvent(
-                                eventType: LiveTrackingEventType.tag,
-                                note: 'Checkpoint',
-                                successMessage: 'Checkpoint captured locally.',
-                                position: capturePosition,
-                              ),
-                      onNote: usePreview
-                          ? null
-                          : () => _promptForTextCapture(
-                                title: 'Add Quick Note',
-                                hintText: 'Write note for this location...',
-                                defaultPrefix: '',
-                                eventType: LiveTrackingEventType.note,
-                                successMessage: 'Note captured locally.',
-                                position: capturePosition,
-                              ),
-                      onWarn: usePreview
-                          ? null
-                          : () => _promptForTextCapture(
-                                title: 'Add Warning',
-                                hintText: 'Write warning for this location...',
-                                defaultPrefix: '[Warn] ',
-                                eventType: LiveTrackingEventType.warn,
-                                successMessage: 'Warning captured locally.',
-                                position: capturePosition,
-                              ),
+                        _dockAnim,
+                        slideX: 24,
+                      ),
                     ),
                   ),
-                ),
-                LiveCaptureBottomPanel(
-                  state: shellState,
-                  isBusy: _actionInFlight,
-                  busyLabel: _actionLabel,
-                  onStart: usePreview
-                      ? null
-                      : () => _runLiveTrackingAction(
-                            busyLabel: 'Starting...',
-                            successMessage: 'Live tracking started.',
-                            action: (coordinator) async {
-                              await coordinator.startTracking(
-                                  tripId: widget.tripId);
-                              return true;
-                            },
-                          ),
-                  onPause: usePreview
-                      ? null
-                      : () => _runLiveTrackingAction(
-                            busyLabel: 'Pausing...',
-                            successMessage: 'Live tracking paused.',
-                            noOpMessage: 'No active tracking session to pause.',
-                            action: (coordinator) async {
-                              final paused = await coordinator.pauseTracking(
-                                tripId: widget.tripId,
-                              );
-                              return paused != null;
-                            },
-                          ),
-                  onResume: usePreview
-                      ? null
-                      : () => _runLiveTrackingAction(
-                            busyLabel: 'Resuming...',
-                            successMessage: 'Live tracking resumed.',
-                            noOpMessage:
-                                'No paused tracking session to resume.',
-                            action: (coordinator) async {
-                              final resumed = await coordinator.resumeTracking(
-                                tripId: widget.tripId,
-                              );
-                              return resumed != null;
-                            },
-                          ),
-                  onStop: usePreview
-                      ? null
-                      : () => _runLiveTrackingAction(
-                            busyLabel: 'Stopping...',
-                            successMessage: 'Live tracking stopped.',
-                            noOpMessage: 'No active or paused session to stop.',
-                            action: (coordinator) async {
-                              final stopped = await coordinator.stopTracking(
-                                tripId: widget.tripId,
-                              );
-                              return stopped != null;
-                            },
-                          ),
-                  onRetrySync:
-                      usePreview || _actionInFlight ? null : _retrySyncNow,
-                  onOpenEditor: usePreview
-                      ? null
-                      : () => context.push(Routes.editorPath(widget.tripId)),
-                ),
-              ],
+                  _withEntrance(
+                    LiveCaptureBottomPanel(
+                    state: shellState,
+                    isBusy: _actionInFlight,
+                    busyLabel: _actionLabel,
+                    onStart: usePreview
+                        ? null
+                        : () => _runLiveTrackingAction(
+                              busyLabel: 'Starting...',
+                              successMessage: 'Live tracking started.',
+                              action: (coordinator) async {
+                                await coordinator.startTracking(
+                                    tripId: widget.tripId);
+                                return true;
+                              },
+                            ),
+                    onPause: usePreview
+                        ? null
+                        : () => _runLiveTrackingAction(
+                              busyLabel: 'Pausing...',
+                              successMessage: 'Live tracking paused.',
+                              noOpMessage:
+                                  'No active tracking session to pause.',
+                              action: (coordinator) async {
+                                final paused = await coordinator.pauseTracking(
+                                  tripId: widget.tripId,
+                                );
+                                return paused != null;
+                              },
+                            ),
+                    onResume: usePreview
+                        ? null
+                        : () => _runLiveTrackingAction(
+                              busyLabel: 'Resuming...',
+                              successMessage: 'Live tracking resumed.',
+                              noOpMessage:
+                                  'No paused tracking session to resume.',
+                              action: (coordinator) async {
+                                final resumed =
+                                    await coordinator.resumeTracking(
+                                  tripId: widget.tripId,
+                                );
+                                return resumed != null;
+                              },
+                            ),
+                    onStop: usePreview
+                        ? null
+                        : () => _runLiveTrackingAction(
+                              busyLabel: 'Stopping...',
+                              successMessage: 'Live tracking stopped.',
+                              noOpMessage:
+                                  'No active or paused session to stop.',
+                              action: (coordinator) async {
+                                final stopped = await coordinator.stopTracking(
+                                  tripId: widget.tripId,
+                                );
+                                return stopped != null;
+                              },
+                            ),
+                    onRetrySync:
+                        usePreview || _actionInFlight ? null : _retrySyncNow,
+                    onOpenEditor: usePreview
+                        ? null
+                        : () => context.push(Routes.editorPath(widget.tripId)),
+                  ),
+                    _panelAnim,
+                    slideY: 24,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1021,22 +1092,20 @@ class _RecentEventsPlaceholder extends StatelessWidget {
     return IgnorePointer(
       child: Container(
         key: const ValueKey('liveCaptureRecentEventsPlaceholder'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.84),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.divider.withValues(alpha: 0.65)),
         ),
         child: const Row(
           children: [
-            Icon(Icons.bolt, size: 16),
+            Icon(Icons.bolt, size: 14),
             SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
-                'Recent captures will appear here in the next slice.',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                'Recent captures appear here',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -1059,32 +1128,28 @@ class _SyncBlockedCallout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('liveCaptureBlockedCallout'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.09),
-        borderRadius: AppRadius.borderMd,
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.error_outline,
-            size: 18,
+            size: 14,
             color: AppColors.error,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               message,
               style: AppTypography.caption.copyWith(
                 color: AppColors.textPrimary,
+                fontSize: 11,
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1114,30 +1179,24 @@ class _UnresolvedCaptureBanner extends StatelessWidget {
     final headline = unresolvedCount == 1
         ? '1 capture needs place selection'
         : '$unresolvedCount captures need place selection';
-    final latest = latestNote != null && latestNote!.isNotEmpty
-        ? latestNote!
-        : 'Select nearby place in editor to finalize placement.';
+    final latest =
+        latestNote != null && latestNote!.isNotEmpty ? latestNote! : '';
     return Container(
       key: const ValueKey('liveCaptureUnresolvedBanner'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.12),
-        borderRadius: AppRadius.borderMd,
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.24)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.place_outlined,
-            size: 18,
+            size: 14,
             color: AppColors.warning,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1149,17 +1208,19 @@ class _UnresolvedCaptureBanner extends StatelessWidget {
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
+                    fontSize: 11,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  latest,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondary,
+                if (latest.isNotEmpty)
+                  Text(
+                    latest,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 10.5,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1188,69 +1249,62 @@ class _ProbablePlacePromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final topHint = hints.first;
     return Container(
       key: const ValueKey('liveCaptureProbablePlacePrompt'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft.withValues(alpha: 0.92),
-        borderRadius: AppRadius.borderMd,
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.24)),
+        color: AppColors.accentSoft.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Probable places for this capture',
+            'Probable place detected',
             style: AppTypography.caption.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
+              fontSize: 11,
             ),
           ),
-          const SizedBox(height: 6),
-          ...hints.take(3).map(
-                (hint) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${hint.name} (${(hint.confidence * 100).round()}%)',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: onConfirmHint == null
-                            ? null
-                            : () => onConfirmHint!(hint),
-                        child: const Text('Confirm place'),
-                      ),
-                    ],
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${topHint.name} (${(topHint.confidence * 100).round()}%)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textPrimary,
+                    fontSize: 11,
                   ),
                 ),
               ),
-          const SizedBox(height: 2),
-          Row(
+              TextButton(
+                onPressed: onConfirmHint == null
+                    ? null
+                    : () => onConfirmHint!(topHint),
+                child: const Text('Confirm'),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: 0,
             children: [
               TextButton(
                 onPressed: onKeepOnRoute,
                 child: const Text('Keep on route'),
               ),
-              const SizedBox(width: AppSpacing.xs),
               OutlinedButton(
                 onPressed: onAddPlace,
                 child: const Text('Add place'),
               ),
             ],
-          ),
+          )
         ],
       ),
     );

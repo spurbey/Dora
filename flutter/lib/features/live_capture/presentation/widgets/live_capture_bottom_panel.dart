@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/core/widgets/dora_button.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 
 class LiveCaptureBottomPanel extends StatelessWidget {
@@ -64,22 +66,35 @@ class LiveCaptureBottomPanel extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    _headline(state),
-                    key: const ValueKey('liveCapturePanelHeadline'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  child: AnimatedSwitcher(
+                    duration: AnimationTokens.normal,
+                    transitionBuilder: (child, anim) =>
+                        FadeTransition(opacity: anim, child: child),
+                    child: SizedBox(
+                      key: ValueKey('headline_${state.name}'),
+                      child: Text(
+                        _headline(state),
+                        key: const ValueKey('liveCapturePanelHeadline'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 if (isBusy) ...[
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.accent,
+                      ),
+                    ),
                   ),
                   if (busyLabel != null && busyLabel!.isNotEmpty) ...[
                     const SizedBox(width: AppSpacing.xs),
@@ -97,10 +112,18 @@ class LiveCaptureBottomPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              children: controls,
+            AnimatedSwitcher(
+              duration: AnimationTokens.normal,
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
+              child: SizedBox(
+                key: ValueKey('controls_${state.name}'),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: controls,
+                ),
+              ),
             ),
           ],
         ),
@@ -113,71 +136,75 @@ class LiveCaptureBottomPanel extends StatelessWidget {
     switch (state) {
       case LiveCaptureShellState.active:
         return [
-          OutlinedButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlPause'),
+            label: 'Pause',
+            icon: Icons.pause,
             onPressed: actionEnabled ? onPause : null,
-            icon: const Icon(Icons.pause, size: 16),
-            label: const Text('Pause'),
+            variant: DoraButtonVariant.outlined,
           ),
-          FilledButton.tonalIcon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlStop'),
+            label: 'Stop',
+            icon: Icons.stop,
             onPressed: actionEnabled ? onStop : null,
-            icon: const Icon(Icons.stop, size: 16),
-            label: const Text('Stop'),
           ),
         ];
       case LiveCaptureShellState.paused:
         return [
-          FilledButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlResume'),
+            label: 'Resume',
+            icon: Icons.play_arrow,
             onPressed: actionEnabled ? onResume : null,
-            icon: const Icon(Icons.play_arrow, size: 16),
-            label: const Text('Resume'),
           ),
-          OutlinedButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlStop'),
+            label: 'Stop',
+            icon: Icons.stop,
             onPressed: actionEnabled ? onStop : null,
-            icon: const Icon(Icons.stop, size: 16),
-            label: const Text('Stop'),
+            variant: DoraButtonVariant.outlined,
           ),
         ];
       case LiveCaptureShellState.ended:
         return [
-          FilledButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlStartNew'),
+            label: 'Start New Session',
+            icon: Icons.play_arrow,
             onPressed: actionEnabled ? onStart : null,
-            icon: const Icon(Icons.play_arrow, size: 16),
-            label: const Text('Start New Session'),
           ),
-          OutlinedButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlOpenEditor'),
+            label: 'Open Editor',
+            icon: Icons.edit_outlined,
             onPressed: actionEnabled ? onOpenEditor : null,
-            icon: const Icon(Icons.edit_outlined, size: 16),
-            label: const Text('Open Editor'),
+            variant: DoraButtonVariant.outlined,
           ),
         ];
       case LiveCaptureShellState.blocked:
         return [
-          FilledButton.tonalIcon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlRetry'),
+            label: 'Retry Sync',
+            icon: Icons.refresh,
             onPressed: actionEnabled ? onRetrySync : null,
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Retry Sync'),
           ),
-          OutlinedButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlReview'),
+            label: 'Review Issues',
+            icon: Icons.rule_folder_outlined,
             onPressed: actionEnabled ? onOpenEditor : null,
-            icon: const Icon(Icons.rule_folder_outlined, size: 16),
-            label: const Text('Review Issues'),
+            variant: DoraButtonVariant.outlined,
           ),
         ];
       case LiveCaptureShellState.planned:
         return [
-          FilledButton.icon(
+          DoraButton(
             key: const ValueKey('liveCaptureControlStart'),
+            label: 'Start Tracking',
+            icon: Icons.play_arrow,
             onPressed: actionEnabled ? onStart : null,
-            icon: const Icon(Icons.play_arrow, size: 16),
-            label: const Text('Start Tracking'),
           ),
         ];
     }

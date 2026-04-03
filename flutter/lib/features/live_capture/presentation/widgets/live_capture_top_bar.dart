@@ -1,124 +1,214 @@
 import 'package:flutter/material.dart';
 
+import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 
-class LiveCaptureTopBar extends StatelessWidget {
+class LiveCaptureTopBar extends StatefulWidget {
   const LiveCaptureTopBar({
     super.key,
     required this.tripName,
     required this.state,
     required this.syncLabel,
     required this.onBack,
+    this.syncKind,
   });
 
   final String tripName;
   final LiveCaptureShellState state;
   final String syncLabel;
   final VoidCallback onBack;
+  final EditorSyncStatusKind? syncKind;
+
+  @override
+  State<LiveCaptureTopBar> createState() => _LiveCaptureTopBarState();
+}
+
+class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseScale = Tween<double>(begin: 1.0, end: 1.25).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    if (widget.state == LiveCaptureShellState.active) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(LiveCaptureTopBar old) {
+    super.didUpdateWidget(old);
+    if (widget.state == LiveCaptureShellState.active &&
+        !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (widget.state != LiveCaptureShellState.active &&
+        _pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Color _syncLabelColor(EditorSyncStatusKind? kind) {
+    switch (kind) {
+      case EditorSyncStatusKind.synced:
+        return AppColors.success;
+      case EditorSyncStatusKind.blocked:
+        return AppColors.error;
+      case EditorSyncStatusKind.syncing:
+        return AppColors.accent;
+      case null:
+      default:
+        return AppColors.textSecondary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final stateMeta = _stateMeta(state);
+    final stateMeta = _stateMeta(widget.state);
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Container(
       key: const ValueKey('liveCaptureTopBar'),
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
+        0,
       ),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.sm,
-        AppSpacing.sm,
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
       decoration: BoxDecoration(
-        color: AppColors.card.withValues(alpha: 0.9),
-        borderRadius: AppRadius.borderLg,
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.8)),
+        color: AppColors.card.withValues(alpha: 0.88),
+        borderRadius: AppRadius.borderXl,
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            offset: Offset(0, 3),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 280;
+          final compact = constraints.maxWidth < 320;
           final ultraCompact = constraints.maxWidth < 220;
-          final compactStateLabel = _compactStateLabel(state);
+          final compactStateLabel = _compactStateLabel(widget.state);
+          final isPulsingState =
+              widget.state == LiveCaptureShellState.active && !reduceMotion;
+
+          final iconWidget =
+              Icon(stateMeta.icon, size: 11, color: stateMeta.foreground);
+          final pulsingIcon = isPulsingState
+              ? ScaleTransition(scale: _pulseScale, child: iconWidget)
+              : iconWidget;
+
           return Row(
             children: [
-              IconButton(
-                key: const ValueKey('liveCaptureBack'),
-                onPressed: onBack,
-                constraints: BoxConstraints.tightFor(
-                  width: ultraCompact ? 32 : (compact ? 36 : 40),
-                  height: ultraCompact ? 32 : (compact ? 36 : 40),
+              Material(
+                color: AppColors.surface,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  key: const ValueKey('liveCaptureBack'),
+                  customBorder: const CircleBorder(),
+                  onTap: widget.onBack,
+                  child: SizedBox(
+                    width: ultraCompact ? 30 : 34,
+                    height: ultraCompact ? 30 : 34,
+                    child: const Icon(Icons.arrow_back, size: 18),
+                  ),
                 ),
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.arrow_back, size: 20),
               ),
-              const SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: 6),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      tripName,
+                      widget.tripName,
                       key: const ValueKey('liveCaptureTripName'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.h3.copyWith(
+                      style: AppTypography.body.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: 2,
+                      spacing: 6,
+                      runSpacing: 3,
                       children: [
+                        // Badge with AnimatedSwitcher keyed by state
                         Container(
                           key: const ValueKey('liveCaptureStateBadge'),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: stateMeta.background,
-                            borderRadius: AppRadius.borderSm,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                stateMeta.icon,
-                                size: 12,
-                                color: stateMeta.foreground,
+                          child: AnimatedSwitcher(
+                            duration: AnimationTokens.normal,
+                            transitionBuilder: (child, anim) =>
+                                FadeTransition(opacity: anim, child: child),
+                            child: Container(
+                              key: ValueKey('badge_${widget.state.name}'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: 4,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                ultraCompact
-                                    ? compactStateLabel
-                                    : stateMeta.label,
-                                key: const ValueKey('liveCaptureStateLabel'),
-                                style: AppTypography.caption.copyWith(
-                                  color: stateMeta.foreground,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              decoration: BoxDecoration(
+                                color: stateMeta.background,
+                                borderRadius: BorderRadius.circular(999),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  pulsingIcon,
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    ultraCompact
+                                        ? compactStateLabel
+                                        : stateMeta.label,
+                                    key: const ValueKey(
+                                      'liveCaptureStateLabel',
+                                    ),
+                                    style: AppTypography.caption.copyWith(
+                                      color: stateMeta.foreground,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         if (!ultraCompact)
-                          Text(
-                            syncLabel,
-                            key: const ValueKey('liveCaptureSyncLabel'),
+                          AnimatedDefaultTextStyle(
+                            duration: AnimationTokens.fast,
+                            curve: AnimationTokens.standard,
                             style: AppTypography.caption.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
+                              color: _syncLabelColor(widget.syncKind),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                            child: Text(
+                              widget.syncLabel,
+                              key: const ValueKey('liveCaptureSyncLabel'),
                             ),
                           ),
                       ],
@@ -131,11 +221,11 @@ class LiveCaptureTopBar extends StatelessWidget {
                   key: const ValueKey('liveCaptureMore'),
                   onPressed: () {},
                   constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
+                    width: 32,
+                    height: 32,
                   ),
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.more_vert, size: 20),
+                  icon: const Icon(Icons.more_vert, size: 18),
                 ),
             ],
           );

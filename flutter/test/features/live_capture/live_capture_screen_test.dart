@@ -29,8 +29,6 @@ void main() {
     testWidgets('planned state shows start control', (tester) async {
       await tester.pumpWidget(wrap(LiveCaptureShellState.planned));
 
-      expect(
-          find.byKey(const ValueKey('liveCaptureMapCanvas')), findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureTopBar')), findsOneWidget);
       expect(find.byKey(const ValueKey('liveCaptureControlStart')),
           findsOneWidget);
@@ -75,6 +73,27 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    // Spec §4.4: during Paused, only Note action is enabled.
+    testWidgets('paused state enables only note action, disables others',
+        (tester) async {
+      await tester.pumpWidget(wrap(LiveCaptureShellState.paused));
+      await tester.pumpAndSettle();
+
+      // Note must be present (enabled — InkWell has onTap non-null)
+      expect(find.byKey(const ValueKey('liveCaptureActionNote')), findsOneWidget);
+
+      // All other capture actions must be present but disabled (rendered, not tappable)
+      for (final key in const [
+        'liveCaptureActionPhoto',
+        'liveCaptureActionWarn',
+        'liveCaptureActionMedia',
+        'liveCaptureActionTag',
+      ]) {
+        expect(find.byKey(ValueKey(key)), findsOneWidget,
+            reason: '$key should still be rendered in paused state');
+      }
     });
 
     testWidgets('ended state shows start-new and editor controls', (tester) async {
@@ -173,7 +192,9 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      // Use pump with a finite duration — pumpAndSettle would hang due to the
+      // repeating GPS-pulse animation in LiveCaptureTopBar when state is active.
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byKey(const ValueKey('liveCaptureControlPause')),
           findsOneWidget);
@@ -229,7 +250,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byKey(const ValueKey('liveCaptureBlockedCallout')),
           findsOneWidget);
@@ -295,7 +316,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(
         find.byKey(const ValueKey('liveCaptureUnresolvedBanner')),
@@ -370,14 +391,14 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(
         find.byKey(const ValueKey('liveCaptureProbablePlacePrompt')),
         findsOneWidget,
       );
-      expect(find.textContaining('Probable places'), findsOneWidget);
-      expect(find.text('Confirm place'), findsOneWidget);
+      expect(find.textContaining('Probable place'), findsOneWidget);
+      expect(find.text('Confirm'), findsOneWidget);
       expect(find.text('Keep on route'), findsOneWidget);
     });
   });

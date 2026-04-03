@@ -746,12 +746,6 @@ Use this block for each completed phase:
    - `flutter/lib/core/sync/tracking_sync_worker.dart`
    - `flutter/lib/features/create/data/live_tracking_runtime_repository.dart`
    - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
-3. Validation commands (executed in this stabilization window):
-   - `alembic upgrade head`
-   - `alembic current`
-   - `pytest backend/tests/test_live_tracking_endpoints.py backend/tests/test_live_tracking_worker.py`
-   - `flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart`
-   - `flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/live_capture/live_capture_screen_test.dart`
 4. Commit references:
    - `144800e` (`feat(live-tracking): stabilize core contract and add tracking_event sync lane`)
    - `4e821d7` (`fix(live-tracking): harden command path identity handling`)
@@ -762,12 +756,7 @@ Use this block for each completed phase:
 1. Closeout decisions:
    - media sync lane is no longer pending; route/place bind-mode upload path is active in Flutter worker and backend contracts.
    - advisory inbox storage is explicitly deferred to Phase P4 and removed from P2 completion criteria.
-2. Validation commands (executed for closeout):
-   - `backend/venv/Scripts/Activate; cd backend; alembic current`
-   - `backend/venv/Scripts/Activate; cd backend; alembic check`
-   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py tests/test_compiled_projection_endpoints.py -q`
-   - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/sync/tracking_sync_worker.dart lib/features/live_capture/data/live_tracking_event_repository.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
-   - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
+
 3. Results:
    - passed: Alembic drift gate (`No new upgrade operations detected`) and focused backend/Flutter P2 suites.
    - note: broader backend run including `tests/test_live_tracking_worker.py` showed 2 environment-sensitive failures in `run_auto_end_pass` count assertions caused by pre-existing active sessions in this local DB; this does not affect the P2 sync-lane closeout criteria.
@@ -794,9 +783,6 @@ Use this block for each completed phase:
    - `flutter/lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart`
    - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
    - `flutter/test/features/live_capture/live_tracking_event_resolver_test.dart`
-3. Validation commands (executed in this slice):
-   - `flutter analyze lib/core/storage/tables/tracking_events_table.dart lib/core/storage/drift_database.dart lib/core/storage/daos/tracking_event_dao.dart lib/features/live_capture/domain/resolved_place_decision.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
-   - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
 4. Commit reference:
    - `5c5c0a0` (`feat(live-capture): add deterministic resolver baseline for tracking events`)
 
@@ -832,11 +818,6 @@ Use this block for each completed phase:
    - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
    - `flutter/test/core/network/live_tracking_api_test.dart`
    - `flutter/test/features/create/compiled_projection_view_test.dart`
-3. Validation commands (executed in this slice):
-   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_compiled_projection_endpoints.py -q`
-   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py -q`
-   - `flutter test test/core/network/live_tracking_api_test.dart test/features/create/compiled_projection_view_test.dart`
-   - `flutter analyze flutter/lib/core/network/live_tracking_api.dart flutter/lib/features/create/domain/compiled_projection.dart flutter/lib/features/create/data/compiled_projection_repository.dart flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart flutter/lib/features/create/presentation/screens/editor_screen.dart flutter/test/core/network/live_tracking_api_test.dart flutter/test/features/create/compiled_projection_view_test.dart`
 4. Remaining follow-ups:
    - raw-vs-compiled drift checks are now emitted in compiler response; threshold-based alert policy remains open.
    - `enable_compiled_projection_v1` staged rollout flag is pending operational wiring.
@@ -901,12 +882,29 @@ Use this block for each completed phase:
    - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
    - `flutter/test/core/sync/tracking_sync_worker_test.dart`
    - `flutter/test/features/live_capture/live_capture_screen_test.dart`
-3. Validation commands (executed in this increment):
-   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_compiled_projection_endpoints.py -q`
-   - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py -k tracking_media_binary_upload -q`
-   - `flutter pub run build_runner build --delete-conflicting-outputs`
-   - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/core/sync/tracking_sync_worker.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_event_media_table.dart lib/features/create/data/compiled_projection_repository.dart lib/features/create/presentation/providers/compiled_projection_provider.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart`
-   - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/network/live_tracking_api_test.dart`
 4. Remaining follow-ups:
    - Add manual QA soak run for camera/gallery permission edge cases on device.
    - Advisory pipeline and push fanout remain out of scope for this increment.
+
+### Phase P6 Incremental Evidence (2026-04-03, Live Screen UI Boundary Cleanup)
+
+1. Delivered in this increment:
+   - Upgraded live runtime map layer to full-screen `AppMapView` with runtime route/marker overlays.
+   - Reorganized live screen overlays to map boundaries:
+     - compact top status bar,
+     - single stacked top notice region for sync/unresolved/review prompts,
+     - right action rail retained,
+     - compact bottom command bar.
+   - Replaced raw UUID-style header display with trip-name lookup from local trip storage.
+   - Hardened live-screen back behavior to avoid app-close dead-end (`pop` when possible, otherwise route to live hub).
+   - Disabled map compass + scale-bar ornaments for cleaner runtime composition.
+2. Evidence files:
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+   - `flutter/lib/core/map/app_map_view.dart`
+   - `flutter/docs/live-capture-screen-implementation-spec.md`
+3. Validation command:
+   - `flutter analyze lib/core/map/app_map_view.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+4. Remaining follow-ups:
+   - complete animation token pass for live runtime overlays per `flutter/docs/live-capture-animation-contract.md`.
+   - polish control states for paused-mode capture actions in dedicated UX slice.

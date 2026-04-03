@@ -20,6 +20,7 @@ class AppMapView extends StatefulWidget {
     this.routes,
     this.showUserLocation = false,
     this.showCompass = true,
+    this.showScaleBar = true,
     this.enableZoomGestures = true,
     this.enableRotateGestures = true,
     this.enableTiltGestures = true,
@@ -36,6 +37,7 @@ class AppMapView extends StatefulWidget {
   final List<AppRoute>? routes;
   final bool showUserLocation;
   final bool showCompass;
+  final bool showScaleBar;
   final bool enableZoomGestures;
   final bool enableRotateGestures;
   final bool enableTiltGestures;
@@ -47,6 +49,7 @@ class AppMapView extends StatefulWidget {
 
 class _AppMapViewState extends State<AppMapView> {
   MapboxAdapter? _controller;
+  MapboxMap? _mapboxMap;
   bool _styleLoaded = false;
   bool _syncInFlight = false;
   bool _needsResync = false;
@@ -155,6 +158,7 @@ class _AppMapViewState extends State<AppMapView> {
 
   void _onMapCreated(MapboxMap mapboxMap) {
     _styleLoaded = false;
+    _mapboxMap = mapboxMap;
     _markerSignatures.clear();
     _routeSignatures.clear();
     _controller = MapboxAdapter(
@@ -184,8 +188,13 @@ class _AppMapViewState extends State<AppMapView> {
     if (controller == null) {
       return;
     }
+    final mapboxMap = _mapboxMap;
     controller.showUserLocation(widget.showUserLocation);
     controller.showCompass(widget.showCompass);
+    if (mapboxMap != null) {
+      mapboxMap.scaleBar
+          .updateSettings(ScaleBarSettings(enabled: widget.showScaleBar));
+    }
     controller.enableZoom(widget.enableZoomGestures);
     controller.enableRotation(widget.enableRotateGestures);
     controller.enableTilt(widget.enableTiltGestures);
@@ -195,6 +204,7 @@ class _AppMapViewState extends State<AppMapView> {
   @override
   void dispose() {
     _controller?.dispose();
+    _mapboxMap = null;
     _markerSignatures.clear();
     _routeSignatures.clear();
     super.dispose();
@@ -241,7 +251,7 @@ class _MarkerRenderSignature {
       title: marker.title,
       snippet: marker.snippet,
       iconAsset: marker.iconAsset,
-      colorValue: marker.color?.value,
+      colorValue: marker.color?.toARGB32(),
       markerType: marker.markerType,
       label: marker.label,
       draggable: marker.draggable,
@@ -310,7 +320,7 @@ class _RouteRenderSignature {
       coordinates: route.coordinates
           .map((point) => _LatLngTuple(point.latitude, point.longitude))
           .toList(growable: false),
-      colorValue: route.color?.value,
+      colorValue: route.color?.toARGB32(),
       width: route.width,
       dashed: route.dashed,
     );

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,6 +14,7 @@ import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
@@ -32,6 +34,29 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_act
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
+
+final liveCaptureTripNameProvider =
+    StreamProvider.autoDispose.family<String, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    SELECT name
+    FROM trips
+    WHERE id = ?
+    LIMIT 1
+    ''',
+    variables: [Variable<String>(tripId)],
+    readsFrom: {db.trips},
+  );
+  return query.watchSingleOrNull().map((row) {
+    final name = row?.read<String>('name').trim();
+    if (name == null || name.isEmpty) {
+      final shortId = tripId.length > 8 ? tripId.substring(0, 8) : tripId;
+      return 'Trip $shortId';
+    }
+    return name;
+  });
+});
 
 class LiveCaptureScreen extends ConsumerStatefulWidget {
   const LiveCaptureScreen({
@@ -97,6 +122,12 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     final eventsAsync = usePreview
         ? null
         : ref.watch(liveTrackingEventsProvider(widget.tripId));
+    final tripName = usePreview
+        ? 'Live preview'
+        : ref.watch(liveCaptureTripNameProvider(widget.tripId)).valueOrNull ??
+            (widget.tripId.length > 8
+                ? 'Trip ${widget.tripId.substring(0, 8)}'
+                : 'Trip ${widget.tripId}');
     final unresolvedSummary = usePreview
         ? const LiveTrackingUnresolvedSummary(
             unresolvedCount: 0,
@@ -130,17 +161,45 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
         (mapRoutes.isNotEmpty
             ? mapRoutes.first.coordinates.first
             : _defaultLiveCenter);
-    final unresolvedTop = syncStatus?.kind == EditorSyncStatusKind.blocked
-        ? 154.0
-        : 96.0;
     final reviewEvent = unresolvedSummary.latestReviewRequired;
     final reviewHints = unresolvedSummary.reviewHints;
     final showReviewPrompt = !usePreview &&
         reviewEvent != null &&
         reviewHints.isNotEmpty &&
         !_dismissedReviewPromptEventIds.contains(reviewEvent.id);
-    final reviewPromptTop =
-        unresolvedTop + (unresolvedSummary.hasUnresolved ? 74.0 : 0.0);
+    final topNotices = <Widget>[
+      if (!usePreview &&
+          syncStatus?.kind == EditorSyncStatusKind.blocked &&
+          blockedMessage != null &&
+          blockedMessage.isNotEmpty)
+        _SyncBlockedCallout(
+          message: blockedMessage,
+          onRetry: _actionInFlight ? null : _retrySyncNow,
+        ),
+      if (!usePreview && unresolvedSummary.hasUnresolved)
+        _UnresolvedCaptureBanner(
+          unresolvedCount: unresolvedSummary.unresolvedCount,
+          latestNote: unresolvedSummary.latestUnresolved?.note?.trim(),
+          onReview: _actionInFlight
+              ? null
+              : () => context.push(Routes.editorPath(widget.tripId)),
+        ),
+      if (showReviewPrompt)
+        _ProbablePlacePromptCard(
+          hints: reviewHints,
+          onConfirmHint: _actionInFlight
+              ? null
+              : (hint) => _confirmProbablePlace(
+                    eventId: reviewEvent.id,
+                    hint: hint,
+                  ),
+          onKeepOnRoute:
+              _actionInFlight ? null : () => _keepEventOnRoute(reviewEvent.id),
+          onAddPlace: _actionInFlight
+              ? null
+              : () => _openEditorForManualPlace(reviewEvent.id),
+        ),
+    ];
 
     return Scaffold(
       body: Stack(
@@ -155,69 +214,38 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
               markers: mapMarkers,
               routes: mapRoutes,
               showUserLocation: true,
+              showCompass: false,
+              showScaleBar: false,
             ),
           ),
           SafeArea(
             child: Stack(
               children: [
                 LiveCaptureTopBar(
-                  tripName: 'Trip ${widget.tripId}',
+                  tripName: tripName,
                   state: shellState,
                   syncLabel: syncLabel,
-                  onBack: () => context.pop(),
+                  onBack: _handleBack,
                 ),
-                if (!usePreview &&
-                    syncStatus?.kind == EditorSyncStatusKind.blocked &&
-                    blockedMessage != null &&
-                    blockedMessage.isNotEmpty)
+                if (topNotices.isNotEmpty)
                   Positioned(
                     left: AppSpacing.md,
                     right: AppSpacing.md,
                     top: 96,
-                    child: _SyncBlockedCallout(
-                      message: blockedMessage,
-                      onRetry: _actionInFlight ? null : _retrySyncNow,
-                    ),
-                  ),
-                if (!usePreview && unresolvedSummary.hasUnresolved)
-                  Positioned(
-                    left: AppSpacing.md,
-                    right: AppSpacing.md,
-                    top: unresolvedTop,
-                    child: _UnresolvedCaptureBanner(
-                      unresolvedCount: unresolvedSummary.unresolvedCount,
-                      latestNote:
-                          unresolvedSummary.latestUnresolved?.note?.trim(),
-                      onReview: _actionInFlight
-                          ? null
-                          : () => context.push(Routes.editorPath(widget.tripId)),
-                    ),
-                  ),
-                if (showReviewPrompt)
-                  Positioned(
-                    left: AppSpacing.md,
-                    right: AppSpacing.md,
-                    top: reviewPromptTop,
-                    child: _ProbablePlacePromptCard(
-                      hints: reviewHints,
-                      onConfirmHint: _actionInFlight
-                          ? null
-                          : (hint) => _confirmProbablePlace(
-                                eventId: reviewEvent.id,
-                                hint: hint,
-                              ),
-                      onKeepOnRoute: _actionInFlight
-                          ? null
-                          : () => _keepEventOnRoute(reviewEvent.id),
-                      onAddPlace: _actionInFlight
-                          ? null
-                          : () => _openEditorForManualPlace(reviewEvent.id),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0; i < topNotices.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.xs),
+                          topNotices[i],
+                        ],
+                      ],
                     ),
                   ),
                 Positioned(
                   left: AppSpacing.md,
                   right: AppSpacing.md,
-                  bottom: AppSpacing.md + 164,
+                  bottom: AppSpacing.md + 104,
                   child: usePreview
                       ? const _RecentEventsPlaceholder()
                       : eventsAsync!.when(
@@ -239,9 +267,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
                       0,
-                      132,
+                      118,
                       0,
-                      180,
+                      120,
                     ),
                     child: LiveCaptureActionDock(
                       state: shellState,
@@ -431,6 +459,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
     }
   }
 
+  void _handleBack() {
+    if (!mounted) {
+      return;
+    }
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go(Routes.liveHubPath());
+  }
+
   Future<void> _runLiveTrackingAction({
     required String busyLabel,
     required String successMessage,
@@ -616,7 +655,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen> {
 
     setState(() {
       _actionInFlight = true;
-      _actionLabel = 'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
+      _actionLabel =
+          'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
     });
     try {
       final repository = ref.read(liveTrackingEventRepositoryProvider);
@@ -1173,29 +1213,30 @@ class _ProbablePlacePromptCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ...hints.take(3).map(
-            (hint) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${hint.name} (${(hint.confidence * 100).round()}%)',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textPrimary,
+                (hint) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${hint.name} (${(hint.confidence * 100).round()}%)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: onConfirmHint == null
+                            ? null
+                            : () => onConfirmHint!(hint),
+                        child: const Text('Confirm place'),
+                      ),
+                    ],
                   ),
-                  TextButton(
-                    onPressed:
-                        onConfirmHint == null ? null : () => onConfirmHint!(hint),
-                    child: const Text('Confirm place'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
           const SizedBox(height: 2),
           Row(
             children: [

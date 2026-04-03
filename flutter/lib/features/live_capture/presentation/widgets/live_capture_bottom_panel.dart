@@ -33,27 +33,18 @@ class LiveCaptureBottomPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = _controls(state);
-    final mediaQuery = MediaQuery.of(context);
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
         key: const ValueKey('liveCaptureBottomPanel'),
         width: double.infinity,
-        constraints: BoxConstraints(
-          maxHeight: mediaQuery.size.height * 0.42,
-        ),
         margin: const EdgeInsets.fromLTRB(
           AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-        ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
+          0,
           AppSpacing.md,
           AppSpacing.md,
         ),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.card.withValues(alpha: 0.94),
           borderRadius: AppRadius.borderXl,
@@ -66,62 +57,52 @@ class LiveCaptureBottomPanel extends StatelessWidget {
             ),
           ],
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _headline(state),
-                      key: const ValueKey('liveCapturePanelHeadline'),
-                      style: AppTypography.h3.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _headline(state),
+                    key: const ValueKey('liveCapturePanelHeadline'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  if (isBusy) ...[
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    if (busyLabel != null && busyLabel!.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          busyLabel!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                ),
+                if (isBusy) ...[
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  if (busyLabel != null && busyLabel!.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      busyLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
+                    ),
                   ],
                 ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                _subline(state),
-                key: const ValueKey('liveCapturePanelSubline'),
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: controls,
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: controls,
+            ),
+          ],
         ),
       ),
     );
@@ -205,30 +186,15 @@ class LiveCaptureBottomPanel extends StatelessWidget {
   String _headline(LiveCaptureShellState state) {
     switch (state) {
       case LiveCaptureShellState.active:
-        return 'Tracking in progress';
+        return 'Tracking active';
       case LiveCaptureShellState.paused:
         return 'Tracking paused';
       case LiveCaptureShellState.ended:
         return 'Session complete';
       case LiveCaptureShellState.blocked:
-        return 'Sync requires attention';
+        return 'Sync needs attention';
       case LiveCaptureShellState.planned:
         return 'Ready to track';
-    }
-  }
-
-  String _subline(LiveCaptureShellState state) {
-    switch (state) {
-      case LiveCaptureShellState.active:
-        return 'Capture moments, warnings, and media as you move.';
-      case LiveCaptureShellState.paused:
-        return 'Resume when movement starts to continue path capture.';
-      case LiveCaptureShellState.ended:
-        return 'Review the captured trip storyline in editor.';
-      case LiveCaptureShellState.blocked:
-        return 'Capture is still local. Resolve sync to publish updates.';
-      case LiveCaptureShellState.planned:
-        return 'Start a session to begin live route and moment capture.';
     }
   }
 }

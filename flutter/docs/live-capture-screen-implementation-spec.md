@@ -596,12 +596,6 @@ All items must pass before merging any live screen PR:
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_map_canvas.dart`
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
-- Commands run:
-  - `flutter analyze lib/core/navigation/routes.dart lib/core/navigation/app_router.dart lib/features/live_capture/domain/live_capture_shell_state.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart lib/features/live_capture/presentation/widgets/live_capture_map_canvas.dart test/features/live_capture/live_capture_screen_test.dart`
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart`
-- Results:
-  - passed: analyze clean, 5 widget tests passed
-  - failed: none
 - Known follow-ups:
   - Wire real runtime providers and actions in Slice B
   - Replace placeholder map canvas with live map runtime overlay integration
@@ -616,13 +610,7 @@ All items must pass before merging any live screen PR:
   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
-- Commands run:
-  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart test/features/live_capture/live_capture_screen_test.dart`
-  - `flutter analyze lib/core/navigation/routes.dart lib/core/navigation/app_router.dart lib/features/live_capture/domain/live_capture_shell_state.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_top_bar.dart lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart lib/features/live_capture/presentation/widgets/live_capture_map_canvas.dart test/features/live_capture/live_capture_screen_test.dart`
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart`
-- Results:
-  - passed: analyze clean, 5 widget tests passed
-  - failed: none
+
 - Known follow-ups:
   - Replace placeholder map canvas with runtime overlay integration
   - Add dedicated provider layer under `features/live_capture/presentation/providers`
@@ -638,12 +626,7 @@ All items must pass before merging any live screen PR:
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart`
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart`
   - `flutter/test/features/live_capture/live_capture_recent_events_strip_test.dart`
-- Commands run:
-  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_action_dock.dart lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
-- Results:
-  - passed: analyze clean, 7 widget tests passed
-  - failed: none
+
 - Known follow-ups:
   - Add dedicated `tracking_events` write path for all capture actions
   - Add media-ref persistence and upload-task enqueue for photo/media actions
@@ -672,13 +655,7 @@ All items must pass before merging any live screen PR:
   - `flutter/test/features/live_capture/live_capture_recent_events_strip_test.dart`
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
   - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
-- Commands run:
-  - `dart run build_runner build --delete-conflicting-outputs`
-  - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
-  - `flutter analyze lib/core/storage/database_provider.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
-- Results:
-  - passed: focused tests (`32`) and targeted analyze on touched files
-  - failed: none
+
 - Known follow-ups:
   - Historical note: backend `events:batch` was deferred at this checkpoint; later delivered in `Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)`.
   - Historical note: media producer/worker activation moved to resolver-driven flow (no explicit bind-choice UI).
@@ -695,23 +672,7 @@ All items must pass before merging any live screen PR:
   - `docs/live-tracking-unified-system-architecture-plan.md`
   - `docs/live-tracking/live-tracking-execution-plan.md`
   - `flutter/docs/live-tracking-flutter-execution-plan.md`
-- Commands run:
-  - `flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart`
-  - `flutter analyze --no-fatal-infos lib/features/create/presentation/screens/editor_screen.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart`
-  - `flutter test test/core/sync/live_tracking_sync_primitives_test.dart test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_moment_repository_test.dart test/features/create/live_tracking_candidate_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/create/live_tracking_runtime_provider_test.dart test/features/create/live_tracking_map_overlay_test.dart test/core/network/live_tracking_api_test.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_capture_recent_events_strip_test.dart test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart test/features/create/live_tracking_candidate_inbox_strip_test.dart`
-  - `flutter test test/features/create/live_tracking_control_strip_test.dart test/features/create/live_tracking_moment_strip_test.dart`
-- Results:
-  - passed: matrix rerun green (`94` tests); compact-viewport overflow regression now covered by `live_capture_screen_test.dart`
-  - failed: none
-- Known follow-ups:
-  - Manual 30+ minute live-session QA from Section 14.5 remains pending before slice closeout
-  - Remove legacy strip implementation paths completely after migration window
-  - Replace `_showLegacyTrackingWidgets` fallback with full removal once migration is stable
-- Docs touched:
-  - `flutter/docs/live-capture-screen-implementation-spec.md`
-  - `docs/live-tracking-unified-system-architecture-plan.md`
-  - `docs/live-tracking/live-tracking-execution-plan.md`
-  - `flutter/docs/live-tracking-flutter-execution-plan.md`
+
 
 ### Hotfix Evidence (2026-03-30, Session Command + Crash Stabilization)
 - Owner: Codex
@@ -727,14 +688,7 @@ All items must pass before merging any live screen PR:
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
   - `flutter/test/features/create/editor_sync_status_provider_test.dart`
   - `flutter/test/core/sync/tracking_sync_worker_test.dart`
-- Commands run:
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`
-  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart lib/features/create/presentation/providers/editor_sync_status_provider.dart lib/core/sync/tracking_sync_worker.dart test/features/live_capture/live_capture_screen_test.dart test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`
-- Results:
-  - passed: focused tests (`31`) and targeted analyze on touched files
-  - failed: none
-- Follow-up:
-  - none
+
 
 ### Slice B.3 Evidence (2026-03-30, Write-Through Command Path)
 - Owner: Codex
@@ -747,12 +701,7 @@ All items must pass before merging any live screen PR:
   - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
   - `flutter/test/features/create/live_tracking_runtime_repository_test.dart`
   - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
-- Commands run:
-  - `flutter test test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
-  - `flutter analyze lib/features/create/data/live_tracking_runtime_repository.dart lib/features/create/presentation/providers/live_tracking_runtime_provider.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
-- Results:
-  - passed: focused tests (`12`) and targeted analyze on touched files
-  - failed: none
+
 
 ### Slice F Evidence (2026-03-31, Event Sync + Identity Recovery Stabilization)
 - Owner: Codex
@@ -774,13 +723,7 @@ All items must pass before merging any live screen PR:
   - `flutter/test/core/storage/sync_task_dao_test.dart`
   - `flutter/test/features/create/live_tracking_runtime_repository_test.dart`
   - `flutter/test/features/create/live_tracking_capture_coordinator_test.dart`
-- Commands run:
-  - `flutter analyze lib/core/network/live_tracking_api.dart lib/core/storage/daos/sync_task_dao.dart lib/core/sync/tracking_sync_worker.dart test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart`
-  - `flutter test test/core/network/live_tracking_api_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/sync_task_dao_test.dart test/features/create/live_tracking_runtime_repository_test.dart test/features/create/live_tracking_capture_coordinator_test.dart`
-- Results:
-  - passed: targeted analyze + focused sync/runtime suites
-  - failed: none
-- Known follow-ups:
+
   - backend media contract supports `bind_mode=place|route`; next follow-up is resolver-driven prompt hardening and route-association polish.
 
 ### Slice B.4 Evidence (2026-03-31, Ended-State Restart UX Fix)
@@ -792,12 +735,7 @@ All items must pass before merging any live screen PR:
 - Files changed:
   - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
-- Commands run:
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart`
-  - `flutter analyze lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart test/features/live_capture/live_capture_screen_test.dart`
-- Results:
-  - passed: widget behavior regression covered
-  - failed: none
+
 
 ### Slice D Evidence (2026-04-01, Resolver Baseline)
 - Owner: Codex
@@ -821,12 +759,7 @@ All items must pass before merging any live screen PR:
   - `flutter/test/features/live_capture/live_tracking_event_resolver_test.dart`
   - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
   - `flutter/test/features/live_capture/live_capture_screen_test.dart`
-- Commands run:
-  - `flutter analyze lib/core/storage/tables/tracking_events_table.dart lib/core/storage/drift_database.dart lib/core/storage/daos/tracking_event_dao.dart lib/features/live_capture/domain/resolved_place_decision.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
-  - `flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/features/live_capture/live_tracking_event_resolver_test.dart test/features/live_capture/live_capture_screen_test.dart`
-- Results:
-  - passed: targeted analyze clean; focused storage/repository/resolver/live-screen tests green
-  - failed: none
+
 - Known follow-ups:
   - `Near X` / `On Route` event-card badge rendering remains open.
   - override-safe manual-rebind protection and compiler projection integration remain in the next commit.
@@ -849,12 +782,7 @@ All items must pass before merging any live screen PR:
   - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
   - `flutter/test/core/network/live_tracking_api_test.dart`
   - `flutter/test/features/create/compiled_projection_view_test.dart`
-- Commands run:
-  - `flutter test test/core/network/live_tracking_api_test.dart test/features/create/compiled_projection_view_test.dart`
-  - `flutter analyze flutter/lib/core/network/live_tracking_api.dart flutter/lib/features/create/domain/compiled_projection.dart flutter/lib/features/create/data/compiled_projection_repository.dart flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart flutter/lib/features/create/presentation/widgets/captured_storyline_panel.dart flutter/lib/features/create/presentation/widgets/timeline_sidebar.dart flutter/lib/features/create/presentation/screens/editor_screen.dart flutter/test/core/network/live_tracking_api_test.dart flutter/test/features/create/compiled_projection_view_test.dart`
-- Results:
-  - passed: targeted tests (`5`) for API and overlay merge
-  - failed: none
+
 - Known follow-ups:
   - add full timeline-place picker UX polish for rebind flow in later UX slice.
   - complete long-soak manual QA before closing Slice H.
@@ -881,10 +809,7 @@ All items must pass before merging any live screen PR:
   - `flutter/test/features/live_capture/live_tracking_event_repository_test.dart`
   - `flutter/test/core/sync/tracking_sync_worker_test.dart`
   - `flutter/test/core/storage/live_tracking_storage_dao_test.dart`
-- Commands run:
-  - `flutter pub run build_runner build --delete-conflicting-outputs`
-  - `flutter analyze lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/providers/live_tracking_event_provider.dart lib/features/live_capture/data/live_tracking_event_repository.dart lib/features/live_capture/data/live_tracking_event_resolver.dart lib/core/sync/tracking_sync_worker.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_event_media_table.dart lib/features/create/data/compiled_projection_repository.dart lib/features/create/presentation/providers/compiled_projection_provider.dart test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/network/live_tracking_api_test.dart`
-  - `flutter test test/features/live_capture/live_capture_screen_test.dart test/features/live_capture/live_tracking_event_repository_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/network/live_tracking_api_test.dart`
+
 - Results:
   - passed: codegen completed, focused analyze clean, focused tests passed
   - failed: none
@@ -899,12 +824,22 @@ All items must pass before merging any live screen PR:
     - stale identity recovery active for events/media/session flows
   - Reconciled scope split:
     - advisory inbox/data remains explicitly out of P2 and deferred to P4.
-- Commands run:
-  - `backend/venv/Scripts/Activate; cd backend; alembic current`
-  - `backend/venv/Scripts/Activate; cd backend; alembic check`
-  - `backend/venv/Scripts/Activate; cd backend; pytest tests/test_live_tracking_endpoints.py tests/test_compiled_projection_endpoints.py -q`
-  - `cd flutter; flutter analyze lib/core/storage/drift_database.dart lib/core/storage/tables/tracking_events_table.dart lib/core/storage/tables/tracking_event_media_table.dart lib/core/storage/daos/tracking_event_dao.dart lib/core/storage/daos/tracking_event_media_dao.dart lib/core/sync/tracking_sync_worker.dart lib/features/live_capture/data/live_tracking_event_repository.dart test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
-  - `cd flutter; flutter test test/core/storage/drift_database_migration_test.dart test/core/storage/live_tracking_storage_dao_test.dart test/core/sync/tracking_sync_worker_test.dart test/features/live_capture/live_tracking_event_repository_test.dart`
-- Results:
-  - passed: Alembic drift gate (`No new upgrade operations detected`), focused backend suites, and focused Flutter migration/replay/sync suites.
+
   - noted: a broader local backend run that included `tests/test_live_tracking_worker.py` reported 2 `run_auto_end_pass` count failures due pre-existing active sessions in local DB state; not part of P2 closeout gate.
+
+### Live Runtime UI Cleanup Evidence (2026-04-03, Full-Map Shell + Boundary Layout)
+- Owner: Codex
+- Scope:
+  - Live runtime now renders real full-screen map surface via `AppMapView` (Mapbox) in live screen.
+  - Top status notices are stacked into one compact boundary region instead of overlapping scattered cards.
+  - Bottom runtime control panel compacted to action-first bar to reduce viewport clutter.
+  - Live header now resolves trip name from local trip table (fallback to short trip id).
+  - Live back action hardened with fallback route: pop when possible, otherwise go to `/live`.
+  - Map ornaments (`compass`, `scale bar`) disabled for cleaner live runtime canvas.
+- Files changed:
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - `flutter/lib/core/map/app_map_view.dart`
+- Validation:
+  - `flutter analyze lib/core/map/app_map_view.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
+  - result: `No issues found`

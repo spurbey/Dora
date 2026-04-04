@@ -9,11 +9,9 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:dora/core/media/media_permissions.dart';
-import 'package:dora/core/map/app_map_view.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/map/models/app_marker.dart';
-import 'package:dora/core/map/models/app_route.dart';
+import 'package:dora/features/live_capture/map/live_capture_map_widget.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
@@ -204,15 +202,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final blockedMessage =
         syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
     final capturePosition = mapOverlay?.currentMarker?.position;
-    final mapMarkers = mapOverlay?.currentMarker == null
-        ? const <AppMarker>[]
-        : <AppMarker>[mapOverlay!.currentMarker!];
-    final mapRoutes = mapOverlay?.pathRoute == null
-        ? const <AppRoute>[]
-        : <AppRoute>[mapOverlay!.pathRoute!];
-    final mapInitialCenter = mapOverlay?.currentMarker?.position ??
-        (mapRoutes.isNotEmpty
-            ? mapRoutes.first.coordinates.first
+    final mapInitialCenter = capturePosition ??
+        (mapOverlay?.pathRoute?.coordinates.isNotEmpty == true
+            ? mapOverlay!.pathRoute!.coordinates.first
             : _defaultLiveCenter);
     final reviewEvent = unresolvedSummary.latestReviewRequired;
     final reviewHints = unresolvedSummary.reviewHints;
@@ -261,17 +253,12 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         body: Stack(
           children: [
             Positioned.fill(
-              child: AppMapView(
-                // Key is stable for the screen's lifetime — keying by marker ID
-                // would recreate the full Mapbox instance on session start.
+              child: LiveCaptureMapWidget(
                 key: ValueKey('liveCaptureMap-${widget.tripId}'),
                 initialCenter: mapInitialCenter,
                 initialZoom: 13,
-                markers: mapMarkers,
-                routes: mapRoutes,
-                showUserLocation: true,
-                showCompass: false,
-                showScaleBar: false,
+                position: capturePosition,
+                pathPoints: mapOverlay?.pathRoute?.coordinates ?? const <AppLatLng>[],
               ),
             ),
             SafeArea(

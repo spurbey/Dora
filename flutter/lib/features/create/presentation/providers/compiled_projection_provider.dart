@@ -147,7 +147,10 @@ class CompiledProjectionView {
       if (!_isStorylineEventType(row.eventType)) {
         continue;
       }
-      if (_isSynced(row.syncStatus)) {
+      // When remote projection is available and healthy, skip synced locals
+      // (they already exist in the remote data — including them would duplicate).
+      // When remote is unavailable, include synced locals so the editor isn't empty.
+      if (!remoteUnavailable && _isSynced(row.syncStatus)) {
         continue;
       }
       final clientEventId = _normalizedClientEventId(row);

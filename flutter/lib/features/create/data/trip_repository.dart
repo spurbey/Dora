@@ -95,6 +95,9 @@ class TripRepository {
     }
   }
 
+  /// Creates a trip on the server immediately, then stores locally with
+  /// `serverTripId` already set. Requires network — throws [TripIdentityException]
+  /// if offline or API unavailable.
   Future<Trip> createTrip({
     required String name,
     String? description,
@@ -105,9 +108,20 @@ class TripRepository {
   }) async {
     final userId = _authService.currentUser?.id ?? 'mock-user';
     final now = DateTime.now();
+    final localId = const Uuid().v4();
+
+    // Server-first: create on backend before local persistence.
+    final serverTripId = await _createTripOnServer(
+      name: name,
+      description: description,
+      startDate: startDate,
+      endDate: endDate,
+      visibility: visibility,
+    );
+
     final trip = Trip(
-      id: const Uuid().v4(),
-      serverTripId: null,
+      id: localId,
+      serverTripId: serverTripId,
       userId: userId,
       name: name,
       description: description,
@@ -117,52 +131,174 @@ class TripRepository {
       visibility: visibility,
       localUpdatedAt: now,
       serverUpdatedAt: now,
-      syncStatus: 'pending',
+      syncStatus: 'synced',
     );
 
     await _upsertTripRow(trip);
     await _upsertUserTrip(trip, createdAt: now);
-    await _enqueueTripSyncTask(
-      localTripId: trip.id,
-      operation: 'create',
-    );
 
     return trip;
   }
 
+  /// Updates a trip on the server immediately, then persists locally.
+  /// Falls back to local-only update if server is unavailable (trip already
+  /// exists on server, so a missed update is recoverable).
   Future<Trip> updateTrip(Trip trip) async {
     final now = DateTime.now();
+    final serverTripId = trip.serverTripId;
+    var syncStatus = 'synced';
+
+    if (serverTripId != null && serverTripId.isNotEmpty) {
+      try {
+        await _updateTripOnServer(
+          serverTripId: serverTripId,
+          name: trip.name,
+          description: trip.description,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          visibility: trip.visibility,
+        );
+      } catch (_) {
+        // Server update failed — save locally and queue for retry.
+        syncStatus = 'pending';
+        await _enqueueTripSyncTask(
+          localTripId: trip.id,
+          operation: 'update',
+        );
+      }
+    } else {
+      syncStatus = 'pending';
+    }
+
     final updated = trip.copyWith(
       localUpdatedAt: now,
-      syncStatus: 'pending',
+      syncStatus: syncStatus,
     );
 
     await _upsertTripRow(updated);
     await _upsertUserTrip(updated);
-    await _enqueueTripSyncTask(
-      localTripId: updated.id,
-      operation: (updated.serverTripId == null || updated.serverTripId!.isEmpty)
-          ? 'create'
-          : 'update',
-    );
-
     return updated;
   }
 
+  /// Deletes a trip from the server immediately, then removes locally.
+  /// Requires network for server-backed trips.
   Future<void> deleteTrip(String id) async {
     final existing = await _db.tripDao.getTripById(id);
     if (existing == null) {
       return;
     }
 
+    // Delete from server first if it exists there.
+    final serverTripId = existing.serverTripId;
+    if (serverTripId != null && serverTripId.isNotEmpty) {
+      try {
+        await deleteRemoteTripById(serverTripId);
+      } on TripIdentityException {
+        rethrow;
+      } catch (_) {
+        // Swallow network errors — clean up locally regardless.
+        // A dangling server trip is better than a stuck local delete.
+      }
+    }
+
     await _db.routeDao.deleteRoutesForTrip(id);
     await _db.placeDao.deletePlacesForTrip(id);
     await _db.tripDao.deleteTrip(id);
     await _db.userTripsDao.deleteTrip(id);
-    await _enqueueTripSyncTask(
-      localTripId: id,
-      operation: 'delete',
-      remoteEntityId: existing.serverTripId,
+  }
+
+  /// Direct server call to create a trip. Returns server-assigned trip ID.
+  Future<String> _createTripOnServer({
+    required String name,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    String visibility = 'private',
+  }) async {
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) {
+      throw const TripIdentityException(
+        'Internet connection required to create a trip.',
+      );
+    }
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw const TripIdentityException(
+        'Please sign in before creating a trip.',
+        retryable: true,
+      );
+    }
+
+    final payload = openapi.TripCreate((builder) {
+      builder
+        ..title = name
+        ..description = description
+        ..visibility = visibility;
+      if (startDate != null) {
+        builder.startDate =
+            openapi.Date(startDate.year, startDate.month, startDate.day);
+      }
+      if (endDate != null) {
+        builder.endDate =
+            openapi.Date(endDate.year, endDate.month, endDate.day);
+      }
+    });
+
+    openapi.TripResponse? responseData;
+    try {
+      final response = await tripsApi.createTripApiV1TripsPost(
+        authorization: 'Bearer $token',
+        tripCreate: payload,
+      );
+      responseData = response.data;
+    } on DioException catch (error) {
+      throw TripIdentityException(_mapTripCreateFailure(error));
+    }
+
+    final remoteId = responseData?.id;
+    if (remoteId == null || remoteId.isEmpty) {
+      throw const TripIdentityException(
+        'Server did not return a trip ID. Please try again.',
+      );
+    }
+    return remoteId;
+  }
+
+  /// Direct server call to update a trip.
+  Future<void> _updateTripOnServer({
+    required String serverTripId,
+    required String name,
+    String? description,
+    DateTime? startDate,
+    DateTime? endDate,
+    String visibility = 'private',
+  }) async {
+    final tripsApi = _tripsApi;
+    if (tripsApi == null) return;
+
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) return;
+
+    final payload = openapi.TripUpdate((builder) {
+      builder
+        ..title = name
+        ..description = description
+        ..visibility = visibility;
+      if (startDate != null) {
+        builder.startDate =
+            openapi.Date(startDate.year, startDate.month, startDate.day);
+      }
+      if (endDate != null) {
+        builder.endDate =
+            openapi.Date(endDate.year, endDate.month, endDate.day);
+      }
+    });
+
+    await tripsApi.updateTripApiV1TripsTripIdPatch(
+      tripId: serverTripId,
+      authorization: 'Bearer $token',
+      tripUpdate: payload,
     );
   }
 

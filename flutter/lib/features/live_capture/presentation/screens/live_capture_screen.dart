@@ -286,6 +286,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                       syncLabel: syncLabel,
                       syncKind: syncKind,
                       onBack: _handleBack,
+                      onOverflow: _showDebugDiagnostics,
                     ),
                     _topBarAnim,
                     slideY: -8,
@@ -552,6 +553,199 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       return;
     }
     context.go(Routes.liveHubPath());
+  }
+
+  Future<void> _showDebugDiagnostics() async {
+    if (!mounted) return;
+    final db = ref.read(appDatabaseProvider);
+    final tripId = widget.tripId;
+
+    // 1. Trip identity
+    final tripRow = await db.customSelect(
+      'SELECT id, server_trip_id, sync_status, name FROM trips WHERE id = ? LIMIT 1',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.trips},
+    ).getSingleOrNull();
+    final serverTripId = tripRow?.read<String?>('server_trip_id');
+    final tripSyncStatus = tripRow?.read<String?>('sync_status');
+
+    // 2. Session identity
+    final sessionRow = await db.customSelect(
+      '''SELECT id, remote_session_id, state, started_at
+         FROM tracking_sessions
+         WHERE trip_id = ?
+         ORDER BY created_at DESC LIMIT 1''',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.trackingSessions},
+    ).getSingleOrNull();
+    final sessionId = sessionRow?.read<String?>('id');
+    final remoteSessionId = sessionRow?.read<String?>('remote_session_id');
+    final sessionState = sessionRow?.read<String?>('state');
+
+    // 3. Sync tasks by entity type and status
+    final taskRows = await db.customSelect(
+      '''SELECT entity_type, status, COUNT(*) as cnt
+         FROM sync_tasks
+         WHERE entity_id IN (
+           SELECT id FROM tracking_events WHERE trip_id = ?
+           UNION ALL
+           SELECT id FROM tracking_event_media WHERE trip_id = ?
+           UNION ALL
+           SELECT id FROM tracking_point_batches WHERE trip_id = ?
+           UNION ALL
+           SELECT id FROM tracking_sessions WHERE trip_id = ?
+           UNION ALL
+           SELECT ? WHERE 1=1
+         )
+         GROUP BY entity_type, status
+         ORDER BY entity_type, status''',
+      variables: [
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+      ],
+      readsFrom: {db.syncTasks},
+    ).get();
+
+    // 4. Last 3 errors
+    final errorRows = await db.customSelect(
+      '''SELECT entity_type, entity_id, status, error_code, error_message, updated_at
+         FROM sync_tasks
+         WHERE error_message IS NOT NULL
+           AND entity_id IN (
+             SELECT id FROM tracking_events WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_event_media WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_point_batches WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_sessions WHERE trip_id = ?
+           )
+         ORDER BY updated_at DESC
+         LIMIT 3''',
+      variables: [
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+      ],
+      readsFrom: {db.syncTasks},
+    ).get();
+
+    // 5. Event sync status distribution
+    final eventStats = await db.customSelect(
+      '''SELECT sync_status, COUNT(*) as cnt
+         FROM tracking_events
+         WHERE trip_id = ?
+         GROUP BY sync_status''',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.trackingEvents},
+    ).get();
+
+    // 6. Media sync status distribution
+    final mediaStats = await db.customSelect(
+      '''SELECT upload_status, sync_status, COUNT(*) as cnt
+         FROM tracking_event_media
+         WHERE trip_id = ?
+         GROUP BY upload_status, sync_status''',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.trackingEventMedia},
+    ).get();
+
+    // 7. Point batch stats
+    final pointStats = await db.customSelect(
+      '''SELECT status, COUNT(*) as cnt, SUM(point_count) as total_points
+         FROM tracking_point_batches
+         WHERE trip_id = ?
+         GROUP BY status''',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.trackingPointBatches},
+    ).get();
+
+    if (!mounted) return;
+
+    // Build display
+    final buf = StringBuffer();
+    buf.writeln('── Trip Identity ──');
+    buf.writeln('localTripId: $tripId');
+    buf.writeln('serverTripId: ${serverTripId ?? "NULL ⚠️"}');
+    buf.writeln('tripSyncStatus: $tripSyncStatus');
+    buf.writeln('');
+    buf.writeln('── Session ──');
+    buf.writeln('sessionId: ${sessionId ?? "none"}');
+    buf.writeln('remoteSessionId: ${remoteSessionId ?? "NULL ⚠️"}');
+    buf.writeln('state: $sessionState');
+    buf.writeln('');
+    buf.writeln('── Sync Tasks ──');
+    for (final row in taskRows) {
+      final type = row.read<String>('entity_type');
+      final status = row.read<String>('status');
+      final cnt = row.read<int>('cnt');
+      buf.writeln('  $type | $status: $cnt');
+    }
+    if (taskRows.isEmpty) buf.writeln('  (no tasks)');
+    buf.writeln('');
+    buf.writeln('── Events ──');
+    for (final row in eventStats) {
+      final status = row.read<String>('sync_status');
+      final cnt = row.read<int>('cnt');
+      buf.writeln('  $status: $cnt');
+    }
+    if (eventStats.isEmpty) buf.writeln('  (no events)');
+    buf.writeln('');
+    buf.writeln('── Media ──');
+    for (final row in mediaStats) {
+      final upload = row.read<String>('upload_status');
+      final sync = row.read<String>('sync_status');
+      final cnt = row.read<int>('cnt');
+      buf.writeln('  upload=$upload sync=$sync: $cnt');
+    }
+    if (mediaStats.isEmpty) buf.writeln('  (no media)');
+    buf.writeln('');
+    buf.writeln('── Point Batches ──');
+    for (final row in pointStats) {
+      final status = row.read<String>('status');
+      final cnt = row.read<int>('cnt');
+      final pts = row.read<int?>('total_points') ?? 0;
+      buf.writeln('  $status: $cnt batches ($pts points)');
+    }
+    if (pointStats.isEmpty) buf.writeln('  (no batches)');
+    buf.writeln('');
+    buf.writeln('── Last Errors ──');
+    for (final row in errorRows) {
+      final type = row.read<String>('entity_type');
+      final code = row.read<String?>('error_code') ?? '';
+      final msg = row.read<String?>('error_message') ?? '';
+      buf.writeln('  [$type] $code');
+      buf.writeln('    ${msg.length > 120 ? '${msg.substring(0, 120)}...' : msg}');
+    }
+    if (errorRows.isEmpty) buf.writeln('  (none)');
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sync Diagnostics', style: TextStyle(fontSize: 14)),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            buf.toString(),
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              height: 1.4,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _runLiveTrackingAction({

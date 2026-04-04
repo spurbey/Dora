@@ -8,6 +8,7 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_shadows.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/date_picker_field.dart';
@@ -131,6 +132,22 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
           context.go(Routes.editorPath(trip.id));
           break;
       }
+    } on TripIdentityException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not create trip: $e'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _submitting = false);

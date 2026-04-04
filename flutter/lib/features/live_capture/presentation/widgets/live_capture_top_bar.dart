@@ -16,6 +16,7 @@ class LiveCaptureTopBar extends StatefulWidget {
     required this.syncLabel,
     required this.onBack,
     this.syncKind,
+    this.onOverflow,
   });
 
   final String tripName;
@@ -23,6 +24,7 @@ class LiveCaptureTopBar extends StatefulWidget {
   final String syncLabel;
   final VoidCallback onBack;
   final EditorSyncStatusKind? syncKind;
+  final VoidCallback? onOverflow;
 
   @override
   State<LiveCaptureTopBar> createState() => _LiveCaptureTopBarState();
@@ -220,7 +222,7 @@ class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
               if (!compact)
                 IconButton(
                   key: const ValueKey('liveCaptureMore'),
-                  onPressed: () {},
+                  onPressed: widget.onOverflow ?? () {},
                   constraints: const BoxConstraints.tightFor(
                     width: 32,
                     height: 32,

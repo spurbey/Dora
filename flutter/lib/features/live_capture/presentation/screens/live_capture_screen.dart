@@ -33,6 +33,7 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_act
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
+import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
 
 final liveCaptureTripNameProvider =
     StreamProvider.autoDispose.family<String, String>((ref, tripId) {
@@ -89,6 +90,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   late final Animation<double> _dockAnim;
   late final Animation<double> _panelAnim;
 
+  // Transient burst effects (photo / warn capture feedback)
+  late final StreamController<TransientEffect> _effectController;
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +112,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       parent: _entranceCtrl,
       curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
     );
+    _effectController = StreamController<TransientEffect>.broadcast();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _entranceCtrl.forward();
@@ -126,8 +131,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   void dispose() {
     _entranceCtrl.dispose();
+    _effectController.close();
     _resolverReconcileTimer?.cancel();
     super.dispose();
+  }
+
+  void _emitEffect(TransientEffectType type) {
+    if (!_effectController.isClosed) {
+      _effectController.add(TransientEffect(type));
+    }
   }
 
   Widget _withEntrance(
@@ -440,6 +452,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 ],
               ),
             ),
+            // Transient burst effects — above HUD, pointer-transparent
+            Positioned.fill(
+              child: LiveCaptureTransientEffects(
+                key: const ValueKey('liveCaptureTransientEffects'),
+                stream: _effectController.stream,
+                cancelAll: syncStatus?.kind == EditorSyncStatusKind.blocked,
+              ),
+            ),
           ],
         ),
       ),
@@ -614,6 +634,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     required String note,
     required String successMessage,
     required AppLatLng? position,
+    VoidCallback? onSuccess,
   }) async {
     if (_actionInFlight || !mounted) {
       return;
@@ -634,6 +655,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       if (!mounted) {
         return;
       }
+      onSuccess?.call();
       _showMessage(successMessage);
     } catch (_) {
       _showMessage('Failed to capture item. Try again.');
@@ -675,6 +697,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       note: note,
       successMessage: successMessage,
       position: position,
+      onSuccess: eventType == LiveTrackingEventType.warn
+          ? () => _emitEffect(TransientEffectType.warnCaptured)
+          : null,
     );
   }
 
@@ -734,6 +759,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         return;
       }
       _dismissedReviewPromptEventIds.remove(result.eventId);
+      if (eventType == LiveTrackingEventType.photo) {
+        _emitEffect(TransientEffectType.photoCaptured);
+      }
       if (result.decision.state == 'resolved') {
         _showMessage('Captured and auto-bound to nearby place.');
       } else if (result.decision.state == 'review_required') {

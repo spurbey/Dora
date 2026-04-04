@@ -140,6 +140,7 @@ class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
               const SizedBox(width: 6),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(

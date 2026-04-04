@@ -162,12 +162,15 @@ void main() {
       await tempFile.writeAsBytes(<int>[1, 2, 3, 4]);
 
       try {
-        await api.startTracking(
+        final startSnapshot = await api.startTracking(
           tripId: 'trip-1',
           idempotencyKey: 'idem-1',
           clientSessionId: 'session-1',
           startedAt: now,
         );
+        expect(startSnapshot['state'], 'active');
+        expect(startSnapshot['session_id'], 'session-1');
+        expect(startSnapshot['trip_id'], 'trip-1');
         await api.uploadPointsBatch(
           tripId: 'trip-1',
           idempotencyKey: 'idem-2',

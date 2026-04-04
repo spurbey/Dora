@@ -271,6 +271,8 @@ final liveTrackingSyncStatusProvider =
         t.error_message
       FROM sync_tasks AS t
       WHERE (
+          (t.entity_type = 'trip' AND t.entity_id = ?)
+          OR
           (t.entity_type = 'tracking_session' AND t.entity_id IN (
             SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
           ))
@@ -309,6 +311,11 @@ final liveTrackingSyncStatusProvider =
         SELECT COUNT(*) FROM scoped_tracking_tasks
         WHERE status IN ('queued', 'pending', 'in_progress', 'deferred')
       ) AS active_tasks,
+      (
+        SELECT COUNT(*)
+        FROM trips AS t
+        WHERE t.id = ? AND t.sync_status <> 'synced'
+      ) AS unsynced_trip_rows,
       (
         SELECT COUNT(*)
         FROM tracking_sessions AS s
@@ -389,9 +396,12 @@ final liveTrackingSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
+      db.trips,
       db.trackingSessions,
       db.trackingPointBatches,
       db.trackingMoments,
@@ -405,7 +415,8 @@ final liveTrackingSyncStatusProvider =
     final blockedItems = row.read<int>('blocked_tasks');
     final failedItems = row.read<int>('failed_tasks');
     final activeItems = row.read<int>('active_tasks');
-    final unsyncedRows = row.read<int>('unsynced_session_rows') +
+    final unsyncedRows = row.read<int>('unsynced_trip_rows') +
+        row.read<int>('unsynced_session_rows') +
         row.read<int>('unsynced_batch_rows') +
         row.read<int>('unsynced_moment_rows') +
         row.read<int>('unsynced_candidate_rows') +

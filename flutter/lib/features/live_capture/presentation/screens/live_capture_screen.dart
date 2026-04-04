@@ -23,8 +23,10 @@ import 'package:dora/features/create/data/compiled_projection_repository.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
+import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
+import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
 import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
@@ -600,7 +602,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Retrying...';
     });
     try {
-      await ref.read(trackingSyncWorkerProvider).startIfIdle();
+      final entityWorker = ref.read(entitySyncWorkerProvider);
+      final trackingWorker = ref.read(trackingSyncWorkerProvider);
+      final mediaWorker = ref.read(uploadQueueWorkerProvider);
+      await Future.wait([
+        entityWorker.startIfIdle(),
+        trackingWorker.startIfIdle(),
+        mediaWorker.startIfIdle(),
+      ]);
       if (!mounted) {
         return;
       }

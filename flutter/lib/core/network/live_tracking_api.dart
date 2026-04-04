@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:built_value/json_object.dart';
 import 'package:built_value/serializer.dart';
 import 'package:dio/dio.dart';
 
@@ -196,39 +197,132 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       return <String, dynamic>{};
     }
     if (data is Map<String, dynamic>) {
-      return data;
+      return _unwrapBuiltValueEnvelope(data.map(
+        (key, value) => MapEntry(key, _normalizeSerializedValue(value)),
+      ));
     }
     if (data is Map) {
-      return Map<String, dynamic>.from(data);
+      return _unwrapBuiltValueEnvelope(data.map(
+        (key, value) =>
+            MapEntry(key.toString(), _normalizeSerializedValue(value)),
+      ));
     }
     if (data is String && data.isNotEmpty) {
       final decoded = jsonDecode(data);
       if (decoded is Map<String, dynamic>) {
-        return decoded;
+        return _unwrapBuiltValueEnvelope(decoded.map(
+          (key, value) => MapEntry(key, _normalizeSerializedValue(value)),
+        ));
       }
       if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
+        return _unwrapBuiltValueEnvelope(decoded.map(
+          (key, value) =>
+              MapEntry(key.toString(), _normalizeSerializedValue(value)),
+        ));
       }
     }
     try {
       final serialized = openapi.standardSerializers.serialize(data);
       if (serialized is Map<String, dynamic>) {
-        return serialized;
+        return _unwrapBuiltValueEnvelope(serialized.map(
+          (key, value) => MapEntry(key, _normalizeSerializedValue(value)),
+        ));
       }
       if (serialized is Map) {
-        return Map<String, dynamic>.from(serialized);
+        return _unwrapBuiltValueEnvelope(serialized.map(
+          (key, value) =>
+              MapEntry(key.toString(), _normalizeSerializedValue(value)),
+        ));
+      }
+      if (serialized is List) {
+        final mapped = _mapFromSerializedList(serialized);
+        if (mapped != null) {
+          return _unwrapBuiltValueEnvelope(mapped);
+        }
       }
       final normalized = jsonDecode(jsonEncode(serialized));
       if (normalized is Map<String, dynamic>) {
-        return normalized;
+        return _unwrapBuiltValueEnvelope(normalized.map(
+          (key, value) => MapEntry(key, _normalizeSerializedValue(value)),
+        ));
       }
       if (normalized is Map) {
-        return Map<String, dynamic>.from(normalized);
+        return _unwrapBuiltValueEnvelope(normalized.map(
+          (key, value) =>
+              MapEntry(key.toString(), _normalizeSerializedValue(value)),
+        ));
       }
     } catch (_) {
       // Keep compatibility with legacy call-sites by returning empty map.
     }
     return <String, dynamic>{};
+  }
+
+  static Map<String, dynamic>? _mapFromSerializedList(List<dynamic> list) {
+    if (list.isEmpty || list.length.isOdd) {
+      return null;
+    }
+    final mapped = <String, dynamic>{};
+    for (var i = 0; i < list.length; i += 2) {
+      final key = list[i];
+      if (key is! String) {
+        return null;
+      }
+      mapped[key] = _normalizeSerializedValue(list[i + 1]);
+    }
+    return mapped;
+  }
+
+  static Map<String, dynamic> _unwrapBuiltValueEnvelope(
+    Map<String, dynamic> value,
+  ) {
+    final payload = value[''];
+    if (payload is Map<String, dynamic>) {
+      return payload.map(
+        (key, nested) => MapEntry(key, _normalizeSerializedValue(nested)),
+      );
+    }
+    if (payload is Map) {
+      return payload.map(
+        (key, nested) =>
+            MapEntry(key.toString(), _normalizeSerializedValue(nested)),
+      );
+    }
+    if (payload is List) {
+      final mapped = _mapFromSerializedList(payload);
+      if (mapped != null) {
+        return mapped;
+      }
+    }
+    return value;
+  }
+
+  static dynamic _normalizeSerializedValue(dynamic value) {
+    if (value is JsonObject) {
+      return _normalizeSerializedValue(value.value);
+    }
+    if (value is DateTime) {
+      return value.toUtc().toIso8601String();
+    }
+    if (value is Map<String, dynamic>) {
+      return value.map(
+        (key, nested) => MapEntry(key, _normalizeSerializedValue(nested)),
+      );
+    }
+    if (value is Map) {
+      return value.map(
+        (key, nested) =>
+            MapEntry(key.toString(), _normalizeSerializedValue(nested)),
+      );
+    }
+    if (value is List) {
+      final mapped = _mapFromSerializedList(value);
+      if (mapped != null) {
+        return mapped;
+      }
+      return value.map(_normalizeSerializedValue).toList(growable: false);
+    }
+    return value;
   }
 
   T _deserialize<T>(Map<String, dynamic> data, FullType type) {

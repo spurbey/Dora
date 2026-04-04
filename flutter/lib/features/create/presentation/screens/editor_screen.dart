@@ -1531,7 +1531,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
     try {
       final repository = ref.read(compiledProjectionRepositoryProvider);
-      await repository.rebind(
+      final result = await repository.rebind(
         tripId: widget.tripId,
         sourceKind: entry.sourceKind,
         sourceEventId:
@@ -1541,6 +1541,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         action: CompiledRebindAction.bind,
         tripPlaceId: selectedPlaceId,
       );
+      if (result == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Syncing in progress. Try again shortly.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
       ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
       if (!mounted) {
         return;

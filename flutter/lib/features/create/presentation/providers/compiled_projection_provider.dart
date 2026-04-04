@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:drift/drift.dart' show Variable;
+
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
@@ -11,7 +13,28 @@ import 'package:dora/features/create/domain/compiled_projection.dart';
 final compiledProjectionRepositoryProvider =
     Provider<CompiledProjectionRepository>((ref) {
   final api = ref.watch(liveTrackingApiProvider);
-  return CompiledProjectionRepository(liveTrackingApi: api);
+  final db = ref.watch(appDatabaseProvider);
+  return CompiledProjectionRepository(
+    liveTrackingApi: api,
+    resolveServerTripId: (localTripId) async {
+      final row = await db.customSelect(
+        'SELECT server_trip_id FROM trips WHERE id = ? LIMIT 1',
+        variables: [Variable<String>(localTripId)],
+        readsFrom: {db.trips},
+      ).getSingleOrNull();
+      final id = row?.read<String?>('server_trip_id')?.trim();
+      return (id != null && id.isNotEmpty) ? id : null;
+    },
+    resolveServerPlaceId: (localPlaceId) async {
+      final row = await db.customSelect(
+        'SELECT server_place_id FROM places WHERE id = ? LIMIT 1',
+        variables: [Variable<String>(localPlaceId)],
+        readsFrom: {db.places},
+      ).getSingleOrNull();
+      final id = row?.read<String?>('server_place_id')?.trim();
+      return (id != null && id.isNotEmpty) ? id : null;
+    },
+  );
 });
 
 final compiledProjectionRemoteProvider =

@@ -61,10 +61,15 @@ class LiveTrackingConfirmPlaceResult {
   const LiveTrackingConfirmPlaceResult({
     required this.placeId,
     required this.syncedRouteMediaIds,
+    this.syncedRouteMediaRemoteIds = const <String>[],
   });
 
   final String placeId;
+  /// Local row IDs for local state tracking.
   final List<String> syncedRouteMediaIds;
+  /// Server-assigned IDs for backend rebind calls. Only includes media that
+  /// has already synced and received a remote ID.
+  final List<String> syncedRouteMediaRemoteIds;
 }
 
 extension LiveTrackingEventTypeWire on LiveTrackingEventType {
@@ -315,7 +320,13 @@ class LiveTrackingEventRepository {
     );
     return LiveTrackingConfirmPlaceResult(
       placeId: placeId,
+      // Local IDs for local state tracking.
       syncedRouteMediaIds: syncedRoute.map((row) => row.id).toList(growable: false),
+      // Remote IDs for backend rebind calls — only include media that has synced.
+      syncedRouteMediaRemoteIds: syncedRoute
+          .where((row) => row.remoteMediaId != null && row.remoteMediaId!.trim().isNotEmpty)
+          .map((row) => row.remoteMediaId!)
+          .toList(growable: false),
     );
   }
 

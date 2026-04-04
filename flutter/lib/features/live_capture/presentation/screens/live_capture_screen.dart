@@ -1009,21 +1009,28 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         _showMessage('Could not confirm place for this capture.');
         return;
       }
-      if (result.syncedRouteMediaIds.isNotEmpty) {
+      if (result.syncedRouteMediaRemoteIds.isNotEmpty) {
         final projectionRepository =
             ref.read(compiledProjectionRepositoryProvider);
-        for (final mediaId in result.syncedRouteMediaIds) {
+        var rebindFailures = 0;
+        for (final remoteMediaId in result.syncedRouteMediaRemoteIds) {
           try {
-            await projectionRepository.rebind(
+            final snapshot = await projectionRepository.rebind(
               tripId: widget.tripId,
               sourceKind: 'tracking_event_media',
-              sourceMediaId: mediaId,
+              sourceMediaId: remoteMediaId,
               action: CompiledRebindAction.bind,
               tripPlaceId: result.placeId,
             );
+            if (snapshot == null) {
+              rebindFailures++;
+            }
           } catch (_) {
-            // Local bind is already persisted; remote projection will catch up on next rebind.
+            rebindFailures++;
           }
+        }
+        if (rebindFailures > 0 && mounted) {
+          _showMessage('Place confirmed locally. $rebindFailures media rebind(s) pending sync.');
         }
       }
       _dismissedReviewPromptEventIds.add(eventId);

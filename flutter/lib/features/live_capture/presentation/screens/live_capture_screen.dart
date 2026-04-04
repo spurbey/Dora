@@ -272,7 +272,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 initialCenter: mapInitialCenter,
                 initialZoom: 13,
                 position: capturePosition,
-                pathPoints: mapOverlay?.pathRoute?.coordinates ?? const <AppLatLng>[],
+                pathPoints:
+                    mapOverlay?.pathRoute?.coordinates ?? const <AppLatLng>[],
               ),
             ),
             SafeArea(
@@ -331,52 +332,52 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                       padding: const EdgeInsets.fromLTRB(0, 98, 0, 100),
                       child: _withEntrance(
                         LiveCaptureActionDock(
-                        state: shellState,
-                        isBusy: _actionInFlight,
-                        onPhoto: usePreview
-                            ? null
-                            : () => _captureMedia(
-                                  eventType: LiveTrackingEventType.photo,
-                                  fromCamera: true,
-                                  position: capturePosition,
-                                ),
-                        onMedia: usePreview
-                            ? null
-                            : () => _captureMedia(
-                                  eventType: LiveTrackingEventType.media,
-                                  fromCamera: false,
-                                  position: capturePosition,
-                                ),
-                        onTag: usePreview
-                            ? null
-                            : () => _captureQuickEvent(
-                                  eventType: LiveTrackingEventType.tag,
-                                  note: 'Checkpoint',
-                                  successMessage:
-                                      'Checkpoint captured locally.',
-                                  position: capturePosition,
-                                ),
-                        onNote: usePreview
-                            ? null
-                            : () => _promptForTextCapture(
-                                  title: 'Add Quick Note',
-                                  hintText: 'Write note for this location...',
-                                  defaultPrefix: '',
-                                  eventType: LiveTrackingEventType.note,
-                                  successMessage: 'Note captured locally.',
-                                  position: capturePosition,
-                                ),
-                        onWarn: usePreview
-                            ? null
-                            : () => _promptForTextCapture(
-                                  title: 'Add Warning',
-                                  hintText:
-                                      'Write warning for this location...',
-                                  defaultPrefix: '[Warn] ',
-                                  eventType: LiveTrackingEventType.warn,
-                                  successMessage: 'Warning captured locally.',
-                                  position: capturePosition,
-                                ),
+                          state: shellState,
+                          isBusy: _actionInFlight,
+                          onPhoto: usePreview
+                              ? null
+                              : () => _captureMedia(
+                                    eventType: LiveTrackingEventType.photo,
+                                    fromCamera: true,
+                                    position: capturePosition,
+                                  ),
+                          onMedia: usePreview
+                              ? null
+                              : () => _captureMedia(
+                                    eventType: LiveTrackingEventType.media,
+                                    fromCamera: false,
+                                    position: capturePosition,
+                                  ),
+                          onTag: usePreview
+                              ? null
+                              : () => _captureQuickEvent(
+                                    eventType: LiveTrackingEventType.tag,
+                                    note: 'Checkpoint',
+                                    successMessage:
+                                        'Checkpoint captured locally.',
+                                    position: capturePosition,
+                                  ),
+                          onNote: usePreview
+                              ? null
+                              : () => _promptForTextCapture(
+                                    title: 'Add Quick Note',
+                                    hintText: 'Write note for this location...',
+                                    defaultPrefix: '',
+                                    eventType: LiveTrackingEventType.note,
+                                    successMessage: 'Note captured locally.',
+                                    position: capturePosition,
+                                  ),
+                          onWarn: usePreview
+                              ? null
+                              : () => _promptForTextCapture(
+                                    title: 'Add Warning',
+                                    hintText:
+                                        'Write warning for this location...',
+                                    defaultPrefix: '[Warn] ',
+                                    eventType: LiveTrackingEventType.warn,
+                                    successMessage: 'Warning captured locally.',
+                                    position: capturePosition,
+                                  ),
                         ),
                         _dockAnim,
                         slideX: 24,
@@ -385,69 +386,72 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                   ),
                   _withEntrance(
                     LiveCaptureBottomPanel(
-                    state: shellState,
-                    isBusy: _actionInFlight,
-                    busyLabel: _actionLabel,
-                    onStart: usePreview
-                        ? null
-                        : () => _runLiveTrackingAction(
-                              busyLabel: 'Starting...',
-                              successMessage: 'Live tracking started.',
-                              action: (coordinator) async {
-                                await coordinator.startTracking(
-                                    tripId: widget.tripId);
-                                return true;
-                              },
-                            ),
-                    onPause: usePreview
-                        ? null
-                        : () => _runLiveTrackingAction(
-                              busyLabel: 'Pausing...',
-                              successMessage: 'Live tracking paused.',
-                              noOpMessage:
-                                  'No active tracking session to pause.',
-                              action: (coordinator) async {
-                                final paused = await coordinator.pauseTracking(
-                                  tripId: widget.tripId,
-                                );
-                                return paused != null;
-                              },
-                            ),
-                    onResume: usePreview
-                        ? null
-                        : () => _runLiveTrackingAction(
-                              busyLabel: 'Resuming...',
-                              successMessage: 'Live tracking resumed.',
-                              noOpMessage:
-                                  'No paused tracking session to resume.',
-                              action: (coordinator) async {
-                                final resumed =
-                                    await coordinator.resumeTracking(
-                                  tripId: widget.tripId,
-                                );
-                                return resumed != null;
-                              },
-                            ),
-                    onStop: usePreview
-                        ? null
-                        : () => _runLiveTrackingAction(
-                              busyLabel: 'Stopping...',
-                              successMessage: 'Live tracking stopped.',
-                              noOpMessage:
-                                  'No active or paused session to stop.',
-                              action: (coordinator) async {
-                                final stopped = await coordinator.stopTracking(
-                                  tripId: widget.tripId,
-                                );
-                                return stopped != null;
-                              },
-                            ),
-                    onRetrySync:
-                        usePreview || _actionInFlight ? null : _retrySyncNow,
-                    onOpenEditor: usePreview
-                        ? null
-                        : () => context.push(Routes.editorPath(widget.tripId)),
-                  ),
+                      state: shellState,
+                      isBusy: _actionInFlight,
+                      busyLabel: _actionLabel,
+                      onStart: usePreview
+                          ? null
+                          : () => _runLiveTrackingAction(
+                                busyLabel: 'Starting...',
+                                successMessage: 'Live tracking started.',
+                                action: (coordinator) async {
+                                  await coordinator.startTracking(
+                                      tripId: widget.tripId);
+                                  return true;
+                                },
+                              ),
+                      onPause: usePreview
+                          ? null
+                          : () => _runLiveTrackingAction(
+                                busyLabel: 'Pausing...',
+                                successMessage: 'Live tracking paused.',
+                                noOpMessage:
+                                    'No active tracking session to pause.',
+                                action: (coordinator) async {
+                                  final paused =
+                                      await coordinator.pauseTracking(
+                                    tripId: widget.tripId,
+                                  );
+                                  return paused != null;
+                                },
+                              ),
+                      onResume: usePreview
+                          ? null
+                          : () => _runLiveTrackingAction(
+                                busyLabel: 'Resuming...',
+                                successMessage: 'Live tracking resumed.',
+                                noOpMessage:
+                                    'No paused tracking session to resume.',
+                                action: (coordinator) async {
+                                  final resumed =
+                                      await coordinator.resumeTracking(
+                                    tripId: widget.tripId,
+                                  );
+                                  return resumed != null;
+                                },
+                              ),
+                      onStop: usePreview
+                          ? null
+                          : () => _runLiveTrackingAction(
+                                busyLabel: 'Stopping...',
+                                successMessage: 'Live tracking stopped.',
+                                noOpMessage:
+                                    'No active or paused session to stop.',
+                                action: (coordinator) async {
+                                  final stopped =
+                                      await coordinator.stopTracking(
+                                    tripId: widget.tripId,
+                                  );
+                                  return stopped != null;
+                                },
+                              ),
+                      onRetrySync:
+                          usePreview || _actionInFlight ? null : _retrySyncNow,
+                      onOpenEditor: usePreview
+                          ? null
+                          : () =>
+                              context.push(Routes.editorPath(widget.tripId)),
+                    ),
                     _panelAnim,
                     slideY: 24,
                   ),

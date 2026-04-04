@@ -91,7 +91,7 @@ class _EventChip extends StatelessWidget {
     final accentColor = _eventTypeColor(event.eventType);
     return Container(
       key: ValueKey('liveCaptureEvent_${event.id}'),
-      constraints: const BoxConstraints(maxWidth: 196),
+      constraints: const BoxConstraints(minWidth: 132, maxWidth: 196),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.sm,
         AppSpacing.xs,
@@ -101,41 +101,52 @@ class _EventChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: AppRadius.borderMd,
-        border: Border(
-          left: BorderSide(color: accentColor, width: 3),
-          top: BorderSide(color: AppColors.divider),
-          right: BorderSide(color: AppColors.divider),
-          bottom: BorderSide(color: AppColors.divider),
-        ),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(_eventTypeIcon(event.eventType), size: 11, color: accentColor),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  _title(event),
+          Container(
+            width: 3,
+            height: 30,
+            decoration: BoxDecoration(
+              color: accentColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(_eventTypeIcon(event.eventType),
+                        size: 11, color: accentColor),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _title(event),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_time(event.createdAt)} | ${event.syncStatus}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.caption.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${_time(event.createdAt)} · ${event.syncStatus}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondary,
+              ],
             ),
           ),
         ],

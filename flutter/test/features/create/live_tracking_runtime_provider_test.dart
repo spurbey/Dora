@@ -567,6 +567,41 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,
@@ -747,6 +782,41 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> confirmCheckin({
     required String candidateId,
     required String idempotencyKey,
@@ -922,6 +992,41 @@ class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
     required String tripId,
     required String idempotencyKey,
     required List<Map<String, dynamic>> events,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadTrackingMediaBinary({
+    required String tripId,
+    required String filePath,
+    String? fileName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> uploadMediaBatch({
+    required String tripId,
+    required String idempotencyKey,
+    required List<Map<String, dynamic>> media,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchCompiledProjection({
+    required String tripId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjection({
+    required String tripId,
+    required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
   }) {
     throw UnimplementedError();
   }

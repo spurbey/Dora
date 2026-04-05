@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/network/live_tracking_api.dart';
@@ -178,6 +179,7 @@ class LiveTrackingRuntimeRepository {
         deviceContext: effectiveDeviceContext,
       ),
     );
+    await _abandonOtherActiveSessions(keepSessionId: sessionId);
 
     return _upsertSessionSnapshot(
       localSessionId: sessionId,
@@ -265,6 +267,7 @@ class LiveTrackingRuntimeRepository {
         sessionId: _nonEmptyOrNull(session.remoteSessionId),
       ),
     );
+    await _abandonOtherActiveSessions(keepSessionId: session.id);
 
     return _upsertSessionSnapshot(
       localSessionId: session.id,
@@ -654,6 +657,32 @@ class LiveTrackingRuntimeRepository {
       endedAt: row.endedAt ?? row.abandonedAt,
       lastPointAt: row.lastPointAt,
     );
+  }
+
+  Future<void> _abandonOtherActiveSessions({
+    required String keepSessionId,
+  }) async {
+    final activeSessions =
+        await _trackingSessionDao.getSessionsByStates(const {'active'});
+    if (activeSessions.length > 1 ||
+        (activeSessions.length == 1 &&
+            activeSessions.first.id != keepSessionId)) {
+      debugPrint(
+        '[TRACKING_RUNTIME] invariant_violation active_sessions='
+        '${activeSessions.length} keep=$keepSessionId',
+      );
+    }
+    final abandonedAt = _now().toUtc();
+    for (final row in activeSessions) {
+      if (row.id == keepSessionId) {
+        continue;
+      }
+      await _trackingSessionDao.updateLifecycle(
+        sessionId: row.id,
+        state: 'abandoned',
+        abandonedAt: abandonedAt,
+      );
+    }
   }
 
   LiveTrackingRuntimeState _runtimeStateFromRow(TrackingSessionRow row) {

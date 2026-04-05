@@ -72,12 +72,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
+          await customStatement(
+            '''
+            CREATE UNIQUE INDEX IF NOT EXISTS tracking_sessions_single_active_idx
+            ON tracking_sessions(state)
+            WHERE state = 'active'
+            ''',
+          );
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -315,6 +322,39 @@ class AppDatabase extends _$AppDatabase {
               '''
               CREATE INDEX IF NOT EXISTS tracking_event_media_sync_updated_idx
               ON tracking_event_media (sync_status, updated_at)
+              ''',
+            );
+          }
+          if (from < 17) {
+            await customStatement(
+              '''
+              WITH ranked AS (
+                SELECT
+                  id,
+                  ROW_NUMBER() OVER (
+                    ORDER BY COALESCE(local_updated_at, updated_at, created_at) DESC, id DESC
+                  ) AS rn
+                FROM tracking_sessions
+                WHERE state = 'active'
+              )
+              UPDATE tracking_sessions
+              SET
+                state = 'abandoned',
+                abandoned_at = COALESCE(
+                  abandoned_at,
+                  CAST(strftime('%s','now') AS INTEGER) * 1000
+                ),
+                sync_status = 'pending',
+                local_updated_at = CAST(strftime('%s','now') AS INTEGER) * 1000,
+                updated_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+              WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE UNIQUE INDEX IF NOT EXISTS tracking_sessions_single_active_idx
+              ON tracking_sessions(state)
+              WHERE state = 'active'
               ''',
             );
           }

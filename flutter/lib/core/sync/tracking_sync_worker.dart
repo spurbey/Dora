@@ -183,6 +183,7 @@ class TrackingSyncWorker {
       // is orphaned (session was deleted or never created). Complete it instead
       // of blocking forever — there's nothing to retry against.
       if (_isSessionNotFound404(error)) {
+        await _markSessionAbandonedForTask(task: task);
         await _persistSuccessAndCompleteTask(
           task: task,
           sessionId: sessionId,
@@ -194,12 +195,19 @@ class TrackingSyncWorker {
         );
         return;
       }
+      final failureClass = _classifyDioFailure(error);
+      if (failureClass == SyncFailureClass.terminal && _isRetryableDio(error)) {
+        debugPrint(
+          '[TRACKING_SYNC] invariant_violation terminal_retry_attempted '
+          'taskId=${task.id} code=${_dioErrorCode(error)}',
+        );
+      }
       await _handleRecoverableFailure(
         task: task,
         sessionId: sessionId,
         code: _dioErrorCode(error),
         message: _resolveDioErrorMessage(error),
-        retryable: _isRetryableDio(error),
+        retryable: failureClass == SyncFailureClass.retryable,
       );
     } on TimeoutException catch (error) {
       await _handleRecoverableFailure(
@@ -616,7 +624,8 @@ class TrackingSyncWorker {
       if (row.resolverReasonCode != null &&
           row.resolverReasonCode!.trim().isNotEmpty)
         'resolver_reason_code': row.resolverReasonCode,
-      if (row.resolverState.trim().isNotEmpty) 'resolver_state': row.resolverState,
+      if (row.resolverState.trim().isNotEmpty)
+        'resolver_state': row.resolverState,
     };
     final clientEventId = (row.clientEventId?.trim().isNotEmpty ?? false)
         ? row.clientEventId!.trim()
@@ -823,9 +832,8 @@ class TrackingSyncWorker {
     }
 
     final payload = _decodeJsonMap(row.payloadJson);
-    final mediaType = event.eventType.trim().toLowerCase() == 'photo'
-        ? 'photo'
-        : 'media';
+    final mediaType =
+        event.eventType.trim().toLowerCase() == 'photo' ? 'photo' : 'media';
     final clientEventId = (event.clientEventId?.trim().isNotEmpty ?? false)
         ? event.clientEventId!.trim()
         : event.id;
@@ -869,8 +877,8 @@ class TrackingSyncWorker {
     }
 
     if (rejectedForCurrent != null) {
-      final reason =
-          _asString(rejectedForCurrent['reason_code']) ?? 'tracking_media_rejected';
+      final reason = _asString(rejectedForCurrent['reason_code']) ??
+          'tracking_media_rejected';
       final message = _asString(rejectedForCurrent['message']) ??
           'Tracking media rejected by server.';
       if (reason == 'event_not_synced') {
@@ -1215,8 +1223,9 @@ class TrackingSyncWorker {
     required String message,
     required bool retryable,
   }) async {
-    final nextRetryCount = math.min(task.retryCount + 1, _maxRetryAttempts);
-    final shouldRetry = retryable && task.retryCount < (_maxRetryAttempts - 1);
+    final requestedRetryCount = task.retryCount + 1;
+    final nextRetryCount = math.min(requestedRetryCount, _maxRetryAttempts);
+    final shouldRetry = retryable && task.retryCount < _maxRetryAttempts;
     if (shouldRetry) {
       if (task.entityType == SyncEntityTypes.trackingEventMedia) {
         await _trackingEventMediaDao.markRetryableFailure(
@@ -1327,7 +1336,7 @@ class TrackingSyncWorker {
     if (retryCount == 2) {
       return _secondRetryDelay;
     }
-    return _secondRetryDelay * 2;
+    return const Duration(seconds: 180);
   }
 
   bool _isRetryableDio(DioException error) {
@@ -1344,6 +1353,38 @@ class TrackingSyncWorker {
       case DioExceptionType.badCertificate:
       case DioExceptionType.unknown:
         return false;
+    }
+  }
+
+  SyncFailureClass _classifyDioFailure(DioException error) {
+    if (_isTripNotFound404(error)) {
+      return SyncFailureClass.identityRecoverable;
+    }
+    final status = error.response?.statusCode;
+    if (status != null) {
+      if (status == 408 || status == 429 || status >= 500) {
+        return SyncFailureClass.retryable;
+      }
+      if (status == 400 ||
+          status == 401 ||
+          status == 403 ||
+          status == 404 ||
+          status == 422) {
+        return SyncFailureClass.terminal;
+      }
+      return SyncFailureClass.terminal;
+    }
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+        return SyncFailureClass.retryable;
+      case DioExceptionType.cancel:
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.badResponse:
+      case DioExceptionType.unknown:
+        return SyncFailureClass.terminal;
     }
   }
 
@@ -1397,6 +1438,32 @@ class TrackingSyncWorker {
       case SyncEntityTypes.trackingEventMedia:
         final row = await _trackingEventMediaDao.getMediaById(task.entityId);
         return row?.tripId;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _markSessionAbandonedForTask({
+    required SyncTaskRow task,
+  }) async {
+    final localSessionId = await _resolveLocalSessionIdForTask(task);
+    if (localSessionId == null || localSessionId.isEmpty) {
+      return;
+    }
+    await _trackingSessionDao.updateLifecycle(
+      sessionId: localSessionId,
+      state: 'abandoned',
+      abandonedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  Future<String?> _resolveLocalSessionIdForTask(SyncTaskRow task) async {
+    switch (task.entityType) {
+      case SyncEntityTypes.trackingSession:
+        return task.entityId;
+      case SyncEntityTypes.trackingPointBatch:
+        final row = await _trackingPointBatchDao.getBatchById(task.entityId);
+        return row?.sessionId;
       default:
         return null;
     }

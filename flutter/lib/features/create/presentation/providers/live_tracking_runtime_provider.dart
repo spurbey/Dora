@@ -269,7 +269,7 @@ final liveTrackingCaptureCoordinatorProvider =
 
 final liveTrackingCaptureBootstrapProvider = Provider<void>((ref) {
   final coordinator = ref.watch(liveTrackingCaptureCoordinatorProvider);
-  unawaited(coordinator.recoverActiveSessions());
+  unawaited(coordinator.recoverAndEnforceSingleActiveSession());
 });
 
 double? _asDouble(dynamic value) {

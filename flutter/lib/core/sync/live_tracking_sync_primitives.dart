@@ -3,6 +3,13 @@ enum SyncLane {
   trackingBatch,
 }
 
+enum SyncFailureClass {
+  retryable,
+  deferred,
+  terminal,
+  identityRecoverable,
+}
+
 class SyncEntityTypes {
   const SyncEntityTypes._();
 

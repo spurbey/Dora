@@ -38,6 +38,7 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   final List<bool> momentUpdateIncludeNote = <bool>[];
   final List<bool> momentUpdateIncludeLinkedTripPlaceId = <bool>[];
   Object? startError;
+  Object? batchError;
   Object? eventBatchError;
   Object? mediaBatchError;
   Object? decisionError;
@@ -153,6 +154,10 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required DateTime sentAt,
     required List<Map<String, dynamic>> points,
   }) async {
+    final forcedError = batchError;
+    if (forcedError != null) {
+      throw forcedError;
+    }
     batchCalls += 1;
     batchTripIds.add(tripId);
     return <String, dynamic>{
@@ -686,6 +691,75 @@ void main() {
       expect(batch.syncStatus, 'synced');
       expect(fakeApi.batchCalls, 1);
       expect(fakeApi.batchTripIds.single, 'remote-trip-1');
+    });
+
+    test('abandons stale session when point batch returns session-not-found',
+        () async {
+      final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-404-session',
+        serverTripId: 'remote-trip-404-session',
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-local-404',
+          tripId: 'trip-404-session',
+          remoteSessionId: const Value('session-remote-404'),
+          clientSessionId: 'client-session-404',
+          state: const Value('active'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: Value(now),
+        ),
+      );
+      await batchDao.upsertBatch(
+        TrackingPointBatchesCompanion.insert(
+          id: 'batch-local-404',
+          tripId: 'trip-404-session',
+          sessionId: 'session-local-404',
+          remoteSessionId: const Value('session-remote-404'),
+          clientBatchId: 'batch-client-404',
+          pointsJson: const Value(
+            '[{"point_id":"p-404","recorded_at":"2026-03-23T10:00:00Z","latitude":27.7,"longitude":85.3}]',
+          ),
+          pointCount: const Value(1),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: const Value(null),
+        ),
+      );
+      await syncTaskDao.upsertQueuedTask(
+        id: 'task-tracking-batch-404',
+        entityType: SyncEntityTypes.trackingPointBatch,
+        entityId: 'batch-local-404',
+        operation: 'upload',
+      );
+
+      fakeApi.batchError = DioException(
+        requestOptions: RequestOptions(path: '/api/v1/live/tracking/points'),
+        response: Response(
+          requestOptions: RequestOptions(path: '/api/v1/live/tracking/points'),
+          statusCode: 404,
+          data: const <String, dynamic>{
+            'detail': 'Tracking session not found',
+          },
+        ),
+        type: DioExceptionType.badResponse,
+      );
+
+      await worker.startIfIdle();
+
+      final task = await readTask('task-tracking-batch-404');
+      expect(task['status'], 'completed');
+      expect(task['error_code'], isNull);
+      expect(task['next_attempt_at'], isNull);
+
+      final session = await sessionDao.getSessionById('session-local-404');
+      expect(session, isNotNull);
+      expect(session!.state, 'abandoned');
     });
 
     test('keeps point batch task pending when remote session id is missing',
@@ -1572,7 +1646,8 @@ void main() {
       expect(fakeApi.mediaBatchCalls, 0);
     });
 
-    test('recovers stale trip identity for tracking media on 404 trip-not-found',
+    test(
+        'recovers stale trip identity for tracking media on 404 trip-not-found',
         () async {
       final now = DateTime.now().toUtc();
       const localTripId = 'trip-media-stale-404-1';

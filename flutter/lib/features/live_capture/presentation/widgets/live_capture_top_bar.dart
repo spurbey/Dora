@@ -111,7 +111,6 @@ class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 320;
           final ultraCompact = constraints.maxWidth < 220;
           final compactStateLabel = _compactStateLabel(widget.state);
           final isPulsingState =
@@ -219,17 +218,16 @@ class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
                   ],
                 ),
               ),
-              if (!compact)
-                IconButton(
-                  key: const ValueKey('liveCaptureMore'),
-                  onPressed: widget.onOverflow ?? () {},
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.more_vert, size: 18),
+              IconButton(
+                key: const ValueKey('liveCaptureMore'),
+                onPressed: widget.onOverflow ?? () {},
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
                 ),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.more_vert, size: 18),
+              ),
             ],
           );
         },

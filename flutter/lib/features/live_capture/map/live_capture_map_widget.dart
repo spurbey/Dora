@@ -6,7 +6,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
-import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/live_capture/map/live_capture_map_controller.dart';
 
 /// Full-screen Mapbox map widget dedicated to the live capture screen.
@@ -45,7 +44,7 @@ class _LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
   // Diffing: remember what we last pushed to the controller.
   AppLatLng? _lastPushedPosition;
   double? _lastPushedBearing;
-  int _lastPushedPathLength = 0;
+  int? _lastPushedPathSignature;
 
   @override
   void didUpdateWidget(LiveCaptureMapWidget old) {
@@ -98,8 +97,9 @@ class _LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
       }
     }
 
-    if (path.length != _lastPushedPathLength) {
-      _lastPushedPathLength = path.length;
+    final pathSignature = _pathSignature(path);
+    if (_lastPushedPathSignature != pathSignature) {
+      _lastPushedPathSignature = pathSignature;
       ctrl.updateLivePath(path);
     }
   }
@@ -113,10 +113,19 @@ class _LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
     final lat1 = prev.latitude * math.pi / 180.0;
     final lat2 = curr.latitude * math.pi / 180.0;
     final y = math.sin(dLon) * math.cos(lat2);
-    final x =
-        math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
     final bearing = (math.atan2(y, x) * 180.0 / math.pi + 360.0) % 360.0;
     return bearing;
+  }
+
+  int _pathSignature(List<AppLatLng> points) {
+    var hash = 17;
+    for (final point in points) {
+      hash = 37 * hash + point.latitude.toStringAsFixed(6).hashCode;
+      hash = 37 * hash + point.longitude.toStringAsFixed(6).hashCode;
+    }
+    return hash;
   }
 
   void _onUserInteraction() {

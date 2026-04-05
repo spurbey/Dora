@@ -154,6 +154,16 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchTrackingPath({
     required String tripId,
     String? sessionId,
@@ -406,7 +416,7 @@ void main() {
       expect(batches.first.pointCount, 1);
     });
 
-    test('reuses one point stream for multiple active sessions', () async {
+    test('enforces single active session across starts', () async {
       final first = await coordinator.startTracking(tripId: 'trip-multi-1');
       final second = await coordinator.startTracking(tripId: 'trip-multi-2');
       expect(streamFactoryCalls, 1);
@@ -422,10 +432,11 @@ void main() {
 
       final firstBatches = await batchDao.getBatchesForSession(first.id);
       final secondBatches = await batchDao.getBatchesForSession(second.id);
-      expect(firstBatches.length, 1);
+      expect(firstBatches.length, 0);
       expect(secondBatches.length, 1);
-      expect(firstBatches.first.pointCount, 1);
       expect(secondBatches.first.pointCount, 1);
+      final firstSession = await sessionDao.getSessionById(first.id);
+      expect(firstSession?.state, 'abandoned');
     });
 
     test('recoverActiveSessions restores capture without permission prompt',

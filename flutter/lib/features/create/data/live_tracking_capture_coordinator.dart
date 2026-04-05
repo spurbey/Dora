@@ -4,6 +4,7 @@ import 'package:dora/core/location/location_permission.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class LiveTrackingCaptureException implements Exception {
   const LiveTrackingCaptureException({
@@ -69,10 +70,7 @@ class LiveTrackingCaptureCoordinator {
         deviceContext: deviceContext,
       ),
     );
-    _activeSessions[session.id] = _ActiveTrackingSession(
-      sessionId: session.id,
-      tripId: session.tripId,
-    );
+    await _setSingleActiveSession(session);
     await _syncCaptureSubscription();
     return session;
   }
@@ -101,10 +99,7 @@ class LiveTrackingCaptureCoordinator {
     if (resumed == null) {
       return null;
     }
-    _activeSessions[resumed.id] = _ActiveTrackingSession(
-      sessionId: resumed.id,
-      tripId: resumed.tripId,
-    );
+    await _setSingleActiveSession(resumed);
     await _syncCaptureSubscription();
     return resumed;
   }
@@ -123,21 +118,45 @@ class LiveTrackingCaptureCoordinator {
     return stopped;
   }
 
-  Future<int> recoverActiveSessions() async {
+  Future<int> recoverActiveSessions() => recoverAndEnforceSingleActiveSession();
+
+  Future<int> recoverAndEnforceSingleActiveSession() async {
     final accessState = await _ensureLocationAccess(requestIfDenied: false);
     if (accessState != LocationAccessState.granted) {
       return 0;
     }
     final activeSessions =
         await _trackingSessionDao.getSessionsByStates(const {'active'});
-    for (final session in activeSessions) {
-      _activeSessions[session.id] = _ActiveTrackingSession(
-        sessionId: session.id,
-        tripId: session.tripId,
-      );
+    if (activeSessions.isEmpty) {
+      _activeSessions.clear();
+      await _syncCaptureSubscription();
+      return 0;
     }
+
+    final newestActive = activeSessions.first;
+    if (activeSessions.length > 1) {
+      debugPrint(
+        '[LIVE_CAPTURE] invariant_violation multiple_active_sessions '
+        'count=${activeSessions.length} keep=${newestActive.id}',
+      );
+      final abandonedAt = DateTime.now().toUtc();
+      for (final stale in activeSessions.skip(1)) {
+        await _trackingSessionDao.updateLifecycle(
+          sessionId: stale.id,
+          state: 'abandoned',
+          abandonedAt: abandonedAt,
+        );
+      }
+    }
+
+    _activeSessions
+      ..clear()
+      ..[newestActive.id] = _ActiveTrackingSession(
+        sessionId: newestActive.id,
+        tripId: newestActive.tripId,
+      );
     await _syncCaptureSubscription();
-    return activeSessions.length;
+    return 1;
   }
 
   Future<void> dispose() async {
@@ -160,6 +179,16 @@ class LiveTrackingCaptureCoordinator {
   Future<void> _syncCaptureSubscription() async {
     if (_disposed) {
       return;
+    }
+    if (_activeSessions.length > 1) {
+      final keep = _activeSessions.values.first;
+      debugPrint(
+        '[LIVE_CAPTURE] invariant_violation active_session_map_count='
+        '${_activeSessions.length} keep=${keep.sessionId}',
+      );
+      _activeSessions
+        ..clear()
+        ..[keep.sessionId] = keep;
     }
     if (_activeSessions.isEmpty) {
       await _pointSubscription?.cancel();
@@ -196,19 +225,56 @@ class LiveTrackingCaptureCoordinator {
   }
 
   void _enqueuePointIngestion(TrackingPointSample sample) {
-    final sessions = _activeSessions.values.toList(growable: false);
-    if (sessions.isEmpty) {
+    if (_activeSessions.isEmpty) {
       return;
     }
+    final session = _activeSessions.values.first;
     _ingestTail = _ingestTail.catchError((_, __) {}).then((_) async {
-      for (final session in sessions) {
-        await _repository.ingestPoint(
-          tripId: session.tripId,
-          sessionId: session.sessionId,
-          point: sample,
+      final accepted = await _repository.ingestPoint(
+        tripId: session.tripId,
+        sessionId: session.sessionId,
+        point: sample,
+      );
+      if (!accepted && _activeSessions.containsKey(session.sessionId)) {
+        debugPrint(
+          '[LIVE_CAPTURE] stale_or_inactive_session_removed '
+          'session=${session.sessionId} trip=${session.tripId}',
         );
+        _activeSessions.remove(session.sessionId);
+        await _syncCaptureSubscription();
       }
     });
+  }
+
+  Future<void> _setSingleActiveSession(TrackingSessionRow session) async {
+    final activeSessions =
+        await _trackingSessionDao.getSessionsByStates(const {'active'});
+    if (activeSessions.length > 1 ||
+        (activeSessions.length == 1 && activeSessions.first.id != session.id)) {
+      debugPrint(
+        '[LIVE_CAPTURE] reconciling_active_sessions keep=${session.id} '
+        'existing=${activeSessions.length}',
+      );
+    }
+
+    final abandonedAt = DateTime.now().toUtc();
+    for (final row in activeSessions) {
+      if (row.id == session.id) {
+        continue;
+      }
+      await _trackingSessionDao.updateLifecycle(
+        sessionId: row.id,
+        state: 'abandoned',
+        abandonedAt: abandonedAt,
+      );
+    }
+
+    _activeSessions
+      ..clear()
+      ..[session.id] = _ActiveTrackingSession(
+        sessionId: session.id,
+        tripId: session.tripId,
+      );
   }
 
   void _scheduleResubscribe() {

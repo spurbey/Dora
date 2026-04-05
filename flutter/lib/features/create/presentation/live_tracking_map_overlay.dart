@@ -23,6 +23,7 @@ const double _maxOverlayAccuracyM = 65.0;
 const double _minRenderableMoveM = 2.0;
 const double _maxRenderableSpeedMps = 55.0;
 const double _minSpikeJumpM = 120.0;
+const double _walkingSpikeJumpM = 45.0;
 const double _maxSpikeDirectDistanceM = 60.0;
 const int _maxSpikeWindowSeconds = 120;
 
@@ -223,7 +224,18 @@ bool _looksLikeSpike({
     lat2: next.latitude,
     lon2: next.longitude,
   );
-  if (toCurrentM < _minSpikeJumpM || fromCurrentM < _minSpikeJumpM) {
+  final speedSamples = <double>[
+    if (previous.speedMps != null) previous.speedMps!,
+    if (current.speedMps != null) current.speedMps!,
+    if (next.speedMps != null) next.speedMps!,
+  ];
+  final averageSpeedMps = speedSamples.isEmpty
+      ? null
+      : speedSamples.reduce((a, b) => a + b) / speedSamples.length;
+  final minSpikeJumpM = (averageSpeedMps != null && averageSpeedMps < 2.0)
+      ? _walkingSpikeJumpM
+      : _minSpikeJumpM;
+  if (toCurrentM < minSpikeJumpM || fromCurrentM < minSpikeJumpM) {
     return false;
   }
 

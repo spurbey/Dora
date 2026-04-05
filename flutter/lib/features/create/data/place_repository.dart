@@ -298,11 +298,22 @@ class PlaceRepository {
       }
 
       final now = DateTime.now();
+      final existingLocalPlaces =
+          await _db.placeDao.getPlacesForTrip(localTripId);
+      final existingByServerId = <String, Place>{};
+      for (final local in existingLocalPlaces) {
+        final serverId = local.serverPlaceId;
+        if (serverId == null || serverId.isEmpty) {
+          continue;
+        }
+        existingByServerId[serverId] = _mapRow(local);
+      }
       final places = <Place>[];
       final idMapping = <String, String>{};
 
       for (final remote in remotePlaces) {
-        final localId = const Uuid().v4();
+        final existing = existingByServerId[remote.id];
+        final localId = existing?.id ?? const Uuid().v4();
         idMapping[remote.id] = localId;
 
         final photos = remote.photos;
@@ -310,24 +321,44 @@ class PlaceRepository {
             ? const <String>[]
             : photos.map((p) => p.fileUrl).toList();
 
-        places.add(Place(
-          id: localId,
-          serverPlaceId: remote.id,
-          tripId: localTripId,
-          name: remote.name,
-          coordinates: AppLatLng(
-            latitude: remote.lat.toDouble(),
-            longitude: remote.lng.toDouble(),
+        places.add(
+          (existing ??
+                  Place(
+                    id: localId,
+                    serverPlaceId: remote.id,
+                    tripId: localTripId,
+                    name: remote.name,
+                    coordinates: AppLatLng(
+                      latitude: remote.lat.toDouble(),
+                      longitude: remote.lng.toDouble(),
+                    ),
+                    notes: remote.userNotes,
+                    orderIndex: remote.orderInTrip ?? 0,
+                    placeType: remote.placeType,
+                    rating: remote.userRating,
+                    photoUrls: photoUrls,
+                    localUpdatedAt: now,
+                    serverUpdatedAt: remote.updatedAt,
+                    syncStatus: 'synced',
+                  ))
+              .copyWith(
+            serverPlaceId: remote.id,
+            tripId: localTripId,
+            name: remote.name,
+            coordinates: AppLatLng(
+              latitude: remote.lat.toDouble(),
+              longitude: remote.lng.toDouble(),
+            ),
+            notes: remote.userNotes,
+            orderIndex: remote.orderInTrip ?? 0,
+            placeType: remote.placeType,
+            rating: remote.userRating,
+            photoUrls: photoUrls,
+            localUpdatedAt: now,
+            serverUpdatedAt: remote.updatedAt,
+            syncStatus: 'synced',
           ),
-          notes: remote.userNotes,
-          orderIndex: remote.orderInTrip ?? 0,
-          placeType: remote.placeType,
-          rating: remote.userRating,
-          photoUrls: photoUrls,
-          localUpdatedAt: now,
-          serverUpdatedAt: remote.updatedAt,
-          syncStatus: 'synced',
-        ));
+        );
       }
 
       final companions = places.map(_toCompanion).toList();

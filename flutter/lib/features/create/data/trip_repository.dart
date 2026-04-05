@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/sync/entity_sync_receipt.dart';
 import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
@@ -17,13 +16,11 @@ class TripRepository {
     this._db,
     this._authService, {
     openapi.TripsApi? tripsApi,
-  })  : _tripsApi = tripsApi,
-        _syncTaskDao = SyncTaskDao(_db);
+  }) : _tripsApi = tripsApi;
 
   final AppDatabase _db;
   final AuthService _authService;
   final openapi.TripsApi? _tripsApi;
-  final SyncTaskDao _syncTaskDao;
   static final Map<String, Future<String>> _ensureRemoteTripIdInFlight = {};
 
   Future<Trip?> getTrip(String id) async {
@@ -141,38 +138,43 @@ class TripRepository {
   }
 
   /// Updates a trip on the server immediately, then persists locally.
-  /// Falls back to local-only update if server is unavailable (trip already
-  /// exists on server, so a missed update is recoverable).
+  /// Trip metadata is online-authoritative for this stabilization wave.
   Future<Trip> updateTrip(Trip trip) async {
     final now = DateTime.now();
-    final serverTripId = trip.serverTripId;
-    var syncStatus = 'synced';
-
-    if (serverTripId != null && serverTripId.isNotEmpty) {
+    var serverTripId = trip.serverTripId?.trim();
+    if (serverTripId == null || serverTripId.isEmpty) {
       try {
-        await _updateTripOnServer(
-          serverTripId: serverTripId,
-          name: trip.name,
-          description: trip.description,
-          startDate: trip.startDate,
-          endDate: trip.endDate,
-          visibility: trip.visibility,
-        );
-      } catch (_) {
-        // Server update failed — save locally and queue for retry.
-        syncStatus = 'pending';
-        await _enqueueTripSyncTask(
-          localTripId: trip.id,
-          operation: 'update',
+        serverTripId = await ensureRemoteTripId(trip.id, allowCreate: true);
+      } on TripIdentityException catch (error) {
+        throw TripIdentityException(
+          'Trip is not synced to server yet. Connect and retry update. '
+          '(${error.message})',
+          retryable: error.retryable,
         );
       }
-    } else {
-      syncStatus = 'pending';
+    }
+
+    try {
+      await _updateTripOnServer(
+        serverTripId: serverTripId,
+        name: trip.name,
+        description: trip.description,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        visibility: trip.visibility,
+      );
+    } on DioException catch (error) {
+      throw TripIdentityException(
+        _mapTripUpdateFailure(error),
+        retryable: _isRetryableDio(error),
+      );
     }
 
     final updated = trip.copyWith(
+      serverTripId: serverTripId,
       localUpdatedAt: now,
-      syncStatus: syncStatus,
+      serverUpdatedAt: now,
+      syncStatus: 'synced',
     );
 
     await _upsertTripRow(updated);
@@ -191,14 +193,7 @@ class TripRepository {
     // Delete from server first if it exists there.
     final serverTripId = existing.serverTripId;
     if (serverTripId != null && serverTripId.isNotEmpty) {
-      try {
-        await deleteRemoteTripById(serverTripId);
-      } on TripIdentityException {
-        rethrow;
-      } catch (_) {
-        // Swallow network errors — clean up locally regardless.
-        // A dangling server trip is better than a stuck local delete.
-      }
+      await deleteRemoteTripById(serverTripId);
     }
 
     await _db.routeDao.deleteRoutesForTrip(id);
@@ -750,6 +745,20 @@ class TripRepository {
     return 'Failed to create backend trip for media upload: ${error.message ?? 'network error'}';
   }
 
+  String _mapTripUpdateFailure(DioException error) {
+    final statusCode = error.response?.statusCode;
+    if (statusCode == 401) {
+      return 'Session expired while updating trip. Please sign in again.';
+    }
+    if (statusCode == 403) {
+      return 'You do not have permission to update this trip.';
+    }
+    if (statusCode != null) {
+      return 'Failed to update trip on server (status $statusCode).';
+    }
+    return 'Failed to update trip on server: ${error.message ?? 'network error'}';
+  }
+
   bool _isRetryableDio(DioException error) {
     final statusCode = error.response?.statusCode;
     if (statusCode == null) {
@@ -769,20 +778,6 @@ class TripRepository {
     required bool allowCreate,
   }) {
     return '$localTripId|allowCreate=$allowCreate';
-  }
-
-  Future<void> _enqueueTripSyncTask({
-    required String localTripId,
-    required String operation,
-    String? remoteEntityId,
-  }) async {
-    await _syncTaskDao.upsertQueuedTask(
-      id: const Uuid().v4(),
-      entityType: SyncEntityTypes.trip,
-      entityId: localTripId,
-      operation: operation,
-      remoteEntityId: remoteEntityId,
-    );
   }
 }
 

@@ -37,32 +37,95 @@ final compiledProjectionRepositoryProvider =
   );
 });
 
-/// Fetches compiled projection from backend with periodic auto-refresh.
-/// Re-fetches every 15 seconds while the editor is open, so newly synced
-/// tracking events appear without manual user action.
+final compiledProjectionRefreshSignalProvider =
+    StreamProvider.autoDispose.family<int, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    SELECT MAX(t.updated_at) AS refresh_tick
+    FROM sync_tasks AS t
+    WHERE t.status = 'completed'
+      AND (
+        (t.entity_type = 'tracking_event' AND t.entity_id IN (
+          SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
+        ))
+        OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
+          SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
+        ))
+        OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
+          SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
+        ))
+        OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
+          SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
+        ))
+      )
+    ''',
+    variables: [
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+    ],
+    readsFrom: {
+      db.syncTasks,
+      db.trackingEvents,
+      db.trackingEventMedia,
+      db.trackingCandidates,
+      db.trackingPointBatches,
+    },
+  );
+  return query.watchSingle().map((row) {
+    final raw = row.data['refresh_tick'];
+    if (raw is DateTime) {
+      return raw.millisecondsSinceEpoch;
+    }
+    if (raw is int) {
+      return raw;
+    }
+    if (raw is String) {
+      final parsedInt = int.tryParse(raw);
+      if (parsedInt != null) {
+        return parsedInt;
+      }
+      final parsedDate = DateTime.tryParse(raw);
+      if (parsedDate != null) {
+        return parsedDate.millisecondsSinceEpoch;
+      }
+    }
+    return 0;
+  });
+});
+
+/// Fetches compiled projection with immediate fetch + event-driven refresh +
+/// a slow 90-second fallback poll while editor is visible.
 final compiledProjectionRemoteProvider =
     StreamProvider.autoDispose.family<CompiledProjectionSnapshot, String>((
   ref,
   tripId,
 ) {
   final repository = ref.watch(compiledProjectionRepositoryProvider);
+  ref.watch(compiledProjectionRefreshSignalProvider(tripId));
 
   Stream<CompiledProjectionSnapshot> poll() async* {
-    // Initial fetch immediately.
-    try {
-      yield await repository.fetchProjection(tripId: tripId);
-    } catch (e) {
-      // Rethrow so error branch kicks in for fallback.
-      yield* Stream<CompiledProjectionSnapshot>.error(e);
-      return;
-    }
-    // Then re-fetch every 15 seconds.
-    await for (final _ in Stream<void>.periodic(const Duration(seconds: 15))) {
+    var disposed = false;
+    var emittedError = false;
+    ref.onDispose(() {
+      disposed = true;
+    });
+    while (!disposed) {
       try {
         yield await repository.fetchProjection(tripId: tripId);
-      } catch (_) {
-        // Keep last good snapshot on transient failures.
+        emittedError = false;
+      } catch (error, stackTrace) {
+        if (!emittedError) {
+          emittedError = true;
+          yield* Stream<CompiledProjectionSnapshot>.error(error, stackTrace);
+        }
       }
+      if (disposed) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(seconds: 90));
     }
   }
 
@@ -170,12 +233,8 @@ class CompiledProjectionView {
       if (!_isStorylineEventType(row.eventType)) {
         continue;
       }
-      // When remote projection is available and healthy, skip synced locals
-      // (they already exist in the remote data — including them would duplicate).
-      // When remote is unavailable, include synced locals so the editor isn't empty.
-      if (!remoteUnavailable && _isSynced(row.syncStatus)) {
-        continue;
-      }
+      // Keep local items unless dedupe shows remote already contains them.
+      // This prevents empty states when remote compilation lags behind sync.
       final clientEventId = _normalizedClientEventId(row);
       if (remoteSourceIds.contains(row.id) ||
           (clientEventId != null &&
@@ -300,8 +359,10 @@ String _subtitleForLocalRow(TrackingEventRow row) {
 String _subtitleForSyncedLocalRow(TrackingEventRow row) {
   final resolverState = row.resolverState.trim();
   if (resolverState == 'resolved') return 'Synced';
-  if (resolverState == 'review_required') return 'Synced — needs place confirmation';
-  return 'Synced — on route';
+  if (resolverState == 'review_required') {
+    return 'Synced - needs place confirmation';
+  }
+  return 'Synced - on route';
 }
 
 Map<String, dynamic> _decodeJsonMap(String raw) {

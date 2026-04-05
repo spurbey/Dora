@@ -127,9 +127,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ref.watch(compiledProjectionViewProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-        final candidateInboxAsync = _showLegacyTrackingWidgets
-            ? ref.watch(liveTrackingCandidateInboxProvider(widget.tripId))
-            : null;
+        final candidateInboxAsync =
+            ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
         final momentListAsync = _showLegacyTrackingWidgets
             ? ref.watch(liveTrackingMomentsProvider(widget.tripId))
             : null;
@@ -214,9 +213,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     trackingRuntimeAsync: trackingRuntimeAsync,
                     syncStatusAsync: syncStatusAsync,
                   ),
+                  _buildLiveTrackingCandidateInbox(candidateInboxAsync),
                   if (_showLegacyTrackingWidgets) ...[
                     _buildLiveTrackingControlStrip(trackingRuntimeAsync),
-                    _buildLiveTrackingCandidateInbox(candidateInboxAsync!),
                     _buildLiveTrackingMomentStrip(
                       momentListAsync: momentListAsync!,
                       trackingRuntimeAsync: trackingRuntimeAsync,
@@ -274,15 +273,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     EditorController controller,
     AsyncValue<CompiledProjectionView> compiledProjectionAsync,
   ) {
-    if (editor.places.isEmpty) {
-      return FloatingActionButton.extended(
-        onPressed: () => controller.setMode(EditorMode.addCity),
-        backgroundColor: AppColors.accent,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_location_alt, size: 20),
-        label: const Text('Add Destination'),
-      );
-    }
     return FloatingActionButton(
       onPressed: () =>
           _showTimelineSheet(editor, controller, compiledProjectionAsync),
@@ -1453,7 +1443,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           view: view,
           resolvePlaceName: (placeId) {
             for (final place in editor.places) {
-              if (place.id == placeId) {
+              if (place.id == placeId || place.serverPlaceId == placeId) {
                 return place.name;
               }
             }

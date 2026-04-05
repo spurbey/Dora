@@ -664,6 +664,79 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       readsFrom: {db.trackingPointBatches},
     ).get();
 
+    // 8. Global active session count (invariant guardrail)
+    final activeSessionCountRow = await db.customSelect(
+      "SELECT COUNT(*) AS cnt FROM tracking_sessions WHERE state = 'active'",
+      readsFrom: {db.trackingSessions},
+    ).getSingle();
+    final activeSessionCount = activeSessionCountRow.read<int>('cnt');
+
+    // 9. Approx request-rate proxy: sync-task updates in last 60s for this trip.
+    final recentWindowStart = DateTime.now().toUtc().subtract(
+          const Duration(minutes: 1),
+        );
+    final recentTaskActivityRow = await db.customSelect(
+      '''SELECT COUNT(*) AS cnt
+         FROM sync_tasks
+         WHERE updated_at >= ?
+           AND entity_id IN (
+             SELECT id FROM tracking_events WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_event_media WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_point_batches WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_sessions WHERE trip_id = ?
+           )''',
+      variables: [
+        Variable<DateTime>(recentWindowStart),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+      ],
+      readsFrom: {
+        db.syncTasks,
+        db.trackingEvents,
+        db.trackingEventMedia,
+        db.trackingPointBatches,
+        db.trackingSessions,
+      },
+    ).getSingle();
+    final recentTaskActivity = recentTaskActivityRow.read<int>('cnt');
+
+    // 10. Retry code distribution for failed/blocked tasks.
+    final retryCodeRows = await db.customSelect(
+      '''SELECT COALESCE(error_code, 'unknown') AS code, COUNT(*) AS cnt
+         FROM sync_tasks
+         WHERE status IN ('failed', 'blocked')
+           AND entity_id IN (
+             SELECT id FROM tracking_events WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_event_media WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_point_batches WHERE trip_id = ?
+             UNION ALL
+             SELECT id FROM tracking_sessions WHERE trip_id = ?
+           )
+         GROUP BY COALESCE(error_code, 'unknown')
+         ORDER BY cnt DESC
+         LIMIT 8''',
+      variables: [
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+        Variable<String>(tripId),
+      ],
+      readsFrom: {
+        db.syncTasks,
+        db.trackingEvents,
+        db.trackingEventMedia,
+        db.trackingPointBatches,
+        db.trackingSessions,
+      },
+    ).get();
+
     if (!mounted) return;
 
     // Build display
@@ -677,6 +750,20 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     buf.writeln('sessionId: ${sessionId ?? "none"}');
     buf.writeln('remoteSessionId: ${remoteSessionId ?? "NULL ⚠️"}');
     buf.writeln('state: $sessionState');
+    buf.writeln('');
+    buf.writeln('== Guardrails ==');
+    buf.writeln('activeSessionsGlobal: $activeSessionCount');
+    buf.writeln('tripTaskUpdatesLast60s: $recentTaskActivity');
+    if (retryCodeRows.isEmpty) {
+      buf.writeln('retryCodes: (none)');
+    } else {
+      buf.writeln('retryCodes:');
+      for (final row in retryCodeRows) {
+        final code = row.read<String>('code');
+        final cnt = row.read<int>('cnt');
+        buf.writeln('  $code: $cnt');
+      }
+    }
     buf.writeln('');
     buf.writeln('── Sync Tasks ──');
     for (final row in taskRows) {
@@ -719,7 +806,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       final code = row.read<String?>('error_code') ?? '';
       final msg = row.read<String?>('error_message') ?? '';
       buf.writeln('  [$type] $code');
-      buf.writeln('    ${msg.length > 120 ? '${msg.substring(0, 120)}...' : msg}');
+      buf.writeln(
+          '    ${msg.length > 120 ? '${msg.substring(0, 120)}...' : msg}');
     }
     if (errorRows.isEmpty) buf.writeln('  (none)');
 
@@ -1030,11 +1118,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           }
         }
         if (rebindFailures > 0 && mounted) {
-          _showMessage('Place confirmed locally. $rebindFailures media rebind(s) pending sync.');
+          ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
+          _showMessage(
+              'Place confirmed locally. $rebindFailures media rebind(s) pending sync.');
           _dismissedReviewPromptEventIds.add(eventId);
           return;
         }
       }
+      ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
       _dismissedReviewPromptEventIds.add(eventId);
       _showMessage('Capture attached to place.');
     } catch (_) {

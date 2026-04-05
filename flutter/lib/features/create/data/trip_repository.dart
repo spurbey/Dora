@@ -265,7 +265,8 @@ class TripRepository {
     return remoteId;
   }
 
-  /// Direct server call to update a trip.
+  /// Direct server call to update a trip. Throws on any failure so the caller
+  /// can fall back to local-only save with retry queue.
   Future<void> _updateTripOnServer({
     required String serverTripId,
     required String name,
@@ -275,10 +276,17 @@ class TripRepository {
     String visibility = 'private',
   }) async {
     final tripsApi = _tripsApi;
-    if (tripsApi == null) return;
+    if (tripsApi == null) {
+      throw const TripIdentityException('Trips API unavailable for update.');
+    }
 
     final token = await _authService.getAccessToken();
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      throw const TripIdentityException(
+        'Auth token unavailable for trip update.',
+        retryable: true,
+      );
+    }
 
     final payload = openapi.TripUpdate((builder) {
       builder

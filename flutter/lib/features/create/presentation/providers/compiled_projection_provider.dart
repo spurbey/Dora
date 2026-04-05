@@ -176,10 +176,12 @@ class CompiledProjectionView {
           bindConfidence: row.bindConfidence,
           reasonCode: row.resolverReasonCode,
           title: _titleForLocalRow(row),
-          subtitle: _subtitleForLocalRow(row),
+          subtitle: _isSynced(row.syncStatus)
+              ? _subtitleForSyncedLocalRow(row)
+              : _subtitleForLocalRow(row),
           payload: _decodeJsonMap(row.payloadJson),
           clientEventId: clientEventId,
-          isLocalPending: true,
+          isLocalPending: !_isSynced(row.syncStatus),
         ),
       );
     }
@@ -270,6 +272,13 @@ String _titleForLocalRow(TrackingEventRow row) {
 String _subtitleForLocalRow(TrackingEventRow row) {
   final status = row.syncStatus.trim().isEmpty ? 'pending' : row.syncStatus;
   return 'Pending sync ($status)';
+}
+
+String _subtitleForSyncedLocalRow(TrackingEventRow row) {
+  final resolverState = row.resolverState.trim();
+  if (resolverState == 'resolved') return 'Synced';
+  if (resolverState == 'review_required') return 'Synced — needs place confirmation';
+  return 'Synced — on route';
 }
 
 Map<String, dynamic> _decodeJsonMap(String raw) {

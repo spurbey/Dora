@@ -1031,6 +1031,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         }
         if (rebindFailures > 0 && mounted) {
           _showMessage('Place confirmed locally. $rebindFailures media rebind(s) pending sync.');
+          _dismissedReviewPromptEventIds.add(eventId);
+          return;
         }
       }
       _dismissedReviewPromptEventIds.add(eventId);

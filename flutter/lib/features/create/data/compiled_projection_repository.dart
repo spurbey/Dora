@@ -29,13 +29,10 @@ class CompiledProjectionRepository {
   }) async {
     final serverTripId = await _requireServerTripId(tripId);
     if (serverTripId == null) {
-      return CompiledProjectionSnapshot(
-        tripId: tripId,
-        compilerVersion: 0,
-        stale: true,
-        timelineEntries: const <CompiledTimelineEntry>[],
-        timelineGroups: const <CompiledTimelineDayGroup>[],
-        routeSegments: const <CompiledRouteSegment>[],
+      // Throw so the provider enters the error branch → remoteUnavailable = true
+      // → M4 fallback includes synced locals instead of showing empty editor.
+      throw const CompiledProjectionIdentityMissing(
+        'Server trip ID not yet available. Synced events will be shown locally.',
       );
     }
     final response = await _liveTrackingApi.fetchCompiledProjection(
@@ -113,4 +110,14 @@ class CompiledProjectionRepository {
 enum CompiledRebindAction {
   bind,
   unbind,
+}
+
+/// Thrown when server trip ID is not yet available for compiled projection.
+/// The provider should treat this as remote-unavailable and fall back to local data.
+class CompiledProjectionIdentityMissing implements Exception {
+  const CompiledProjectionIdentityMissing(this.message);
+  final String message;
+
+  @override
+  String toString() => 'CompiledProjectionIdentityMissing: $message';
 }

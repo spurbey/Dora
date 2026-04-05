@@ -46,18 +46,20 @@ final liveTrackingEventsProvider =
 
 class LiveTrackingUnresolvedSummary {
   const LiveTrackingUnresolvedSummary({
-    required this.unresolvedCount,
-    required this.latestUnresolved,
+    required this.reviewRequiredCount,
+    required this.onRouteCount,
     required this.latestReviewRequired,
     required this.reviewHints,
   });
 
-  final int unresolvedCount;
-  final TrackingEventRow? latestUnresolved;
+  /// Events that genuinely need user place confirmation.
+  final int reviewRequiredCount;
+  /// Events correctly tagged to route (valid state, not an error).
+  final int onRouteCount;
   final TrackingEventRow? latestReviewRequired;
   final List<LiveTrackingPlaceHint> reviewHints;
 
-  bool get hasUnresolved => unresolvedCount > 0;
+  bool get hasReviewRequired => reviewRequiredCount > 0;
   bool get hasReviewPrompt =>
       latestReviewRequired != null && reviewHints.isNotEmpty;
 }
@@ -67,22 +69,27 @@ final liveTrackingUnresolvedSummaryProvider =
   final events = ref.watch(liveTrackingEventsProvider(tripId)).valueOrNull ??
       const <TrackingEventRow>[];
   final repository = ref.watch(liveTrackingEventRepositoryProvider);
-  final unresolved = events
-      .where((event) => event.resolverState != 'resolved')
-      .toList(growable: false);
+
+  var reviewRequiredCount = 0;
+  var onRouteCount = 0;
   TrackingEventRow? reviewEvent;
-  for (final event in unresolved) {
-    if (event.resolverState == 'review_required') {
-      reviewEvent = event;
-      break;
+
+  for (final event in events) {
+    final state = event.resolverState.trim();
+    if (state == 'review_required') {
+      reviewRequiredCount++;
+      reviewEvent ??= event;
+    } else if (state == 'on_route_unresolved') {
+      onRouteCount++;
     }
   }
+
   final reviewHints = reviewEvent != null
       ? repository.parsePlaceHints(reviewEvent.resolutionHintJson)
       : const <LiveTrackingPlaceHint>[];
   return LiveTrackingUnresolvedSummary(
-    unresolvedCount: unresolved.length,
-    latestUnresolved: unresolved.isEmpty ? null : unresolved.first,
+    reviewRequiredCount: reviewRequiredCount,
+    onRouteCount: onRouteCount,
     latestReviewRequired: reviewEvent,
     reviewHints: reviewHints,
   );

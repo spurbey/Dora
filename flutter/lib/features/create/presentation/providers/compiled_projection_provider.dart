@@ -37,13 +37,36 @@ final compiledProjectionRepositoryProvider =
   );
 });
 
+/// Fetches compiled projection from backend with periodic auto-refresh.
+/// Re-fetches every 15 seconds while the editor is open, so newly synced
+/// tracking events appear without manual user action.
 final compiledProjectionRemoteProvider =
-    FutureProvider.autoDispose.family<CompiledProjectionSnapshot, String>((
+    StreamProvider.autoDispose.family<CompiledProjectionSnapshot, String>((
   ref,
   tripId,
 ) {
   final repository = ref.watch(compiledProjectionRepositoryProvider);
-  return repository.fetchProjection(tripId: tripId);
+
+  Stream<CompiledProjectionSnapshot> poll() async* {
+    // Initial fetch immediately.
+    try {
+      yield await repository.fetchProjection(tripId: tripId);
+    } catch (e) {
+      // Rethrow so error branch kicks in for fallback.
+      yield* Stream<CompiledProjectionSnapshot>.error(e);
+      return;
+    }
+    // Then re-fetch every 15 seconds.
+    await for (final _ in Stream<void>.periodic(const Duration(seconds: 15))) {
+      try {
+        yield await repository.fetchProjection(tripId: tripId);
+      } catch (_) {
+        // Keep last good snapshot on transient failures.
+      }
+    }
+  }
+
+  return poll();
 });
 
 final _trackingEventsForTripProvider =

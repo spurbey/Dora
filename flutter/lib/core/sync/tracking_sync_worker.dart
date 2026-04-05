@@ -179,6 +179,21 @@ class TrackingSyncWorker {
       if (recovered) {
         return;
       }
+      // Stale session 404: if the backend says "session not found", this task
+      // is orphaned (session was deleted or never created). Complete it instead
+      // of blocking forever — there's nothing to retry against.
+      if (_isSessionNotFound404(error)) {
+        await _persistSuccessAndCompleteTask(
+          task: task,
+          sessionId: sessionId,
+          applyLocalMutation: (_) async {},
+        );
+        debugPrint(
+          '[TRACKING_SYNC] completed-stale taskId=${task.id} '
+          'reason=session_not_found (orphaned task cleanup)',
+        );
+        return;
+      }
       await _handleRecoverableFailure(
         task: task,
         sessionId: sessionId,
@@ -1396,6 +1411,19 @@ class TrackingSyncWorker {
       return false;
     }
     return detail.trim().toLowerCase().contains('trip not found');
+  }
+
+  static bool _isSessionNotFound404(DioException error) {
+    if (error.response?.statusCode != 404) {
+      return false;
+    }
+    final detail = _dioResponseDetail(error.response?.data);
+    if (detail == null) {
+      return false;
+    }
+    final lower = detail.trim().toLowerCase();
+    return lower.contains('session not found') ||
+        lower.contains('tracking session not found');
   }
 
   static String? _dioResponseDetail(dynamic responseData) {

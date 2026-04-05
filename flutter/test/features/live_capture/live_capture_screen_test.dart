@@ -298,8 +298,8 @@ void main() {
             ),
             liveTrackingUnresolvedSummaryProvider('trip-123').overrideWith(
               (ref) => LiveTrackingUnresolvedSummary(
-                unresolvedCount: 2,
-                latestUnresolved: unresolvedRow,
+                reviewRequiredCount: 0,
+                onRouteCount: 2,
                 latestReviewRequired: null,
                 reviewHints: const <LiveTrackingPlaceHint>[],
               ),
@@ -367,8 +367,8 @@ void main() {
             ),
             liveTrackingUnresolvedSummaryProvider('trip-123').overrideWith(
               (ref) => LiveTrackingUnresolvedSummary(
-                unresolvedCount: 1,
-                latestUnresolved: reviewRow,
+                reviewRequiredCount: 1,
+                onRouteCount: 0,
                 latestReviewRequired: reviewRow,
                 reviewHints: const <LiveTrackingPlaceHint>[
                   LiveTrackingPlaceHint(

@@ -194,8 +194,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 : 'Trip ${widget.tripId}');
     final unresolvedSummary = usePreview
         ? const LiveTrackingUnresolvedSummary(
-            unresolvedCount: 0,
-            latestUnresolved: null,
+            reviewRequiredCount: 0,
+            onRouteCount: 0,
             latestReviewRequired: null,
             reviewHints: <LiveTrackingPlaceHint>[],
           )
@@ -235,10 +235,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           message: blockedMessage,
           onRetry: _actionInFlight ? null : _retrySyncNow,
         ),
-      if (!usePreview && unresolvedSummary.hasUnresolved)
+      if (!usePreview && unresolvedSummary.hasReviewRequired)
         _UnresolvedCaptureBanner(
-          unresolvedCount: unresolvedSummary.unresolvedCount,
-          latestNote: unresolvedSummary.latestUnresolved?.note?.trim(),
+          unresolvedCount: unresolvedSummary.reviewRequiredCount,
+          latestNote: unresolvedSummary.latestReviewRequired?.note?.trim(),
           onReview: _actionInFlight
               ? null
               : () => context.push(Routes.editorPath(widget.tripId)),
@@ -1408,8 +1408,8 @@ class _UnresolvedCaptureBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final headline = unresolvedCount == 1
-        ? '1 capture needs place selection'
-        : '$unresolvedCount captures need place selection';
+        ? '1 capture needs place confirmation'
+        : '$unresolvedCount captures need place confirmation';
     final latest =
         latestNote != null && latestNote!.isNotEmpty ? latestNote! : '';
     return Container(

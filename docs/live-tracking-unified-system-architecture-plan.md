@@ -908,3 +908,48 @@ Use this block for each completed phase:
 4. Remaining follow-ups:
    - complete animation token pass for live runtime overlays per `flutter/docs/live-capture-animation-contract.md`.
    - polish control states for paused-mode capture actions in dedicated UX slice.
+
+### Phase P6 Stabilization Evidence (2026-04-06, v6 Lock-In for Traffic + Stale Session + Place Binding)
+
+1. Delivered in this increment (Flutter-only stabilization wave):
+   - Projection refresh hardening:
+     - refresh signal limited to `tracking_event`, `tracking_event_media`, `checkin_decision`, and `tracking_session(start|stop)`,
+     - trailing-only `2s` debounce,
+     - shared deduped fetch path with repository in-flight request coalescing,
+     - `90s` fallback poll retained while editor is visible.
+   - Stale `409` sticky-loop recovery:
+     - guarded stale-session conflict detection for `tracking_point_batch` upload tasks,
+     - atomic cleanup of both sync tasks and point-batch rows,
+     - point batches marked `status='dropped_stale_session'` with audit reason.
+   - Route safety + sync UX:
+     - dropped stale point batches excluded from live path extraction,
+     - sync surface shows partial recovered state (`Synced (GPS drops recovered)`) instead of false clean sync.
+   - Media capture responsiveness:
+     - event/media persisted first,
+     - local resolver pass immediate,
+     - network reconcile asynchronous,
+     - probable-place resolver hints surfaced in live/editor assign flows.
+2. Evidence files:
+   - `flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart`
+   - `flutter/lib/features/create/data/compiled_projection_repository.dart`
+   - `flutter/lib/core/sync/tracking_sync_worker.dart`
+   - `flutter/lib/core/storage/daos/tracking_point_batch_dao.dart`
+   - `flutter/lib/core/storage/daos/sync_task_dao.dart`
+   - `flutter/lib/features/create/presentation/live_tracking_map_overlay.dart`
+   - `flutter/lib/features/create/presentation/providers/editor_sync_status_provider.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+   - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+   - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+   - `flutter/test/features/create/editor_sync_status_provider_test.dart`
+   - `flutter/docs/handoffs/2026-04-05-live-tracking-root-stabilization-execution-tracker.md`
+   - `flutter/docs/live-capture-screen-implementation-spec.md`
+3. Commit reference:
+   - `c3e37bd` (`fix(live-tracking): stabilize sync loops, projection refresh, and place binding`)
+4. Validation summary:
+   - focused tests passed: `flutter test test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`
+   - targeted analyze passed on touched files (only 2 pre-existing info-level warnings in `editor_screen.dart`)
+   - local backend runtime capture (`flutter run --dart-define-from-file=.env`) showed no `404`/`Application not found` and no `[TRACKING_SYNC] blocked` during sampled run.
+5. Remaining follow-ups:
+   - run explicit editor-visible integration pass for compiled projection auto-refresh behavior under real sync progression,
+   - run long-soak movement QA to validate path quality and dropped-batch operational acceptability at scale.

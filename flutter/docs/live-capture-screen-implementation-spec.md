@@ -843,3 +843,58 @@ All items must pass before merging any live screen PR:
 - Validation:
   - `flutter analyze lib/core/map/app_map_view.dart lib/features/live_capture/presentation/screens/live_capture_screen.dart lib/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart`
   - result: `No issues found`
+
+### Stabilization v6 Evidence (2026-04-06, Root Lock-In + Local Backend Verification)
+- Owner: Codex
+- Commit: `c3e37bd` (`fix(live-tracking): stabilize sync loops, projection refresh, and place binding`)
+- Scope:
+  - Projection refresh hardening:
+    - narrowed refresh signal entity set (no point-batch trigger noise),
+    - exact trailing-only `2s` debounce on refresh stream,
+    - shared deduped repository fetch path for immediate/trigger/poll,
+    - `90s` fallback polling with provider keep-alive grace to reduce resubscribe churn.
+  - Stale `409` recovery hardening for tracking point-batch uploads:
+    - guarded stale conflict detector (`tracking_point_batch` + `upload` + `409` + structured/message signal),
+    - transaction updates both sync tasks and point-batch rows,
+    - point batches marked `status='dropped_stale_session'` with audit reason.
+  - Route safety:
+    - dropped stale batches are excluded from live route extraction/render input.
+  - Sync UX correctness:
+    - partial sync label surfaced when stale GPS drops are recovered (not shown as clean fully synced success).
+  - Media capture latency:
+    - non-blocking capture flow (persist first, local resolver pass, async network reconcile),
+    - resolver hint payload surfaced for live/editor place assignment paths.
+  - Resolver tuning:
+    - conservative auto-bind threshold retained (`0.75`),
+    - broader review threshold (`0.35`),
+    - fallback lookups parallelized with bounded timeout.
+- Files changed:
+  - `flutter/lib/core/storage/daos/sync_task_dao.dart`
+  - `flutter/lib/core/storage/daos/tracking_event_media_dao.dart`
+  - `flutter/lib/core/storage/daos/tracking_point_batch_dao.dart`
+  - `flutter/lib/core/storage/tables/tracking_point_batches_table.dart`
+  - `flutter/lib/core/sync/tracking_sync_worker.dart`
+  - `flutter/lib/features/create/data/compiled_projection_repository.dart`
+  - `flutter/lib/features/create/presentation/live_tracking_map_overlay.dart`
+  - `flutter/lib/features/create/presentation/providers/compiled_projection_provider.dart`
+  - `flutter/lib/features/create/presentation/providers/editor_sync_status_provider.dart`
+  - `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+  - `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_repository.dart`
+  - `flutter/lib/features/live_capture/data/live_tracking_event_resolver.dart`
+  - `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+  - `flutter/test/core/sync/tracking_sync_worker_test.dart`
+  - `flutter/test/features/create/editor_sync_status_provider_test.dart`
+- Validation:
+  - `flutter test test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart` (pass, 31 tests)
+  - targeted `flutter analyze` on stabilization-touched files (clean except 2 pre-existing info-level warnings in `editor_screen.dart`)
+  - runtime capture with local backend (`flutter_run_capture.log`):
+    - `38` total requests,
+    - response status distribution: `200 x28`, `201 x2`, `202 x8`,
+    - `0` occurrences of `Application not found` / HTTP `404`,
+    - `0` `[TRACKING_SYNC] blocked` log lines.
+- Operational note:
+  - If `API_BASE_URL` points to unavailable Railway deployment, app receives fallback `404 Application not found`, which mimics sync failures but is environment routing/deployment, not live-tracking pipeline logic.
+- Remaining follow-ups:
+  - run explicit editor-visible integration soak to validate compiled projection auto-refresh behavior (`/compiled/projection`) under real sync progression,
+  - finish long-walk path quality soak and no-place editor flow QA.

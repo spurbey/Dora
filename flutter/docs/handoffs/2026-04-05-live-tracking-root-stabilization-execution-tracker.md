@@ -1,8 +1,8 @@
-# Live Tracking Root Stabilization - Execution Tracker (2026-04-05)
+# Live Tracking Root Stabilization - Execution Tracker (2026-04-06)
 
-Date: 2026-04-05  
+Date: 2026-04-06  
 Owner: Codex + Flutter + QA  
-Status: In Progress (S1-S6 code wired, S7 verification pending)  
+Status: In Progress (S1-S6 implemented in `c3e37bd`; S7 integration/soak pending)  
 Branch: `main`  
 Primary Goal: Stabilize live tracking traffic, compiled projection reliability, and place binding from root causes.
 
@@ -37,6 +37,7 @@ This tracker is the source of truth for:
 4. `on_route_unresolved` is informational, not error.
 5. Trip CRUD is online-only for this stabilization wave.
 6. No silent swallow in sync/rebind paths (`catch (_) {}` banned for critical paths).
+7. Stale point-batch recovery must keep audit visibility (`status='dropped_stale_session'`) and never present as clean uploaded success.
 
 ## 4. Phase Board
 
@@ -221,22 +222,23 @@ Use one entry per work session.
 | 2026-04-05 | Tracker bootstrap | `main` @ `55c184d` | Created execution tracker and phase gates | None | Ready | None | Start S1 implementation in `live_tracking_capture_coordinator.dart` + sync worker stale-session handling |
 | 2026-04-05 | S1-S6 lean wiring pass | `main` (working tree) | Implemented single-active-session repair + DB guard, stale-session abandonment on 404, retry classifier/backoff updates, trip lifecycle online-authoritative update path, compiled projection refresh/merge wiring, editor no-place gating removal, place hydration merge, map redraw signature + diagnostics counters | `flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/compiled_projection_view_test.dart test/features/create/live_tracking_map_overlay_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/sync/live_tracking_sync_primitives_test.dart`; `flutter analyze` on touched files | Focused tests passed; analyze returned only 2 existing info warnings in `editor_screen.dart` (`WillPopScope` deprecation, async context lint) | Integration + soak not yet run; stale-session churn scenario still needs explicit verification evidence | Run manual E2E scenario: create trip -> live capture -> editor auto-compile visibility -> idle traffic check |
 | 2026-04-05 | Targeted regression completion | `main` (working tree) | Added regression tests for stale session 404 point-batch handling and compiled fallback with synced local entries | `flutter test test/features/create/live_tracking_capture_coordinator_test.dart test/features/create/compiled_projection_view_test.dart test/features/create/live_tracking_map_overlay_test.dart test/core/sync/tracking_sync_worker_test.dart test/core/sync/live_tracking_sync_primitives_test.dart` | All focused tests passed (44 tests) | Integration + soak still pending | Run manual 10-minute idle + live->editor auto-refresh verification with diagnostics overlay open |
+| 2026-04-06 | v6 lock-in implementation + commit | `main` @ `c3e37bd` | Landed projection refresh hardening (2s trailing debounce + 90s poll + in-flight dedupe), guarded stale-409 drop+audit cleanup (`dropped_stale_session`), dropped-batch route exclusion + partial-sync label, and non-blocking media capture resolver flow with async reconcile + hint surfacing in live/editor | `flutter test test/features/create/editor_sync_status_provider_test.dart test/core/sync/tracking_sync_worker_test.dart`; `flutter analyze` on touched stabilization files; `flutter run --dart-define-from-file=.env` log capture | Tests passed (31 in combined run). Analyze clean except 2 existing info warnings in `editor_screen.dart`. Local-backend runtime run returned only `200/201/202` and no `404`/sync-blocked logs | Full editor compiled-projection auto-refresh integration and long soak still pending | Run create->live->editor scenario with editor open long enough to capture `/compiled/projection` behavior and confirm no re-entry dependency |
 
 ## 8. Commit Ledger (Fill As Work Progresses)
 
 | Phase | Commit SHA | Title | Notes |
 |------|------------|-------|------|
-| S1 |  |  |  |
-| S2 |  |  |  |
-| S3 |  |  |  |
-| S4 |  |  |  |
-| S5 |  |  |  |
-| S6 |  |  |  |
-| S7 |  |  |  |
+| S1 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Keeps single-active repair path and stale-session cleanup guardrails active with additional regression coverage |
+| S2 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Central retry classification + stale-409 guarded terminal cleanup transaction implemented and tested |
+| S3 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | No regression to online-only trip identity contract; command path remains remote-identity gated |
+| S4 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Projection refresh stream reduced to relevant entities, debounced, and deduped through repository in-flight map |
+| S5 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Live/editor hint surfacing and non-blocking media resolver reconciliation wired |
+| S6 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Dropped stale batches excluded from route extraction; diagnostics and sync label reflect recovered GPS drops |
+| S7 | `c3e37bd` | `fix(live-tracking): stabilize sync loops, projection refresh, and place binding` | Added targeted tests for stale-409 drop recovery and partial-sync dropped-batch labeling |
 
 ## 9. Immediate Next Actions
 
-1. Add/adjust targeted tests for retry classifier + local-only compiled fallback + place-name mapping.
-2. Run manual integration pass for editor auto-refresh and no-place timeline visibility.
-3. Validate stale-session 404 behavior in an explicit repro and capture logs.
-4. Run 10-minute idle soak and record request-rate counters from diagnostics overlay.
+1. Run manual create->live->editor integration pass and verify compiled storyline appears without forcing review/re-entry.
+2. Run explicit editor-visible soak to verify projection refresh budget (`immediate + debounced + 90s fallback`) and capture `/compiled/projection` counts.
+3. Validate no-place timeline visibility and `Add Destination` UX placement against current mobile editor flow.
+4. Run 30-minute walking soak to confirm path stability and dropped-batch audit visibility remain acceptable under movement.

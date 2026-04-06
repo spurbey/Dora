@@ -3,10 +3,10 @@ import 'package:dora/features/create/domain/compiled_projection.dart';
 
 /// Fetches and mutates compiled projections via backend API.
 ///
-/// All public methods accept **local IDs** (canonical in Flutter state).
+/// All public methods accept local IDs (canonical in Flutter state).
 /// Server ID resolution is handled internally via [resolveServerTripId] and
 /// [resolveServerPlaceId]. If a required server ID is missing, the method
-/// returns a fallback or throws — it never sends a local ID to the backend.
+/// returns a fallback or throws; it never sends a local ID to the backend.
 class CompiledProjectionRepository {
   CompiledProjectionRepository({
     required LiveTrackingApi liveTrackingApi,
@@ -19,18 +19,38 @@ class CompiledProjectionRepository {
   final LiveTrackingApi _liveTrackingApi;
   final Future<String?> Function(String localTripId)? _resolveServerTripId;
   final Future<String?> Function(String localPlaceId)? _resolveServerPlaceId;
+  final Map<String, Future<CompiledProjectionSnapshot>>
+      _inFlightProjectionByTrip =
+      <String, Future<CompiledProjectionSnapshot>>{};
 
   /// Fetches the compiled projection for a trip.
   ///
   /// [tripId] is the local trip ID. Resolves to server ID before API call.
-  /// Returns empty snapshot if server trip ID is not yet available.
   Future<CompiledProjectionSnapshot> fetchProjection({
+    required String tripId,
+  }) async {
+    final inFlight = _inFlightProjectionByTrip[tripId];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final request = _fetchProjectionInternal(tripId: tripId);
+    _inFlightProjectionByTrip[tripId] = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_inFlightProjectionByTrip[tripId], request)) {
+        _inFlightProjectionByTrip.remove(tripId);
+      }
+    }
+  }
+
+  Future<CompiledProjectionSnapshot> _fetchProjectionInternal({
     required String tripId,
   }) async {
     final serverTripId = await _requireServerTripId(tripId);
     if (serverTripId == null) {
-      // Throw so the provider enters the error branch → remoteUnavailable = true
-      // → M4 fallback includes synced locals instead of showing empty editor.
+      // Throw so the provider enters the error branch and uses local fallback.
       throw const CompiledProjectionIdentityMissing(
         'Server trip ID not yet available. Synced events will be shown locally.',
       );
@@ -58,26 +78,24 @@ class CompiledProjectionRepository {
       return null;
     }
 
-    // Resolve place ID if provided.
     String? serverPlaceId;
     if (tripPlaceId != null && tripPlaceId.isNotEmpty) {
       serverPlaceId = await _resolvePlace(tripPlaceId);
       if (serverPlaceId == null) {
-        return null; // Place not yet synced — caller should show actionable message.
+        return null;
       }
     }
 
     final normalizedSourceKind = sourceKind.trim().toLowerCase();
-    final selectedSourceId =
-        (normalizedSourceKind == 'tracking_event_media'
-                ? sourceMediaId
-                : sourceEventId)
-            ?.trim();
+    final selectedSourceId = (normalizedSourceKind == 'tracking_event_media'
+            ? sourceMediaId
+            : sourceEventId)
+        ?.trim();
     if (selectedSourceId == null || selectedSourceId.isEmpty) {
       throw ArgumentError(
-        'source id is required for compiled projection rebind',
-      );
+          'source id is required for compiled projection rebind');
     }
+
     final response = normalizedSourceKind == 'tracking_event_media'
         ? await _liveTrackingApi.rebindCompiledProjectionMedia(
             tripId: serverTripId,
@@ -96,13 +114,17 @@ class CompiledProjectionRepository {
 
   Future<String?> _requireServerTripId(String localTripId) async {
     final resolver = _resolveServerTripId;
-    if (resolver == null) return localTripId; // No resolver — assume IDs match.
+    if (resolver == null) {
+      return localTripId;
+    }
     return resolver(localTripId);
   }
 
   Future<String?> _resolvePlace(String localPlaceId) async {
     final resolver = _resolveServerPlaceId;
-    if (resolver == null) return localPlaceId; // No resolver — assume IDs match.
+    if (resolver == null) {
+      return localPlaceId;
+    }
     return resolver(localPlaceId);
   }
 }

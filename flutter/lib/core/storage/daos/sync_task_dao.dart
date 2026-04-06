@@ -283,6 +283,55 @@ class SyncTaskDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<int> completePointBatchTasksForSession({
+    required String sessionId,
+    DateTime? updatedAt,
+  }) {
+    final now = updatedAt ?? DateTime.now();
+    return customUpdate(
+      '''
+      UPDATE sync_tasks
+      SET
+        status = 'completed',
+        pending_requeue = 0,
+        retry_count = 0,
+        next_attempt_at = NULL,
+        error_code = NULL,
+        error_message = NULL,
+        worker_session_id = NULL,
+        updated_at = ?
+      WHERE entity_type = ?
+        AND entity_id IN (
+          SELECT b.id
+          FROM tracking_point_batches AS b
+          WHERE b.session_id = ?
+        )
+        AND status <> 'completed'
+      ''',
+      variables: [
+        Variable<DateTime>(now),
+        const Variable<String>(SyncEntityTypes.trackingPointBatch),
+        Variable<String>(sessionId),
+      ],
+      updates: {syncTasks, attachedDatabase.trackingPointBatches},
+    );
+  }
+
+  Future<List<SyncTaskRow>> getBlockedPointBatchTasks({
+    int limit = 200,
+  }) {
+    return (select(syncTasks)
+          ..where((t) =>
+              t.entityType.equals(SyncEntityTypes.trackingPointBatch) &
+              t.status.equals('blocked'))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc)
+          ])
+          ..limit(limit))
+        .get();
+  }
+
   Future<int> markBlocked({
     required String taskId,
     required String errorCode,

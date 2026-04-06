@@ -72,6 +72,9 @@ List<AppLatLng> _extractPathPoints(List<TrackingPointBatchRow> batches) {
   final orderedPoints = <_OverlayPoint>[];
   var sequence = 0;
   for (final batch in batches) {
+    if (batch.status == 'dropped_stale_session') {
+      continue;
+    }
     final payload = _decodePoints(batch.pointsJson);
     for (final rawPoint in payload) {
       final latitude = _asDouble(rawPoint['latitude']);

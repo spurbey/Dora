@@ -109,6 +109,7 @@ class TrackingEventMediaDao extends DatabaseAccessor<AppDatabase>
           ..where(
             (m) =>
                 m.eventId.equals(eventId) &
+                m.bindMode.equals('route') &
                 m.syncStatus.isIn(const ['pending', 'failed']),
           ))
         .write(

@@ -25,7 +25,7 @@ class TrackingPointBatches extends Table {
   IntColumn get pointCount => integer().withDefault(const Constant(0))();
   TextColumn get pointsJson => text().withDefault(const Constant('[]'))();
 
-  // Queue lifecycle: queued | in_progress | failed | completed
+  // Queue lifecycle: queued | in_progress | failed | completed | dropped_stale_session
   TextColumn get status => text().withDefault(const Constant('queued'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get nextAttemptAt => dateTime().nullable()();

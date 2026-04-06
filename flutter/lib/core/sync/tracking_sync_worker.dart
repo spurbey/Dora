@@ -59,6 +59,7 @@ class TrackingSyncWorker {
 
   bool _isRunning = false;
   final Uuid _uuid = const Uuid();
+  bool _didRunStartupSweep = false;
 
   bool get isRunning => _isRunning;
 
@@ -68,6 +69,7 @@ class TrackingSyncWorker {
     }
     _isRunning = true;
     try {
+      await _runStartupSweepIfNeeded();
       while (true) {
         final sessionId = _newSessionId();
         final claimed = await _syncTaskDao.claimRunnableTasks(
@@ -193,6 +195,13 @@ class TrackingSyncWorker {
           '[TRACKING_SYNC] completed-stale taskId=${task.id} '
           'reason=session_not_found (orphaned task cleanup)',
         );
+        return;
+      }
+      if (await _tryRecoverStalePointBatchConflict(
+        task: task,
+        sessionId: sessionId,
+        error: error,
+      )) {
         return;
       }
       final failureClass = _classifyDioFailure(error);
@@ -1317,6 +1326,136 @@ class TrackingSyncWorker {
     return true;
   }
 
+  Future<void> _runStartupSweepIfNeeded() async {
+    if (_didRunStartupSweep) {
+      return;
+    }
+    _didRunStartupSweep = true;
+    try {
+      await _sweepLegacyBlockedStalePointBatchTasks();
+    } catch (error) {
+      debugPrint(
+        '[TRACKING_SYNC] startup_sweep_failed error=${_compactError(error)}',
+      );
+    }
+  }
+
+  Future<void> _sweepLegacyBlockedStalePointBatchTasks() async {
+    final blocked = await _syncTaskDao.getBlockedPointBatchTasks(limit: 500);
+    if (blocked.isEmpty) {
+      return;
+    }
+    var recoveredCount = 0;
+    for (final task in blocked) {
+      if (!await _isLegacyStale409BlockedTask(task)) {
+        continue;
+      }
+      final reason = task.errorMessage?.trim();
+      final recovered = await _recoverStalePointBatchConflict(
+        task: task,
+        sessionId: null,
+        reason: reason == null || reason.isEmpty
+            ? 'session ended or abandoned (startup stale-409 sweep)'
+            : reason,
+      );
+      if (recovered) {
+        recoveredCount += 1;
+      }
+    }
+    if (recoveredCount > 0) {
+      debugPrint(
+        '[TRACKING_SYNC] startup_sweep_recovered stale409_tasks=$recoveredCount',
+      );
+    }
+  }
+
+  Future<bool> _isLegacyStale409BlockedTask(SyncTaskRow task) async {
+    if (task.entityType != SyncEntityTypes.trackingPointBatch ||
+        task.status != 'blocked') {
+      return false;
+    }
+    if ((task.errorCode ?? '').trim() != 'http_409') {
+      return false;
+    }
+    final message = task.errorMessage?.trim() ?? '';
+    if (_isStaleSessionConflictText(message)) {
+      return true;
+    }
+    final batch = await _trackingPointBatchDao.getBatchById(task.entityId);
+    if (batch == null) {
+      return true;
+    }
+    final session = await _trackingSessionDao.getSessionById(batch.sessionId);
+    final state = session?.state.trim().toLowerCase();
+    return state == 'ended' || state == 'abandoned';
+  }
+
+  Future<bool> _tryRecoverStalePointBatchConflict({
+    required SyncTaskRow task,
+    required String? sessionId,
+    required DioException error,
+  }) async {
+    if (!_isStalePointBatchConflict409(task: task, error: error)) {
+      return false;
+    }
+    final reason =
+        _dioResponseDetail(error.response?.data) ?? 'session ended on server';
+    return _recoverStalePointBatchConflict(
+      task: task,
+      sessionId: sessionId,
+      reason: reason,
+    );
+  }
+
+  Future<bool> _recoverStalePointBatchConflict({
+    required SyncTaskRow task,
+    required String? sessionId,
+    required String reason,
+  }) async {
+    if (task.entityType != SyncEntityTypes.trackingPointBatch) {
+      return false;
+    }
+
+    final now = DateTime.now().toUtc();
+    final batch = await _trackingPointBatchDao.getBatchById(task.entityId);
+    final localSessionId = batch?.sessionId;
+    if (localSessionId == null || localSessionId.isEmpty) {
+      final completed = await _syncTaskDao.markCompleted(
+        taskId: task.id,
+        expectedSessionId: sessionId,
+      );
+      return completed == 1 || sessionId == null;
+    }
+
+    final auditReason = 'stale_session_conflict_409: $reason';
+    await _db.transaction(() async {
+      await _trackingPointBatchDao.markSessionBatchesDroppedStaleSession(
+        sessionId: localSessionId,
+        reason: auditReason,
+        updatedAt: now,
+      );
+      await _syncTaskDao.completePointBatchTasksForSession(
+        sessionId: localSessionId,
+        updatedAt: now,
+      );
+      final session = await _trackingSessionDao.getSessionById(localSessionId);
+      final state = session?.state.trim().toLowerCase();
+      if (state != 'ended' && state != 'abandoned') {
+        await _trackingSessionDao.updateLifecycle(
+          sessionId: localSessionId,
+          state: 'abandoned',
+          abandonedAt: now,
+        );
+      }
+    });
+
+    debugPrint(
+      '[TRACKING_SYNC] completed-stale taskId=${task.id} '
+      'reason=stale_session_conflict_409 session=$localSessionId',
+    );
+    return true;
+  }
+
   Future<void> _markCheckinDecisionFailed({
     required SyncTaskRow task,
   }) async {
@@ -1491,6 +1630,95 @@ class TrackingSyncWorker {
     final lower = detail.trim().toLowerCase();
     return lower.contains('session not found') ||
         lower.contains('tracking session not found');
+  }
+
+  bool _isStalePointBatchConflict409({
+    required SyncTaskRow task,
+    required DioException error,
+  }) {
+    if (task.entityType != SyncEntityTypes.trackingPointBatch ||
+        task.operation != 'upload') {
+      return false;
+    }
+    if (error.response?.statusCode != 409) {
+      return false;
+    }
+    final responseData = error.response?.data;
+    if (_hasStructuredStaleSessionConflict(responseData)) {
+      return true;
+    }
+    final detail = _dioResponseDetail(responseData);
+    if (detail == null) {
+      return false;
+    }
+    return _isStaleSessionConflictText(detail);
+  }
+
+  static bool _hasStructuredStaleSessionConflict(dynamic responseData) {
+    if (responseData is! Map) {
+      return false;
+    }
+    final normalizedFields = <String>[
+      responseData['code']?.toString() ?? '',
+      responseData['reason_code']?.toString() ?? '',
+      responseData['error_code']?.toString() ?? '',
+      responseData['reason']?.toString() ?? '',
+      responseData['type']?.toString() ?? '',
+      responseData['status']?.toString() ?? '',
+      responseData['state']?.toString() ?? '',
+      responseData['message']?.toString() ?? '',
+    ]
+        .map((value) => value.trim().toLowerCase())
+        .where((value) => value.isNotEmpty);
+
+    for (final value in normalizedFields) {
+      if (_looksLikeStaleSessionReasonCode(value) ||
+          _isStaleSessionConflictText(value)) {
+        return true;
+      }
+    }
+
+    final detail = responseData['detail'];
+    if (detail is String && _isStaleSessionConflictText(detail)) {
+      return true;
+    }
+    if (detail is Map) {
+      final nested = <String>[
+        detail['code']?.toString() ?? '',
+        detail['reason_code']?.toString() ?? '',
+        detail['error_code']?.toString() ?? '',
+        detail['message']?.toString() ?? '',
+      ]
+          .map((value) => value.trim().toLowerCase())
+          .where((value) => value.isNotEmpty);
+      for (final value in nested) {
+        if (_looksLikeStaleSessionReasonCode(value) ||
+            _isStaleSessionConflictText(value)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  static bool _looksLikeStaleSessionReasonCode(String value) {
+    final lower = value.trim().toLowerCase();
+    return lower.contains('session_ended') ||
+        lower.contains('session_closed') ||
+        lower.contains('session_abandoned') ||
+        lower.contains('tracking_session_ended') ||
+        lower.contains('stale_session');
+  }
+
+  static bool _isStaleSessionConflictText(String value) {
+    final lower = value.trim().toLowerCase();
+    if (!lower.contains('session')) {
+      return false;
+    }
+    return lower.contains('ended') ||
+        lower.contains('abandoned') ||
+        lower.contains('closed');
   }
 
   static String? _dioResponseDetail(dynamic responseData) {

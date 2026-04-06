@@ -37,7 +37,7 @@ class LiveTrackingEventResolver {
 
   static const int resolverVersion = 1;
   static const double _resolvedThreshold = 0.75;
-  static const double _reviewThreshold = 0.45;
+  static const double _reviewThreshold = 0.35;
   static const int _tripPlaceRadiusM = 50;
   static const int _anchorRadiusM = 80;
   static const int _reverseRadiusM = 100;
@@ -46,7 +46,10 @@ class LiveTrackingEventResolver {
   // Route-media association keeps geotag media near nearby route segments.
   static const double _manualResolvedConfidence = 1.0;
 
-  Future<ResolvedPlaceDecision> resolveEventNow(String eventId) async {
+  Future<ResolvedPlaceDecision> resolveEventNow(
+    String eventId, {
+    bool allowNetworkFallback = true,
+  }) async {
     final row = await _trackingEventDao.getEventById(eventId);
     if (row == null) {
       return const ResolvedPlaceDecision(
@@ -59,7 +62,8 @@ class LiveTrackingEventResolver {
     final localDecision = await _resolveLocally(row);
     await _persistDecision(eventId: row.id, decision: localDecision);
 
-    if (!_shouldRunNetworkFallback(localDecision: localDecision, row: row)) {
+    if (!allowNetworkFallback ||
+        !_shouldRunNetworkFallback(localDecision: localDecision, row: row)) {
       return localDecision;
     }
 
@@ -181,7 +185,8 @@ class LiveTrackingEventResolver {
     }
 
     final places = await _placeDao.getPlacesForTrip(row.tripId);
-    final anchors = await _trackingEventDao.getRecentResolvedAnchors(row.tripId);
+    final anchors =
+        await _trackingEventDao.getRecentResolvedAnchors(row.tripId);
     final candidates = <_ResolverCandidate>[
       ..._tripPlaceCandidates(center: center, places: places),
       ..._anchorCandidates(center: center, anchors: anchors),
@@ -235,11 +240,14 @@ class LiveTrackingEventResolver {
     }
 
     final places = await _placeDao.getPlacesForTrip(row.tripId);
-    final anchors = await _trackingEventDao.getRecentResolvedAnchors(row.tripId);
+    final anchors =
+        await _trackingEventDao.getRecentResolvedAnchors(row.tripId);
     final temporal = _temporalConsistency(center: center, anchors: anchors);
 
-    final reverse = await _safeReverseGeocode(center);
-    final nearbyPoi = await _safeSearchNearbyPoi(center);
+    final reverseFuture = _safeReverseGeocode(center);
+    final nearbyPoiFuture = _safeSearchNearbyPoi(center);
+    final reverse = await reverseFuture;
+    final nearbyPoi = await nearbyPoiFuture;
 
     final rawCandidates = <_ResolverCandidate?>[
       if (reverse != null)
@@ -496,7 +504,7 @@ class LiveTrackingEventResolver {
     try {
       return await _geocodingService
           .reverseGeocode(center)
-          .timeout(const Duration(milliseconds: 1200));
+          .timeout(const Duration(milliseconds: 1500));
     } catch (_) {
       return null;
     }
@@ -510,7 +518,7 @@ class LiveTrackingEventResolver {
             radiusMeters: _poiRadiusM,
             limit: 6,
           )
-          .timeout(const Duration(milliseconds: 1200));
+          .timeout(const Duration(milliseconds: 1500));
     } catch (_) {
       return const <GeocodingResult>[];
     }
@@ -657,8 +665,8 @@ class LiveTrackingEventResolver {
     final lat2 = _toRadians(b.latitude);
     final sinLat = math.sin(dLat / 2);
     final sinLon = math.sin(dLon / 2);
-    final h = sinLat * sinLat +
-        math.cos(lat1) * math.cos(lat2) * sinLon * sinLon;
+    final h =
+        sinLat * sinLat + math.cos(lat1) * math.cos(lat2) * sinLon * sinLon;
     final c = 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h));
     return earthRadius * c;
   }

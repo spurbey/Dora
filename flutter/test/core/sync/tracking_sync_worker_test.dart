@@ -154,12 +154,12 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     required DateTime sentAt,
     required List<Map<String, dynamic>> points,
   }) async {
+    batchCalls += 1;
+    batchTripIds.add(tripId);
     final forcedError = batchError;
     if (forcedError != null) {
       throw forcedError;
     }
-    batchCalls += 1;
-    batchTripIds.add(tripId);
     return <String, dynamic>{
       'trip_id': tripId,
       'session_id': sessionId,
@@ -760,6 +760,96 @@ void main() {
       final session = await sessionDao.getSessionById('session-local-404');
       expect(session, isNotNull);
       expect(session!.state, 'abandoned');
+    });
+
+    test('drops stale session batches on guarded 409 conflict and drains task loop',
+        () async {
+      final now = DateTime.now().toUtc();
+      await seedTripIdentity(
+        localTripId: 'trip-409-session',
+        serverTripId: 'remote-trip-409-session',
+      );
+      await sessionDao.upsertSession(
+        TrackingSessionsCompanion.insert(
+          id: 'session-local-409',
+          tripId: 'trip-409-session',
+          remoteSessionId: const Value('session-remote-409'),
+          clientSessionId: 'client-session-409',
+          state: const Value('active'),
+          startedAt: Value(now),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          serverUpdatedAt: Value(now),
+        ),
+      );
+
+      Future<void> seedBatch(String batchId, String taskId) async {
+        await batchDao.upsertBatch(
+          TrackingPointBatchesCompanion.insert(
+            id: batchId,
+            tripId: 'trip-409-session',
+            sessionId: 'session-local-409',
+            remoteSessionId: const Value('session-remote-409'),
+            clientBatchId: 'client-$batchId',
+            pointsJson: const Value(
+              '[{"point_id":"p-1","recorded_at":"2026-03-23T10:00:00Z","latitude":27.7,"longitude":85.3}]',
+            ),
+            pointCount: const Value(1),
+            localUpdatedAt: now,
+            createdAt: now,
+            updatedAt: now,
+            serverUpdatedAt: const Value(null),
+          ),
+        );
+        await syncTaskDao.upsertQueuedTask(
+          id: taskId,
+          entityType: SyncEntityTypes.trackingPointBatch,
+          entityId: batchId,
+          operation: 'upload',
+        );
+      }
+
+      await seedBatch('batch-local-409-a', 'task-tracking-batch-409-a');
+      await seedBatch('batch-local-409-b', 'task-tracking-batch-409-b');
+
+      fakeApi.batchError = DioException(
+        requestOptions: RequestOptions(path: '/api/v1/live/tracking/points'),
+        response: Response(
+          requestOptions: RequestOptions(path: '/api/v1/live/tracking/points'),
+          statusCode: 409,
+          data: const <String, dynamic>{
+            'detail': 'Tracking session ended',
+            'reason_code': 'session_ended',
+          },
+        ),
+        type: DioExceptionType.badResponse,
+      );
+
+      await worker.startIfIdle();
+
+      final taskA = await readTask('task-tracking-batch-409-a');
+      final taskB = await readTask('task-tracking-batch-409-b');
+      expect(taskA['status'], 'completed');
+      expect(taskB['status'], 'completed');
+      expect(taskA['error_code'], isNull);
+      expect(taskB['error_code'], isNull);
+
+      final batchA = await batchDao.getBatchById('batch-local-409-a');
+      final batchB = await batchDao.getBatchById('batch-local-409-b');
+      expect(batchA, isNotNull);
+      expect(batchB, isNotNull);
+      expect(batchA!.status, 'dropped_stale_session');
+      expect(batchB!.status, 'dropped_stale_session');
+      expect(batchA.syncStatus, 'synced');
+      expect(batchB.syncStatus, 'synced');
+      expect(batchA.lastError, contains('stale_session_conflict_409'));
+      expect(batchB.lastError, contains('stale_session_conflict_409'));
+
+      final session = await sessionDao.getSessionById('session-local-409');
+      expect(session, isNotNull);
+      expect(session!.state, 'abandoned');
+      expect(fakeApi.batchCalls, 1);
     });
 
     test('keeps point batch task pending when remote session id is missing',

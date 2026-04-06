@@ -65,8 +65,10 @@ class LiveTrackingConfirmPlaceResult {
   });
 
   final String placeId;
+
   /// Local row IDs for local state tracking.
   final List<String> syncedRouteMediaIds;
+
   /// Server-assigned IDs for backend rebind calls. Only includes media that
   /// has already synced and received a remote ID.
   final List<String> syncedRouteMediaRemoteIds;
@@ -168,11 +170,13 @@ class LiveTrackingEventRepository {
       operation: 'upload',
     );
     unawaited(
-      _resolver.resolveEventNow(eventId).catchError((_) => const ResolvedPlaceDecision(
-            state: 'on_route_unresolved',
-            confidence: 0,
-            reasonCode: 'no_candidate',
-          )),
+      _resolver
+          .resolveEventNow(eventId)
+          .catchError((_) => const ResolvedPlaceDecision(
+                state: 'on_route_unresolved',
+                confidence: 0,
+                reasonCode: 'no_candidate',
+              )),
     );
     return eventId;
   }
@@ -222,16 +226,6 @@ class LiveTrackingEventRepository {
       operation: 'upload',
     );
 
-    final decision = await _resolver.resolveEventNow(eventId);
-    final shouldBindToPlace =
-        decision.state == 'resolved' && _normalizeText(decision.placeId) != null;
-    final bindMode =
-        shouldBindToPlace ? LiveTrackingMediaBindMode.place : LiveTrackingMediaBindMode.route;
-    final bindState = bindMode == LiveTrackingMediaBindMode.place
-        ? 'queued_place_upload'
-        : 'queued_route_upload';
-    final resolvedPlaceId = shouldBindToPlace ? _normalizeText(decision.placeId) : null;
-
     final mediaId = _uuid.v4();
     final effectiveMimeType = mimeType?.trim().isNotEmpty == true
         ? mimeType!.trim()
@@ -243,9 +237,9 @@ class LiveTrackingEventRepository {
         id: mediaId,
         tripId: tripId,
         eventId: eventId,
-        bindMode: Value(bindMode.wireName),
-        bindState: Value(bindState),
-        tripPlaceId: Value(resolvedPlaceId),
+        bindMode: const Value('route'),
+        bindState: const Value('queued_route_upload'),
+        tripPlaceId: const Value(null),
         anchorLatitude: Value(latitude),
         anchorLongitude: Value(longitude),
         capturedAt: now,
@@ -256,7 +250,7 @@ class LiveTrackingEventRepository {
         fileSizeBytes: Value(effectiveFileSizeBytes),
         width: Value(width),
         height: Value(height),
-        uploadStatus: Value(bindState),
+        uploadStatus: const Value('queued_route_upload'),
         uploadProgress: const Value(0),
         retryCount: const Value(0),
         errorMessage: const Value(null),
@@ -277,11 +271,80 @@ class LiveTrackingEventRepository {
       dependsOnEntityType: SyncEntityTypes.trackingEvent,
       dependsOnEntityId: eventId,
     );
+
+    // Local resolver pass is immediate for UX and does not wait on network fallback.
+    final localDecision = await _resolver.resolveEventNow(
+      eventId,
+      allowNetworkFallback: false,
+    );
+    await _applyPendingMediaBindingForDecision(
+      eventId: eventId,
+      decision: localDecision,
+    );
+
+    // Network fallback reconcile runs asynchronously so capture flow remains responsive.
+    unawaited(
+      _reconcileMediaBindingAsync(
+        eventId: eventId,
+        mediaId: mediaId,
+      ),
+    );
+
     return LiveTrackingMediaCaptureResult(
       eventId: eventId,
       mediaId: mediaId,
-      decision: decision,
+      decision: localDecision,
     );
+  }
+
+  Future<void> _reconcileMediaBindingAsync({
+    required String eventId,
+    required String mediaId,
+  }) async {
+    try {
+      final networkDecision = await _resolver.resolveEventNow(eventId);
+      final resolvedPlaceId = _normalizeText(networkDecision.placeId);
+      if (networkDecision.state == 'review_required') {
+        await _trackingEventMediaDao.forcePendingMediaOnRoute(eventId: eventId);
+        return;
+      }
+      if (networkDecision.state != 'resolved' || resolvedPlaceId == null) {
+        return;
+      }
+
+      final media = await _trackingEventMediaDao.getMediaById(mediaId);
+      if (media == null) {
+        return;
+      }
+      if (_isSyncedStatus(media.syncStatus)) {
+        return;
+      }
+      if (media.bindMode.trim().toLowerCase() != 'route') {
+        return;
+      }
+
+      await _trackingEventMediaDao.promotePendingMediaToPlace(
+        eventId: eventId,
+        tripPlaceId: resolvedPlaceId,
+      );
+    } catch (_) {
+      // Keep capture flow resilient; resolver reconcile is best-effort.
+    }
+  }
+
+  Future<void> _applyPendingMediaBindingForDecision({
+    required String eventId,
+    required ResolvedPlaceDecision decision,
+  }) async {
+    final resolvedPlaceId = _normalizeText(decision.placeId);
+    if (decision.state == 'resolved' && resolvedPlaceId != null) {
+      await _trackingEventMediaDao.promotePendingMediaToPlace(
+        eventId: eventId,
+        tripPlaceId: resolvedPlaceId,
+      );
+      return;
+    }
+    await _trackingEventMediaDao.forcePendingMediaOnRoute(eventId: eventId);
   }
 
   Future<ResolvedPlaceDecision> resolveEventNow(String eventId) =>
@@ -315,16 +378,19 @@ class LiveTrackingEventRepository {
       eventId: eventId,
       tripPlaceId: placeId,
     );
-    final syncedRoute = await _trackingEventMediaDao.getSyncedRouteMediaForEvent(
+    final syncedRoute =
+        await _trackingEventMediaDao.getSyncedRouteMediaForEvent(
       eventId,
     );
     return LiveTrackingConfirmPlaceResult(
       placeId: placeId,
       // Local IDs for local state tracking.
-      syncedRouteMediaIds: syncedRoute.map((row) => row.id).toList(growable: false),
+      syncedRouteMediaIds:
+          syncedRoute.map((row) => row.id).toList(growable: false),
       // Remote IDs for backend rebind calls — only include media that has synced.
       syncedRouteMediaRemoteIds: syncedRoute
-          .where((row) => row.remoteMediaId != null && row.remoteMediaId!.trim().isNotEmpty)
+          .where((row) =>
+              row.remoteMediaId != null && row.remoteMediaId!.trim().isNotEmpty)
           .map((row) => row.remoteMediaId!)
           .toList(growable: false),
     );
@@ -402,6 +468,10 @@ class LiveTrackingEventRepository {
       return null;
     }
     return normalized;
+  }
+
+  static bool _isSyncedStatus(String status) {
+    return status.trim().toLowerCase() == 'synced';
   }
 
   static String? _inferMimeTypeFromPath(String path) {

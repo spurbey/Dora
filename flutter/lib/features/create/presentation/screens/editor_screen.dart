@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1482,11 +1483,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
     final assignablePlaces =
         editor.places.where((place) => place.placeType != 'city').toList();
-    if (assignablePlaces.isEmpty) {
+    final hintOptions = _resolveAssignPlaceHintOptions(
+      entry: entry,
+      assignablePlaces: assignablePlaces,
+    );
+    if (assignablePlaces.isEmpty &&
+        hintOptions.every((hint) => hint.placeId == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Add a place first, then assign captured items.'),
-          duration: Duration(seconds: 2),
+          content: Text(
+            'No assignable places available yet. Add a destination, then assign.',
+          ),
+          duration: Duration(seconds: 3),
         ),
       );
       return;
@@ -1497,19 +1505,50 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       showDragHandle: true,
       builder: (sheetContext) {
         return SafeArea(
-          child: ListView.builder(
-            itemCount: assignablePlaces.length,
-            itemBuilder: (context, index) {
-              final place = assignablePlaces[index];
-              return ListTile(
-                leading: const Icon(Icons.place_outlined),
-                title: Text(place.name),
-                subtitle: place.address?.trim().isNotEmpty == true
-                    ? Text(place.address!.trim())
-                    : null,
-                onTap: () => Navigator.of(sheetContext).pop(place.id),
-              );
-            },
+          child: ListView(
+            children: [
+              if (hintOptions.isNotEmpty) ...[
+                const ListTile(
+                  dense: true,
+                  title: Text(
+                    'Probable places',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                for (final hint in hintOptions)
+                  ListTile(
+                    leading: const Icon(Icons.auto_awesome_outlined),
+                    title: Text(hint.label),
+                    subtitle: Text(
+                      hint.placeId == null
+                          ? 'Suggestion only. Add this place first if needed.'
+                          : '${(hint.confidence * 100).round()}% confidence',
+                    ),
+                    enabled: hint.placeId != null,
+                    onTap: hint.placeId == null
+                        ? null
+                        : () => Navigator.of(sheetContext).pop(hint.placeId),
+                  ),
+              ],
+              if (assignablePlaces.isNotEmpty) ...[
+                const ListTile(
+                  dense: true,
+                  title: Text(
+                    'Trip places',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                for (final place in assignablePlaces)
+                  ListTile(
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(place.name),
+                    subtitle: place.address?.trim().isNotEmpty == true
+                        ? Text(place.address!.trim())
+                        : null,
+                    onTap: () => Navigator.of(sheetContext).pop(place.id),
+                  ),
+              ],
+            ],
           ),
         );
       },
@@ -1562,6 +1601,96 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ),
       );
     }
+  }
+
+  List<_AssignPlaceHintOption> _resolveAssignPlaceHintOptions({
+    required CompiledTimelineEntry entry,
+    required List<Place> assignablePlaces,
+  }) {
+    final rawHints = _readResolverHintsFromPayload(entry.payload);
+    if (rawHints.isEmpty) {
+      return const <_AssignPlaceHintOption>[];
+    }
+
+    String? resolveLocalPlaceId(String rawId) {
+      final trimmed = rawId.trim();
+      if (trimmed.isEmpty) {
+        return null;
+      }
+      for (final place in assignablePlaces) {
+        if (place.id == trimmed || place.serverPlaceId == trimmed) {
+          return place.id;
+        }
+      }
+      return null;
+    }
+
+    final options = <_AssignPlaceHintOption>[];
+    final seen = <String>{};
+    for (final hint in rawHints) {
+      final name = hint['name']?.toString().trim();
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+      final rawPlaceId = hint['place_id']?.toString();
+      final placeId =
+          rawPlaceId == null ? null : resolveLocalPlaceId(rawPlaceId);
+      final confidence = _toDouble(hint['confidence']) ?? 0;
+      final key = '${placeId ?? 'none'}:${name.toLowerCase()}';
+      if (!seen.add(key)) {
+        continue;
+      }
+      options.add(
+        _AssignPlaceHintOption(
+          label: name,
+          confidence: confidence,
+          placeId: placeId,
+        ),
+      );
+      if (options.length >= 3) {
+        break;
+      }
+    }
+    return options;
+  }
+
+  List<Map<String, dynamic>> _readResolverHintsFromPayload(
+    Map<String, dynamic> payload,
+  ) {
+    final directList = payload['resolver_hints'] ?? payload['resolution_hints'];
+    if (directList is List) {
+      return directList
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+    }
+
+    final rawJson =
+        payload['resolution_hint_json'] ?? payload['resolver_hint_json'];
+    if (rawJson is String && rawJson.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawJson);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList(growable: false);
+        }
+      } catch (_) {
+        return const <Map<String, dynamic>>[];
+      }
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 
   Widget _buildWideLayout(
@@ -2260,4 +2389,16 @@ class _MomentEditResult {
 
   final String note;
   final String? linkedTripPlaceId;
+}
+
+class _AssignPlaceHintOption {
+  const _AssignPlaceHintOption({
+    required this.label,
+    required this.confidence,
+    required this.placeId,
+  });
+
+  final String label;
+  final double confidence;
+  final String? placeId;
 }

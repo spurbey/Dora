@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:drift/drift.dart' show Variable;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -38,7 +38,7 @@ final compiledProjectionRepositoryProvider =
 });
 
 final compiledProjectionRefreshSignalProvider =
-    StreamProvider.autoDispose.family<int, String>((ref, tripId) {
+    Provider.autoDispose.family<Stream<int>, String>((ref, tripId) {
   final db = ref.watch(appDatabaseProvider);
   final query = db.customSelect(
     '''
@@ -55,9 +55,13 @@ final compiledProjectionRefreshSignalProvider =
         OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
           SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
         ))
-        OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
-          SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
-        ))
+        OR (
+          t.entity_type = 'tracking_session'
+          AND t.operation IN ('start', 'stop')
+          AND t.entity_id IN (
+            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
+          )
+        )
       )
     ''',
     variables: [
@@ -71,65 +75,92 @@ final compiledProjectionRefreshSignalProvider =
       db.trackingEvents,
       db.trackingEventMedia,
       db.trackingCandidates,
-      db.trackingPointBatches,
+      db.trackingSessions,
     },
   );
-  return query.watchSingle().map((row) {
-    final raw = row.data['refresh_tick'];
-    if (raw is DateTime) {
-      return raw.millisecondsSinceEpoch;
-    }
-    if (raw is int) {
-      return raw;
-    }
-    if (raw is String) {
-      final parsedInt = int.tryParse(raw);
-      if (parsedInt != null) {
-        return parsedInt;
-      }
-      final parsedDate = DateTime.tryParse(raw);
-      if (parsedDate != null) {
-        return parsedDate.millisecondsSinceEpoch;
-      }
-    }
-    return 0;
-  });
+
+  return query
+      .watchSingle()
+      .map((row) => _coerceRefreshTickMillis(row.data['refresh_tick']))
+      .where((tick) => tick > 0)
+      .distinct()
+      .transform(
+        const _TrailingDebounceStreamTransformer<int>(Duration(seconds: 2)),
+      );
 });
 
-/// Fetches compiled projection with immediate fetch + event-driven refresh +
-/// a slow 90-second fallback poll while editor is visible.
+/// Fetches compiled projection with one shared fetch path:
+/// - immediate fetch on subscribe
+/// - debounced refresh triggers from completed sync tasks
+/// - 90-second fallback poll while editor is visible
 final compiledProjectionRemoteProvider =
     StreamProvider.autoDispose.family<CompiledProjectionSnapshot, String>((
   ref,
   tripId,
 ) {
   final repository = ref.watch(compiledProjectionRepositoryProvider);
-  ref.watch(compiledProjectionRefreshSignalProvider(tripId));
+  final refreshSignals =
+      ref.watch(compiledProjectionRefreshSignalProvider(tripId));
 
-  Stream<CompiledProjectionSnapshot> poll() async* {
-    var disposed = false;
-    var emittedError = false;
-    ref.onDispose(() {
-      disposed = true;
-    });
-    while (!disposed) {
-      try {
-        yield await repository.fetchProjection(tripId: tripId);
-        emittedError = false;
-      } catch (error, stackTrace) {
-        if (!emittedError) {
-          emittedError = true;
-          yield* Stream<CompiledProjectionSnapshot>.error(error, stackTrace);
-        }
+  // Keep this provider warm briefly across route rebuilds.
+  final keepAliveLink = ref.keepAlive();
+  Timer? disposeGraceTimer;
+  ref.onCancel(() {
+    disposeGraceTimer?.cancel();
+    disposeGraceTimer = Timer(
+      const Duration(seconds: 20),
+      keepAliveLink.close,
+    );
+  });
+  ref.onResume(() {
+    disposeGraceTimer?.cancel();
+    disposeGraceTimer = null;
+  });
+
+  final controller = StreamController<CompiledProjectionSnapshot>();
+  var disposed = false;
+
+  Future<void> emitFetch() async {
+    if (disposed || controller.isClosed) {
+      return;
+    }
+    try {
+      final snapshot = await repository.fetchProjection(tripId: tripId);
+      if (!disposed && !controller.isClosed) {
+        controller.add(snapshot);
       }
-      if (disposed) {
-        break;
+    } catch (error, stackTrace) {
+      if (!disposed && !controller.isClosed) {
+        controller.addError(error, stackTrace);
       }
-      await Future<void>.delayed(const Duration(seconds: 90));
     }
   }
 
-  return poll();
+  final refreshSub = refreshSignals.listen(
+    (_) => unawaited(emitFetch()),
+    onError: (Object error, StackTrace stackTrace) {
+      if (!disposed && !controller.isClosed) {
+        controller.addError(error, stackTrace);
+      }
+    },
+  );
+
+  final pollTimer = Timer.periodic(
+    const Duration(seconds: 90),
+    (_) => unawaited(emitFetch()),
+  );
+
+  unawaited(emitFetch());
+
+  ref.onDispose(() {
+    disposed = true;
+    disposeGraceTimer?.cancel();
+    pollTimer.cancel();
+    unawaited(refreshSub.cancel());
+    unawaited(controller.close());
+  });
+
+  return controller.stream;
 });
 
 final _trackingEventsForTripProvider =
@@ -233,12 +264,10 @@ class CompiledProjectionView {
       if (!_isStorylineEventType(row.eventType)) {
         continue;
       }
-      // Keep local items unless dedupe shows remote already contains them.
-      // This prevents empty states when remote compilation lags behind sync.
       final clientEventId = _normalizedClientEventId(row);
-      if (remoteSourceIds.contains(row.id) ||
-          (clientEventId != null &&
-              remoteClientEventIds.contains(clientEventId))) {
+      if ((clientEventId != null &&
+              remoteClientEventIds.contains(clientEventId)) ||
+          remoteSourceIds.contains(row.id)) {
         continue;
       }
       overlayEntries.add(
@@ -261,7 +290,7 @@ class CompiledProjectionView {
           subtitle: _isSynced(row.syncStatus)
               ? _subtitleForSyncedLocalRow(row)
               : _subtitleForLocalRow(row),
-          payload: _decodeJsonMap(row.payloadJson),
+          payload: _payloadForLocalRow(row),
           clientEventId: clientEventId,
           isLocalPending: !_isSynced(row.syncStatus),
         ),
@@ -365,6 +394,27 @@ String _subtitleForSyncedLocalRow(TrackingEventRow row) {
   return 'Synced - on route';
 }
 
+Map<String, dynamic> _payloadForLocalRow(TrackingEventRow row) {
+  final payload = _decodeJsonMap(row.payloadJson);
+  final clientEventId = row.clientEventId?.trim();
+  if (clientEventId != null && clientEventId.isNotEmpty) {
+    payload.putIfAbsent('client_event_id', () => clientEventId);
+  }
+  final resolverState = row.resolverState.trim();
+  if (resolverState.isNotEmpty) {
+    payload['resolver_state'] = resolverState;
+  }
+  final hintJson = row.resolutionHintJson?.trim() ?? '';
+  if (hintJson.isNotEmpty) {
+    payload['resolution_hint_json'] = hintJson;
+    final parsedHints = _decodeJsonList(hintJson);
+    if (parsedHints != null) {
+      payload.putIfAbsent('resolver_hints', () => parsedHints);
+    }
+  }
+  return payload;
+}
+
 Map<String, dynamic> _decodeJsonMap(String raw) {
   if (raw.trim().isEmpty) {
     return <String, dynamic>{};
@@ -381,4 +431,92 @@ Map<String, dynamic> _decodeJsonMap(String raw) {
     // Ignore malformed payloads and fall back to empty map.
   }
   return <String, dynamic>{};
+}
+
+List<Map<String, dynamic>>? _decodeJsonList(String raw) {
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) {
+      return null;
+    }
+    return decoded
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  } catch (_) {
+    return null;
+  }
+}
+
+int _coerceRefreshTickMillis(dynamic raw) {
+  if (raw is DateTime) {
+    return raw.millisecondsSinceEpoch;
+  }
+  if (raw is int) {
+    return raw;
+  }
+  if (raw is String) {
+    final parsedInt = int.tryParse(raw);
+    if (parsedInt != null) {
+      return parsedInt;
+    }
+    final parsedDate = DateTime.tryParse(raw);
+    if (parsedDate != null) {
+      return parsedDate.millisecondsSinceEpoch;
+    }
+  }
+  return 0;
+}
+
+class _TrailingDebounceStreamTransformer<T>
+    extends StreamTransformerBase<T, T> {
+  const _TrailingDebounceStreamTransformer(this.duration);
+
+  final Duration duration;
+
+  @override
+  Stream<T> bind(Stream<T> stream) {
+    late StreamController<T> controller;
+    StreamSubscription<T>? subscription;
+    Timer? timer;
+    T? latest;
+    var hasLatest = false;
+
+    void emitLatest() {
+      if (!hasLatest) {
+        return;
+      }
+      controller.add(latest as T);
+      hasLatest = false;
+      latest = null;
+    }
+
+    controller = StreamController<T>(
+      onListen: () {
+        subscription = stream.listen(
+          (event) {
+            latest = event;
+            hasLatest = true;
+            timer?.cancel();
+            timer = Timer(duration, emitLatest);
+          },
+          onError: controller.addError,
+          onDone: () {
+            timer?.cancel();
+            emitLatest();
+            unawaited(controller.close());
+          },
+          cancelOnError: false,
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () async {
+        timer?.cancel();
+        await subscription?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
 }

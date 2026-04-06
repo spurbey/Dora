@@ -80,6 +80,21 @@ void main() {
       expect(status.kind, EditorSyncStatusKind.synced);
       expect(status.label, 'Synced');
     });
+
+    test('returns partial synced label when stale GPS drops were recovered', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          blockedItems: 0,
+          failedItems: 0,
+          activeItems: 0,
+          unsyncedRows: 0,
+          droppedPointBatchItems: 2,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.synced);
+      expect(status.label, 'Synced (GPS drops recovered)');
+    });
   });
 
   test('editorSyncStatusProvider includes blocked tracking tasks for trip',

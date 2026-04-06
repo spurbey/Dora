@@ -202,13 +202,16 @@ final liveTrackingMapOverlayProvider =
     final sessionBatches =
         ref.watch(liveTrackingSessionBatchesProvider(sessionId)).valueOrNull ??
             const <TrackingPointBatchRow>[];
+    final renderableBatches = sessionBatches
+        .where((batch) => batch.status != 'dropped_stale_session')
+        .toList(growable: false);
     final localOverlay = buildLiveTrackingMapOverlay(
       snapshot: LiveTrackingRuntimeSnapshot(
         tripId: tripId,
         state: runtimeState,
         sessionId: sessionId,
       ),
-      sessionBatches: sessionBatches,
+      sessionBatches: renderableBatches,
     );
     final remotePath =
         ref.watch(liveTrackingRemotePathPointsProvider(tripId)).valueOrNull ??

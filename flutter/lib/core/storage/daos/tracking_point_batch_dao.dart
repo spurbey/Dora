@@ -191,6 +191,61 @@ class TrackingPointBatchDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<int> markDroppedStaleSession({
+    required String batchId,
+    required String reason,
+    DateTime? updatedAt,
+  }) {
+    final now = (updatedAt ?? DateTime.now()).toUtc();
+    return (update(trackingPointBatches)..where((b) => b.id.equals(batchId)))
+        .write(
+      TrackingPointBatchesCompanion(
+        status: const Value('dropped_stale_session'),
+        syncStatus: const Value('synced'),
+        retryCount: const Value(0),
+        nextAttemptAt: const Value(null),
+        workerSessionId: const Value(null),
+        lastError: Value(reason),
+        localUpdatedAt: Value(now),
+        serverUpdatedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<int> markSessionBatchesDroppedStaleSession({
+    required String sessionId,
+    required String reason,
+    DateTime? updatedAt,
+  }) async {
+    final now = (updatedAt ?? DateTime.now()).toUtc();
+    return customUpdate(
+      '''
+      UPDATE tracking_point_batches
+      SET
+        status = 'dropped_stale_session',
+        sync_status = 'synced',
+        retry_count = 0,
+        next_attempt_at = NULL,
+        worker_session_id = NULL,
+        last_error = ?,
+        local_updated_at = ?,
+        server_updated_at = ?,
+        updated_at = ?
+      WHERE session_id = ?
+        AND status NOT IN ('completed', 'dropped_stale_session')
+      ''',
+      variables: [
+        Variable<String>(reason),
+        Variable<DateTime>(now),
+        Variable<DateTime>(now),
+        Variable<DateTime>(now),
+        Variable<String>(sessionId),
+      ],
+      updates: {trackingPointBatches},
+    );
+  }
+
   Future<int> clearWorkerSession({
     required String batchId,
     String? expectedSessionId,

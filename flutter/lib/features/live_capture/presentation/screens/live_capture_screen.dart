@@ -663,6 +663,16 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       variables: [Variable<String>(tripId)],
       readsFrom: {db.trackingPointBatches},
     ).get();
+    var droppedBatchCount = 0;
+    var droppedPointCount = 0;
+    for (final row in pointStats) {
+      final status = row.read<String>('status');
+      if (status != 'dropped_stale_session') {
+        continue;
+      }
+      droppedBatchCount += row.read<int>('cnt');
+      droppedPointCount += row.read<int?>('total_points') ?? 0;
+    }
 
     // 8. Global active session count (invariant guardrail)
     final activeSessionCountRow = await db.customSelect(
@@ -754,6 +764,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     buf.writeln('== Guardrails ==');
     buf.writeln('activeSessionsGlobal: $activeSessionCount');
     buf.writeln('tripTaskUpdatesLast60s: $recentTaskActivity');
+    buf.writeln(
+      'droppedStaleBatches: $droppedBatchCount ($droppedPointCount points)',
+    );
     if (retryCodeRows.isEmpty) {
       buf.writeln('retryCodes: (none)');
     } else {
@@ -1101,6 +1114,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         final projectionRepository =
             ref.read(compiledProjectionRepositoryProvider);
         var rebindFailures = 0;
+        final failureMessages = <String>{};
         for (final remoteMediaId in result.syncedRouteMediaRemoteIds) {
           try {
             final snapshot = await projectionRepository.rebind(
@@ -1112,15 +1126,21 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             );
             if (snapshot == null) {
               rebindFailures++;
+              failureMessages.add('media not ready for server rebind');
             }
-          } catch (_) {
+          } catch (error) {
             rebindFailures++;
+            failureMessages.add(error.toString());
           }
         }
         if (rebindFailures > 0 && mounted) {
-          ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
+          final detail = failureMessages.isEmpty
+              ? '$rebindFailures media rebind(s) pending sync.'
+              : '$rebindFailures media rebind(s) pending sync. '
+                  '${failureMessages.first}';
           _showMessage(
-              'Place confirmed locally. $rebindFailures media rebind(s) pending sync.');
+            'Place confirmed locally. $detail',
+          );
           _dismissedReviewPromptEventIds.add(eventId);
           return;
         }
@@ -1571,7 +1591,7 @@ class _ProbablePlacePromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topHint = hints.first;
+    final visibleHints = hints.take(3).toList(growable: false);
     return Container(
       key: const ValueKey('liveCaptureProbablePlacePrompt'),
       padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
@@ -1592,27 +1612,28 @@ class _ProbablePlacePromptCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${topHint.name} (${(topHint.confidence * 100).round()}%)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textPrimary,
-                    fontSize: 11,
+          for (var i = 0; i < visibleHints.length; i++)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${visibleHints[i].name} (${(visibleHints[i].confidence * 100).round()}%)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: onConfirmHint == null
-                    ? null
-                    : () => onConfirmHint!(topHint),
-                child: const Text('Confirm'),
-              ),
-            ],
-          ),
+                TextButton(
+                  onPressed: onConfirmHint == null
+                      ? null
+                      : () => onConfirmHint!(visibleHints[i]),
+                  child: Text(i == 0 ? 'Confirm' : 'Use'),
+                ),
+              ],
+            ),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: 0,

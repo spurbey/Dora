@@ -54,6 +54,13 @@ EditorSyncStatus resolveEditorSyncStatus(EditorSyncSnapshot snapshot) {
       snapshot: snapshot,
     );
   }
+  if (snapshot.droppedPointBatchItems > 0) {
+    return EditorSyncStatus(
+      kind: EditorSyncStatusKind.synced,
+      label: 'Synced (GPS drops recovered)',
+      snapshot: snapshot,
+    );
+  }
   return EditorSyncStatus(
     kind: EditorSyncStatusKind.synced,
     label: 'Synced',
@@ -152,6 +159,11 @@ final editorSyncStatusProvider =
         WHERE em.trip_id = ? AND em.sync_status <> 'synced'
       ) AS unsynced_tracking_media_rows,
       (
+        SELECT COUNT(*)
+        FROM tracking_point_batches AS b
+        WHERE b.trip_id = ? AND b.status = 'dropped_stale_session'
+      ) AS dropped_point_batch_rows,
+      (
         SELECT entity_type
         FROM scoped_sync_tasks
         WHERE status = 'blocked'
@@ -200,6 +212,7 @@ final editorSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -229,6 +242,7 @@ final editorSyncStatusProvider =
         row.read<int>('unsynced_tracking_media_rows');
     final blockedMediaItems = row.read<int>('blocked_media');
     final failedMediaItems = row.read<int>('failed_media');
+    final droppedPointBatchItems = row.read<int>('dropped_point_batch_rows');
     final firstBlockedTaskEntityType =
         row.data['first_blocked_task_entity_type'] as String?;
     final firstBlockedTaskEntityId =
@@ -246,6 +260,7 @@ final editorSyncStatusProvider =
         unsyncedRows: unsyncedRows,
         blockedMediaItems: blockedMediaItems,
         failedMediaItems: failedMediaItems,
+        droppedPointBatchItems: droppedPointBatchItems,
         firstBlockedTaskEntityType: firstBlockedTaskEntityType,
         firstBlockedTaskEntityId: firstBlockedTaskEntityId,
         firstBlockedTaskErrorMessage: firstBlockedTaskErrorMessage,
@@ -347,6 +362,11 @@ final liveTrackingSyncStatusProvider =
         WHERE em.trip_id = ? AND em.sync_status <> 'synced'
       ) AS unsynced_tracking_media_rows,
       (
+        SELECT COUNT(*)
+        FROM tracking_point_batches AS b
+        WHERE b.trip_id = ? AND b.status = 'dropped_stale_session'
+      ) AS dropped_point_batch_rows,
+      (
         SELECT entity_type
         FROM scoped_tracking_tasks
         WHERE status = 'blocked'
@@ -398,6 +418,7 @@ final liveTrackingSyncStatusProvider =
       Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
       db.syncTasks,
@@ -422,6 +443,7 @@ final liveTrackingSyncStatusProvider =
         row.read<int>('unsynced_candidate_rows') +
         row.read<int>('unsynced_event_rows') +
         row.read<int>('unsynced_tracking_media_rows');
+    final droppedPointBatchItems = row.read<int>('dropped_point_batch_rows');
     final firstBlockedTaskEntityType =
         row.data['first_blocked_task_entity_type'] as String?;
     final firstBlockedTaskEntityId =
@@ -437,6 +459,7 @@ final liveTrackingSyncStatusProvider =
         unsyncedRows: unsyncedRows,
         blockedMediaItems: 0,
         failedMediaItems: 0,
+        droppedPointBatchItems: droppedPointBatchItems,
         firstBlockedTaskEntityType: firstBlockedTaskEntityType,
         firstBlockedTaskEntityId: firstBlockedTaskEntityId,
         firstBlockedTaskErrorMessage: firstBlockedTaskErrorMessage,
@@ -454,6 +477,7 @@ class EditorSyncSnapshot {
     required this.unsyncedRows,
     this.blockedMediaItems = 0,
     this.failedMediaItems = 0,
+    this.droppedPointBatchItems = 0,
     this.firstBlockedTaskEntityType,
     this.firstBlockedTaskEntityId,
     this.firstBlockedTaskErrorMessage,
@@ -466,6 +490,7 @@ class EditorSyncSnapshot {
   final int unsyncedRows;
   final int blockedMediaItems;
   final int failedMediaItems;
+  final int droppedPointBatchItems;
   final String? firstBlockedTaskEntityType;
   final String? firstBlockedTaskEntityId;
   final String? firstBlockedTaskErrorMessage;

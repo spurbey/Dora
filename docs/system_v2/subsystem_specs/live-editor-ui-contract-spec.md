@@ -52,7 +52,8 @@ It covers:
 
 ### 6.1 Source
 
-1. Both Live and Editor consume unresolved items from the same local data source (`unresolved_inbox_view`).
+1. Both Live and Editor consume unresolved items from the same computed local source (`unresolved_inbox` provider/query).
+2. `unresolved_inbox` is derived from `event_journal + resolver_candidate_journal` and is not a persisted table.
 
 ### 6.2 Placement
 

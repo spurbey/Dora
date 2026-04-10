@@ -20,6 +20,12 @@ import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/daos/trip_dao.dart';
 import 'package:dora/core/storage/daos/user_trips_dao.dart';
+import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/tables/media_table.dart';
 import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
@@ -33,6 +39,13 @@ import 'package:dora/core/storage/tables/tracking_point_batches_table.dart';
 import 'package:dora/core/storage/tables/tracking_sessions_table.dart';
 import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
+import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/media_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/resolver_attempt_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/resolver_candidate_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/route_point_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/session_activity_window_table.dart';
+import 'package:dora/core/storage/tables/v2/session_journal_table.dart';
 
 part 'drift_database.g.dart';
 
@@ -51,6 +64,13 @@ part 'drift_database.g.dart';
     TrackingMoments,
     TrackingEvents,
     TrackingEventMedia,
+    SessionJournal,
+    SessionActivityWindow,
+    RoutePointJournal,
+    EventJournal,
+    MediaJournal,
+    ResolverCandidateJournal,
+    ResolverAttemptJournal,
   ],
   daos: [
     TripDao,
@@ -66,13 +86,19 @@ part 'drift_database.g.dart';
     TrackingMomentDao,
     TrackingEventDao,
     TrackingEventMediaDao,
+    SessionJournalDao,
+    RoutePointJournalDao,
+    EventJournalDao,
+    MediaJournalDao,
+    ResolverCandidateJournalDao,
+    ResolverAttemptJournalDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -355,6 +381,124 @@ class AppDatabase extends _$AppDatabase {
               CREATE UNIQUE INDEX IF NOT EXISTS tracking_sessions_single_active_idx
               ON tracking_sessions(state)
               WHERE state = 'active'
+              ''',
+            );
+          }
+          if (from < 18) {
+            await m.createTable(sessionJournal);
+            await m.createTable(sessionActivityWindow);
+            await m.createTable(routePointJournal);
+            await m.createTable(eventJournal);
+            await m.createTable(mediaJournal);
+            await m.createTable(resolverCandidateJournal);
+            await m.createTable(resolverAttemptJournal);
+
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_journal_trip_state_updated_idx
+              ON session_journal (trip_local_id, control_state, updated_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_journal_trip_started_idx
+              ON session_journal (trip_local_id, started_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_activity_window_session_seq_idx
+              ON session_activity_window (session_id, window_seq)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_activity_window_session_started_idx
+              ON session_activity_window (session_id, started_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_point_journal_session_captured_idx
+              ON route_point_journal (session_id, captured_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_point_journal_trip_captured_idx
+              ON route_point_journal (trip_local_id, captured_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_point_journal_session_seq_idx
+              ON route_point_journal (session_id, point_seq)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS event_journal_session_captured_idx
+              ON event_journal (session_id, captured_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS event_journal_trip_resolver_captured_idx
+              ON event_journal (trip_local_id, resolver_state, captured_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS event_journal_trip_manual_resolver_idx
+              ON event_journal (trip_local_id, manual_lock, resolver_state)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS event_journal_session_seq_idx
+              ON event_journal (session_id, event_seq)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS media_journal_event_idx
+              ON media_journal (event_id)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS media_journal_session_upload_state_idx
+              ON media_journal (session_id, upload_state)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS media_journal_trip_captured_idx
+              ON media_journal (trip_local_id, captured_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS resolver_candidate_journal_event_version_rank_idx
+              ON resolver_candidate_journal (event_id, candidate_version, rank_index)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS resolver_candidate_journal_event_version_tie_idx
+              ON resolver_candidate_journal (event_id, candidate_version, is_top_tied)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS resolver_attempt_journal_event_attempt_idx
+              ON resolver_attempt_journal (event_id, attempt_no)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS resolver_attempt_journal_started_idx
+              ON resolver_attempt_journal (started_at)
               ''',
             );
           }

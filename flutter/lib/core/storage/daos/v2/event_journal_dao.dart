@@ -1,0 +1,92 @@
+import 'package:drift/drift.dart';
+
+import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
+
+part 'event_journal_dao.g.dart';
+
+@DriftAccessor(tables: [EventJournal])
+class EventJournalDao extends DatabaseAccessor<AppDatabase>
+    with _$EventJournalDaoMixin {
+  EventJournalDao(super.db);
+
+  Future<EventJournalRow?> getEventById(String eventId) =>
+      (select(eventJournal)..where((row) => row.eventId.equals(eventId)))
+          .getSingleOrNull();
+
+  Future<int> upsertEvent(EventJournalCompanion row) =>
+      into(eventJournal).insertOnConflictUpdate(row);
+
+  Future<List<EventJournalRow>> listEventsForSession(String sessionId) =>
+      (select(eventJournal)
+            ..where((row) => row.sessionId.equals(sessionId))
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.eventSeq,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
+  Future<List<EventJournalRow>> listEventsForTrip(String tripLocalId) =>
+      (select(eventJournal)
+            ..where((row) => row.tripLocalId.equals(tripLocalId))
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ]))
+          .get();
+
+  Stream<List<EventJournalRow>> watchEventsForTrip(String tripLocalId) =>
+      (select(eventJournal)
+            ..where((row) => row.tripLocalId.equals(tripLocalId))
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ]))
+          .watch();
+
+  Future<List<EventJournalRow>> listUnresolvedEventsForTrip(
+    String tripLocalId, {
+    int limit = 50,
+  }) =>
+      (select(eventJournal)
+            ..where(
+              (row) =>
+                  row.tripLocalId.equals(tripLocalId) &
+                  row.resolverState
+                      .isIn(const ['geotag_unresolved', 'review_required']),
+            )
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(limit))
+          .get();
+
+  Stream<List<EventJournalRow>> watchUnresolvedEventsForTrip(
+    String tripLocalId, {
+    int limit = 50,
+  }) =>
+      (select(eventJournal)
+            ..where(
+              (row) =>
+                  row.tripLocalId.equals(tripLocalId) &
+                  row.resolverState
+                      .isIn(const ['geotag_unresolved', 'review_required']),
+            )
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(limit))
+          .watch();
+}

@@ -37,6 +37,26 @@ Future<Set<String>> _trackingIndexNames(AppDatabase db) async {
   return rows.map((row) => row.read<String>('name')).toSet();
 }
 
+Future<Set<String>> _v2IndexNames(AppDatabase db) async {
+  final rows = await db.customSelect(
+    '''
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'index'
+      AND (
+        name LIKE 'session_journal_%_idx' OR
+        name LIKE 'session_activity_window_%_idx' OR
+        name LIKE 'route_point_journal_%_idx' OR
+        name LIKE 'event_journal_%_idx' OR
+        name LIKE 'media_journal_%_idx' OR
+        name LIKE 'resolver_candidate_journal_%_idx' OR
+        name LIKE 'resolver_attempt_journal_%_idx'
+      )
+    ''',
+  ).get();
+  return rows.map((row) => row.read<String>('name')).toSet();
+}
+
 void main() {
   group('AppDatabase migration', () {
     test('upgrades schema v13 to v15 and applies resolver columns/indexes',
@@ -124,6 +144,102 @@ void main() {
             .getSingleOrNull();
         expect(trip, isNotNull);
         expect(trip!.name, 'Migration Trip');
+      } finally {
+        await seedDb?.close();
+        await upgradedDb?.close();
+        if (await dbFile.exists()) {
+          await dbFile.delete();
+        }
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      }
+    });
+
+    test('upgrades schema v17 to v18 and creates fresh V2 journal tables',
+        () async {
+      final tempDir = await Directory.systemTemp.createTemp('dora_drift_v2_');
+      final dbFile = File(p.join(tempDir.path, 'app_migration_v2_test.db'));
+
+      AppDatabase? seedDb;
+      AppDatabase? upgradedDb;
+      try {
+        seedDb = AppDatabase(NativeDatabase(dbFile));
+        final now = DateTime.utc(2026, 4, 10, 14, 0);
+        await seedDb.into(seedDb.trips).insert(
+              TripsCompanion.insert(
+                id: 'trip-v2-migration-1',
+                userId: 'user-v2-migration-1',
+                name: 'V2 Migration Trip',
+                localUpdatedAt: now,
+                serverUpdatedAt: now,
+                syncStatus: 'synced',
+                createdAt: now,
+              ),
+            );
+
+        await seedDb.customStatement('DROP TABLE IF EXISTS session_journal');
+        await seedDb
+            .customStatement('DROP TABLE IF EXISTS session_activity_window');
+        await seedDb
+            .customStatement('DROP TABLE IF EXISTS route_point_journal');
+        await seedDb.customStatement('DROP TABLE IF EXISTS event_journal');
+        await seedDb.customStatement('DROP TABLE IF EXISTS media_journal');
+        await seedDb
+            .customStatement('DROP TABLE IF EXISTS resolver_candidate_journal');
+        await seedDb
+            .customStatement('DROP TABLE IF EXISTS resolver_attempt_journal');
+        await seedDb.customStatement('PRAGMA user_version = 17');
+        await seedDb.close();
+        seedDb = null;
+
+        upgradedDb = AppDatabase(NativeDatabase(dbFile));
+
+        expect(await _tableExists(upgradedDb, 'session_journal'), isTrue);
+        expect(
+            await _tableExists(upgradedDb, 'session_activity_window'), isTrue);
+        expect(await _tableExists(upgradedDb, 'route_point_journal'), isTrue);
+        expect(await _tableExists(upgradedDb, 'event_journal'), isTrue);
+        expect(await _tableExists(upgradedDb, 'media_journal'), isTrue);
+        expect(
+          await _tableExists(upgradedDb, 'resolver_candidate_journal'),
+          isTrue,
+        );
+        expect(
+          await _tableExists(upgradedDb, 'resolver_attempt_journal'),
+          isTrue,
+        );
+
+        final v2Indexes = await _v2IndexNames(upgradedDb);
+        expect(
+          v2Indexes,
+          containsAll(<String>{
+            'session_journal_trip_state_updated_idx',
+            'session_journal_trip_started_idx',
+            'session_activity_window_session_seq_idx',
+            'session_activity_window_session_started_idx',
+            'route_point_journal_session_captured_idx',
+            'route_point_journal_trip_captured_idx',
+            'route_point_journal_session_seq_idx',
+            'event_journal_session_captured_idx',
+            'event_journal_trip_resolver_captured_idx',
+            'event_journal_trip_manual_resolver_idx',
+            'event_journal_session_seq_idx',
+            'media_journal_event_idx',
+            'media_journal_session_upload_state_idx',
+            'media_journal_trip_captured_idx',
+            'resolver_candidate_journal_event_version_rank_idx',
+            'resolver_candidate_journal_event_version_tie_idx',
+            'resolver_attempt_journal_event_attempt_idx',
+            'resolver_attempt_journal_started_idx',
+          }),
+        );
+
+        final trip = await (upgradedDb.select(upgradedDb.trips)
+              ..where((t) => t.id.equals('trip-v2-migration-1')))
+            .getSingleOrNull();
+        expect(trip, isNotNull);
+        expect(trip!.name, 'V2 Migration Trip');
       } finally {
         await seedDb?.close();
         await upgradedDb?.close();

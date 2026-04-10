@@ -251,27 +251,27 @@ Indexes:
 1. `(event_id, attempt_no)`
 2. `(started_at)`
 
-### 7.7 `unresolved_inbox_view` (materialized local table)
+### 7.7 `unresolved_inbox` (computed provider/query)
 
-A UI-ready projection for unresolved review items.
+`unresolved_inbox` is a computed local projection and is not stored as a
+materialized table in this phase.
 
-Columns:
+Source rows:
 
-1. `inbox_item_id` TEXT PRIMARY KEY
-2. `event_id` TEXT NOT NULL
-3. `trip_local_id` TEXT NOT NULL
-4. `session_id` TEXT NOT NULL
-5. `event_type` TEXT NOT NULL
-6. `captured_at` DATETIME NOT NULL
-7. `resolver_state` TEXT NOT NULL
-8. `top_candidates_json` TEXT NULL
-9. `manual_lock` INTEGER NOT NULL
-10. `last_activity_at` DATETIME NOT NULL
+1. `event_journal`
+2. `resolver_candidate_journal`
 
-Indexes:
+Computed shape:
 
-1. `(trip_local_id, last_activity_at DESC)`
-2. `(trip_local_id, resolver_state, manual_lock)`
+1. `event_id`
+2. `trip_local_id`
+3. `session_id`
+4. `event_type`
+5. `captured_at`
+6. `resolver_state`
+7. `manual_lock`
+8. `top_candidates` (max 3, derived from latest candidate version)
+9. `last_activity_at` (derived from event/resolver timestamps)
 
 ## 8. Resolver State Machine
 
@@ -297,8 +297,16 @@ Resolver may apply only when `manual_lock = 0`.
 - clear `place_bind_*`
 - persist candidate list in candidate table
 
-3. No reliable candidate:
-- `resolver_state = geotag_unresolved` until user acts.
+  3. No reliable candidate:
+  - `resolver_state = geotag_unresolved` until user acts.
+  - No automatic retry is triggered after a successful response (even empty).
+
+  ### 8.2.1 Resolver Attempt Policy (Lock)
+
+  1. Run once at capture if network is available.
+  2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
+  3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
+  4. No manual retry UI exists in V2; further attempts must not occur.
 
 ### 8.3 Manual transitions
 
@@ -359,7 +367,7 @@ No reliable candidate rule:
 
 ## 10. Shared Unresolved Inbox Contract
 
-Live and Editor must read from the same source (`unresolved_inbox_view`).
+Live and Editor must read from the same computed source (`unresolved_inbox`).
 
 ### 10.1 Sorting
 

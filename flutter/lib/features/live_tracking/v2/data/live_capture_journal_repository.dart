@@ -68,6 +68,12 @@ class V2LiveCaptureJournalRepository {
     Map<String, dynamic>? payload,
   }) async {
     final session = await _activeSessionOrThrow(tripId);
+    if (latitude == null || longitude == null) {
+      throw const V2LiveCaptureWriteException(
+        code: 'location_unavailable',
+        message: 'Location is required to capture this event.',
+      );
+    }
     final now = _now().toUtc();
     final eventId = _uuid.v4();
     final eventSeq = await _nextEventSeq(session.sessionId);
@@ -77,8 +83,8 @@ class V2LiveCaptureJournalRepository {
       tripLocalId: tripId,
       eventType: _eventTypeWireName(eventType),
       capturedAt: now,
-      latitude: latitude ?? 0,
-      longitude: longitude ?? 0,
+      latitude: latitude,
+      longitude: longitude,
       payloadJson: payload == null ? null : jsonEncode(payload),
       resolverState: 'geotag_unresolved',
       decisionSource: null,
@@ -106,6 +112,12 @@ class V2LiveCaptureJournalRepository {
     Map<String, dynamic>? payload,
   }) async {
     final session = await _activeSessionOrThrow(tripId);
+    if (latitude == null || longitude == null) {
+      throw const V2LiveCaptureWriteException(
+        code: 'location_unavailable',
+        message: 'Location is required to capture this media.',
+      );
+    }
     final now = _now().toUtc();
     final eventId = _uuid.v4();
     final eventSeq = await _nextEventSeq(session.sessionId);
@@ -116,8 +128,8 @@ class V2LiveCaptureJournalRepository {
       tripLocalId: tripId,
       eventType: _eventTypeWireName(eventType),
       capturedAt: now,
-      latitude: latitude ?? 0,
-      longitude: longitude ?? 0,
+      latitude: latitude,
+      longitude: longitude,
       payloadJson: jsonEncode(
         <String, dynamic>{
           ...?payload,

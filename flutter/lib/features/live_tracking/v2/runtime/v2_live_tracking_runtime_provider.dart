@@ -47,6 +47,17 @@ final v2LiveTrackingRuntimeSnapshotProvider =
   return repository.watchRuntimeSnapshot(tripId);
 });
 
+final v2HasActiveSessionProvider =
+    StreamProvider.autoDispose.family<bool, String>((ref, tripId) {
+  final sessionRepository = ref.watch(v2SessionJournalRepositoryProvider);
+  return sessionRepository.watchLatestSessionForTrip(tripId).map((row) {
+    if (row == null) {
+      return false;
+    }
+    return row.controlState == 'active' || row.controlState == 'paused';
+  });
+});
+
 final v2LiveTrackingSessionPointsProvider =
     StreamProvider.autoDispose.family<List<RoutePointJournalRow>, String>(
   (ref, sessionId) {

@@ -86,6 +86,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     latitude: 20.5937,
     longitude: 78.9629,
   );
+  bool _useV2Lane = false;
   bool _actionInFlight = false;
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
@@ -174,7 +175,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
-    final useV2Lane = !usePreview &&
+    final gateEnabled = !usePreview &&
         ref.read(liveSystemV2RolloutGateProvider).evaluate(
           tripId: widget.tripId,
           surface: LiveSystemV2Surface.live,
@@ -182,6 +183,12 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             LiveSystemV2Subsystem.localJournal,
           },
         ).enabled;
+    final v2HasActiveSession = usePreview
+        ? false
+        : (ref.watch(v2HasActiveSessionProvider(widget.tripId)).valueOrNull ??
+            false);
+    final useV2Lane = !usePreview && (gateEnabled || v2HasActiveSession);
+    _useV2Lane = useV2Lane;
     if (!usePreview) {
       if (useV2Lane) {
         ref.watch(v2CaptureBootstrapProvider);
@@ -626,13 +633,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     if (widget.previewState != null) {
       return false;
     }
-    return ref.read(liveSystemV2RolloutGateProvider).evaluate(
-      tripId: widget.tripId,
-      surface: LiveSystemV2Surface.live,
-      requiredSubsystems: const {
-        LiveSystemV2Subsystem.localJournal,
-      },
-    ).enabled;
+    return _useV2Lane;
   }
 
   List<LiveCaptureRecentEventItem> _mapV1RecentEvents(
@@ -1099,6 +1100,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     });
     try {
       if (_isV2LaneEnabled()) {
+        if (position == null) {
+          _showMessage('Location required to capture this event.');
+          return;
+        }
         await ref.read(v2LiveCaptureJournalRepositoryProvider).createEventNow(
           tripId: widget.tripId,
           eventType: eventType,

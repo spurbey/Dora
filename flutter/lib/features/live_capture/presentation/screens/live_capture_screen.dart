@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Variable;
@@ -37,6 +38,8 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_bot
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
+import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
+import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 
 final liveCaptureTripNameProvider =
     StreamProvider.autoDispose.family<String, String>((ref, tripId) {
@@ -171,31 +174,43 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
+    final useV2Lane = !usePreview &&
+        ref.read(liveSystemV2RolloutGateProvider).evaluate(
+          tripId: widget.tripId,
+          surface: LiveSystemV2Surface.live,
+          requiredSubsystems: const {
+            LiveSystemV2Subsystem.localJournal,
+          },
+        ).enabled;
     if (!usePreview) {
-      ref.read(liveSystemV2RolloutGateProvider).evaluate(
-        tripId: widget.tripId,
-        surface: LiveSystemV2Surface.live,
-        requiredSubsystems: const {
-          LiveSystemV2Subsystem.localJournal,
-        },
-      );
-    }
-    if (!usePreview) {
-      ref.watch(liveTrackingCaptureBootstrapProvider);
-      ref.watch(trackingSyncBootstrapProvider);
+      if (useV2Lane) {
+        ref.watch(v2CaptureBootstrapProvider);
+      } else {
+        ref.watch(liveTrackingCaptureBootstrapProvider);
+        ref.watch(trackingSyncBootstrapProvider);
+      }
     }
     final runtimeAsync = usePreview
         ? null
-        : ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
+        : useV2Lane
+            ? ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId))
+            : ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
     final syncStatusAsync = usePreview
         ? null
-        : ref.watch(liveTrackingSyncStatusProvider(widget.tripId));
+        : useV2Lane
+            ? null
+            : ref.watch(liveTrackingSyncStatusProvider(widget.tripId));
     final mapOverlay = usePreview
         ? null
-        : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));
-    final eventsAsync = usePreview
+        : useV2Lane
+            ? ref.watch(v2LiveTrackingMapOverlayProvider(widget.tripId))
+            : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));
+    final v1EventsAsync = usePreview || useV2Lane
         ? null
         : ref.watch(liveTrackingEventsProvider(widget.tripId));
+    final v2EventsAsync = usePreview || !useV2Lane
+        ? null
+        : ref.watch(v2LiveCaptureEventsProvider(widget.tripId));
     final tripName = usePreview
         ? 'Live preview'
         : ref.watch(liveCaptureTripNameProvider(widget.tripId)).valueOrNull ??
@@ -209,7 +224,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             latestReviewRequired: null,
             reviewHints: <LiveTrackingPlaceHint>[],
           )
-        : ref.watch(liveTrackingUnresolvedSummaryProvider(widget.tripId));
+        : useV2Lane
+            ? const LiveTrackingUnresolvedSummary(
+                reviewRequiredCount: 0,
+                onRouteCount: 0,
+                latestReviewRequired: null,
+                reviewHints: <LiveTrackingPlaceHint>[],
+              )
+            : ref.watch(liveTrackingUnresolvedSummaryProvider(widget.tripId));
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
@@ -220,6 +242,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final syncKind = syncStatus?.kind;
     final syncLabel = _resolveSyncLabel(
       usePreview: usePreview,
+      useV2Lane: useV2Lane,
       shellState: shellState,
       syncStatus: syncStatusAsync?.valueOrNull,
     );
@@ -238,6 +261,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         !_dismissedReviewPromptEventIds.contains(reviewEvent.id);
     final topNotices = <Widget>[
       if (!usePreview &&
+          !useV2Lane &&
           syncStatus?.kind == EditorSyncStatusKind.blocked &&
           blockedMessage != null &&
           blockedMessage.isNotEmpty)
@@ -245,7 +269,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           message: blockedMessage,
           onRetry: _actionInFlight ? null : _retrySyncNow,
         ),
-      if (!usePreview && unresolvedSummary.hasReviewRequired)
+      if (!usePreview && !useV2Lane && unresolvedSummary.hasReviewRequired)
         _UnresolvedCaptureBanner(
           unresolvedCount: unresolvedSummary.reviewRequiredCount,
           latestNote: unresolvedSummary.latestReviewRequired?.note?.trim(),
@@ -253,7 +277,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
               ? null
               : () => context.push(Routes.editorPath(widget.tripId)),
         ),
-      if (showReviewPrompt)
+      if (!useV2Lane && showReviewPrompt)
         _ProbablePlacePromptCard(
           hints: reviewHints,
           onConfirmHint: _actionInFlight
@@ -322,21 +346,39 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                     bottom: AppSpacing.md + 86,
                     child: usePreview
                         ? const _RecentEventsPlaceholder()
-                        : eventsAsync!.when(
-                            data: (events) => LiveCaptureRecentEventsStrip(
-                              events: events,
-                              loading: false,
-                            ),
-                            loading: () => const LiveCaptureRecentEventsStrip(
-                              events: <TrackingEventRow>[],
-                              loading: true,
-                            ),
-                            error: (_, __) =>
-                                const LiveCaptureRecentEventsStrip(
-                              events: <TrackingEventRow>[],
-                              loading: false,
-                            ),
-                          ),
+                        : useV2Lane
+                            ? v2EventsAsync!.when(
+                                data: (events) => LiveCaptureRecentEventsStrip(
+                                  events: _mapV2RecentEvents(events),
+                                  loading: false,
+                                ),
+                                loading: () =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: true,
+                                ),
+                                error: (_, __) =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: false,
+                                ),
+                              )
+                            : v1EventsAsync!.when(
+                                data: (events) => LiveCaptureRecentEventsStrip(
+                                  events: _mapV1RecentEvents(events),
+                                  loading: false,
+                                ),
+                                loading: () =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: true,
+                                ),
+                                error: (_, __) =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: false,
+                                ),
+                              ),
                   ),
                   Positioned.fill(
                     child: Padding(
@@ -405,9 +447,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                           : () => _runLiveTrackingAction(
                                 busyLabel: 'Starting...',
                                 successMessage: 'Live tracking started.',
-                                action: (coordinator) async {
-                                  await coordinator.startTracking(
-                                      tripId: widget.tripId);
+                                action: () async {
+                                  if (_isV2LaneEnabled()) {
+                                    await ref
+                                        .read(v2CaptureCoordinatorProvider)
+                                        .startTracking(tripId: widget.tripId);
+                                  } else {
+                                    await ref
+                                        .read(
+                                            liveTrackingCaptureCoordinatorProvider)
+                                        .startTracking(tripId: widget.tripId);
+                                  }
                                   return true;
                                 },
                               ),
@@ -418,11 +468,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 successMessage: 'Live tracking paused.',
                                 noOpMessage:
                                     'No active tracking session to pause.',
-                                action: (coordinator) async {
-                                  final paused =
-                                      await coordinator.pauseTracking(
-                                    tripId: widget.tripId,
-                                  );
+                                action: () async {
+                                  final paused = _isV2LaneEnabled()
+                                      ? await ref
+                                          .read(v2CaptureCoordinatorProvider)
+                                          .pauseTracking(tripId: widget.tripId)
+                                      : await ref
+                                          .read(
+                                              liveTrackingCaptureCoordinatorProvider)
+                                          .pauseTracking(tripId: widget.tripId);
                                   return paused != null;
                                 },
                               ),
@@ -433,11 +487,16 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 successMessage: 'Live tracking resumed.',
                                 noOpMessage:
                                     'No paused tracking session to resume.',
-                                action: (coordinator) async {
-                                  final resumed =
-                                      await coordinator.resumeTracking(
-                                    tripId: widget.tripId,
-                                  );
+                                action: () async {
+                                  final resumed = _isV2LaneEnabled()
+                                      ? await ref
+                                          .read(v2CaptureCoordinatorProvider)
+                                          .resumeTracking(tripId: widget.tripId)
+                                      : await ref
+                                          .read(
+                                              liveTrackingCaptureCoordinatorProvider)
+                                          .resumeTracking(
+                                              tripId: widget.tripId);
                                   return resumed != null;
                                 },
                               ),
@@ -448,16 +507,21 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 successMessage: 'Live tracking stopped.',
                                 noOpMessage:
                                     'No active or paused session to stop.',
-                                action: (coordinator) async {
-                                  final stopped =
-                                      await coordinator.stopTracking(
-                                    tripId: widget.tripId,
-                                  );
+                                action: () async {
+                                  final stopped = _isV2LaneEnabled()
+                                      ? await ref
+                                          .read(v2CaptureCoordinatorProvider)
+                                          .stopTracking(tripId: widget.tripId)
+                                      : await ref
+                                          .read(
+                                              liveTrackingCaptureCoordinatorProvider)
+                                          .stopTracking(tripId: widget.tripId);
                                   return stopped != null;
                                 },
                               ),
-                      onRetrySync:
-                          usePreview || _actionInFlight ? null : _retrySyncNow,
+                      onRetrySync: usePreview || useV2Lane || _actionInFlight
+                          ? null
+                          : _retrySyncNow,
                       onOpenEditor: usePreview
                           ? null
                           : () =>
@@ -517,11 +581,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
 
   String _resolveSyncLabel({
     required bool usePreview,
+    required bool useV2Lane,
     required LiveCaptureShellState shellState,
     required EditorSyncStatus? syncStatus,
   }) {
     if (usePreview) {
       return _previewSyncLabel(shellState);
+    }
+    if (useV2Lane) {
+      return 'Local journal';
     }
     switch (syncStatus?.kind) {
       case EditorSyncStatusKind.blocked:
@@ -552,6 +620,71 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       case LiveCaptureShellState.planned:
         return 'Ready';
     }
+  }
+
+  bool _isV2LaneEnabled() {
+    if (widget.previewState != null) {
+      return false;
+    }
+    return ref.read(liveSystemV2RolloutGateProvider).evaluate(
+      tripId: widget.tripId,
+      surface: LiveSystemV2Surface.live,
+      requiredSubsystems: const {
+        LiveSystemV2Subsystem.localJournal,
+      },
+    ).enabled;
+  }
+
+  List<LiveCaptureRecentEventItem> _mapV1RecentEvents(
+    List<TrackingEventRow> events,
+  ) {
+    return events
+        .map(
+          (event) => LiveCaptureRecentEventItem(
+            id: event.id,
+            eventType: event.eventType,
+            note: event.note,
+            capturedAt: event.createdAt,
+            syncLabel: event.syncStatus,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<LiveCaptureRecentEventItem> _mapV2RecentEvents(
+    List<EventJournalRow> events,
+  ) {
+    return events
+        .map(
+          (event) => LiveCaptureRecentEventItem(
+            id: event.eventId,
+            eventType: event.eventType,
+            note: _extractV2EventNote(event),
+            capturedAt: event.capturedAt,
+            syncLabel: 'Local',
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String? _extractV2EventNote(EventJournalRow event) {
+    final payload = event.payloadJson;
+    if (payload == null || payload.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      final note = decoded['note'];
+      if (note is String && note.trim().isNotEmpty) {
+        return note.trim();
+      }
+    } catch (_) {
+      // no-op: notes are optional in payload.
+    }
+    return null;
   }
 
   void _handleBack() {
@@ -863,8 +996,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     required String busyLabel,
     required String successMessage,
     String? noOpMessage,
-    required Future<bool> Function(LiveTrackingCaptureCoordinator coordinator)
-        action,
+    required Future<bool> Function() action,
   }) async {
     if (_actionInFlight || !mounted) {
       return;
@@ -874,8 +1006,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = busyLabel;
     });
     try {
-      final coordinator = ref.read(liveTrackingCaptureCoordinatorProvider);
-      final didApply = await action(coordinator);
+      final didApply = await action();
       if (!mounted) {
         return;
       }
@@ -903,6 +1034,11 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   }
 
   Future<void> _retrySyncNow() async {
+    if (_isV2LaneEnabled()) {
+      _showMessage(
+          'V2 lane is local-only in this phase. No sync retry needed.');
+      return;
+    }
     if (_actionInFlight || !mounted) {
       return;
     }
@@ -937,7 +1073,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   }
 
   void _triggerResolverReconcile() {
-    if (!mounted || widget.previewState != null) {
+    if (!mounted || widget.previewState != null || _isV2LaneEnabled()) {
       return;
     }
     unawaited(
@@ -962,14 +1098,25 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Saving...';
     });
     try {
-      final repository = ref.read(liveTrackingEventRepositoryProvider);
-      await repository.createEventNow(
-        tripId: widget.tripId,
-        eventType: eventType,
-        note: note,
-        latitude: position?.latitude,
-        longitude: position?.longitude,
-      );
+      if (_isV2LaneEnabled()) {
+        await ref.read(v2LiveCaptureJournalRepositoryProvider).createEventNow(
+          tripId: widget.tripId,
+          eventType: eventType,
+          note: note,
+          latitude: position?.latitude,
+          longitude: position?.longitude,
+          payload: <String, dynamic>{'note': note},
+        );
+      } else {
+        final repository = ref.read(liveTrackingEventRepositoryProvider);
+        await repository.createEventNow(
+          tripId: widget.tripId,
+          eventType: eventType,
+          note: note,
+          latitude: position?.latitude,
+          longitude: position?.longitude,
+        );
+      }
       if (!mounted) {
         return;
       }
@@ -1060,32 +1207,61 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
     });
     try {
-      final repository = ref.read(liveTrackingEventRepositoryProvider);
-      final result = await repository.createMediaCaptureNow(
-        tripId: widget.tripId,
-        eventType: eventType,
-        localPath: picked.path,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        mimeType: picked.mimeType,
-        payload: <String, dynamic>{
-          'file_name': picked.name,
-          'capture_source': fromCamera ? 'camera' : 'gallery',
-        },
-      );
+      final isV2Lane = _isV2LaneEnabled();
+      String eventId;
+      String? decisionState;
+      if (isV2Lane) {
+        final result = await ref
+            .read(v2LiveCaptureJournalRepositoryProvider)
+            .createMediaCaptureNow(
+          tripId: widget.tripId,
+          eventType: eventType,
+          localPath: picked.path,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          mimeType: picked.mimeType,
+          payload: <String, dynamic>{
+            'file_name': picked.name,
+            'capture_source': fromCamera ? 'camera' : 'gallery',
+          },
+        );
+        eventId = result.eventId;
+        decisionState = result.resolverState;
+      } else {
+        final result = await ref
+            .read(liveTrackingEventRepositoryProvider)
+            .createMediaCaptureNow(
+          tripId: widget.tripId,
+          eventType: eventType,
+          localPath: picked.path,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          mimeType: picked.mimeType,
+          payload: <String, dynamic>{
+            'file_name': picked.name,
+            'capture_source': fromCamera ? 'camera' : 'gallery',
+          },
+        );
+        eventId = result.eventId;
+        decisionState = result.decision.state;
+      }
       if (!mounted) {
         return;
       }
-      _dismissedReviewPromptEventIds.remove(result.eventId);
+      _dismissedReviewPromptEventIds.remove(eventId);
       if (eventType == LiveTrackingEventType.photo) {
         _emitEffect(TransientEffectType.photoCaptured);
       }
-      if (result.decision.state == 'resolved') {
-        _showMessage('Captured and auto-bound to nearby place.');
-      } else if (result.decision.state == 'review_required') {
-        _showMessage('Captured. Review probable places when ready.');
+      if (isV2Lane) {
+        _showMessage('Captured locally. Place review starts in Phase 3.');
       } else {
-        _showMessage('Captured and saved on route.');
+        if (decisionState == 'resolved') {
+          _showMessage('Captured and auto-bound to nearby place.');
+        } else if (decisionState == 'review_required') {
+          _showMessage('Captured. Review probable places when ready.');
+        } else {
+          _showMessage('Captured and saved on route.');
+        }
       }
     } catch (_) {
       _showMessage('Failed to capture media. Try again.');
@@ -1259,13 +1435,16 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     if (!mounted) {
       return;
     }
+    final isV2Lane = _isV2LaneEnabled();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        action: SnackBarAction(
-          label: 'Retry sync',
-          onPressed: _retrySyncNow,
-        ),
+        action: isV2Lane
+            ? null
+            : SnackBarAction(
+                label: 'Retry sync',
+                onPressed: _retrySyncNow,
+              ),
       ),
     );
   }

@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 
-import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+
+class LiveCaptureRecentEventItem {
+  const LiveCaptureRecentEventItem({
+    required this.id,
+    required this.eventType,
+    required this.note,
+    required this.capturedAt,
+    required this.syncLabel,
+  });
+
+  final String id;
+  final String eventType;
+  final String? note;
+  final DateTime capturedAt;
+  final String syncLabel;
+}
 
 class LiveCaptureRecentEventsStrip extends StatelessWidget {
   const LiveCaptureRecentEventsStrip({
@@ -14,7 +29,7 @@ class LiveCaptureRecentEventsStrip extends StatelessWidget {
     this.loading = false,
   });
 
-  final List<TrackingEventRow> events;
+  final List<LiveCaptureRecentEventItem> events;
   final bool loading;
 
   @override
@@ -84,7 +99,7 @@ class _Shell extends StatelessWidget {
 class _EventChip extends StatelessWidget {
   const _EventChip({required this.event});
 
-  final TrackingEventRow event;
+  final LiveCaptureRecentEventItem event;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +154,7 @@ class _EventChip extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${_time(event.createdAt)} | ${event.syncStatus}',
+                  '${_time(event.capturedAt)} | ${event.syncLabel}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.caption.copyWith(
@@ -186,7 +201,7 @@ class _EventChip extends StatelessWidget {
     }
   }
 
-  String _title(TrackingEventRow row) {
+  String _title(LiveCaptureRecentEventItem row) {
     final note = row.note?.trim();
     if (note != null && note.isNotEmpty) {
       return note;

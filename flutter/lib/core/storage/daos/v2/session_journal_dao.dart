@@ -63,6 +63,40 @@ class SessionJournalDao extends DatabaseAccessor<AppDatabase>
             ..limit(1))
           .watchSingleOrNull();
 
+  Future<SessionJournalRow?> getActiveOrPausedSessionForTrip(
+          String tripLocalId) =>
+      (select(sessionJournal)
+            ..where(
+              (row) =>
+                  row.tripLocalId.equals(tripLocalId) &
+                  row.controlState.isIn(const ['active', 'paused']),
+            )
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<List<SessionJournalRow>> listSessionsByStates(Set<String> states) {
+    if (states.isEmpty) {
+      return Future<List<SessionJournalRow>>.value(
+        const <SessionJournalRow>[],
+      );
+    }
+    return (select(sessionJournal)
+          ..where((row) => row.controlState.isIn(states.toList()))
+          ..orderBy([
+            (row) => OrderingTerm(
+                  expression: row.updatedAt,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .get();
+  }
+
   Future<int> upsertSession(SessionJournalCompanion row) =>
       into(sessionJournal).insertOnConflictUpdate(row);
 

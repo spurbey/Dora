@@ -42,6 +42,11 @@ It defines:
 2. If start fails, do not create active session state.
 3. Explicit user retry only; no background auto-retry loop.
 4. Idempotency key required.
+5. Bridge payload fields (until backend V2 command endpoints land):
+- `client_session_id`
+- `started_at`
+- optional `timezone`
+- optional `device_context`
 
 Idempotency key format:
 
@@ -75,6 +80,11 @@ Idempotency key format:
 - set `stop_server_pending = true`
 - keep session sealed locally.
 4. Do not block user from exiting live flow.
+5. Bridge payload fields (until backend V2 command endpoints land):
+- `client_event_id`
+- `session_id`
+- `stopped_at`
+- optional `reason`
 
 Idempotency key format:
 

@@ -59,6 +59,192 @@ Flag policy:
 
 Each phase can contain multiple commits. Phase gate must pass before next phase.
 
+### 5.1 Commit-Level Implementation Plan (Concrete)
+
+This is the executable, file-level plan that replaces ambiguity with exact steps.
+Resolver provider is locked to **ORS direct** (per Contract Freeze).
+V2 code namespace is locked to **`flutter/lib/features/live_tracking/v2/`** (new subtree).
+
+Commit naming below is illustrative; actual messages can vary.
+
+#### Commit 0 — Phase 0 Scaffolding (DONE)
+
+Status: already committed in `1e3aa07`.
+
+Includes:
+1. Feature flags for V2.
+2. `LiveSystemV2Gate` + baseline observability markers.
+3. Contract-lock doc updates.
+
+No behavior changes.
+
+---
+
+#### Commit 1 — Phase 1: V2 Local Schema + Migration
+
+Goal: add V2 journal tables without touching V1 tables.
+
+Files (new):
+1. `flutter/lib/core/storage/tables/v2/session_journal_table.dart`
+2. `flutter/lib/core/storage/tables/v2/session_activity_window_table.dart`
+3. `flutter/lib/core/storage/tables/v2/route_point_journal_table.dart`
+4. `flutter/lib/core/storage/tables/v2/event_journal_table.dart`
+5. `flutter/lib/core/storage/tables/v2/media_journal_table.dart`
+6. `flutter/lib/core/storage/tables/v2/resolver_candidate_journal_table.dart`
+7. `flutter/lib/core/storage/tables/v2/resolver_attempt_journal_table.dart`
+
+Files (edit):
+1. `flutter/lib/core/storage/drift_database.dart`
+   - bump `schemaVersion` (current 17 -> 18)
+   - import and register v2 tables
+   - `onUpgrade`: `if (from < 18) createTable(...)` for each v2 table
+
+No UI wiring yet.
+
+---
+
+#### Commit 2 — Phase 1: V2 DAOs + Repositories
+
+Goal: local access layer for v2 tables, still not wired to UI.
+
+Files (new):
+1. `flutter/lib/core/storage/daos/v2/session_journal_dao.dart`
+2. `flutter/lib/core/storage/daos/v2/event_journal_dao.dart`
+3. `flutter/lib/core/storage/daos/v2/media_journal_dao.dart`
+4. `flutter/lib/core/storage/daos/v2/route_point_journal_dao.dart`
+5. `flutter/lib/core/storage/daos/v2/resolver_candidate_journal_dao.dart`
+6. `flutter/lib/core/storage/daos/v2/resolver_attempt_journal_dao.dart`
+7. `flutter/lib/features/live_tracking/v2/data/v2_session_repository.dart`
+8. `flutter/lib/features/live_tracking/v2/data/v2_event_repository.dart`
+9. `flutter/lib/features/live_tracking/v2/data/v2_media_repository.dart`
+10. `flutter/lib/features/live_tracking/v2/data/v2_route_point_repository.dart`
+11. `flutter/lib/features/live_tracking/v2/data/v2_resolver_repository.dart`
+
+Files (edit):
+1. `flutter/lib/core/storage/daos/daos.dart` (or equivalent export barrel)
+2. `flutter/lib/features/live_tracking/v2/v2_providers.dart` (new provider barrel)
+
+---
+
+#### Commit 3 — Phase 2: Capture Lane Switch (Live)
+
+Goal: when `enable_live_system_v2` is on, live capture writes to v2 only.
+
+Files (edit):
+1. `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+   - choose v2 providers when gate enabled
+2. `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+   - route capture coordinator to v2 for gated sessions
+3. `flutter/lib/features/live_tracking/v2/capture/v2_capture_coordinator.dart` (new)
+
+Files (new):
+1. `flutter/lib/features/live_tracking/v2/capture/v2_capture_coordinator.dart`
+2. `flutter/lib/features/live_tracking/v2/capture/v2_capture_types.dart`
+
+Behavior:
+1. route points -> `route_point_journal`
+2. events/media -> `event_journal` / `media_journal`
+3. no V1 sync task enqueues for v2 sessions
+
+---
+
+#### Commit 4 — Phase 3: Resolver + Unresolved Inbox
+
+Goal: deterministic resolver with manual lock + shared inbox.
+
+Files (new):
+1. `flutter/lib/features/live_tracking/v2/resolver/ors_resolver_client.dart`
+2. `flutter/lib/features/live_tracking/v2/resolver/v2_resolver_service.dart`
+3. `flutter/lib/features/live_tracking/v2/inbox/unresolved_inbox_provider.dart`
+4. `flutter/lib/features/live_tracking/v2/inbox/unresolved_inbox_widget.dart`
+
+Files (edit):
+1. `flutter/lib/core/location/app_geocoding_service.dart` (only if adapting to ORS)
+2. `flutter/lib/features/live_capture/presentation/screens/live_capture_screen.dart`
+3. `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+
+Behavior:
+1. immediate local resolve pass, network fallback async
+2. manual lock enforced on all reconcile paths
+3. inbox renders top 2–3 candidates
+
+---
+
+#### Commit 5 — Phase 4: Local Timeline Compiler
+
+Goal: replace compiled projection for v2 with local compiler.
+
+Files (new):
+1. `flutter/lib/features/live_tracking/v2/compiler/local_timeline_compiler.dart`
+2. `flutter/lib/features/live_tracking/v2/compiler/local_projection_tables.dart`
+3. `flutter/lib/features/live_tracking/v2/compiler/local_projection_provider.dart`
+
+Files (edit):
+1. `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+2. `flutter/lib/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart`
+
+Behavior:
+1. editor + live use local projection if v2 gate enabled
+2. no server dependency for timeline visibility
+
+---
+
+#### Commit 6 — Phase 5: Session Commit Worker (Client)
+
+Goal: finalize session via bounded commit job.
+
+Files (new):
+1. `flutter/lib/features/live_tracking/v2/commit/session_commit_job_table.dart`
+2. `flutter/lib/features/live_tracking/v2/commit/session_commit_worker.dart`
+3. `flutter/lib/features/live_tracking/v2/commit/session_commit_repository.dart`
+
+Files (edit):
+1. `flutter/lib/features/live_tracking/v2/capture/v2_capture_coordinator.dart`
+   - enqueue commit job on stop
+2. `flutter/lib/features/create/presentation/providers/live_tracking_runtime_provider.dart`
+   - show commit status in UI when v2
+
+Behavior:
+1. phases: prepare → media_upload → payload_upload → finalize_ack → done
+2. retry bounded (15/60/180s, max 3)
+
+---
+
+#### Commit 7 — Phase 6: Backend Ingest + Projection (Server)
+
+Goal: accept v2 finalize payloads and materialize server projection.
+
+Backend files (new or edit, exact paths TBD under `backend/`):
+1. `backend/app/api/v2/trip_finalize.py` (new endpoints)
+2. `backend/app/models/v2/*` (raw journal tables + idempotency manifest)
+3. `backend/app/services/v2_projection_compiler.py`
+4. migrations for v2 tables
+
+Behavior:
+1. idempotent finalize API set
+2. raw journal storage
+3. server projection read endpoints for cross-device
+
+---
+
+#### Commit 8 — Phase 7: Trip Publish Worker + Endpoint Integration
+
+Goal: explicit publish/save from editor.
+
+Files (new):
+1. `flutter/lib/features/live_tracking/v2/publish/trip_publish_worker.dart`
+2. `flutter/lib/features/live_tracking/v2/publish/trip_publish_job_table.dart`
+
+Files (edit):
+1. `flutter/lib/features/create/presentation/screens/editor_screen.dart`
+   - publish CTA wired to v2 publish worker when gate enabled
+
+Backend:
+1. `backend/app/api/v2/trip_publish.py`
+2. `backend/app/services/v2_publish_service.py`
+
+---
+
 ### Phase 0: Contract Lock and Scaffolding
 
 Goal:
@@ -108,6 +294,9 @@ Changes:
 1. Live capture actions (note/warn/tag/photo/media) write to `event_journal`/`media_journal`.
 2. Route points write to `route_point_journal`.
 3. Disable V1 per-entity sync enqueue for V2 sessions.
+4. Command bridge payload lock (until backend `/api/v2/.../sessions:start|stop` exists):
+- `start`: `client_session_id`, `started_at`, optional `timezone`, `device_context`
+- `stop`: `client_event_id`, `session_id`, `stopped_at`, optional `reason`
 
 Exit criteria:
 
@@ -363,6 +552,8 @@ Locked:
 2. Resolver provider contract:
   1. ORS direct
   2. threshold rules from resolver spec (0.60, margin 0.05, tie epsilon 0.02, distance <= 100m)
+3. Directions provider contract:
+  1. Mapbox Directions API direct from app
 3. Retry constants:
   1. max auto attempts = 3
   2. delays = 15s, 60s, 180s

@@ -23,6 +23,13 @@ class V2SessionJournalRepository {
   Stream<SessionJournalRow?> watchLatestSessionForTrip(String tripLocalId) =>
       _dao.watchLatestSessionForTrip(tripLocalId);
 
+  Future<SessionJournalRow?> getActiveOrPausedSessionForTrip(
+          String tripLocalId) =>
+      _dao.getActiveOrPausedSessionForTrip(tripLocalId);
+
+  Future<List<SessionJournalRow>> listSessionsByStates(Set<String> states) =>
+      _dao.listSessionsByStates(states);
+
   Future<int> upsertSession({
     required String sessionId,
     required String tripLocalId,

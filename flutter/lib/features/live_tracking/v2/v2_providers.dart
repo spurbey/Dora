@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/storage/database_provider.dart';
+import 'package:dora/features/live_tracking/v2/data/live_capture_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/resolver_journal_repository.dart';
@@ -40,5 +41,14 @@ final v2ResolverJournalRepositoryProvider =
   return V2ResolverJournalRepository(
     resolverCandidateDao: candidateDao,
     resolverAttemptDao: attemptDao,
+  );
+});
+
+final v2LiveCaptureJournalRepositoryProvider =
+    Provider<V2LiveCaptureJournalRepository>((ref) {
+  return V2LiveCaptureJournalRepository(
+    sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
+    eventRepository: ref.watch(v2EventJournalRepositoryProvider),
+    mediaRepository: ref.watch(v2MediaJournalRepositoryProvider),
   );
 });

@@ -75,6 +75,17 @@ Idempotency key formats:
 1. finalize: `finalize:{trip_local_id}:{session_id}:{seal_version}`
 2. publish: `publish:{trip_local_id}:{publish_job_id}:{payload_hash}`
 
+Command idempotency key formats:
+
+1. start: `start:{trip_local_id}:{session_id}:{start_request_seq}`
+2. stop: `stop:{trip_local_id}:{session_id}:{seal_version}`
+
+Command idempotency rule:
+
+1. `start_request_seq` is persisted in `session_journal`.
+2. Retries of the same start attempt must reuse the same `start_request_seq`.
+3. `start_request_seq` increments only when user explicitly retries start after a terminal failure.
+
 ## 6. Commit and Publish States (Final)
 
 Commit states:
@@ -103,6 +114,7 @@ If user aborts UI action, keep job in pending/retryable flow.
 3. `start_ack_at`
 4. `stop_ack_at`
 5. `seal_version`
+6. `start_request_seq`
 
 ## 8. Source Specs
 

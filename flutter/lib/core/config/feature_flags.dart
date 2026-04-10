@@ -13,6 +13,29 @@ class FeatureFlags {
       String.fromEnvironment('ENABLE_EXPORT', defaultValue: 'auto');
   static const String _enableRouteDrawingOverride =
       String.fromEnvironment('ENABLE_ROUTE_DRAWING', defaultValue: 'auto');
+  static const String _enableLiveSystemV2Override =
+      String.fromEnvironment('ENABLE_LIVE_SYSTEM_V2', defaultValue: 'auto');
+  static const String _enableV2LocalJournalOverride =
+      String.fromEnvironment('ENABLE_V2_LOCAL_JOURNAL', defaultValue: 'auto');
+  static const String _enableV2LocalCompilerOverride =
+      String.fromEnvironment('ENABLE_V2_LOCAL_COMPILER', defaultValue: 'auto');
+  static const String _enableV2SessionCommitWorkerOverride =
+      String.fromEnvironment(
+    'ENABLE_V2_SESSION_COMMIT_WORKER',
+    defaultValue: 'auto',
+  );
+  static const String _enableV2TripPublishWorkerOverride =
+      String.fromEnvironment(
+    'ENABLE_V2_TRIP_PUBLISH_WORKER',
+    defaultValue: 'auto',
+  );
+  static const String _enableV2BackendIngestOverride =
+      String.fromEnvironment('ENABLE_V2_BACKEND_INGEST', defaultValue: 'auto');
+  static const String _enableV2LiveEditorUiContractOverride =
+      String.fromEnvironment(
+    'ENABLE_V2_LIVE_EDITOR_UI_CONTRACT',
+    defaultValue: 'auto',
+  );
 
   static Future<void> initialize() async {
     await _remoteConfig.setConfigSettings(
@@ -25,6 +48,13 @@ class FeatureFlags {
       // Dev should be usable without requiring a Firebase console flag setup.
       'enable_export': !Env.isProduction,
       'enable_route_drawing': false,
+      'enable_live_system_v2': false,
+      'enable_v2_local_journal': false,
+      'enable_v2_local_compiler': false,
+      'enable_v2_session_commit_worker': false,
+      'enable_v2_trip_publish_worker': false,
+      'enable_v2_backend_ingest': false,
+      'enable_v2_live_editor_ui_contract': false,
     });
 
     try {
@@ -48,6 +78,55 @@ class FeatureFlags {
     if (override != null) return override;
     if (!_initialized) return false;
     return _remoteConfig.getBool('enable_route_drawing');
+  }
+
+  static bool get enableLiveSystemV2 {
+    final override = _parseOverride(_enableLiveSystemV2Override);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_live_system_v2');
+  }
+
+  static bool get enableV2LocalJournal {
+    final override = _parseOverride(_enableV2LocalJournalOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_local_journal');
+  }
+
+  static bool get enableV2LocalCompiler {
+    final override = _parseOverride(_enableV2LocalCompilerOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_local_compiler');
+  }
+
+  static bool get enableV2SessionCommitWorker {
+    final override = _parseOverride(_enableV2SessionCommitWorkerOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_session_commit_worker');
+  }
+
+  static bool get enableV2TripPublishWorker {
+    final override = _parseOverride(_enableV2TripPublishWorkerOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_trip_publish_worker');
+  }
+
+  static bool get enableV2BackendIngest {
+    final override = _parseOverride(_enableV2BackendIngestOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_backend_ingest');
+  }
+
+  static bool get enableV2LiveEditorUiContract {
+    final override = _parseOverride(_enableV2LiveEditorUiContractOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_v2_live_editor_ui_contract');
   }
 
   static bool? _parseOverride(String value) {

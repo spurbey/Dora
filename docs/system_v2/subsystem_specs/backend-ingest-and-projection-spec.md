@@ -95,15 +95,42 @@ Columns:
 12. `place_bind_kind` TEXT NULL
 13. `place_bind_id` TEXT NULL
 14. `place_bind_name` TEXT NULL
-15. `payload_json` JSONB NULL
-16. `created_at` TIMESTAMP NOT NULL
-17. `updated_at` TIMESTAMP NOT NULL
+15. `geotag_final_reason` TEXT NULL
+16. `payload_json` JSONB NULL
+17. `created_at` TIMESTAMP NOT NULL
+18. `updated_at` TIMESTAMP NOT NULL
 
 Indexes:
 
 1. `(trip_server_id, captured_at)`
 2. `(trip_server_id, resolver_state, captured_at)`
 3. `(trip_server_id, client_event_id)` UNIQUE
+
+### 7.2.1 Locked domain enums for `trip_event_raw`
+
+These values must remain aligned with local resolver truth contract.
+
+1. `resolver_state`:
+- `geotag_unresolved`
+- `review_required`
+- `place_bound`
+- `geotag_final`
+
+2. `decision_source`:
+- `auto_high_confidence`
+- `user_accept_candidate`
+- `user_manual_place`
+- `user_keep_geotag`
+
+3. `place_bind_kind`:
+- `none`
+- `provider_poi`
+- `trip_place_local`
+
+4. `geotag_final_reason`:
+- `user_keep_geotag`
+- `no_reliable_candidate`
+- `manual_add_cancelled`
 
 ### 7.3 `trip_media_raw`
 

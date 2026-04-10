@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_route.dart';
@@ -40,6 +41,13 @@ final liveTrackingRuntimeRepositoryProvider =
 final liveTrackingRuntimeSnapshotProvider =
     StreamProvider.family<LiveTrackingRuntimeSnapshot, String>(
   (ref, tripId) {
+    ref.read(liveSystemV2RolloutGateProvider).evaluate(
+      tripId: tripId,
+      surface: LiveSystemV2Surface.runtime,
+      requiredSubsystems: const {
+        LiveSystemV2Subsystem.localJournal,
+      },
+    );
     final repository = ref.watch(liveTrackingRuntimeRepositoryProvider);
     return repository.watchRuntimeSnapshot(tripId);
   },
@@ -271,6 +279,12 @@ final liveTrackingCaptureCoordinatorProvider =
 });
 
 final liveTrackingCaptureBootstrapProvider = Provider<void>((ref) {
+  ref.read(liveSystemV2RolloutGateProvider).preventDualWrite(
+        tripId: '_bootstrap_',
+        surface: LiveSystemV2Surface.runtime,
+        v1WriteRequested: true,
+        v2WriteRequested: false,
+      );
   final coordinator = ref.watch(liveTrackingCaptureCoordinatorProvider);
   unawaited(coordinator.recoverAndEnforceSingleActiveSession());
 });

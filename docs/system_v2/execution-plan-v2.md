@@ -368,11 +368,17 @@ Locked:
   2. delays = 15s, 60s, 180s
 4. Publish retries use snapshot-locked payload per job.
 5. Commit and publish state enums are strict minimal sets (no cancelled state).
+6. App kill/no-stop behavior:
+  1. No auto-finalize.
+  2. Session remains recoverable locally until user explicitly stops.
+7. Rollback ownership and incident routing:
+  1. Rollback trigger authority: tech lead.
+  2. Mobile and backend responders execute rollback/support actions under tech-lead coordination.
+  3. Incident channel: `#live-system-v2-incidents`.
 
 Remaining to track separately (if not already locked by product):
 
-1. Auto-finalize behavior for app kill/no-stop.
-2. Final rollout and rollback ownership.
+1. Final rollout and rollback staffing roster by week.
 
 ## 13. Definition of Done (Program Level)
 

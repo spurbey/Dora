@@ -8,7 +8,9 @@ Use this file as the day-to-day gate checklist. Do not advance phase until all b
 
 ## Phase 0: Contract Lock and Scaffolding
 
-- [ ] All open decisions from subsystem specs are resolved or marked deferred with owner/date.
+- [x] All open decisions from subsystem specs are resolved or marked deferred with owner/date.
+- [x] App kill/no-stop policy locked: no auto-finalize (explicit user stop required).
+- [x] Rollback owner locked: tech lead.
 - [ ] Command lane contract is implemented exactly:
   - [ ] start/stop server-bound
   - [ ] pause/resume local-only
@@ -22,7 +24,7 @@ Use this file as the day-to-day gate checklist. Do not advance phase until all b
   - [ ] `enable_v2_backend_ingest`
   - [ ] `enable_v2_live_editor_ui_contract`
 - [ ] Baseline telemetry events added for V2 paths.
-- [ ] Rollback owner and incident channel defined.
+- [x] Rollback owner and incident channel defined (`#live-system-v2-incidents`).
 
 ## Phase 1: Local Journal Foundation
 

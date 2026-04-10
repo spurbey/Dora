@@ -75,8 +75,9 @@ Columns:
 10. `created_at` DATETIME NOT NULL
 11. `updated_at` DATETIME NOT NULL
 12. `seal_version` INTEGER NOT NULL DEFAULT 0
-13. `session_seq` INTEGER NOT NULL
-14. `device_id` TEXT NOT NULL
+13. `start_request_seq` INTEGER NOT NULL DEFAULT 0
+14. `session_seq` INTEGER NOT NULL
+15. `device_id` TEXT NOT NULL
 
 Indexes:
 
@@ -416,6 +417,7 @@ Forbidden:
 3. `manual_lock = 1` requires non-null `decision_source`.
 4. `place_bound` requires `place_bind_name` or `place_bind_id`.
 5. `geotag_final` requires non-null `geotag_final_reason`.
+6. `start_request_seq` is monotonic per session and must not change during retry of the same start attempt.
 
 ## 15. Migration Strategy
 

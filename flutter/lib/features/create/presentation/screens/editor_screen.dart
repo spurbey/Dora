@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/config/feature_flags.dart';
+import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
@@ -91,6 +92,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.read(liveSystemV2RolloutGateProvider).evaluate(
+      tripId: widget.tripId,
+      surface: LiveSystemV2Surface.editor,
+      requiredSubsystems: const {
+        LiveSystemV2Subsystem.localCompiler,
+        LiveSystemV2Subsystem.liveEditorUiContract,
+      },
+    );
     final editorAsync = ref.watch(editorControllerProvider(widget.tripId));
 
     ref.listen(editorControllerProvider(widget.tripId), (prev, next) {

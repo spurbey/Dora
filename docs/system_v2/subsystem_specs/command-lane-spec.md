@@ -47,6 +47,13 @@ Idempotency key format:
 
 1. `start:{trip_local_id}:{session_id}:{start_request_seq}`
 
+`start_request_seq` rules:
+
+1. Stored in `session_journal`.
+2. First start attempt uses `start_request_seq = 1`.
+3. Network retries for the same attempt must reuse the same sequence value.
+4. Increment only when user initiates a new explicit start retry after a terminal start failure.
+
 ## 5. Pause Action (Local-Only)
 
 1. No server call.
@@ -88,6 +95,7 @@ Idempotency key format:
 3. `start_ack_at` datetime nullable
 4. `stop_ack_at` datetime nullable
 5. `seal_version` integer
+6. `start_request_seq` integer (monotonic per session)
 
 ## 10. Error Model
 

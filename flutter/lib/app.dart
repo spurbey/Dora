@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/core/navigation/app_router.dart';
 import 'package:dora/core/notifications/live_tracking_deep_link_provider.dart';
 import 'package:dora/core/notifications/push_token_lifecycle_provider.dart';
@@ -17,6 +18,7 @@ class DoraApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(appDatabaseInitProvider);
+    ref.watch(liveSystemV2ObservabilityBootstrapProvider);
     ref.watch(entitySyncBootstrapProvider);
     ref.watch(trackingSyncBootstrapProvider);
     ref.watch(liveTrackingCaptureBootstrapProvider);

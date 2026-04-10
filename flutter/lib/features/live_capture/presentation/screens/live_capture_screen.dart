@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
@@ -170,6 +171,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
+    if (!usePreview) {
+      ref.read(liveSystemV2RolloutGateProvider).evaluate(
+        tripId: widget.tripId,
+        surface: LiveSystemV2Surface.live,
+        requiredSubsystems: const {
+          LiveSystemV2Subsystem.localJournal,
+        },
+      );
+    }
     if (!usePreview) {
       ref.watch(liveTrackingCaptureBootstrapProvider);
       ref.watch(trackingSyncBootstrapProvider);

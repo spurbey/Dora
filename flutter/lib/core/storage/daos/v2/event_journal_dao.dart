@@ -39,6 +39,45 @@ class EventJournalDao extends DatabaseAccessor<AppDatabase>
             ]))
           .get();
 
+  Future<List<EventJournalRow>> listEventsForTripChronological(
+    String tripLocalId,
+  ) =>
+      (select(eventJournal)
+            ..where((row) => row.tripLocalId.equals(tripLocalId))
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.asc,
+                  ),
+              (row) => OrderingTerm(
+                    expression: row.eventSeq,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
+  Future<List<EventJournalRow>> listEventsForTripFromCapturedAt(
+    String tripLocalId,
+    DateTime fromCapturedAt,
+  ) =>
+      (select(eventJournal)
+            ..where(
+              (row) =>
+                  row.tripLocalId.equals(tripLocalId) &
+                  row.capturedAt.isBiggerOrEqualValue(fromCapturedAt.toUtc()),
+            )
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.asc,
+                  ),
+              (row) => OrderingTerm(
+                    expression: row.eventSeq,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
   Stream<List<EventJournalRow>> watchEventsForTrip(String tripLocalId) =>
       (select(eventJournal)
             ..where((row) => row.tripLocalId.equals(tripLocalId))

@@ -55,6 +55,8 @@ import 'package:dora/features/create/presentation/widgets/timeline_sidebar.dart'
 import 'package:dora/features/create/presentation/widgets/media_attachment_viewer.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_captured_storyline_panel.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
@@ -159,8 +161,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         final mapState = ref.watch(mapStateProvider(widget.tripId));
         final syncStatusAsync =
             ref.watch(editorSyncStatusProvider(widget.tripId));
-        final compiledProjectionAsync =
-            ref.watch(compiledProjectionViewProvider(widget.tripId));
+        final compiledProjectionAsync = useV2ReviewLane
+            ? null
+            : ref.watch(compiledProjectionViewProvider(widget.tripId));
+        final v2TimelineGroupsAsync = useV2ReviewLane
+            ? ref.watch(v2TimelineGroupsProvider(widget.tripId))
+            : null;
+        final v2RouteProjectionAsync = useV2ReviewLane
+            ? ref.watch(v2RouteProjectionProvider(widget.tripId))
+            : null;
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
         final candidateInboxAsync = useV2ReviewLane
@@ -193,21 +202,40 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
         ];
         final routes = [...mapState.routes];
-        final compiledView = compiledProjectionAsync.valueOrNull;
-        if (compiledView != null) {
-          for (final segment in compiledView.routeSegments) {
-            if (segment.coordinates.length < 2) {
+        if (useV2ReviewLane) {
+          final routeSegments = v2RouteProjectionAsync?.valueOrNull ??
+              const <V2RouteProjectionSegment>[];
+          for (final segment in routeSegments) {
+            if (segment.geometry.length < 2) {
               continue;
             }
             routes.add(
               AppRoute(
-                id: '_compiled_${segment.segmentId}',
-                coordinates: segment.coordinates,
+                id: '_v2_compiled_${segment.segmentKey}',
+                coordinates: segment.geometry,
                 color: AppColors.accent.withValues(alpha: 0.58),
                 width: 3,
                 dashed: false,
               ),
             );
+          }
+        } else {
+          final compiledView = compiledProjectionAsync?.valueOrNull;
+          if (compiledView != null) {
+            for (final segment in compiledView.routeSegments) {
+              if (segment.coordinates.length < 2) {
+                continue;
+              }
+              routes.add(
+                AppRoute(
+                  id: '_compiled_${segment.segmentId}',
+                  coordinates: segment.coordinates,
+                  color: AppColors.accent.withValues(alpha: 0.58),
+                  width: 3,
+                  dashed: false,
+                ),
+              );
+            }
           }
         }
 
@@ -281,7 +309,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                             selectedIcon,
                             pendingMediaCount,
                             selectedPlaceId,
-                            compiledProjectionAsync)
+                            compiledProjectionAsync,
+                            useV2ReviewLane,
+                            v2TimelineGroupsAsync,
+                          )
                         : _buildMobileLayout(
                             editor,
                             markers,
@@ -293,7 +324,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                             selectedIcon,
                             pendingMediaCount,
                             selectedPlaceId,
-                            compiledProjectionAsync),
+                            compiledProjectionAsync,
+                            useV2ReviewLane,
+                            v2TimelineGroupsAsync,
+                          ),
                   ),
                 ],
               ),
@@ -303,6 +337,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                     editor,
                     controller,
                     compiledProjectionAsync,
+                    useV2ReviewLane,
+                    v2TimelineGroupsAsync,
                   )
                 : null,
             floatingActionButtonLocation:
@@ -316,11 +352,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   Widget _buildMobileFab(
     EditorState editor,
     EditorController controller,
-    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
+    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
+    bool useV2Projection,
+    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
     return FloatingActionButton(
-      onPressed: () =>
-          _showTimelineSheet(editor, controller, compiledProjectionAsync),
+      onPressed: () => _showTimelineSheet(
+        editor,
+        controller,
+        compiledProjectionAsync,
+        useV2Projection,
+        v2TimelineGroupsAsync,
+      ),
       backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
       child: const Icon(Icons.timeline),
@@ -1676,8 +1719,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
 
   Widget? _buildCapturedStorylinePanel({
     required EditorState editor,
-    required AsyncValue<CompiledProjectionView> projectionAsync,
+    required bool useV2Projection,
+    required AsyncValue<CompiledProjectionView>? projectionAsync,
+    required AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   }) {
+    if (useV2Projection) {
+      if (v2TimelineGroupsAsync == null) {
+        return null;
+      }
+      return v2TimelineGroupsAsync.when(
+        data: (groups) {
+          if (groups.isEmpty) {
+            return null;
+          }
+          return V2CapturedStorylinePanel(groups: groups);
+        },
+        loading: () => null,
+        error: (_, __) => null,
+      );
+    }
+    if (projectionAsync == null) {
+      return null;
+    }
     return projectionAsync.when(
       data: (view) {
         if (!view.hasEntries && !view.remoteUnavailable) {
@@ -1947,7 +2010,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
-    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
+    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
+    bool useV2Projection,
+    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
@@ -1985,7 +2050,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             },
             capturedStorylinePanel: _buildCapturedStorylinePanel(
               editor: editor,
+              useV2Projection: useV2Projection,
               projectionAsync: compiledProjectionAsync,
+              v2TimelineGroupsAsync: v2TimelineGroupsAsync,
             ),
           ),
         Expanded(
@@ -2071,7 +2138,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
-    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
+    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
+    bool useV2Projection,
+    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
@@ -2147,7 +2216,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   void _showTimelineSheet(
     EditorState editor,
     EditorController controller,
-    AsyncValue<CompiledProjectionView> compiledProjectionAsync,
+    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
+    bool useV2Projection,
+    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
     showModalBottomSheet(
       context: context,
@@ -2210,7 +2281,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                 },
                 capturedStorylinePanel: _buildCapturedStorylinePanel(
                   editor: editor,
+                  useV2Projection: useV2Projection,
                   projectionAsync: compiledProjectionAsync,
+                  v2TimelineGroupsAsync: v2TimelineGroupsAsync,
                 ),
               ),
             ),

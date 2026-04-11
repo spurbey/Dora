@@ -1,6 +1,12 @@
+import 'dart:async';
+
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/storage/database_provider.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_local_timeline_compiler.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/data/live_capture_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
@@ -73,3 +79,235 @@ final v2ResolverOrchestratorProvider = Provider<V2ResolverOrchestrator>((ref) {
     reducer: ref.watch(v2ResolverDecisionReducerProvider),
   );
 });
+
+final v2LocalProjectionRepositoryProvider =
+    Provider<V2LocalProjectionRepository>((ref) {
+  return V2LocalProjectionRepository(
+    timelineDao: ref.watch(v2TimelineProjectionLocalDaoProvider),
+    routeDao: ref.watch(v2RouteProjectionLocalDaoProvider),
+    cursorDao: ref.watch(v2TimelineCompileCursorDaoProvider),
+  );
+});
+
+final v2LocalTimelineCompilerProvider =
+    Provider<V2LocalTimelineCompiler>((ref) {
+  return V2LocalTimelineCompiler(
+    database: ref.watch(appDatabaseProvider),
+    projectionRepository: ref.watch(v2LocalProjectionRepositoryProvider),
+    sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
+    eventRepository: ref.watch(v2EventJournalRepositoryProvider),
+    mediaRepository: ref.watch(v2MediaJournalRepositoryProvider),
+    routePointRepository: ref.watch(v2RoutePointJournalRepositoryProvider),
+  );
+});
+
+final v2ProjectionRefreshSignalProvider =
+    Provider.autoDispose.family<Stream<int>, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    SELECT
+      (SELECT MAX(updated_at) FROM event_journal WHERE trip_local_id = ?) AS max_event_updated_at,
+      (SELECT MAX(updated_at) FROM media_journal WHERE trip_local_id = ?) AS max_media_updated_at,
+      (SELECT MAX(captured_at) FROM route_point_journal WHERE trip_local_id = ?) AS max_route_point_captured_at,
+      (SELECT MAX(updated_at) FROM session_journal WHERE trip_local_id = ?) AS max_session_updated_at
+    ''',
+    variables: [
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+    ],
+    readsFrom: {
+      db.sessionJournal,
+      db.eventJournal,
+      db.mediaJournal,
+      db.routePointJournal,
+    },
+  );
+
+  return query
+      .watchSingle()
+      .map((row) {
+        final event = row.data['max_event_updated_at']?.toString() ?? '';
+        final media = row.data['max_media_updated_at']?.toString() ?? '';
+        final points =
+            row.data['max_route_point_captured_at']?.toString() ?? '';
+        final session = row.data['max_session_updated_at']?.toString() ?? '';
+        return Object.hash(event, media, points, session);
+      })
+      .distinct()
+      .transform(
+        const _TrailingDebounceStreamTransformer<int>(
+          Duration(milliseconds: 300),
+        ),
+      );
+});
+
+final v2ProjectionCompileDriverProvider =
+    Provider.autoDispose.family<void, String>((ref, tripId) {
+  final compiler = ref.watch(v2LocalTimelineCompilerProvider);
+  final refreshStream = ref.watch(v2ProjectionRefreshSignalProvider(tripId));
+  var disposed = false;
+
+  Future<void> runCompile({String? reason}) async {
+    if (disposed) {
+      return;
+    }
+    try {
+      await compiler.compileTrip(tripId: tripId, reason: reason);
+    } catch (_) {
+      // Keep projection watchers alive even if one compile run fails.
+    }
+  }
+
+  final sub = refreshStream.listen(
+    (_) => unawaited(runCompile(reason: 'refresh_signal')),
+    onError: (_, __) {
+      // No-op: compile remains best-effort for provider consumers.
+    },
+  );
+  unawaited(runCompile(reason: 'initial_open'));
+  ref.onDispose(() async {
+    disposed = true;
+    await sub.cancel();
+  });
+});
+
+final v2TimelineProjectionProvider =
+    StreamProvider.autoDispose.family<List<V2TimelineProjectionEntry>, String>((
+  ref,
+  tripId,
+) {
+  ref.watch(v2ProjectionCompileDriverProvider(tripId));
+  final repository = ref.watch(v2LocalProjectionRepositoryProvider);
+  return repository.watchTimelineEntries(tripId);
+});
+
+final v2RouteProjectionProvider =
+    StreamProvider.autoDispose.family<List<V2RouteProjectionSegment>, String>((
+  ref,
+  tripId,
+) {
+  ref.watch(v2ProjectionCompileDriverProvider(tripId));
+  final repository = ref.watch(v2LocalProjectionRepositoryProvider);
+  return repository.watchRouteSegments(tripId);
+});
+
+final v2TimelineGroupsProvider = Provider.autoDispose
+    .family<AsyncValue<List<V2TimelineDayGroup>>, String>((ref, tripId) {
+  final entriesAsync = ref.watch(v2TimelineProjectionProvider(tripId));
+  return entriesAsync.when(
+    data: (entries) => AsyncValue.data(_groupTimelineByDayAndSession(entries)),
+    loading: AsyncValue.loading,
+    error: AsyncValue.error,
+  );
+});
+
+final v2LiveRecentProjectionProvider = Provider.autoDispose
+    .family<AsyncValue<List<V2TimelineProjectionEntry>>, String>((ref, tripId) {
+  final entriesAsync = ref.watch(v2TimelineProjectionProvider(tripId));
+  return entriesAsync.when(
+    data: (entries) => AsyncValue.data(
+      entries.take(12).toList(growable: false),
+    ),
+    loading: AsyncValue.loading,
+    error: AsyncValue.error,
+  );
+});
+
+List<V2TimelineDayGroup> _groupTimelineByDayAndSession(
+  List<V2TimelineProjectionEntry> entries,
+) {
+  final byDay = <DateTime, List<V2TimelineProjectionEntry>>{};
+  for (final entry in entries) {
+    final local = entry.capturedAt.toLocal();
+    final day = DateTime(local.year, local.month, local.day);
+    byDay.putIfAbsent(day, () => <V2TimelineProjectionEntry>[]).add(entry);
+  }
+  final sortedDays = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+
+  final groups = <V2TimelineDayGroup>[];
+  for (final day in sortedDays) {
+    final dayEntries = byDay[day]!
+      ..sort(
+        (a, b) => b.capturedAt.compareTo(a.capturedAt),
+      );
+    final bySession = <String, List<V2TimelineProjectionEntry>>{};
+    for (final entry in dayEntries) {
+      bySession
+          .putIfAbsent(entry.sessionId, () => <V2TimelineProjectionEntry>[])
+          .add(entry);
+    }
+    final sortedSessionIds = bySession.keys.toList()
+      ..sort((a, b) {
+        final aTop = bySession[a]!.first.capturedAt;
+        final bTop = bySession[b]!.first.capturedAt;
+        return bTop.compareTo(aTop);
+      });
+    final sessions = sortedSessionIds
+        .map(
+          (sessionId) => V2TimelineSessionGroup(
+            sessionId: sessionId,
+            entries: bySession[sessionId]!,
+          ),
+        )
+        .toList(growable: false);
+    groups.add(
+      V2TimelineDayGroup(
+        day: day,
+        sessions: sessions,
+      ),
+    );
+  }
+  return groups;
+}
+
+class _TrailingDebounceStreamTransformer<T>
+    extends StreamTransformerBase<T, T> {
+  const _TrailingDebounceStreamTransformer(this.duration);
+
+  final Duration duration;
+
+  @override
+  Stream<T> bind(Stream<T> stream) {
+    late StreamController<T> controller;
+    StreamSubscription<T>? subscription;
+    Timer? timer;
+    T? pending;
+
+    void flushPending() {
+      if (pending == null || controller.isClosed) {
+        return;
+      }
+      controller.add(pending as T);
+      pending = null;
+    }
+
+    controller = StreamController<T>(
+      onListen: () {
+        subscription = stream.listen(
+          (event) {
+            pending = event;
+            timer?.cancel();
+            timer = Timer(duration, flushPending);
+          },
+          onError: controller.addError,
+          onDone: () {
+            timer?.cancel();
+            flushPending();
+            controller.close();
+          },
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () async {
+        timer?.cancel();
+        pending = null;
+        await subscription?.cancel();
+      },
+    );
+    return controller.stream;
+  }
+}

@@ -22,10 +22,13 @@ import 'package:dora/core/storage/daos/trip_dao.dart';
 import 'package:dora/core/storage/daos/user_trips_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
+import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
 import 'package:dora/core/storage/tables/media_table.dart';
 import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
@@ -41,11 +44,14 @@ import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
 import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/media_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/route_projection_local_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_attempt_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_candidate_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/route_point_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/session_activity_window_table.dart';
 import 'package:dora/core/storage/tables/v2/session_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/timeline_compile_cursor_table.dart';
+import 'package:dora/core/storage/tables/v2/timeline_projection_local_table.dart';
 
 part 'drift_database.g.dart';
 
@@ -71,6 +77,9 @@ part 'drift_database.g.dart';
     MediaJournal,
     ResolverCandidateJournal,
     ResolverAttemptJournal,
+    TimelineProjectionLocal,
+    RouteProjectionLocal,
+    TimelineCompileCursor,
   ],
   daos: [
     TripDao,
@@ -92,13 +101,16 @@ part 'drift_database.g.dart';
     MediaJournalDao,
     ResolverCandidateJournalDao,
     ResolverAttemptJournalDao,
+    TimelineProjectionLocalDao,
+    RouteProjectionLocalDao,
+    TimelineCompileCursorDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -109,6 +121,12 @@ class AppDatabase extends _$AppDatabase {
             CREATE UNIQUE INDEX IF NOT EXISTS tracking_sessions_single_active_idx
             ON tracking_sessions(state)
             WHERE state = 'active'
+            ''',
+          );
+          await customStatement(
+            '''
+            CREATE UNIQUE INDEX IF NOT EXISTS timeline_projection_local_trip_source_unique_idx
+            ON timeline_projection_local (trip_local_id, source_kind, source_id)
             ''',
           );
         },
@@ -499,6 +517,54 @@ class AppDatabase extends _$AppDatabase {
               '''
               CREATE INDEX IF NOT EXISTS resolver_attempt_journal_started_idx
               ON resolver_attempt_journal (started_at)
+              ''',
+            );
+          }
+          if (from < 19) {
+            await m.createTable(timelineProjectionLocal);
+            await m.createTable(routeProjectionLocal);
+            await m.createTable(timelineCompileCursor);
+
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_captured_idx
+              ON timeline_projection_local (trip_local_id, captured_at DESC)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_bucket_captured_idx
+              ON timeline_projection_local (trip_local_id, bucket_type, captured_at DESC)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_captured_session_idx
+              ON timeline_projection_local (trip_local_id, captured_at DESC, session_id)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE UNIQUE INDEX IF NOT EXISTS timeline_projection_local_trip_source_unique_idx
+              ON timeline_projection_local (trip_local_id, source_kind, source_id)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_projection_local_trip_started_idx
+              ON route_projection_local (trip_local_id, started_at DESC)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_projection_local_trip_session_started_idx
+              ON route_projection_local (trip_local_id, session_id, started_at DESC)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS timeline_compile_cursor_updated_idx
+              ON timeline_compile_cursor (updated_at)
               ''',
             );
           }

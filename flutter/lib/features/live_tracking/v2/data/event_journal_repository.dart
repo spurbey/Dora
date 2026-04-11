@@ -70,6 +70,17 @@ class V2EventJournalRepository {
   Future<List<EventJournalRow>> listEventsForTrip(String tripLocalId) =>
       _dao.listEventsForTrip(tripLocalId);
 
+  Future<List<EventJournalRow>> listEventsForTripChronological(
+    String tripLocalId,
+  ) =>
+      _dao.listEventsForTripChronological(tripLocalId);
+
+  Future<List<EventJournalRow>> listEventsForTripFromCapturedAt(
+    String tripLocalId,
+    DateTime fromCapturedAt,
+  ) =>
+      _dao.listEventsForTripFromCapturedAt(tripLocalId, fromCapturedAt);
+
   Stream<List<EventJournalRow>> watchEventsForTrip(String tripLocalId) =>
       _dao.watchEventsForTrip(tripLocalId);
 

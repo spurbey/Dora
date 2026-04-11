@@ -9,10 +9,13 @@ import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
+import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -92,4 +95,22 @@ final v2ResolverAttemptJournalDaoProvider =
     Provider<ResolverAttemptJournalDao>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return ResolverAttemptJournalDao(db);
+});
+
+final v2TimelineProjectionLocalDaoProvider =
+    Provider<TimelineProjectionLocalDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return TimelineProjectionLocalDao(db);
+});
+
+final v2RouteProjectionLocalDaoProvider =
+    Provider<RouteProjectionLocalDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return RouteProjectionLocalDao(db);
+});
+
+final v2TimelineCompileCursorDaoProvider =
+    Provider<TimelineCompileCursorDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return TimelineCompileCursorDao(db);
 });

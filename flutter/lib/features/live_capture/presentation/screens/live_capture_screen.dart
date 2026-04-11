@@ -40,6 +40,7 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_top
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
@@ -202,6 +203,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             LiveSystemV2Subsystem.localJournal,
           },
         ).enabled;
+    final v2CompilerEnabled = !usePreview &&
+        ref.read(liveSystemV2RolloutGateProvider).evaluate(
+          tripId: widget.tripId,
+          surface: LiveSystemV2Surface.live,
+          requiredSubsystems: const {
+            LiveSystemV2Subsystem.localJournal,
+            LiveSystemV2Subsystem.localCompiler,
+          },
+        ).enabled;
     final v2HasActiveSession = usePreview
         ? false
         : (ref.watch(v2HasActiveSessionProvider(widget.tripId)).valueOrNull ??
@@ -237,6 +247,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final v2EventsAsync = usePreview || !useV2Lane
         ? null
         : ref.watch(v2LiveCaptureEventsProvider(widget.tripId));
+    final v2RecentProjectionAsync = usePreview || !v2CompilerEnabled
+        ? null
+        : ref.watch(v2LiveRecentProjectionProvider(widget.tripId));
     final v2InboxAsync = usePreview || !useV2Lane
         ? null
         : ref.watch(v2UnresolvedInboxProvider(widget.tripId));
@@ -387,22 +400,42 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                     child: usePreview
                         ? const _RecentEventsPlaceholder()
                         : useV2Lane
-                            ? v2EventsAsync!.when(
-                                data: (events) => LiveCaptureRecentEventsStrip(
-                                  events: _mapV2RecentEvents(events),
-                                  loading: false,
-                                ),
-                                loading: () =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: true,
-                                ),
-                                error: (_, __) =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: false,
-                                ),
-                              )
+                            ? (v2CompilerEnabled
+                                ? v2RecentProjectionAsync!.when(
+                                    data: (entries) =>
+                                        LiveCaptureRecentEventsStrip(
+                                      events:
+                                          _mapV2ProjectionRecentEvents(entries),
+                                      loading: false,
+                                    ),
+                                    loading: () =>
+                                        const LiveCaptureRecentEventsStrip(
+                                      events: <LiveCaptureRecentEventItem>[],
+                                      loading: true,
+                                    ),
+                                    error: (_, __) =>
+                                        const LiveCaptureRecentEventsStrip(
+                                      events: <LiveCaptureRecentEventItem>[],
+                                      loading: false,
+                                    ),
+                                  )
+                                : v2EventsAsync!.when(
+                                    data: (events) =>
+                                        LiveCaptureRecentEventsStrip(
+                                      events: _mapV2RecentEvents(events),
+                                      loading: false,
+                                    ),
+                                    loading: () =>
+                                        const LiveCaptureRecentEventsStrip(
+                                      events: <LiveCaptureRecentEventItem>[],
+                                      loading: true,
+                                    ),
+                                    error: (_, __) =>
+                                        const LiveCaptureRecentEventsStrip(
+                                      events: <LiveCaptureRecentEventItem>[],
+                                      loading: false,
+                                    ),
+                                  ))
                             : v1EventsAsync!.when(
                                 data: (events) => LiveCaptureRecentEventsStrip(
                                   events: _mapV1RecentEvents(events),
@@ -699,6 +732,38 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           ),
         )
         .toList(growable: false);
+  }
+
+  List<LiveCaptureRecentEventItem> _mapV2ProjectionRecentEvents(
+    List<V2TimelineProjectionEntry> entries,
+  ) {
+    return entries
+        .map(
+          (entry) => LiveCaptureRecentEventItem(
+            id: entry.entryId,
+            eventType: entry.eventType,
+            note: entry.title,
+            capturedAt: entry.capturedAt,
+            syncLabel: _chipLabel(entry.syncChipState),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String _chipLabel(String chipState) {
+    switch (chipState) {
+      case 'commit_pending':
+        return 'Commit pending';
+      case 'committing':
+        return 'Committing';
+      case 'committed':
+        return 'Committed';
+      case 'commit_failed_retryable':
+        return 'Retry';
+      case 'local_only':
+      default:
+        return 'Local';
+    }
   }
 
   String _resolverLabel(String resolverState) {

@@ -16834,6 +16834,2509 @@ class ResolverAttemptJournalCompanion
   }
 }
 
+class $TimelineProjectionLocalTable extends TimelineProjectionLocal
+    with TableInfo<$TimelineProjectionLocalTable, TimelineProjectionLocalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TimelineProjectionLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entryIdMeta =
+      const VerificationMeta('entryId');
+  @override
+  late final GeneratedColumn<String> entryId = GeneratedColumn<String>(
+      'entry_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _sourceKindMeta =
+      const VerificationMeta('sourceKind');
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+      'source_kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceIdMeta =
+      const VerificationMeta('sourceId');
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+      'source_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _eventTypeMeta =
+      const VerificationMeta('eventType');
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+      'event_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bucketTypeMeta =
+      const VerificationMeta('bucketType');
+  @override
+  late final GeneratedColumn<String> bucketType = GeneratedColumn<String>(
+      'bucket_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _placeBindKindMeta =
+      const VerificationMeta('placeBindKind');
+  @override
+  late final GeneratedColumn<String> placeBindKind = GeneratedColumn<String>(
+      'place_bind_kind', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _placeBindIdMeta =
+      const VerificationMeta('placeBindId');
+  @override
+  late final GeneratedColumn<String> placeBindId = GeneratedColumn<String>(
+      'place_bind_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _placeBindNameMeta =
+      const VerificationMeta('placeBindName');
+  @override
+  late final GeneratedColumn<String> placeBindName = GeneratedColumn<String>(
+      'place_bind_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _decisionSourceMeta =
+      const VerificationMeta('decisionSource');
+  @override
+  late final GeneratedColumn<String> decisionSource = GeneratedColumn<String>(
+      'decision_source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _manualLockMeta =
+      const VerificationMeta('manualLock');
+  @override
+  late final GeneratedColumn<int> manualLock = GeneratedColumn<int>(
+      'manual_lock', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _anchorLatitudeMeta =
+      const VerificationMeta('anchorLatitude');
+  @override
+  late final GeneratedColumn<double> anchorLatitude = GeneratedColumn<double>(
+      'anchor_latitude', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _anchorLongitudeMeta =
+      const VerificationMeta('anchorLongitude');
+  @override
+  late final GeneratedColumn<double> anchorLongitude = GeneratedColumn<double>(
+      'anchor_longitude', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _subtitleMeta =
+      const VerificationMeta('subtitle');
+  @override
+  late final GeneratedColumn<String> subtitle = GeneratedColumn<String>(
+      'subtitle', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _syncChipStateMeta =
+      const VerificationMeta('syncChipState');
+  @override
+  late final GeneratedColumn<String> syncChipState = GeneratedColumn<String>(
+      'sync_chip_state', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _routeSegmentKeyMeta =
+      const VerificationMeta('routeSegmentKey');
+  @override
+  late final GeneratedColumn<String> routeSegmentKey = GeneratedColumn<String>(
+      'route_segment_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _routeDistanceMMeta =
+      const VerificationMeta('routeDistanceM');
+  @override
+  late final GeneratedColumn<double> routeDistanceM = GeneratedColumn<double>(
+      'route_distance_m', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _renderPayloadJsonMeta =
+      const VerificationMeta('renderPayloadJson');
+  @override
+  late final GeneratedColumn<String> renderPayloadJson =
+      GeneratedColumn<String>('render_payload_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _compiledAtMeta =
+      const VerificationMeta('compiledAt');
+  @override
+  late final GeneratedColumn<DateTime> compiledAt = GeneratedColumn<DateTime>(
+      'compiled_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _compilerVersionMeta =
+      const VerificationMeta('compilerVersion');
+  @override
+  late final GeneratedColumn<int> compilerVersion = GeneratedColumn<int>(
+      'compiler_version', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        entryId,
+        tripLocalId,
+        sessionId,
+        capturedAt,
+        sourceKind,
+        sourceId,
+        eventType,
+        bucketType,
+        placeBindKind,
+        placeBindId,
+        placeBindName,
+        decisionSource,
+        manualLock,
+        anchorLatitude,
+        anchorLongitude,
+        title,
+        subtitle,
+        syncChipState,
+        routeSegmentKey,
+        routeDistanceM,
+        renderPayloadJson,
+        compiledAt,
+        compilerVersion
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'timeline_projection_local';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TimelineProjectionLocalRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('entry_id')) {
+      context.handle(_entryIdMeta,
+          entryId.isAcceptableOrUnknown(data['entry_id']!, _entryIdMeta));
+    } else if (isInserting) {
+      context.missing(_entryIdMeta);
+    }
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+          _sourceKindMeta,
+          sourceKind.isAcceptableOrUnknown(
+              data['source_kind']!, _sourceKindMeta));
+    } else if (isInserting) {
+      context.missing(_sourceKindMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(_sourceIdMeta,
+          sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta));
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(_eventTypeMeta,
+          eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta));
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('bucket_type')) {
+      context.handle(
+          _bucketTypeMeta,
+          bucketType.isAcceptableOrUnknown(
+              data['bucket_type']!, _bucketTypeMeta));
+    } else if (isInserting) {
+      context.missing(_bucketTypeMeta);
+    }
+    if (data.containsKey('place_bind_kind')) {
+      context.handle(
+          _placeBindKindMeta,
+          placeBindKind.isAcceptableOrUnknown(
+              data['place_bind_kind']!, _placeBindKindMeta));
+    }
+    if (data.containsKey('place_bind_id')) {
+      context.handle(
+          _placeBindIdMeta,
+          placeBindId.isAcceptableOrUnknown(
+              data['place_bind_id']!, _placeBindIdMeta));
+    }
+    if (data.containsKey('place_bind_name')) {
+      context.handle(
+          _placeBindNameMeta,
+          placeBindName.isAcceptableOrUnknown(
+              data['place_bind_name']!, _placeBindNameMeta));
+    }
+    if (data.containsKey('decision_source')) {
+      context.handle(
+          _decisionSourceMeta,
+          decisionSource.isAcceptableOrUnknown(
+              data['decision_source']!, _decisionSourceMeta));
+    }
+    if (data.containsKey('manual_lock')) {
+      context.handle(
+          _manualLockMeta,
+          manualLock.isAcceptableOrUnknown(
+              data['manual_lock']!, _manualLockMeta));
+    }
+    if (data.containsKey('anchor_latitude')) {
+      context.handle(
+          _anchorLatitudeMeta,
+          anchorLatitude.isAcceptableOrUnknown(
+              data['anchor_latitude']!, _anchorLatitudeMeta));
+    } else if (isInserting) {
+      context.missing(_anchorLatitudeMeta);
+    }
+    if (data.containsKey('anchor_longitude')) {
+      context.handle(
+          _anchorLongitudeMeta,
+          anchorLongitude.isAcceptableOrUnknown(
+              data['anchor_longitude']!, _anchorLongitudeMeta));
+    } else if (isInserting) {
+      context.missing(_anchorLongitudeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('subtitle')) {
+      context.handle(_subtitleMeta,
+          subtitle.isAcceptableOrUnknown(data['subtitle']!, _subtitleMeta));
+    }
+    if (data.containsKey('sync_chip_state')) {
+      context.handle(
+          _syncChipStateMeta,
+          syncChipState.isAcceptableOrUnknown(
+              data['sync_chip_state']!, _syncChipStateMeta));
+    } else if (isInserting) {
+      context.missing(_syncChipStateMeta);
+    }
+    if (data.containsKey('route_segment_key')) {
+      context.handle(
+          _routeSegmentKeyMeta,
+          routeSegmentKey.isAcceptableOrUnknown(
+              data['route_segment_key']!, _routeSegmentKeyMeta));
+    }
+    if (data.containsKey('route_distance_m')) {
+      context.handle(
+          _routeDistanceMMeta,
+          routeDistanceM.isAcceptableOrUnknown(
+              data['route_distance_m']!, _routeDistanceMMeta));
+    }
+    if (data.containsKey('render_payload_json')) {
+      context.handle(
+          _renderPayloadJsonMeta,
+          renderPayloadJson.isAcceptableOrUnknown(
+              data['render_payload_json']!, _renderPayloadJsonMeta));
+    }
+    if (data.containsKey('compiled_at')) {
+      context.handle(
+          _compiledAtMeta,
+          compiledAt.isAcceptableOrUnknown(
+              data['compiled_at']!, _compiledAtMeta));
+    } else if (isInserting) {
+      context.missing(_compiledAtMeta);
+    }
+    if (data.containsKey('compiler_version')) {
+      context.handle(
+          _compilerVersionMeta,
+          compilerVersion.isAcceptableOrUnknown(
+              data['compiler_version']!, _compilerVersionMeta));
+    } else if (isInserting) {
+      context.missing(_compilerVersionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entryId};
+  @override
+  TimelineProjectionLocalRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TimelineProjectionLocalRow(
+      entryId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entry_id'])!,
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}captured_at'])!,
+      sourceKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_kind'])!,
+      sourceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_id'])!,
+      eventType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}event_type'])!,
+      bucketType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bucket_type'])!,
+      placeBindKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}place_bind_kind']),
+      placeBindId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}place_bind_id']),
+      placeBindName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}place_bind_name']),
+      decisionSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}decision_source']),
+      manualLock: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}manual_lock'])!,
+      anchorLatitude: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}anchor_latitude'])!,
+      anchorLongitude: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}anchor_longitude'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      subtitle: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subtitle']),
+      syncChipState: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}sync_chip_state'])!,
+      routeSegmentKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}route_segment_key']),
+      routeDistanceM: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}route_distance_m']),
+      renderPayloadJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}render_payload_json']),
+      compiledAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}compiled_at'])!,
+      compilerVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}compiler_version'])!,
+    );
+  }
+
+  @override
+  $TimelineProjectionLocalTable createAlias(String alias) {
+    return $TimelineProjectionLocalTable(attachedDatabase, alias);
+  }
+}
+
+class TimelineProjectionLocalRow extends DataClass
+    implements Insertable<TimelineProjectionLocalRow> {
+  final String entryId;
+  final String tripLocalId;
+  final String sessionId;
+  final DateTime capturedAt;
+  final String sourceKind;
+  final String sourceId;
+  final String eventType;
+  final String bucketType;
+  final String? placeBindKind;
+  final String? placeBindId;
+  final String? placeBindName;
+  final String? decisionSource;
+  final int manualLock;
+  final double anchorLatitude;
+  final double anchorLongitude;
+  final String title;
+  final String? subtitle;
+  final String syncChipState;
+  final String? routeSegmentKey;
+  final double? routeDistanceM;
+  final String? renderPayloadJson;
+  final DateTime compiledAt;
+  final int compilerVersion;
+  const TimelineProjectionLocalRow(
+      {required this.entryId,
+      required this.tripLocalId,
+      required this.sessionId,
+      required this.capturedAt,
+      required this.sourceKind,
+      required this.sourceId,
+      required this.eventType,
+      required this.bucketType,
+      this.placeBindKind,
+      this.placeBindId,
+      this.placeBindName,
+      this.decisionSource,
+      required this.manualLock,
+      required this.anchorLatitude,
+      required this.anchorLongitude,
+      required this.title,
+      this.subtitle,
+      required this.syncChipState,
+      this.routeSegmentKey,
+      this.routeDistanceM,
+      this.renderPayloadJson,
+      required this.compiledAt,
+      required this.compilerVersion});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['entry_id'] = Variable<String>(entryId);
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    map['session_id'] = Variable<String>(sessionId);
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    map['source_kind'] = Variable<String>(sourceKind);
+    map['source_id'] = Variable<String>(sourceId);
+    map['event_type'] = Variable<String>(eventType);
+    map['bucket_type'] = Variable<String>(bucketType);
+    if (!nullToAbsent || placeBindKind != null) {
+      map['place_bind_kind'] = Variable<String>(placeBindKind);
+    }
+    if (!nullToAbsent || placeBindId != null) {
+      map['place_bind_id'] = Variable<String>(placeBindId);
+    }
+    if (!nullToAbsent || placeBindName != null) {
+      map['place_bind_name'] = Variable<String>(placeBindName);
+    }
+    if (!nullToAbsent || decisionSource != null) {
+      map['decision_source'] = Variable<String>(decisionSource);
+    }
+    map['manual_lock'] = Variable<int>(manualLock);
+    map['anchor_latitude'] = Variable<double>(anchorLatitude);
+    map['anchor_longitude'] = Variable<double>(anchorLongitude);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || subtitle != null) {
+      map['subtitle'] = Variable<String>(subtitle);
+    }
+    map['sync_chip_state'] = Variable<String>(syncChipState);
+    if (!nullToAbsent || routeSegmentKey != null) {
+      map['route_segment_key'] = Variable<String>(routeSegmentKey);
+    }
+    if (!nullToAbsent || routeDistanceM != null) {
+      map['route_distance_m'] = Variable<double>(routeDistanceM);
+    }
+    if (!nullToAbsent || renderPayloadJson != null) {
+      map['render_payload_json'] = Variable<String>(renderPayloadJson);
+    }
+    map['compiled_at'] = Variable<DateTime>(compiledAt);
+    map['compiler_version'] = Variable<int>(compilerVersion);
+    return map;
+  }
+
+  TimelineProjectionLocalCompanion toCompanion(bool nullToAbsent) {
+    return TimelineProjectionLocalCompanion(
+      entryId: Value(entryId),
+      tripLocalId: Value(tripLocalId),
+      sessionId: Value(sessionId),
+      capturedAt: Value(capturedAt),
+      sourceKind: Value(sourceKind),
+      sourceId: Value(sourceId),
+      eventType: Value(eventType),
+      bucketType: Value(bucketType),
+      placeBindKind: placeBindKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeBindKind),
+      placeBindId: placeBindId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeBindId),
+      placeBindName: placeBindName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(placeBindName),
+      decisionSource: decisionSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(decisionSource),
+      manualLock: Value(manualLock),
+      anchorLatitude: Value(anchorLatitude),
+      anchorLongitude: Value(anchorLongitude),
+      title: Value(title),
+      subtitle: subtitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subtitle),
+      syncChipState: Value(syncChipState),
+      routeSegmentKey: routeSegmentKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routeSegmentKey),
+      routeDistanceM: routeDistanceM == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routeDistanceM),
+      renderPayloadJson: renderPayloadJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(renderPayloadJson),
+      compiledAt: Value(compiledAt),
+      compilerVersion: Value(compilerVersion),
+    );
+  }
+
+  factory TimelineProjectionLocalRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TimelineProjectionLocalRow(
+      entryId: serializer.fromJson<String>(json['entryId']),
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      bucketType: serializer.fromJson<String>(json['bucketType']),
+      placeBindKind: serializer.fromJson<String?>(json['placeBindKind']),
+      placeBindId: serializer.fromJson<String?>(json['placeBindId']),
+      placeBindName: serializer.fromJson<String?>(json['placeBindName']),
+      decisionSource: serializer.fromJson<String?>(json['decisionSource']),
+      manualLock: serializer.fromJson<int>(json['manualLock']),
+      anchorLatitude: serializer.fromJson<double>(json['anchorLatitude']),
+      anchorLongitude: serializer.fromJson<double>(json['anchorLongitude']),
+      title: serializer.fromJson<String>(json['title']),
+      subtitle: serializer.fromJson<String?>(json['subtitle']),
+      syncChipState: serializer.fromJson<String>(json['syncChipState']),
+      routeSegmentKey: serializer.fromJson<String?>(json['routeSegmentKey']),
+      routeDistanceM: serializer.fromJson<double?>(json['routeDistanceM']),
+      renderPayloadJson:
+          serializer.fromJson<String?>(json['renderPayloadJson']),
+      compiledAt: serializer.fromJson<DateTime>(json['compiledAt']),
+      compilerVersion: serializer.fromJson<int>(json['compilerVersion']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entryId': serializer.toJson<String>(entryId),
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'sourceKind': serializer.toJson<String>(sourceKind),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'eventType': serializer.toJson<String>(eventType),
+      'bucketType': serializer.toJson<String>(bucketType),
+      'placeBindKind': serializer.toJson<String?>(placeBindKind),
+      'placeBindId': serializer.toJson<String?>(placeBindId),
+      'placeBindName': serializer.toJson<String?>(placeBindName),
+      'decisionSource': serializer.toJson<String?>(decisionSource),
+      'manualLock': serializer.toJson<int>(manualLock),
+      'anchorLatitude': serializer.toJson<double>(anchorLatitude),
+      'anchorLongitude': serializer.toJson<double>(anchorLongitude),
+      'title': serializer.toJson<String>(title),
+      'subtitle': serializer.toJson<String?>(subtitle),
+      'syncChipState': serializer.toJson<String>(syncChipState),
+      'routeSegmentKey': serializer.toJson<String?>(routeSegmentKey),
+      'routeDistanceM': serializer.toJson<double?>(routeDistanceM),
+      'renderPayloadJson': serializer.toJson<String?>(renderPayloadJson),
+      'compiledAt': serializer.toJson<DateTime>(compiledAt),
+      'compilerVersion': serializer.toJson<int>(compilerVersion),
+    };
+  }
+
+  TimelineProjectionLocalRow copyWith(
+          {String? entryId,
+          String? tripLocalId,
+          String? sessionId,
+          DateTime? capturedAt,
+          String? sourceKind,
+          String? sourceId,
+          String? eventType,
+          String? bucketType,
+          Value<String?> placeBindKind = const Value.absent(),
+          Value<String?> placeBindId = const Value.absent(),
+          Value<String?> placeBindName = const Value.absent(),
+          Value<String?> decisionSource = const Value.absent(),
+          int? manualLock,
+          double? anchorLatitude,
+          double? anchorLongitude,
+          String? title,
+          Value<String?> subtitle = const Value.absent(),
+          String? syncChipState,
+          Value<String?> routeSegmentKey = const Value.absent(),
+          Value<double?> routeDistanceM = const Value.absent(),
+          Value<String?> renderPayloadJson = const Value.absent(),
+          DateTime? compiledAt,
+          int? compilerVersion}) =>
+      TimelineProjectionLocalRow(
+        entryId: entryId ?? this.entryId,
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        sessionId: sessionId ?? this.sessionId,
+        capturedAt: capturedAt ?? this.capturedAt,
+        sourceKind: sourceKind ?? this.sourceKind,
+        sourceId: sourceId ?? this.sourceId,
+        eventType: eventType ?? this.eventType,
+        bucketType: bucketType ?? this.bucketType,
+        placeBindKind:
+            placeBindKind.present ? placeBindKind.value : this.placeBindKind,
+        placeBindId: placeBindId.present ? placeBindId.value : this.placeBindId,
+        placeBindName:
+            placeBindName.present ? placeBindName.value : this.placeBindName,
+        decisionSource:
+            decisionSource.present ? decisionSource.value : this.decisionSource,
+        manualLock: manualLock ?? this.manualLock,
+        anchorLatitude: anchorLatitude ?? this.anchorLatitude,
+        anchorLongitude: anchorLongitude ?? this.anchorLongitude,
+        title: title ?? this.title,
+        subtitle: subtitle.present ? subtitle.value : this.subtitle,
+        syncChipState: syncChipState ?? this.syncChipState,
+        routeSegmentKey: routeSegmentKey.present
+            ? routeSegmentKey.value
+            : this.routeSegmentKey,
+        routeDistanceM:
+            routeDistanceM.present ? routeDistanceM.value : this.routeDistanceM,
+        renderPayloadJson: renderPayloadJson.present
+            ? renderPayloadJson.value
+            : this.renderPayloadJson,
+        compiledAt: compiledAt ?? this.compiledAt,
+        compilerVersion: compilerVersion ?? this.compilerVersion,
+      );
+  TimelineProjectionLocalRow copyWithCompanion(
+      TimelineProjectionLocalCompanion data) {
+    return TimelineProjectionLocalRow(
+      entryId: data.entryId.present ? data.entryId.value : this.entryId,
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+      sourceKind:
+          data.sourceKind.present ? data.sourceKind.value : this.sourceKind,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      bucketType:
+          data.bucketType.present ? data.bucketType.value : this.bucketType,
+      placeBindKind: data.placeBindKind.present
+          ? data.placeBindKind.value
+          : this.placeBindKind,
+      placeBindId:
+          data.placeBindId.present ? data.placeBindId.value : this.placeBindId,
+      placeBindName: data.placeBindName.present
+          ? data.placeBindName.value
+          : this.placeBindName,
+      decisionSource: data.decisionSource.present
+          ? data.decisionSource.value
+          : this.decisionSource,
+      manualLock:
+          data.manualLock.present ? data.manualLock.value : this.manualLock,
+      anchorLatitude: data.anchorLatitude.present
+          ? data.anchorLatitude.value
+          : this.anchorLatitude,
+      anchorLongitude: data.anchorLongitude.present
+          ? data.anchorLongitude.value
+          : this.anchorLongitude,
+      title: data.title.present ? data.title.value : this.title,
+      subtitle: data.subtitle.present ? data.subtitle.value : this.subtitle,
+      syncChipState: data.syncChipState.present
+          ? data.syncChipState.value
+          : this.syncChipState,
+      routeSegmentKey: data.routeSegmentKey.present
+          ? data.routeSegmentKey.value
+          : this.routeSegmentKey,
+      routeDistanceM: data.routeDistanceM.present
+          ? data.routeDistanceM.value
+          : this.routeDistanceM,
+      renderPayloadJson: data.renderPayloadJson.present
+          ? data.renderPayloadJson.value
+          : this.renderPayloadJson,
+      compiledAt:
+          data.compiledAt.present ? data.compiledAt.value : this.compiledAt,
+      compilerVersion: data.compilerVersion.present
+          ? data.compilerVersion.value
+          : this.compilerVersion,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineProjectionLocalRow(')
+          ..write('entryId: $entryId, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('eventType: $eventType, ')
+          ..write('bucketType: $bucketType, ')
+          ..write('placeBindKind: $placeBindKind, ')
+          ..write('placeBindId: $placeBindId, ')
+          ..write('placeBindName: $placeBindName, ')
+          ..write('decisionSource: $decisionSource, ')
+          ..write('manualLock: $manualLock, ')
+          ..write('anchorLatitude: $anchorLatitude, ')
+          ..write('anchorLongitude: $anchorLongitude, ')
+          ..write('title: $title, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('syncChipState: $syncChipState, ')
+          ..write('routeSegmentKey: $routeSegmentKey, ')
+          ..write('routeDistanceM: $routeDistanceM, ')
+          ..write('renderPayloadJson: $renderPayloadJson, ')
+          ..write('compiledAt: $compiledAt, ')
+          ..write('compilerVersion: $compilerVersion')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        entryId,
+        tripLocalId,
+        sessionId,
+        capturedAt,
+        sourceKind,
+        sourceId,
+        eventType,
+        bucketType,
+        placeBindKind,
+        placeBindId,
+        placeBindName,
+        decisionSource,
+        manualLock,
+        anchorLatitude,
+        anchorLongitude,
+        title,
+        subtitle,
+        syncChipState,
+        routeSegmentKey,
+        routeDistanceM,
+        renderPayloadJson,
+        compiledAt,
+        compilerVersion
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TimelineProjectionLocalRow &&
+          other.entryId == this.entryId &&
+          other.tripLocalId == this.tripLocalId &&
+          other.sessionId == this.sessionId &&
+          other.capturedAt == this.capturedAt &&
+          other.sourceKind == this.sourceKind &&
+          other.sourceId == this.sourceId &&
+          other.eventType == this.eventType &&
+          other.bucketType == this.bucketType &&
+          other.placeBindKind == this.placeBindKind &&
+          other.placeBindId == this.placeBindId &&
+          other.placeBindName == this.placeBindName &&
+          other.decisionSource == this.decisionSource &&
+          other.manualLock == this.manualLock &&
+          other.anchorLatitude == this.anchorLatitude &&
+          other.anchorLongitude == this.anchorLongitude &&
+          other.title == this.title &&
+          other.subtitle == this.subtitle &&
+          other.syncChipState == this.syncChipState &&
+          other.routeSegmentKey == this.routeSegmentKey &&
+          other.routeDistanceM == this.routeDistanceM &&
+          other.renderPayloadJson == this.renderPayloadJson &&
+          other.compiledAt == this.compiledAt &&
+          other.compilerVersion == this.compilerVersion);
+}
+
+class TimelineProjectionLocalCompanion
+    extends UpdateCompanion<TimelineProjectionLocalRow> {
+  final Value<String> entryId;
+  final Value<String> tripLocalId;
+  final Value<String> sessionId;
+  final Value<DateTime> capturedAt;
+  final Value<String> sourceKind;
+  final Value<String> sourceId;
+  final Value<String> eventType;
+  final Value<String> bucketType;
+  final Value<String?> placeBindKind;
+  final Value<String?> placeBindId;
+  final Value<String?> placeBindName;
+  final Value<String?> decisionSource;
+  final Value<int> manualLock;
+  final Value<double> anchorLatitude;
+  final Value<double> anchorLongitude;
+  final Value<String> title;
+  final Value<String?> subtitle;
+  final Value<String> syncChipState;
+  final Value<String?> routeSegmentKey;
+  final Value<double?> routeDistanceM;
+  final Value<String?> renderPayloadJson;
+  final Value<DateTime> compiledAt;
+  final Value<int> compilerVersion;
+  final Value<int> rowid;
+  const TimelineProjectionLocalCompanion({
+    this.entryId = const Value.absent(),
+    this.tripLocalId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.bucketType = const Value.absent(),
+    this.placeBindKind = const Value.absent(),
+    this.placeBindId = const Value.absent(),
+    this.placeBindName = const Value.absent(),
+    this.decisionSource = const Value.absent(),
+    this.manualLock = const Value.absent(),
+    this.anchorLatitude = const Value.absent(),
+    this.anchorLongitude = const Value.absent(),
+    this.title = const Value.absent(),
+    this.subtitle = const Value.absent(),
+    this.syncChipState = const Value.absent(),
+    this.routeSegmentKey = const Value.absent(),
+    this.routeDistanceM = const Value.absent(),
+    this.renderPayloadJson = const Value.absent(),
+    this.compiledAt = const Value.absent(),
+    this.compilerVersion = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TimelineProjectionLocalCompanion.insert({
+    required String entryId,
+    required String tripLocalId,
+    required String sessionId,
+    required DateTime capturedAt,
+    required String sourceKind,
+    required String sourceId,
+    required String eventType,
+    required String bucketType,
+    this.placeBindKind = const Value.absent(),
+    this.placeBindId = const Value.absent(),
+    this.placeBindName = const Value.absent(),
+    this.decisionSource = const Value.absent(),
+    this.manualLock = const Value.absent(),
+    required double anchorLatitude,
+    required double anchorLongitude,
+    required String title,
+    this.subtitle = const Value.absent(),
+    required String syncChipState,
+    this.routeSegmentKey = const Value.absent(),
+    this.routeDistanceM = const Value.absent(),
+    this.renderPayloadJson = const Value.absent(),
+    required DateTime compiledAt,
+    required int compilerVersion,
+    this.rowid = const Value.absent(),
+  })  : entryId = Value(entryId),
+        tripLocalId = Value(tripLocalId),
+        sessionId = Value(sessionId),
+        capturedAt = Value(capturedAt),
+        sourceKind = Value(sourceKind),
+        sourceId = Value(sourceId),
+        eventType = Value(eventType),
+        bucketType = Value(bucketType),
+        anchorLatitude = Value(anchorLatitude),
+        anchorLongitude = Value(anchorLongitude),
+        title = Value(title),
+        syncChipState = Value(syncChipState),
+        compiledAt = Value(compiledAt),
+        compilerVersion = Value(compilerVersion);
+  static Insertable<TimelineProjectionLocalRow> custom({
+    Expression<String>? entryId,
+    Expression<String>? tripLocalId,
+    Expression<String>? sessionId,
+    Expression<DateTime>? capturedAt,
+    Expression<String>? sourceKind,
+    Expression<String>? sourceId,
+    Expression<String>? eventType,
+    Expression<String>? bucketType,
+    Expression<String>? placeBindKind,
+    Expression<String>? placeBindId,
+    Expression<String>? placeBindName,
+    Expression<String>? decisionSource,
+    Expression<int>? manualLock,
+    Expression<double>? anchorLatitude,
+    Expression<double>? anchorLongitude,
+    Expression<String>? title,
+    Expression<String>? subtitle,
+    Expression<String>? syncChipState,
+    Expression<String>? routeSegmentKey,
+    Expression<double>? routeDistanceM,
+    Expression<String>? renderPayloadJson,
+    Expression<DateTime>? compiledAt,
+    Expression<int>? compilerVersion,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entryId != null) 'entry_id': entryId,
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (sourceId != null) 'source_id': sourceId,
+      if (eventType != null) 'event_type': eventType,
+      if (bucketType != null) 'bucket_type': bucketType,
+      if (placeBindKind != null) 'place_bind_kind': placeBindKind,
+      if (placeBindId != null) 'place_bind_id': placeBindId,
+      if (placeBindName != null) 'place_bind_name': placeBindName,
+      if (decisionSource != null) 'decision_source': decisionSource,
+      if (manualLock != null) 'manual_lock': manualLock,
+      if (anchorLatitude != null) 'anchor_latitude': anchorLatitude,
+      if (anchorLongitude != null) 'anchor_longitude': anchorLongitude,
+      if (title != null) 'title': title,
+      if (subtitle != null) 'subtitle': subtitle,
+      if (syncChipState != null) 'sync_chip_state': syncChipState,
+      if (routeSegmentKey != null) 'route_segment_key': routeSegmentKey,
+      if (routeDistanceM != null) 'route_distance_m': routeDistanceM,
+      if (renderPayloadJson != null) 'render_payload_json': renderPayloadJson,
+      if (compiledAt != null) 'compiled_at': compiledAt,
+      if (compilerVersion != null) 'compiler_version': compilerVersion,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TimelineProjectionLocalCompanion copyWith(
+      {Value<String>? entryId,
+      Value<String>? tripLocalId,
+      Value<String>? sessionId,
+      Value<DateTime>? capturedAt,
+      Value<String>? sourceKind,
+      Value<String>? sourceId,
+      Value<String>? eventType,
+      Value<String>? bucketType,
+      Value<String?>? placeBindKind,
+      Value<String?>? placeBindId,
+      Value<String?>? placeBindName,
+      Value<String?>? decisionSource,
+      Value<int>? manualLock,
+      Value<double>? anchorLatitude,
+      Value<double>? anchorLongitude,
+      Value<String>? title,
+      Value<String?>? subtitle,
+      Value<String>? syncChipState,
+      Value<String?>? routeSegmentKey,
+      Value<double?>? routeDistanceM,
+      Value<String?>? renderPayloadJson,
+      Value<DateTime>? compiledAt,
+      Value<int>? compilerVersion,
+      Value<int>? rowid}) {
+    return TimelineProjectionLocalCompanion(
+      entryId: entryId ?? this.entryId,
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      sessionId: sessionId ?? this.sessionId,
+      capturedAt: capturedAt ?? this.capturedAt,
+      sourceKind: sourceKind ?? this.sourceKind,
+      sourceId: sourceId ?? this.sourceId,
+      eventType: eventType ?? this.eventType,
+      bucketType: bucketType ?? this.bucketType,
+      placeBindKind: placeBindKind ?? this.placeBindKind,
+      placeBindId: placeBindId ?? this.placeBindId,
+      placeBindName: placeBindName ?? this.placeBindName,
+      decisionSource: decisionSource ?? this.decisionSource,
+      manualLock: manualLock ?? this.manualLock,
+      anchorLatitude: anchorLatitude ?? this.anchorLatitude,
+      anchorLongitude: anchorLongitude ?? this.anchorLongitude,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      syncChipState: syncChipState ?? this.syncChipState,
+      routeSegmentKey: routeSegmentKey ?? this.routeSegmentKey,
+      routeDistanceM: routeDistanceM ?? this.routeDistanceM,
+      renderPayloadJson: renderPayloadJson ?? this.renderPayloadJson,
+      compiledAt: compiledAt ?? this.compiledAt,
+      compilerVersion: compilerVersion ?? this.compilerVersion,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entryId.present) {
+      map['entry_id'] = Variable<String>(entryId.value);
+    }
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (bucketType.present) {
+      map['bucket_type'] = Variable<String>(bucketType.value);
+    }
+    if (placeBindKind.present) {
+      map['place_bind_kind'] = Variable<String>(placeBindKind.value);
+    }
+    if (placeBindId.present) {
+      map['place_bind_id'] = Variable<String>(placeBindId.value);
+    }
+    if (placeBindName.present) {
+      map['place_bind_name'] = Variable<String>(placeBindName.value);
+    }
+    if (decisionSource.present) {
+      map['decision_source'] = Variable<String>(decisionSource.value);
+    }
+    if (manualLock.present) {
+      map['manual_lock'] = Variable<int>(manualLock.value);
+    }
+    if (anchorLatitude.present) {
+      map['anchor_latitude'] = Variable<double>(anchorLatitude.value);
+    }
+    if (anchorLongitude.present) {
+      map['anchor_longitude'] = Variable<double>(anchorLongitude.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (subtitle.present) {
+      map['subtitle'] = Variable<String>(subtitle.value);
+    }
+    if (syncChipState.present) {
+      map['sync_chip_state'] = Variable<String>(syncChipState.value);
+    }
+    if (routeSegmentKey.present) {
+      map['route_segment_key'] = Variable<String>(routeSegmentKey.value);
+    }
+    if (routeDistanceM.present) {
+      map['route_distance_m'] = Variable<double>(routeDistanceM.value);
+    }
+    if (renderPayloadJson.present) {
+      map['render_payload_json'] = Variable<String>(renderPayloadJson.value);
+    }
+    if (compiledAt.present) {
+      map['compiled_at'] = Variable<DateTime>(compiledAt.value);
+    }
+    if (compilerVersion.present) {
+      map['compiler_version'] = Variable<int>(compilerVersion.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineProjectionLocalCompanion(')
+          ..write('entryId: $entryId, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('eventType: $eventType, ')
+          ..write('bucketType: $bucketType, ')
+          ..write('placeBindKind: $placeBindKind, ')
+          ..write('placeBindId: $placeBindId, ')
+          ..write('placeBindName: $placeBindName, ')
+          ..write('decisionSource: $decisionSource, ')
+          ..write('manualLock: $manualLock, ')
+          ..write('anchorLatitude: $anchorLatitude, ')
+          ..write('anchorLongitude: $anchorLongitude, ')
+          ..write('title: $title, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('syncChipState: $syncChipState, ')
+          ..write('routeSegmentKey: $routeSegmentKey, ')
+          ..write('routeDistanceM: $routeDistanceM, ')
+          ..write('renderPayloadJson: $renderPayloadJson, ')
+          ..write('compiledAt: $compiledAt, ')
+          ..write('compilerVersion: $compilerVersion, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RouteProjectionLocalTable extends RouteProjectionLocal
+    with TableInfo<$RouteProjectionLocalTable, RouteProjectionLocalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RouteProjectionLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _segmentKeyMeta =
+      const VerificationMeta('segmentKey');
+  @override
+  late final GeneratedColumn<String> segmentKey = GeneratedColumn<String>(
+      'segment_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+      'started_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _endedAtMeta =
+      const VerificationMeta('endedAt');
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+      'ended_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _pointsCountMeta =
+      const VerificationMeta('pointsCount');
+  @override
+  late final GeneratedColumn<int> pointsCount = GeneratedColumn<int>(
+      'points_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _distanceMMeta =
+      const VerificationMeta('distanceM');
+  @override
+  late final GeneratedColumn<double> distanceM = GeneratedColumn<double>(
+      'distance_m', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _bboxMinLatMeta =
+      const VerificationMeta('bboxMinLat');
+  @override
+  late final GeneratedColumn<double> bboxMinLat = GeneratedColumn<double>(
+      'bbox_min_lat', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _bboxMinLonMeta =
+      const VerificationMeta('bboxMinLon');
+  @override
+  late final GeneratedColumn<double> bboxMinLon = GeneratedColumn<double>(
+      'bbox_min_lon', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _bboxMaxLatMeta =
+      const VerificationMeta('bboxMaxLat');
+  @override
+  late final GeneratedColumn<double> bboxMaxLat = GeneratedColumn<double>(
+      'bbox_max_lat', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _bboxMaxLonMeta =
+      const VerificationMeta('bboxMaxLon');
+  @override
+  late final GeneratedColumn<double> bboxMaxLon = GeneratedColumn<double>(
+      'bbox_max_lon', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _geometryJsonMeta =
+      const VerificationMeta('geometryJson');
+  @override
+  late final GeneratedColumn<String> geometryJson = GeneratedColumn<String>(
+      'geometry_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _compilerVersionMeta =
+      const VerificationMeta('compilerVersion');
+  @override
+  late final GeneratedColumn<int> compilerVersion = GeneratedColumn<int>(
+      'compiler_version', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        segmentKey,
+        tripLocalId,
+        sessionId,
+        startedAt,
+        endedAt,
+        pointsCount,
+        distanceM,
+        bboxMinLat,
+        bboxMinLon,
+        bboxMaxLat,
+        bboxMaxLon,
+        geometryJson,
+        updatedAt,
+        compilerVersion
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'route_projection_local';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<RouteProjectionLocalRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('segment_key')) {
+      context.handle(
+          _segmentKeyMeta,
+          segmentKey.isAcceptableOrUnknown(
+              data['segment_key']!, _segmentKeyMeta));
+    } else if (isInserting) {
+      context.missing(_segmentKeyMeta);
+    }
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(_endedAtMeta,
+          endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
+    } else if (isInserting) {
+      context.missing(_endedAtMeta);
+    }
+    if (data.containsKey('points_count')) {
+      context.handle(
+          _pointsCountMeta,
+          pointsCount.isAcceptableOrUnknown(
+              data['points_count']!, _pointsCountMeta));
+    } else if (isInserting) {
+      context.missing(_pointsCountMeta);
+    }
+    if (data.containsKey('distance_m')) {
+      context.handle(_distanceMMeta,
+          distanceM.isAcceptableOrUnknown(data['distance_m']!, _distanceMMeta));
+    } else if (isInserting) {
+      context.missing(_distanceMMeta);
+    }
+    if (data.containsKey('bbox_min_lat')) {
+      context.handle(
+          _bboxMinLatMeta,
+          bboxMinLat.isAcceptableOrUnknown(
+              data['bbox_min_lat']!, _bboxMinLatMeta));
+    } else if (isInserting) {
+      context.missing(_bboxMinLatMeta);
+    }
+    if (data.containsKey('bbox_min_lon')) {
+      context.handle(
+          _bboxMinLonMeta,
+          bboxMinLon.isAcceptableOrUnknown(
+              data['bbox_min_lon']!, _bboxMinLonMeta));
+    } else if (isInserting) {
+      context.missing(_bboxMinLonMeta);
+    }
+    if (data.containsKey('bbox_max_lat')) {
+      context.handle(
+          _bboxMaxLatMeta,
+          bboxMaxLat.isAcceptableOrUnknown(
+              data['bbox_max_lat']!, _bboxMaxLatMeta));
+    } else if (isInserting) {
+      context.missing(_bboxMaxLatMeta);
+    }
+    if (data.containsKey('bbox_max_lon')) {
+      context.handle(
+          _bboxMaxLonMeta,
+          bboxMaxLon.isAcceptableOrUnknown(
+              data['bbox_max_lon']!, _bboxMaxLonMeta));
+    } else if (isInserting) {
+      context.missing(_bboxMaxLonMeta);
+    }
+    if (data.containsKey('geometry_json')) {
+      context.handle(
+          _geometryJsonMeta,
+          geometryJson.isAcceptableOrUnknown(
+              data['geometry_json']!, _geometryJsonMeta));
+    } else if (isInserting) {
+      context.missing(_geometryJsonMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('compiler_version')) {
+      context.handle(
+          _compilerVersionMeta,
+          compilerVersion.isAcceptableOrUnknown(
+              data['compiler_version']!, _compilerVersionMeta));
+    } else if (isInserting) {
+      context.missing(_compilerVersionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {segmentKey};
+  @override
+  RouteProjectionLocalRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RouteProjectionLocalRow(
+      segmentKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}segment_key'])!,
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}started_at'])!,
+      endedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}ended_at'])!,
+      pointsCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}points_count'])!,
+      distanceM: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}distance_m'])!,
+      bboxMinLat: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}bbox_min_lat'])!,
+      bboxMinLon: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}bbox_min_lon'])!,
+      bboxMaxLat: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}bbox_max_lat'])!,
+      bboxMaxLon: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}bbox_max_lon'])!,
+      geometryJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}geometry_json'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      compilerVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}compiler_version'])!,
+    );
+  }
+
+  @override
+  $RouteProjectionLocalTable createAlias(String alias) {
+    return $RouteProjectionLocalTable(attachedDatabase, alias);
+  }
+}
+
+class RouteProjectionLocalRow extends DataClass
+    implements Insertable<RouteProjectionLocalRow> {
+  final String segmentKey;
+  final String tripLocalId;
+  final String sessionId;
+  final DateTime startedAt;
+  final DateTime endedAt;
+  final int pointsCount;
+  final double distanceM;
+  final double bboxMinLat;
+  final double bboxMinLon;
+  final double bboxMaxLat;
+  final double bboxMaxLon;
+  final String geometryJson;
+  final DateTime updatedAt;
+  final int compilerVersion;
+  const RouteProjectionLocalRow(
+      {required this.segmentKey,
+      required this.tripLocalId,
+      required this.sessionId,
+      required this.startedAt,
+      required this.endedAt,
+      required this.pointsCount,
+      required this.distanceM,
+      required this.bboxMinLat,
+      required this.bboxMinLon,
+      required this.bboxMaxLat,
+      required this.bboxMaxLon,
+      required this.geometryJson,
+      required this.updatedAt,
+      required this.compilerVersion});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['segment_key'] = Variable<String>(segmentKey);
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    map['session_id'] = Variable<String>(sessionId);
+    map['started_at'] = Variable<DateTime>(startedAt);
+    map['ended_at'] = Variable<DateTime>(endedAt);
+    map['points_count'] = Variable<int>(pointsCount);
+    map['distance_m'] = Variable<double>(distanceM);
+    map['bbox_min_lat'] = Variable<double>(bboxMinLat);
+    map['bbox_min_lon'] = Variable<double>(bboxMinLon);
+    map['bbox_max_lat'] = Variable<double>(bboxMaxLat);
+    map['bbox_max_lon'] = Variable<double>(bboxMaxLon);
+    map['geometry_json'] = Variable<String>(geometryJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['compiler_version'] = Variable<int>(compilerVersion);
+    return map;
+  }
+
+  RouteProjectionLocalCompanion toCompanion(bool nullToAbsent) {
+    return RouteProjectionLocalCompanion(
+      segmentKey: Value(segmentKey),
+      tripLocalId: Value(tripLocalId),
+      sessionId: Value(sessionId),
+      startedAt: Value(startedAt),
+      endedAt: Value(endedAt),
+      pointsCount: Value(pointsCount),
+      distanceM: Value(distanceM),
+      bboxMinLat: Value(bboxMinLat),
+      bboxMinLon: Value(bboxMinLon),
+      bboxMaxLat: Value(bboxMaxLat),
+      bboxMaxLon: Value(bboxMaxLon),
+      geometryJson: Value(geometryJson),
+      updatedAt: Value(updatedAt),
+      compilerVersion: Value(compilerVersion),
+    );
+  }
+
+  factory RouteProjectionLocalRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RouteProjectionLocalRow(
+      segmentKey: serializer.fromJson<String>(json['segmentKey']),
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime>(json['endedAt']),
+      pointsCount: serializer.fromJson<int>(json['pointsCount']),
+      distanceM: serializer.fromJson<double>(json['distanceM']),
+      bboxMinLat: serializer.fromJson<double>(json['bboxMinLat']),
+      bboxMinLon: serializer.fromJson<double>(json['bboxMinLon']),
+      bboxMaxLat: serializer.fromJson<double>(json['bboxMaxLat']),
+      bboxMaxLon: serializer.fromJson<double>(json['bboxMaxLon']),
+      geometryJson: serializer.fromJson<String>(json['geometryJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      compilerVersion: serializer.fromJson<int>(json['compilerVersion']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'segmentKey': serializer.toJson<String>(segmentKey),
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'endedAt': serializer.toJson<DateTime>(endedAt),
+      'pointsCount': serializer.toJson<int>(pointsCount),
+      'distanceM': serializer.toJson<double>(distanceM),
+      'bboxMinLat': serializer.toJson<double>(bboxMinLat),
+      'bboxMinLon': serializer.toJson<double>(bboxMinLon),
+      'bboxMaxLat': serializer.toJson<double>(bboxMaxLat),
+      'bboxMaxLon': serializer.toJson<double>(bboxMaxLon),
+      'geometryJson': serializer.toJson<String>(geometryJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'compilerVersion': serializer.toJson<int>(compilerVersion),
+    };
+  }
+
+  RouteProjectionLocalRow copyWith(
+          {String? segmentKey,
+          String? tripLocalId,
+          String? sessionId,
+          DateTime? startedAt,
+          DateTime? endedAt,
+          int? pointsCount,
+          double? distanceM,
+          double? bboxMinLat,
+          double? bboxMinLon,
+          double? bboxMaxLat,
+          double? bboxMaxLon,
+          String? geometryJson,
+          DateTime? updatedAt,
+          int? compilerVersion}) =>
+      RouteProjectionLocalRow(
+        segmentKey: segmentKey ?? this.segmentKey,
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        sessionId: sessionId ?? this.sessionId,
+        startedAt: startedAt ?? this.startedAt,
+        endedAt: endedAt ?? this.endedAt,
+        pointsCount: pointsCount ?? this.pointsCount,
+        distanceM: distanceM ?? this.distanceM,
+        bboxMinLat: bboxMinLat ?? this.bboxMinLat,
+        bboxMinLon: bboxMinLon ?? this.bboxMinLon,
+        bboxMaxLat: bboxMaxLat ?? this.bboxMaxLat,
+        bboxMaxLon: bboxMaxLon ?? this.bboxMaxLon,
+        geometryJson: geometryJson ?? this.geometryJson,
+        updatedAt: updatedAt ?? this.updatedAt,
+        compilerVersion: compilerVersion ?? this.compilerVersion,
+      );
+  RouteProjectionLocalRow copyWithCompanion(
+      RouteProjectionLocalCompanion data) {
+    return RouteProjectionLocalRow(
+      segmentKey:
+          data.segmentKey.present ? data.segmentKey.value : this.segmentKey,
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      pointsCount:
+          data.pointsCount.present ? data.pointsCount.value : this.pointsCount,
+      distanceM: data.distanceM.present ? data.distanceM.value : this.distanceM,
+      bboxMinLat:
+          data.bboxMinLat.present ? data.bboxMinLat.value : this.bboxMinLat,
+      bboxMinLon:
+          data.bboxMinLon.present ? data.bboxMinLon.value : this.bboxMinLon,
+      bboxMaxLat:
+          data.bboxMaxLat.present ? data.bboxMaxLat.value : this.bboxMaxLat,
+      bboxMaxLon:
+          data.bboxMaxLon.present ? data.bboxMaxLon.value : this.bboxMaxLon,
+      geometryJson: data.geometryJson.present
+          ? data.geometryJson.value
+          : this.geometryJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      compilerVersion: data.compilerVersion.present
+          ? data.compilerVersion.value
+          : this.compilerVersion,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RouteProjectionLocalRow(')
+          ..write('segmentKey: $segmentKey, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('pointsCount: $pointsCount, ')
+          ..write('distanceM: $distanceM, ')
+          ..write('bboxMinLat: $bboxMinLat, ')
+          ..write('bboxMinLon: $bboxMinLon, ')
+          ..write('bboxMaxLat: $bboxMaxLat, ')
+          ..write('bboxMaxLon: $bboxMaxLon, ')
+          ..write('geometryJson: $geometryJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('compilerVersion: $compilerVersion')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      segmentKey,
+      tripLocalId,
+      sessionId,
+      startedAt,
+      endedAt,
+      pointsCount,
+      distanceM,
+      bboxMinLat,
+      bboxMinLon,
+      bboxMaxLat,
+      bboxMaxLon,
+      geometryJson,
+      updatedAt,
+      compilerVersion);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RouteProjectionLocalRow &&
+          other.segmentKey == this.segmentKey &&
+          other.tripLocalId == this.tripLocalId &&
+          other.sessionId == this.sessionId &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.pointsCount == this.pointsCount &&
+          other.distanceM == this.distanceM &&
+          other.bboxMinLat == this.bboxMinLat &&
+          other.bboxMinLon == this.bboxMinLon &&
+          other.bboxMaxLat == this.bboxMaxLat &&
+          other.bboxMaxLon == this.bboxMaxLon &&
+          other.geometryJson == this.geometryJson &&
+          other.updatedAt == this.updatedAt &&
+          other.compilerVersion == this.compilerVersion);
+}
+
+class RouteProjectionLocalCompanion
+    extends UpdateCompanion<RouteProjectionLocalRow> {
+  final Value<String> segmentKey;
+  final Value<String> tripLocalId;
+  final Value<String> sessionId;
+  final Value<DateTime> startedAt;
+  final Value<DateTime> endedAt;
+  final Value<int> pointsCount;
+  final Value<double> distanceM;
+  final Value<double> bboxMinLat;
+  final Value<double> bboxMinLon;
+  final Value<double> bboxMaxLat;
+  final Value<double> bboxMaxLon;
+  final Value<String> geometryJson;
+  final Value<DateTime> updatedAt;
+  final Value<int> compilerVersion;
+  final Value<int> rowid;
+  const RouteProjectionLocalCompanion({
+    this.segmentKey = const Value.absent(),
+    this.tripLocalId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.pointsCount = const Value.absent(),
+    this.distanceM = const Value.absent(),
+    this.bboxMinLat = const Value.absent(),
+    this.bboxMinLon = const Value.absent(),
+    this.bboxMaxLat = const Value.absent(),
+    this.bboxMaxLon = const Value.absent(),
+    this.geometryJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.compilerVersion = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RouteProjectionLocalCompanion.insert({
+    required String segmentKey,
+    required String tripLocalId,
+    required String sessionId,
+    required DateTime startedAt,
+    required DateTime endedAt,
+    required int pointsCount,
+    required double distanceM,
+    required double bboxMinLat,
+    required double bboxMinLon,
+    required double bboxMaxLat,
+    required double bboxMaxLon,
+    required String geometryJson,
+    required DateTime updatedAt,
+    required int compilerVersion,
+    this.rowid = const Value.absent(),
+  })  : segmentKey = Value(segmentKey),
+        tripLocalId = Value(tripLocalId),
+        sessionId = Value(sessionId),
+        startedAt = Value(startedAt),
+        endedAt = Value(endedAt),
+        pointsCount = Value(pointsCount),
+        distanceM = Value(distanceM),
+        bboxMinLat = Value(bboxMinLat),
+        bboxMinLon = Value(bboxMinLon),
+        bboxMaxLat = Value(bboxMaxLat),
+        bboxMaxLon = Value(bboxMaxLon),
+        geometryJson = Value(geometryJson),
+        updatedAt = Value(updatedAt),
+        compilerVersion = Value(compilerVersion);
+  static Insertable<RouteProjectionLocalRow> custom({
+    Expression<String>? segmentKey,
+    Expression<String>? tripLocalId,
+    Expression<String>? sessionId,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<int>? pointsCount,
+    Expression<double>? distanceM,
+    Expression<double>? bboxMinLat,
+    Expression<double>? bboxMinLon,
+    Expression<double>? bboxMaxLat,
+    Expression<double>? bboxMaxLon,
+    Expression<String>? geometryJson,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? compilerVersion,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (segmentKey != null) 'segment_key': segmentKey,
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (pointsCount != null) 'points_count': pointsCount,
+      if (distanceM != null) 'distance_m': distanceM,
+      if (bboxMinLat != null) 'bbox_min_lat': bboxMinLat,
+      if (bboxMinLon != null) 'bbox_min_lon': bboxMinLon,
+      if (bboxMaxLat != null) 'bbox_max_lat': bboxMaxLat,
+      if (bboxMaxLon != null) 'bbox_max_lon': bboxMaxLon,
+      if (geometryJson != null) 'geometry_json': geometryJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (compilerVersion != null) 'compiler_version': compilerVersion,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RouteProjectionLocalCompanion copyWith(
+      {Value<String>? segmentKey,
+      Value<String>? tripLocalId,
+      Value<String>? sessionId,
+      Value<DateTime>? startedAt,
+      Value<DateTime>? endedAt,
+      Value<int>? pointsCount,
+      Value<double>? distanceM,
+      Value<double>? bboxMinLat,
+      Value<double>? bboxMinLon,
+      Value<double>? bboxMaxLat,
+      Value<double>? bboxMaxLon,
+      Value<String>? geometryJson,
+      Value<DateTime>? updatedAt,
+      Value<int>? compilerVersion,
+      Value<int>? rowid}) {
+    return RouteProjectionLocalCompanion(
+      segmentKey: segmentKey ?? this.segmentKey,
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      sessionId: sessionId ?? this.sessionId,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      pointsCount: pointsCount ?? this.pointsCount,
+      distanceM: distanceM ?? this.distanceM,
+      bboxMinLat: bboxMinLat ?? this.bboxMinLat,
+      bboxMinLon: bboxMinLon ?? this.bboxMinLon,
+      bboxMaxLat: bboxMaxLat ?? this.bboxMaxLat,
+      bboxMaxLon: bboxMaxLon ?? this.bboxMaxLon,
+      geometryJson: geometryJson ?? this.geometryJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      compilerVersion: compilerVersion ?? this.compilerVersion,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (segmentKey.present) {
+      map['segment_key'] = Variable<String>(segmentKey.value);
+    }
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (pointsCount.present) {
+      map['points_count'] = Variable<int>(pointsCount.value);
+    }
+    if (distanceM.present) {
+      map['distance_m'] = Variable<double>(distanceM.value);
+    }
+    if (bboxMinLat.present) {
+      map['bbox_min_lat'] = Variable<double>(bboxMinLat.value);
+    }
+    if (bboxMinLon.present) {
+      map['bbox_min_lon'] = Variable<double>(bboxMinLon.value);
+    }
+    if (bboxMaxLat.present) {
+      map['bbox_max_lat'] = Variable<double>(bboxMaxLat.value);
+    }
+    if (bboxMaxLon.present) {
+      map['bbox_max_lon'] = Variable<double>(bboxMaxLon.value);
+    }
+    if (geometryJson.present) {
+      map['geometry_json'] = Variable<String>(geometryJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (compilerVersion.present) {
+      map['compiler_version'] = Variable<int>(compilerVersion.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RouteProjectionLocalCompanion(')
+          ..write('segmentKey: $segmentKey, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('pointsCount: $pointsCount, ')
+          ..write('distanceM: $distanceM, ')
+          ..write('bboxMinLat: $bboxMinLat, ')
+          ..write('bboxMinLon: $bboxMinLon, ')
+          ..write('bboxMaxLat: $bboxMaxLat, ')
+          ..write('bboxMaxLon: $bboxMaxLon, ')
+          ..write('geometryJson: $geometryJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('compilerVersion: $compilerVersion, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TimelineCompileCursorTable extends TimelineCompileCursor
+    with TableInfo<$TimelineCompileCursorTable, TimelineCompileCursorRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TimelineCompileCursorTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _compilerVersionMeta =
+      const VerificationMeta('compilerVersion');
+  @override
+  late final GeneratedColumn<int> compilerVersion = GeneratedColumn<int>(
+      'compiler_version', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _projectionSchemaVersionMeta =
+      const VerificationMeta('projectionSchemaVersion');
+  @override
+  late final GeneratedColumn<int> projectionSchemaVersion =
+      GeneratedColumn<int>('projection_schema_version', aliasedName, false,
+          type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _lastCompiledAtMeta =
+      const VerificationMeta('lastCompiledAt');
+  @override
+  late final GeneratedColumn<DateTime> lastCompiledAt =
+      GeneratedColumn<DateTime>('last_compiled_at', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _lastEventUpdatedAtMeta =
+      const VerificationMeta('lastEventUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastEventUpdatedAt =
+      GeneratedColumn<DateTime>('last_event_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastMediaUpdatedAtMeta =
+      const VerificationMeta('lastMediaUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastMediaUpdatedAt =
+      GeneratedColumn<DateTime>('last_media_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastRoutePointCapturedAtMeta =
+      const VerificationMeta('lastRoutePointCapturedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastRoutePointCapturedAt =
+      GeneratedColumn<DateTime>(
+          'last_route_point_captured_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastSessionUpdatedAtMeta =
+      const VerificationMeta('lastSessionUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastSessionUpdatedAt =
+      GeneratedColumn<DateTime>('last_session_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _dirtyFromCapturedAtMeta =
+      const VerificationMeta('dirtyFromCapturedAt');
+  @override
+  late final GeneratedColumn<DateTime> dirtyFromCapturedAt =
+      GeneratedColumn<DateTime>('dirty_from_captured_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _dirtyReasonMeta =
+      const VerificationMeta('dirtyReason');
+  @override
+  late final GeneratedColumn<String> dirtyReason = GeneratedColumn<String>(
+      'dirty_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fullRebuildRequiredMeta =
+      const VerificationMeta('fullRebuildRequired');
+  @override
+  late final GeneratedColumn<int> fullRebuildRequired = GeneratedColumn<int>(
+      'full_rebuild_required', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        tripLocalId,
+        compilerVersion,
+        projectionSchemaVersion,
+        lastCompiledAt,
+        lastEventUpdatedAt,
+        lastMediaUpdatedAt,
+        lastRoutePointCapturedAt,
+        lastSessionUpdatedAt,
+        dirtyFromCapturedAt,
+        dirtyReason,
+        fullRebuildRequired,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'timeline_compile_cursor';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TimelineCompileCursorRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('compiler_version')) {
+      context.handle(
+          _compilerVersionMeta,
+          compilerVersion.isAcceptableOrUnknown(
+              data['compiler_version']!, _compilerVersionMeta));
+    } else if (isInserting) {
+      context.missing(_compilerVersionMeta);
+    }
+    if (data.containsKey('projection_schema_version')) {
+      context.handle(
+          _projectionSchemaVersionMeta,
+          projectionSchemaVersion.isAcceptableOrUnknown(
+              data['projection_schema_version']!,
+              _projectionSchemaVersionMeta));
+    } else if (isInserting) {
+      context.missing(_projectionSchemaVersionMeta);
+    }
+    if (data.containsKey('last_compiled_at')) {
+      context.handle(
+          _lastCompiledAtMeta,
+          lastCompiledAt.isAcceptableOrUnknown(
+              data['last_compiled_at']!, _lastCompiledAtMeta));
+    } else if (isInserting) {
+      context.missing(_lastCompiledAtMeta);
+    }
+    if (data.containsKey('last_event_updated_at')) {
+      context.handle(
+          _lastEventUpdatedAtMeta,
+          lastEventUpdatedAt.isAcceptableOrUnknown(
+              data['last_event_updated_at']!, _lastEventUpdatedAtMeta));
+    }
+    if (data.containsKey('last_media_updated_at')) {
+      context.handle(
+          _lastMediaUpdatedAtMeta,
+          lastMediaUpdatedAt.isAcceptableOrUnknown(
+              data['last_media_updated_at']!, _lastMediaUpdatedAtMeta));
+    }
+    if (data.containsKey('last_route_point_captured_at')) {
+      context.handle(
+          _lastRoutePointCapturedAtMeta,
+          lastRoutePointCapturedAt.isAcceptableOrUnknown(
+              data['last_route_point_captured_at']!,
+              _lastRoutePointCapturedAtMeta));
+    }
+    if (data.containsKey('last_session_updated_at')) {
+      context.handle(
+          _lastSessionUpdatedAtMeta,
+          lastSessionUpdatedAt.isAcceptableOrUnknown(
+              data['last_session_updated_at']!, _lastSessionUpdatedAtMeta));
+    }
+    if (data.containsKey('dirty_from_captured_at')) {
+      context.handle(
+          _dirtyFromCapturedAtMeta,
+          dirtyFromCapturedAt.isAcceptableOrUnknown(
+              data['dirty_from_captured_at']!, _dirtyFromCapturedAtMeta));
+    }
+    if (data.containsKey('dirty_reason')) {
+      context.handle(
+          _dirtyReasonMeta,
+          dirtyReason.isAcceptableOrUnknown(
+              data['dirty_reason']!, _dirtyReasonMeta));
+    }
+    if (data.containsKey('full_rebuild_required')) {
+      context.handle(
+          _fullRebuildRequiredMeta,
+          fullRebuildRequired.isAcceptableOrUnknown(
+              data['full_rebuild_required']!, _fullRebuildRequiredMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {tripLocalId};
+  @override
+  TimelineCompileCursorRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TimelineCompileCursorRow(
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      compilerVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}compiler_version'])!,
+      projectionSchemaVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}projection_schema_version'])!,
+      lastCompiledAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_compiled_at'])!,
+      lastEventUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}last_event_updated_at']),
+      lastMediaUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}last_media_updated_at']),
+      lastRoutePointCapturedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}last_route_point_captured_at']),
+      lastSessionUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}last_session_updated_at']),
+      dirtyFromCapturedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}dirty_from_captured_at']),
+      dirtyReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}dirty_reason']),
+      fullRebuildRequired: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}full_rebuild_required'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TimelineCompileCursorTable createAlias(String alias) {
+    return $TimelineCompileCursorTable(attachedDatabase, alias);
+  }
+}
+
+class TimelineCompileCursorRow extends DataClass
+    implements Insertable<TimelineCompileCursorRow> {
+  final String tripLocalId;
+  final int compilerVersion;
+  final int projectionSchemaVersion;
+  final DateTime lastCompiledAt;
+  final DateTime? lastEventUpdatedAt;
+  final DateTime? lastMediaUpdatedAt;
+  final DateTime? lastRoutePointCapturedAt;
+  final DateTime? lastSessionUpdatedAt;
+  final DateTime? dirtyFromCapturedAt;
+  final String? dirtyReason;
+  final int fullRebuildRequired;
+  final DateTime updatedAt;
+  const TimelineCompileCursorRow(
+      {required this.tripLocalId,
+      required this.compilerVersion,
+      required this.projectionSchemaVersion,
+      required this.lastCompiledAt,
+      this.lastEventUpdatedAt,
+      this.lastMediaUpdatedAt,
+      this.lastRoutePointCapturedAt,
+      this.lastSessionUpdatedAt,
+      this.dirtyFromCapturedAt,
+      this.dirtyReason,
+      required this.fullRebuildRequired,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    map['compiler_version'] = Variable<int>(compilerVersion);
+    map['projection_schema_version'] = Variable<int>(projectionSchemaVersion);
+    map['last_compiled_at'] = Variable<DateTime>(lastCompiledAt);
+    if (!nullToAbsent || lastEventUpdatedAt != null) {
+      map['last_event_updated_at'] = Variable<DateTime>(lastEventUpdatedAt);
+    }
+    if (!nullToAbsent || lastMediaUpdatedAt != null) {
+      map['last_media_updated_at'] = Variable<DateTime>(lastMediaUpdatedAt);
+    }
+    if (!nullToAbsent || lastRoutePointCapturedAt != null) {
+      map['last_route_point_captured_at'] =
+          Variable<DateTime>(lastRoutePointCapturedAt);
+    }
+    if (!nullToAbsent || lastSessionUpdatedAt != null) {
+      map['last_session_updated_at'] = Variable<DateTime>(lastSessionUpdatedAt);
+    }
+    if (!nullToAbsent || dirtyFromCapturedAt != null) {
+      map['dirty_from_captured_at'] = Variable<DateTime>(dirtyFromCapturedAt);
+    }
+    if (!nullToAbsent || dirtyReason != null) {
+      map['dirty_reason'] = Variable<String>(dirtyReason);
+    }
+    map['full_rebuild_required'] = Variable<int>(fullRebuildRequired);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TimelineCompileCursorCompanion toCompanion(bool nullToAbsent) {
+    return TimelineCompileCursorCompanion(
+      tripLocalId: Value(tripLocalId),
+      compilerVersion: Value(compilerVersion),
+      projectionSchemaVersion: Value(projectionSchemaVersion),
+      lastCompiledAt: Value(lastCompiledAt),
+      lastEventUpdatedAt: lastEventUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastEventUpdatedAt),
+      lastMediaUpdatedAt: lastMediaUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMediaUpdatedAt),
+      lastRoutePointCapturedAt: lastRoutePointCapturedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRoutePointCapturedAt),
+      lastSessionUpdatedAt: lastSessionUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSessionUpdatedAt),
+      dirtyFromCapturedAt: dirtyFromCapturedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dirtyFromCapturedAt),
+      dirtyReason: dirtyReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dirtyReason),
+      fullRebuildRequired: Value(fullRebuildRequired),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TimelineCompileCursorRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TimelineCompileCursorRow(
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      compilerVersion: serializer.fromJson<int>(json['compilerVersion']),
+      projectionSchemaVersion:
+          serializer.fromJson<int>(json['projectionSchemaVersion']),
+      lastCompiledAt: serializer.fromJson<DateTime>(json['lastCompiledAt']),
+      lastEventUpdatedAt:
+          serializer.fromJson<DateTime?>(json['lastEventUpdatedAt']),
+      lastMediaUpdatedAt:
+          serializer.fromJson<DateTime?>(json['lastMediaUpdatedAt']),
+      lastRoutePointCapturedAt:
+          serializer.fromJson<DateTime?>(json['lastRoutePointCapturedAt']),
+      lastSessionUpdatedAt:
+          serializer.fromJson<DateTime?>(json['lastSessionUpdatedAt']),
+      dirtyFromCapturedAt:
+          serializer.fromJson<DateTime?>(json['dirtyFromCapturedAt']),
+      dirtyReason: serializer.fromJson<String?>(json['dirtyReason']),
+      fullRebuildRequired:
+          serializer.fromJson<int>(json['fullRebuildRequired']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'compilerVersion': serializer.toJson<int>(compilerVersion),
+      'projectionSchemaVersion':
+          serializer.toJson<int>(projectionSchemaVersion),
+      'lastCompiledAt': serializer.toJson<DateTime>(lastCompiledAt),
+      'lastEventUpdatedAt': serializer.toJson<DateTime?>(lastEventUpdatedAt),
+      'lastMediaUpdatedAt': serializer.toJson<DateTime?>(lastMediaUpdatedAt),
+      'lastRoutePointCapturedAt':
+          serializer.toJson<DateTime?>(lastRoutePointCapturedAt),
+      'lastSessionUpdatedAt':
+          serializer.toJson<DateTime?>(lastSessionUpdatedAt),
+      'dirtyFromCapturedAt': serializer.toJson<DateTime?>(dirtyFromCapturedAt),
+      'dirtyReason': serializer.toJson<String?>(dirtyReason),
+      'fullRebuildRequired': serializer.toJson<int>(fullRebuildRequired),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TimelineCompileCursorRow copyWith(
+          {String? tripLocalId,
+          int? compilerVersion,
+          int? projectionSchemaVersion,
+          DateTime? lastCompiledAt,
+          Value<DateTime?> lastEventUpdatedAt = const Value.absent(),
+          Value<DateTime?> lastMediaUpdatedAt = const Value.absent(),
+          Value<DateTime?> lastRoutePointCapturedAt = const Value.absent(),
+          Value<DateTime?> lastSessionUpdatedAt = const Value.absent(),
+          Value<DateTime?> dirtyFromCapturedAt = const Value.absent(),
+          Value<String?> dirtyReason = const Value.absent(),
+          int? fullRebuildRequired,
+          DateTime? updatedAt}) =>
+      TimelineCompileCursorRow(
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        compilerVersion: compilerVersion ?? this.compilerVersion,
+        projectionSchemaVersion:
+            projectionSchemaVersion ?? this.projectionSchemaVersion,
+        lastCompiledAt: lastCompiledAt ?? this.lastCompiledAt,
+        lastEventUpdatedAt: lastEventUpdatedAt.present
+            ? lastEventUpdatedAt.value
+            : this.lastEventUpdatedAt,
+        lastMediaUpdatedAt: lastMediaUpdatedAt.present
+            ? lastMediaUpdatedAt.value
+            : this.lastMediaUpdatedAt,
+        lastRoutePointCapturedAt: lastRoutePointCapturedAt.present
+            ? lastRoutePointCapturedAt.value
+            : this.lastRoutePointCapturedAt,
+        lastSessionUpdatedAt: lastSessionUpdatedAt.present
+            ? lastSessionUpdatedAt.value
+            : this.lastSessionUpdatedAt,
+        dirtyFromCapturedAt: dirtyFromCapturedAt.present
+            ? dirtyFromCapturedAt.value
+            : this.dirtyFromCapturedAt,
+        dirtyReason: dirtyReason.present ? dirtyReason.value : this.dirtyReason,
+        fullRebuildRequired: fullRebuildRequired ?? this.fullRebuildRequired,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TimelineCompileCursorRow copyWithCompanion(
+      TimelineCompileCursorCompanion data) {
+    return TimelineCompileCursorRow(
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      compilerVersion: data.compilerVersion.present
+          ? data.compilerVersion.value
+          : this.compilerVersion,
+      projectionSchemaVersion: data.projectionSchemaVersion.present
+          ? data.projectionSchemaVersion.value
+          : this.projectionSchemaVersion,
+      lastCompiledAt: data.lastCompiledAt.present
+          ? data.lastCompiledAt.value
+          : this.lastCompiledAt,
+      lastEventUpdatedAt: data.lastEventUpdatedAt.present
+          ? data.lastEventUpdatedAt.value
+          : this.lastEventUpdatedAt,
+      lastMediaUpdatedAt: data.lastMediaUpdatedAt.present
+          ? data.lastMediaUpdatedAt.value
+          : this.lastMediaUpdatedAt,
+      lastRoutePointCapturedAt: data.lastRoutePointCapturedAt.present
+          ? data.lastRoutePointCapturedAt.value
+          : this.lastRoutePointCapturedAt,
+      lastSessionUpdatedAt: data.lastSessionUpdatedAt.present
+          ? data.lastSessionUpdatedAt.value
+          : this.lastSessionUpdatedAt,
+      dirtyFromCapturedAt: data.dirtyFromCapturedAt.present
+          ? data.dirtyFromCapturedAt.value
+          : this.dirtyFromCapturedAt,
+      dirtyReason:
+          data.dirtyReason.present ? data.dirtyReason.value : this.dirtyReason,
+      fullRebuildRequired: data.fullRebuildRequired.present
+          ? data.fullRebuildRequired.value
+          : this.fullRebuildRequired,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineCompileCursorRow(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('compilerVersion: $compilerVersion, ')
+          ..write('projectionSchemaVersion: $projectionSchemaVersion, ')
+          ..write('lastCompiledAt: $lastCompiledAt, ')
+          ..write('lastEventUpdatedAt: $lastEventUpdatedAt, ')
+          ..write('lastMediaUpdatedAt: $lastMediaUpdatedAt, ')
+          ..write('lastRoutePointCapturedAt: $lastRoutePointCapturedAt, ')
+          ..write('lastSessionUpdatedAt: $lastSessionUpdatedAt, ')
+          ..write('dirtyFromCapturedAt: $dirtyFromCapturedAt, ')
+          ..write('dirtyReason: $dirtyReason, ')
+          ..write('fullRebuildRequired: $fullRebuildRequired, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      tripLocalId,
+      compilerVersion,
+      projectionSchemaVersion,
+      lastCompiledAt,
+      lastEventUpdatedAt,
+      lastMediaUpdatedAt,
+      lastRoutePointCapturedAt,
+      lastSessionUpdatedAt,
+      dirtyFromCapturedAt,
+      dirtyReason,
+      fullRebuildRequired,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TimelineCompileCursorRow &&
+          other.tripLocalId == this.tripLocalId &&
+          other.compilerVersion == this.compilerVersion &&
+          other.projectionSchemaVersion == this.projectionSchemaVersion &&
+          other.lastCompiledAt == this.lastCompiledAt &&
+          other.lastEventUpdatedAt == this.lastEventUpdatedAt &&
+          other.lastMediaUpdatedAt == this.lastMediaUpdatedAt &&
+          other.lastRoutePointCapturedAt == this.lastRoutePointCapturedAt &&
+          other.lastSessionUpdatedAt == this.lastSessionUpdatedAt &&
+          other.dirtyFromCapturedAt == this.dirtyFromCapturedAt &&
+          other.dirtyReason == this.dirtyReason &&
+          other.fullRebuildRequired == this.fullRebuildRequired &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TimelineCompileCursorCompanion
+    extends UpdateCompanion<TimelineCompileCursorRow> {
+  final Value<String> tripLocalId;
+  final Value<int> compilerVersion;
+  final Value<int> projectionSchemaVersion;
+  final Value<DateTime> lastCompiledAt;
+  final Value<DateTime?> lastEventUpdatedAt;
+  final Value<DateTime?> lastMediaUpdatedAt;
+  final Value<DateTime?> lastRoutePointCapturedAt;
+  final Value<DateTime?> lastSessionUpdatedAt;
+  final Value<DateTime?> dirtyFromCapturedAt;
+  final Value<String?> dirtyReason;
+  final Value<int> fullRebuildRequired;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TimelineCompileCursorCompanion({
+    this.tripLocalId = const Value.absent(),
+    this.compilerVersion = const Value.absent(),
+    this.projectionSchemaVersion = const Value.absent(),
+    this.lastCompiledAt = const Value.absent(),
+    this.lastEventUpdatedAt = const Value.absent(),
+    this.lastMediaUpdatedAt = const Value.absent(),
+    this.lastRoutePointCapturedAt = const Value.absent(),
+    this.lastSessionUpdatedAt = const Value.absent(),
+    this.dirtyFromCapturedAt = const Value.absent(),
+    this.dirtyReason = const Value.absent(),
+    this.fullRebuildRequired = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TimelineCompileCursorCompanion.insert({
+    required String tripLocalId,
+    required int compilerVersion,
+    required int projectionSchemaVersion,
+    required DateTime lastCompiledAt,
+    this.lastEventUpdatedAt = const Value.absent(),
+    this.lastMediaUpdatedAt = const Value.absent(),
+    this.lastRoutePointCapturedAt = const Value.absent(),
+    this.lastSessionUpdatedAt = const Value.absent(),
+    this.dirtyFromCapturedAt = const Value.absent(),
+    this.dirtyReason = const Value.absent(),
+    this.fullRebuildRequired = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : tripLocalId = Value(tripLocalId),
+        compilerVersion = Value(compilerVersion),
+        projectionSchemaVersion = Value(projectionSchemaVersion),
+        lastCompiledAt = Value(lastCompiledAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TimelineCompileCursorRow> custom({
+    Expression<String>? tripLocalId,
+    Expression<int>? compilerVersion,
+    Expression<int>? projectionSchemaVersion,
+    Expression<DateTime>? lastCompiledAt,
+    Expression<DateTime>? lastEventUpdatedAt,
+    Expression<DateTime>? lastMediaUpdatedAt,
+    Expression<DateTime>? lastRoutePointCapturedAt,
+    Expression<DateTime>? lastSessionUpdatedAt,
+    Expression<DateTime>? dirtyFromCapturedAt,
+    Expression<String>? dirtyReason,
+    Expression<int>? fullRebuildRequired,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (compilerVersion != null) 'compiler_version': compilerVersion,
+      if (projectionSchemaVersion != null)
+        'projection_schema_version': projectionSchemaVersion,
+      if (lastCompiledAt != null) 'last_compiled_at': lastCompiledAt,
+      if (lastEventUpdatedAt != null)
+        'last_event_updated_at': lastEventUpdatedAt,
+      if (lastMediaUpdatedAt != null)
+        'last_media_updated_at': lastMediaUpdatedAt,
+      if (lastRoutePointCapturedAt != null)
+        'last_route_point_captured_at': lastRoutePointCapturedAt,
+      if (lastSessionUpdatedAt != null)
+        'last_session_updated_at': lastSessionUpdatedAt,
+      if (dirtyFromCapturedAt != null)
+        'dirty_from_captured_at': dirtyFromCapturedAt,
+      if (dirtyReason != null) 'dirty_reason': dirtyReason,
+      if (fullRebuildRequired != null)
+        'full_rebuild_required': fullRebuildRequired,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TimelineCompileCursorCompanion copyWith(
+      {Value<String>? tripLocalId,
+      Value<int>? compilerVersion,
+      Value<int>? projectionSchemaVersion,
+      Value<DateTime>? lastCompiledAt,
+      Value<DateTime?>? lastEventUpdatedAt,
+      Value<DateTime?>? lastMediaUpdatedAt,
+      Value<DateTime?>? lastRoutePointCapturedAt,
+      Value<DateTime?>? lastSessionUpdatedAt,
+      Value<DateTime?>? dirtyFromCapturedAt,
+      Value<String?>? dirtyReason,
+      Value<int>? fullRebuildRequired,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TimelineCompileCursorCompanion(
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      compilerVersion: compilerVersion ?? this.compilerVersion,
+      projectionSchemaVersion:
+          projectionSchemaVersion ?? this.projectionSchemaVersion,
+      lastCompiledAt: lastCompiledAt ?? this.lastCompiledAt,
+      lastEventUpdatedAt: lastEventUpdatedAt ?? this.lastEventUpdatedAt,
+      lastMediaUpdatedAt: lastMediaUpdatedAt ?? this.lastMediaUpdatedAt,
+      lastRoutePointCapturedAt:
+          lastRoutePointCapturedAt ?? this.lastRoutePointCapturedAt,
+      lastSessionUpdatedAt: lastSessionUpdatedAt ?? this.lastSessionUpdatedAt,
+      dirtyFromCapturedAt: dirtyFromCapturedAt ?? this.dirtyFromCapturedAt,
+      dirtyReason: dirtyReason ?? this.dirtyReason,
+      fullRebuildRequired: fullRebuildRequired ?? this.fullRebuildRequired,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (compilerVersion.present) {
+      map['compiler_version'] = Variable<int>(compilerVersion.value);
+    }
+    if (projectionSchemaVersion.present) {
+      map['projection_schema_version'] =
+          Variable<int>(projectionSchemaVersion.value);
+    }
+    if (lastCompiledAt.present) {
+      map['last_compiled_at'] = Variable<DateTime>(lastCompiledAt.value);
+    }
+    if (lastEventUpdatedAt.present) {
+      map['last_event_updated_at'] =
+          Variable<DateTime>(lastEventUpdatedAt.value);
+    }
+    if (lastMediaUpdatedAt.present) {
+      map['last_media_updated_at'] =
+          Variable<DateTime>(lastMediaUpdatedAt.value);
+    }
+    if (lastRoutePointCapturedAt.present) {
+      map['last_route_point_captured_at'] =
+          Variable<DateTime>(lastRoutePointCapturedAt.value);
+    }
+    if (lastSessionUpdatedAt.present) {
+      map['last_session_updated_at'] =
+          Variable<DateTime>(lastSessionUpdatedAt.value);
+    }
+    if (dirtyFromCapturedAt.present) {
+      map['dirty_from_captured_at'] =
+          Variable<DateTime>(dirtyFromCapturedAt.value);
+    }
+    if (dirtyReason.present) {
+      map['dirty_reason'] = Variable<String>(dirtyReason.value);
+    }
+    if (fullRebuildRequired.present) {
+      map['full_rebuild_required'] = Variable<int>(fullRebuildRequired.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TimelineCompileCursorCompanion(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('compilerVersion: $compilerVersion, ')
+          ..write('projectionSchemaVersion: $projectionSchemaVersion, ')
+          ..write('lastCompiledAt: $lastCompiledAt, ')
+          ..write('lastEventUpdatedAt: $lastEventUpdatedAt, ')
+          ..write('lastMediaUpdatedAt: $lastMediaUpdatedAt, ')
+          ..write('lastRoutePointCapturedAt: $lastRoutePointCapturedAt, ')
+          ..write('lastSessionUpdatedAt: $lastSessionUpdatedAt, ')
+          ..write('dirtyFromCapturedAt: $dirtyFromCapturedAt, ')
+          ..write('dirtyReason: $dirtyReason, ')
+          ..write('fullRebuildRequired: $fullRebuildRequired, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -16866,6 +19369,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ResolverCandidateJournalTable(this);
   late final $ResolverAttemptJournalTable resolverAttemptJournal =
       $ResolverAttemptJournalTable(this);
+  late final $TimelineProjectionLocalTable timelineProjectionLocal =
+      $TimelineProjectionLocalTable(this);
+  late final $RouteProjectionLocalTable routeProjectionLocal =
+      $RouteProjectionLocalTable(this);
+  late final $TimelineCompileCursorTable timelineCompileCursor =
+      $TimelineCompileCursorTable(this);
   late final Index trackingSessionsTripStateUpdatedIdx = Index(
       'tracking_sessions_trip_state_updated_idx',
       'CREATE INDEX tracking_sessions_trip_state_updated_idx ON tracking_sessions (trip_id, state, local_updated_at)');
@@ -16973,6 +19482,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index resolverAttemptJournalStartedIdx = Index(
       'resolver_attempt_journal_started_idx',
       'CREATE INDEX resolver_attempt_journal_started_idx ON resolver_attempt_journal (started_at)');
+  late final Index timelineProjectionLocalTripCapturedIdx = Index(
+      'timeline_projection_local_trip_captured_idx',
+      'CREATE INDEX timeline_projection_local_trip_captured_idx ON timeline_projection_local (trip_local_id, captured_at)');
+  late final Index timelineProjectionLocalTripBucketCapturedIdx = Index(
+      'timeline_projection_local_trip_bucket_captured_idx',
+      'CREATE INDEX timeline_projection_local_trip_bucket_captured_idx ON timeline_projection_local (trip_local_id, bucket_type, captured_at)');
+  late final Index timelineProjectionLocalTripCapturedSessionIdx = Index(
+      'timeline_projection_local_trip_captured_session_idx',
+      'CREATE INDEX timeline_projection_local_trip_captured_session_idx ON timeline_projection_local (trip_local_id, captured_at, session_id)');
+  late final Index routeProjectionLocalTripStartedIdx = Index(
+      'route_projection_local_trip_started_idx',
+      'CREATE INDEX route_projection_local_trip_started_idx ON route_projection_local (trip_local_id, started_at)');
+  late final Index routeProjectionLocalTripSessionStartedIdx = Index(
+      'route_projection_local_trip_session_started_idx',
+      'CREATE INDEX route_projection_local_trip_session_started_idx ON route_projection_local (trip_local_id, session_id, started_at)');
+  late final Index timelineCompileCursorUpdatedIdx = Index(
+      'timeline_compile_cursor_updated_idx',
+      'CREATE INDEX timeline_compile_cursor_updated_idx ON timeline_compile_cursor (updated_at)');
   late final TripDao tripDao = TripDao(this as AppDatabase);
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
@@ -17005,6 +19532,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ResolverCandidateJournalDao(this as AppDatabase);
   late final ResolverAttemptJournalDao resolverAttemptJournalDao =
       ResolverAttemptJournalDao(this as AppDatabase);
+  late final TimelineProjectionLocalDao timelineProjectionLocalDao =
+      TimelineProjectionLocalDao(this as AppDatabase);
+  late final RouteProjectionLocalDao routeProjectionLocalDao =
+      RouteProjectionLocalDao(this as AppDatabase);
+  late final TimelineCompileCursorDao timelineCompileCursorDao =
+      TimelineCompileCursorDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -17030,6 +19563,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         mediaJournal,
         resolverCandidateJournal,
         resolverAttemptJournal,
+        timelineProjectionLocal,
+        routeProjectionLocal,
+        timelineCompileCursor,
         trackingSessionsTripStateUpdatedIdx,
         trackingSessionsTripUpdatedIdx,
         trackingPointBatchesClaimIdx,
@@ -17065,7 +19601,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         resolverCandidateJournalEventVersionRankIdx,
         resolverCandidateJournalEventVersionTieIdx,
         resolverAttemptJournalEventAttemptIdx,
-        resolverAttemptJournalStartedIdx
+        resolverAttemptJournalStartedIdx,
+        timelineProjectionLocalTripCapturedIdx,
+        timelineProjectionLocalTripBucketCapturedIdx,
+        timelineProjectionLocalTripCapturedSessionIdx,
+        routeProjectionLocalTripStartedIdx,
+        routeProjectionLocalTripSessionStartedIdx,
+        timelineCompileCursorUpdatedIdx
       ];
 }
 
@@ -24405,6 +26947,1093 @@ typedef $$ResolverAttemptJournalTableProcessedTableManager
         ),
         ResolverAttemptJournalRow,
         PrefetchHooks Function()>;
+typedef $$TimelineProjectionLocalTableCreateCompanionBuilder
+    = TimelineProjectionLocalCompanion Function({
+  required String entryId,
+  required String tripLocalId,
+  required String sessionId,
+  required DateTime capturedAt,
+  required String sourceKind,
+  required String sourceId,
+  required String eventType,
+  required String bucketType,
+  Value<String?> placeBindKind,
+  Value<String?> placeBindId,
+  Value<String?> placeBindName,
+  Value<String?> decisionSource,
+  Value<int> manualLock,
+  required double anchorLatitude,
+  required double anchorLongitude,
+  required String title,
+  Value<String?> subtitle,
+  required String syncChipState,
+  Value<String?> routeSegmentKey,
+  Value<double?> routeDistanceM,
+  Value<String?> renderPayloadJson,
+  required DateTime compiledAt,
+  required int compilerVersion,
+  Value<int> rowid,
+});
+typedef $$TimelineProjectionLocalTableUpdateCompanionBuilder
+    = TimelineProjectionLocalCompanion Function({
+  Value<String> entryId,
+  Value<String> tripLocalId,
+  Value<String> sessionId,
+  Value<DateTime> capturedAt,
+  Value<String> sourceKind,
+  Value<String> sourceId,
+  Value<String> eventType,
+  Value<String> bucketType,
+  Value<String?> placeBindKind,
+  Value<String?> placeBindId,
+  Value<String?> placeBindName,
+  Value<String?> decisionSource,
+  Value<int> manualLock,
+  Value<double> anchorLatitude,
+  Value<double> anchorLongitude,
+  Value<String> title,
+  Value<String?> subtitle,
+  Value<String> syncChipState,
+  Value<String?> routeSegmentKey,
+  Value<double?> routeDistanceM,
+  Value<String?> renderPayloadJson,
+  Value<DateTime> compiledAt,
+  Value<int> compilerVersion,
+  Value<int> rowid,
+});
+
+class $$TimelineProjectionLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $TimelineProjectionLocalTable> {
+  $$TimelineProjectionLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entryId => $composableBuilder(
+      column: $table.entryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+      column: $table.eventType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get bucketType => $composableBuilder(
+      column: $table.bucketType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get placeBindKind => $composableBuilder(
+      column: $table.placeBindKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get placeBindId => $composableBuilder(
+      column: $table.placeBindId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get placeBindName => $composableBuilder(
+      column: $table.placeBindName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get decisionSource => $composableBuilder(
+      column: $table.decisionSource,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get manualLock => $composableBuilder(
+      column: $table.manualLock, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subtitle => $composableBuilder(
+      column: $table.subtitle, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncChipState => $composableBuilder(
+      column: $table.syncChipState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get routeDistanceM => $composableBuilder(
+      column: $table.routeDistanceM,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get renderPayloadJson => $composableBuilder(
+      column: $table.renderPayloadJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get compiledAt => $composableBuilder(
+      column: $table.compiledAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$TimelineProjectionLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $TimelineProjectionLocalTable> {
+  $$TimelineProjectionLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entryId => $composableBuilder(
+      column: $table.entryId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+      column: $table.eventType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get bucketType => $composableBuilder(
+      column: $table.bucketType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get placeBindKind => $composableBuilder(
+      column: $table.placeBindKind,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get placeBindId => $composableBuilder(
+      column: $table.placeBindId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get placeBindName => $composableBuilder(
+      column: $table.placeBindName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get decisionSource => $composableBuilder(
+      column: $table.decisionSource,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get manualLock => $composableBuilder(
+      column: $table.manualLock, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subtitle => $composableBuilder(
+      column: $table.subtitle, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncChipState => $composableBuilder(
+      column: $table.syncChipState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get routeDistanceM => $composableBuilder(
+      column: $table.routeDistanceM,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get renderPayloadJson => $composableBuilder(
+      column: $table.renderPayloadJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get compiledAt => $composableBuilder(
+      column: $table.compiledAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$TimelineProjectionLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TimelineProjectionLocalTable> {
+  $$TimelineProjectionLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entryId =>
+      $composableBuilder(column: $table.entryId, builder: (column) => column);
+
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<String> get bucketType => $composableBuilder(
+      column: $table.bucketType, builder: (column) => column);
+
+  GeneratedColumn<String> get placeBindKind => $composableBuilder(
+      column: $table.placeBindKind, builder: (column) => column);
+
+  GeneratedColumn<String> get placeBindId => $composableBuilder(
+      column: $table.placeBindId, builder: (column) => column);
+
+  GeneratedColumn<String> get placeBindName => $composableBuilder(
+      column: $table.placeBindName, builder: (column) => column);
+
+  GeneratedColumn<String> get decisionSource => $composableBuilder(
+      column: $table.decisionSource, builder: (column) => column);
+
+  GeneratedColumn<int> get manualLock => $composableBuilder(
+      column: $table.manualLock, builder: (column) => column);
+
+  GeneratedColumn<double> get anchorLatitude => $composableBuilder(
+      column: $table.anchorLatitude, builder: (column) => column);
+
+  GeneratedColumn<double> get anchorLongitude => $composableBuilder(
+      column: $table.anchorLongitude, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitle =>
+      $composableBuilder(column: $table.subtitle, builder: (column) => column);
+
+  GeneratedColumn<String> get syncChipState => $composableBuilder(
+      column: $table.syncChipState, builder: (column) => column);
+
+  GeneratedColumn<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey, builder: (column) => column);
+
+  GeneratedColumn<double> get routeDistanceM => $composableBuilder(
+      column: $table.routeDistanceM, builder: (column) => column);
+
+  GeneratedColumn<String> get renderPayloadJson => $composableBuilder(
+      column: $table.renderPayloadJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get compiledAt => $composableBuilder(
+      column: $table.compiledAt, builder: (column) => column);
+
+  GeneratedColumn<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion, builder: (column) => column);
+}
+
+class $$TimelineProjectionLocalTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TimelineProjectionLocalTable,
+    TimelineProjectionLocalRow,
+    $$TimelineProjectionLocalTableFilterComposer,
+    $$TimelineProjectionLocalTableOrderingComposer,
+    $$TimelineProjectionLocalTableAnnotationComposer,
+    $$TimelineProjectionLocalTableCreateCompanionBuilder,
+    $$TimelineProjectionLocalTableUpdateCompanionBuilder,
+    (
+      TimelineProjectionLocalRow,
+      BaseReferences<_$AppDatabase, $TimelineProjectionLocalTable,
+          TimelineProjectionLocalRow>
+    ),
+    TimelineProjectionLocalRow,
+    PrefetchHooks Function()> {
+  $$TimelineProjectionLocalTableTableManager(
+      _$AppDatabase db, $TimelineProjectionLocalTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TimelineProjectionLocalTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TimelineProjectionLocalTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TimelineProjectionLocalTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> entryId = const Value.absent(),
+            Value<String> tripLocalId = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<DateTime> capturedAt = const Value.absent(),
+            Value<String> sourceKind = const Value.absent(),
+            Value<String> sourceId = const Value.absent(),
+            Value<String> eventType = const Value.absent(),
+            Value<String> bucketType = const Value.absent(),
+            Value<String?> placeBindKind = const Value.absent(),
+            Value<String?> placeBindId = const Value.absent(),
+            Value<String?> placeBindName = const Value.absent(),
+            Value<String?> decisionSource = const Value.absent(),
+            Value<int> manualLock = const Value.absent(),
+            Value<double> anchorLatitude = const Value.absent(),
+            Value<double> anchorLongitude = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String?> subtitle = const Value.absent(),
+            Value<String> syncChipState = const Value.absent(),
+            Value<String?> routeSegmentKey = const Value.absent(),
+            Value<double?> routeDistanceM = const Value.absent(),
+            Value<String?> renderPayloadJson = const Value.absent(),
+            Value<DateTime> compiledAt = const Value.absent(),
+            Value<int> compilerVersion = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TimelineProjectionLocalCompanion(
+            entryId: entryId,
+            tripLocalId: tripLocalId,
+            sessionId: sessionId,
+            capturedAt: capturedAt,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            eventType: eventType,
+            bucketType: bucketType,
+            placeBindKind: placeBindKind,
+            placeBindId: placeBindId,
+            placeBindName: placeBindName,
+            decisionSource: decisionSource,
+            manualLock: manualLock,
+            anchorLatitude: anchorLatitude,
+            anchorLongitude: anchorLongitude,
+            title: title,
+            subtitle: subtitle,
+            syncChipState: syncChipState,
+            routeSegmentKey: routeSegmentKey,
+            routeDistanceM: routeDistanceM,
+            renderPayloadJson: renderPayloadJson,
+            compiledAt: compiledAt,
+            compilerVersion: compilerVersion,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String entryId,
+            required String tripLocalId,
+            required String sessionId,
+            required DateTime capturedAt,
+            required String sourceKind,
+            required String sourceId,
+            required String eventType,
+            required String bucketType,
+            Value<String?> placeBindKind = const Value.absent(),
+            Value<String?> placeBindId = const Value.absent(),
+            Value<String?> placeBindName = const Value.absent(),
+            Value<String?> decisionSource = const Value.absent(),
+            Value<int> manualLock = const Value.absent(),
+            required double anchorLatitude,
+            required double anchorLongitude,
+            required String title,
+            Value<String?> subtitle = const Value.absent(),
+            required String syncChipState,
+            Value<String?> routeSegmentKey = const Value.absent(),
+            Value<double?> routeDistanceM = const Value.absent(),
+            Value<String?> renderPayloadJson = const Value.absent(),
+            required DateTime compiledAt,
+            required int compilerVersion,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TimelineProjectionLocalCompanion.insert(
+            entryId: entryId,
+            tripLocalId: tripLocalId,
+            sessionId: sessionId,
+            capturedAt: capturedAt,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            eventType: eventType,
+            bucketType: bucketType,
+            placeBindKind: placeBindKind,
+            placeBindId: placeBindId,
+            placeBindName: placeBindName,
+            decisionSource: decisionSource,
+            manualLock: manualLock,
+            anchorLatitude: anchorLatitude,
+            anchorLongitude: anchorLongitude,
+            title: title,
+            subtitle: subtitle,
+            syncChipState: syncChipState,
+            routeSegmentKey: routeSegmentKey,
+            routeDistanceM: routeDistanceM,
+            renderPayloadJson: renderPayloadJson,
+            compiledAt: compiledAt,
+            compilerVersion: compilerVersion,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TimelineProjectionLocalTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $TimelineProjectionLocalTable,
+        TimelineProjectionLocalRow,
+        $$TimelineProjectionLocalTableFilterComposer,
+        $$TimelineProjectionLocalTableOrderingComposer,
+        $$TimelineProjectionLocalTableAnnotationComposer,
+        $$TimelineProjectionLocalTableCreateCompanionBuilder,
+        $$TimelineProjectionLocalTableUpdateCompanionBuilder,
+        (
+          TimelineProjectionLocalRow,
+          BaseReferences<_$AppDatabase, $TimelineProjectionLocalTable,
+              TimelineProjectionLocalRow>
+        ),
+        TimelineProjectionLocalRow,
+        PrefetchHooks Function()>;
+typedef $$RouteProjectionLocalTableCreateCompanionBuilder
+    = RouteProjectionLocalCompanion Function({
+  required String segmentKey,
+  required String tripLocalId,
+  required String sessionId,
+  required DateTime startedAt,
+  required DateTime endedAt,
+  required int pointsCount,
+  required double distanceM,
+  required double bboxMinLat,
+  required double bboxMinLon,
+  required double bboxMaxLat,
+  required double bboxMaxLon,
+  required String geometryJson,
+  required DateTime updatedAt,
+  required int compilerVersion,
+  Value<int> rowid,
+});
+typedef $$RouteProjectionLocalTableUpdateCompanionBuilder
+    = RouteProjectionLocalCompanion Function({
+  Value<String> segmentKey,
+  Value<String> tripLocalId,
+  Value<String> sessionId,
+  Value<DateTime> startedAt,
+  Value<DateTime> endedAt,
+  Value<int> pointsCount,
+  Value<double> distanceM,
+  Value<double> bboxMinLat,
+  Value<double> bboxMinLon,
+  Value<double> bboxMaxLat,
+  Value<double> bboxMaxLon,
+  Value<String> geometryJson,
+  Value<DateTime> updatedAt,
+  Value<int> compilerVersion,
+  Value<int> rowid,
+});
+
+class $$RouteProjectionLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $RouteProjectionLocalTable> {
+  $$RouteProjectionLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get segmentKey => $composableBuilder(
+      column: $table.segmentKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get pointsCount => $composableBuilder(
+      column: $table.pointsCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get distanceM => $composableBuilder(
+      column: $table.distanceM, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bboxMinLat => $composableBuilder(
+      column: $table.bboxMinLat, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bboxMinLon => $composableBuilder(
+      column: $table.bboxMinLon, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bboxMaxLat => $composableBuilder(
+      column: $table.bboxMaxLat, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bboxMaxLon => $composableBuilder(
+      column: $table.bboxMaxLon, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get geometryJson => $composableBuilder(
+      column: $table.geometryJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$RouteProjectionLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $RouteProjectionLocalTable> {
+  $$RouteProjectionLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get segmentKey => $composableBuilder(
+      column: $table.segmentKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get pointsCount => $composableBuilder(
+      column: $table.pointsCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get distanceM => $composableBuilder(
+      column: $table.distanceM, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get bboxMinLat => $composableBuilder(
+      column: $table.bboxMinLat, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get bboxMinLon => $composableBuilder(
+      column: $table.bboxMinLon, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get bboxMaxLat => $composableBuilder(
+      column: $table.bboxMaxLat, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get bboxMaxLon => $composableBuilder(
+      column: $table.bboxMaxLon, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get geometryJson => $composableBuilder(
+      column: $table.geometryJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$RouteProjectionLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RouteProjectionLocalTable> {
+  $$RouteProjectionLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get segmentKey => $composableBuilder(
+      column: $table.segmentKey, builder: (column) => column);
+
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get pointsCount => $composableBuilder(
+      column: $table.pointsCount, builder: (column) => column);
+
+  GeneratedColumn<double> get distanceM =>
+      $composableBuilder(column: $table.distanceM, builder: (column) => column);
+
+  GeneratedColumn<double> get bboxMinLat => $composableBuilder(
+      column: $table.bboxMinLat, builder: (column) => column);
+
+  GeneratedColumn<double> get bboxMinLon => $composableBuilder(
+      column: $table.bboxMinLon, builder: (column) => column);
+
+  GeneratedColumn<double> get bboxMaxLat => $composableBuilder(
+      column: $table.bboxMaxLat, builder: (column) => column);
+
+  GeneratedColumn<double> get bboxMaxLon => $composableBuilder(
+      column: $table.bboxMaxLon, builder: (column) => column);
+
+  GeneratedColumn<String> get geometryJson => $composableBuilder(
+      column: $table.geometryJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion, builder: (column) => column);
+}
+
+class $$RouteProjectionLocalTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RouteProjectionLocalTable,
+    RouteProjectionLocalRow,
+    $$RouteProjectionLocalTableFilterComposer,
+    $$RouteProjectionLocalTableOrderingComposer,
+    $$RouteProjectionLocalTableAnnotationComposer,
+    $$RouteProjectionLocalTableCreateCompanionBuilder,
+    $$RouteProjectionLocalTableUpdateCompanionBuilder,
+    (
+      RouteProjectionLocalRow,
+      BaseReferences<_$AppDatabase, $RouteProjectionLocalTable,
+          RouteProjectionLocalRow>
+    ),
+    RouteProjectionLocalRow,
+    PrefetchHooks Function()> {
+  $$RouteProjectionLocalTableTableManager(
+      _$AppDatabase db, $RouteProjectionLocalTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RouteProjectionLocalTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RouteProjectionLocalTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RouteProjectionLocalTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> segmentKey = const Value.absent(),
+            Value<String> tripLocalId = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<DateTime> startedAt = const Value.absent(),
+            Value<DateTime> endedAt = const Value.absent(),
+            Value<int> pointsCount = const Value.absent(),
+            Value<double> distanceM = const Value.absent(),
+            Value<double> bboxMinLat = const Value.absent(),
+            Value<double> bboxMinLon = const Value.absent(),
+            Value<double> bboxMaxLat = const Value.absent(),
+            Value<double> bboxMaxLon = const Value.absent(),
+            Value<String> geometryJson = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> compilerVersion = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RouteProjectionLocalCompanion(
+            segmentKey: segmentKey,
+            tripLocalId: tripLocalId,
+            sessionId: sessionId,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            pointsCount: pointsCount,
+            distanceM: distanceM,
+            bboxMinLat: bboxMinLat,
+            bboxMinLon: bboxMinLon,
+            bboxMaxLat: bboxMaxLat,
+            bboxMaxLon: bboxMaxLon,
+            geometryJson: geometryJson,
+            updatedAt: updatedAt,
+            compilerVersion: compilerVersion,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String segmentKey,
+            required String tripLocalId,
+            required String sessionId,
+            required DateTime startedAt,
+            required DateTime endedAt,
+            required int pointsCount,
+            required double distanceM,
+            required double bboxMinLat,
+            required double bboxMinLon,
+            required double bboxMaxLat,
+            required double bboxMaxLon,
+            required String geometryJson,
+            required DateTime updatedAt,
+            required int compilerVersion,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RouteProjectionLocalCompanion.insert(
+            segmentKey: segmentKey,
+            tripLocalId: tripLocalId,
+            sessionId: sessionId,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            pointsCount: pointsCount,
+            distanceM: distanceM,
+            bboxMinLat: bboxMinLat,
+            bboxMinLon: bboxMinLon,
+            bboxMaxLat: bboxMaxLat,
+            bboxMaxLon: bboxMaxLon,
+            geometryJson: geometryJson,
+            updatedAt: updatedAt,
+            compilerVersion: compilerVersion,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RouteProjectionLocalTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $RouteProjectionLocalTable,
+        RouteProjectionLocalRow,
+        $$RouteProjectionLocalTableFilterComposer,
+        $$RouteProjectionLocalTableOrderingComposer,
+        $$RouteProjectionLocalTableAnnotationComposer,
+        $$RouteProjectionLocalTableCreateCompanionBuilder,
+        $$RouteProjectionLocalTableUpdateCompanionBuilder,
+        (
+          RouteProjectionLocalRow,
+          BaseReferences<_$AppDatabase, $RouteProjectionLocalTable,
+              RouteProjectionLocalRow>
+        ),
+        RouteProjectionLocalRow,
+        PrefetchHooks Function()>;
+typedef $$TimelineCompileCursorTableCreateCompanionBuilder
+    = TimelineCompileCursorCompanion Function({
+  required String tripLocalId,
+  required int compilerVersion,
+  required int projectionSchemaVersion,
+  required DateTime lastCompiledAt,
+  Value<DateTime?> lastEventUpdatedAt,
+  Value<DateTime?> lastMediaUpdatedAt,
+  Value<DateTime?> lastRoutePointCapturedAt,
+  Value<DateTime?> lastSessionUpdatedAt,
+  Value<DateTime?> dirtyFromCapturedAt,
+  Value<String?> dirtyReason,
+  Value<int> fullRebuildRequired,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TimelineCompileCursorTableUpdateCompanionBuilder
+    = TimelineCompileCursorCompanion Function({
+  Value<String> tripLocalId,
+  Value<int> compilerVersion,
+  Value<int> projectionSchemaVersion,
+  Value<DateTime> lastCompiledAt,
+  Value<DateTime?> lastEventUpdatedAt,
+  Value<DateTime?> lastMediaUpdatedAt,
+  Value<DateTime?> lastRoutePointCapturedAt,
+  Value<DateTime?> lastSessionUpdatedAt,
+  Value<DateTime?> dirtyFromCapturedAt,
+  Value<String?> dirtyReason,
+  Value<int> fullRebuildRequired,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TimelineCompileCursorTableFilterComposer
+    extends Composer<_$AppDatabase, $TimelineCompileCursorTable> {
+  $$TimelineCompileCursorTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get projectionSchemaVersion => $composableBuilder(
+      column: $table.projectionSchemaVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastCompiledAt => $composableBuilder(
+      column: $table.lastCompiledAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastEventUpdatedAt => $composableBuilder(
+      column: $table.lastEventUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastMediaUpdatedAt => $composableBuilder(
+      column: $table.lastMediaUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastRoutePointCapturedAt => $composableBuilder(
+      column: $table.lastRoutePointCapturedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastSessionUpdatedAt => $composableBuilder(
+      column: $table.lastSessionUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dirtyFromCapturedAt => $composableBuilder(
+      column: $table.dirtyFromCapturedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dirtyReason => $composableBuilder(
+      column: $table.dirtyReason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get fullRebuildRequired => $composableBuilder(
+      column: $table.fullRebuildRequired,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TimelineCompileCursorTableOrderingComposer
+    extends Composer<_$AppDatabase, $TimelineCompileCursorTable> {
+  $$TimelineCompileCursorTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get projectionSchemaVersion => $composableBuilder(
+      column: $table.projectionSchemaVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastCompiledAt => $composableBuilder(
+      column: $table.lastCompiledAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastEventUpdatedAt => $composableBuilder(
+      column: $table.lastEventUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastMediaUpdatedAt => $composableBuilder(
+      column: $table.lastMediaUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastRoutePointCapturedAt => $composableBuilder(
+      column: $table.lastRoutePointCapturedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastSessionUpdatedAt => $composableBuilder(
+      column: $table.lastSessionUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dirtyFromCapturedAt => $composableBuilder(
+      column: $table.dirtyFromCapturedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dirtyReason => $composableBuilder(
+      column: $table.dirtyReason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get fullRebuildRequired => $composableBuilder(
+      column: $table.fullRebuildRequired,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TimelineCompileCursorTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TimelineCompileCursorTable> {
+  $$TimelineCompileCursorTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<int> get compilerVersion => $composableBuilder(
+      column: $table.compilerVersion, builder: (column) => column);
+
+  GeneratedColumn<int> get projectionSchemaVersion => $composableBuilder(
+      column: $table.projectionSchemaVersion, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastCompiledAt => $composableBuilder(
+      column: $table.lastCompiledAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastEventUpdatedAt => $composableBuilder(
+      column: $table.lastEventUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastMediaUpdatedAt => $composableBuilder(
+      column: $table.lastMediaUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastRoutePointCapturedAt => $composableBuilder(
+      column: $table.lastRoutePointCapturedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSessionUpdatedAt => $composableBuilder(
+      column: $table.lastSessionUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dirtyFromCapturedAt => $composableBuilder(
+      column: $table.dirtyFromCapturedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get dirtyReason => $composableBuilder(
+      column: $table.dirtyReason, builder: (column) => column);
+
+  GeneratedColumn<int> get fullRebuildRequired => $composableBuilder(
+      column: $table.fullRebuildRequired, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TimelineCompileCursorTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TimelineCompileCursorTable,
+    TimelineCompileCursorRow,
+    $$TimelineCompileCursorTableFilterComposer,
+    $$TimelineCompileCursorTableOrderingComposer,
+    $$TimelineCompileCursorTableAnnotationComposer,
+    $$TimelineCompileCursorTableCreateCompanionBuilder,
+    $$TimelineCompileCursorTableUpdateCompanionBuilder,
+    (
+      TimelineCompileCursorRow,
+      BaseReferences<_$AppDatabase, $TimelineCompileCursorTable,
+          TimelineCompileCursorRow>
+    ),
+    TimelineCompileCursorRow,
+    PrefetchHooks Function()> {
+  $$TimelineCompileCursorTableTableManager(
+      _$AppDatabase db, $TimelineCompileCursorTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TimelineCompileCursorTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TimelineCompileCursorTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TimelineCompileCursorTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> tripLocalId = const Value.absent(),
+            Value<int> compilerVersion = const Value.absent(),
+            Value<int> projectionSchemaVersion = const Value.absent(),
+            Value<DateTime> lastCompiledAt = const Value.absent(),
+            Value<DateTime?> lastEventUpdatedAt = const Value.absent(),
+            Value<DateTime?> lastMediaUpdatedAt = const Value.absent(),
+            Value<DateTime?> lastRoutePointCapturedAt = const Value.absent(),
+            Value<DateTime?> lastSessionUpdatedAt = const Value.absent(),
+            Value<DateTime?> dirtyFromCapturedAt = const Value.absent(),
+            Value<String?> dirtyReason = const Value.absent(),
+            Value<int> fullRebuildRequired = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TimelineCompileCursorCompanion(
+            tripLocalId: tripLocalId,
+            compilerVersion: compilerVersion,
+            projectionSchemaVersion: projectionSchemaVersion,
+            lastCompiledAt: lastCompiledAt,
+            lastEventUpdatedAt: lastEventUpdatedAt,
+            lastMediaUpdatedAt: lastMediaUpdatedAt,
+            lastRoutePointCapturedAt: lastRoutePointCapturedAt,
+            lastSessionUpdatedAt: lastSessionUpdatedAt,
+            dirtyFromCapturedAt: dirtyFromCapturedAt,
+            dirtyReason: dirtyReason,
+            fullRebuildRequired: fullRebuildRequired,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String tripLocalId,
+            required int compilerVersion,
+            required int projectionSchemaVersion,
+            required DateTime lastCompiledAt,
+            Value<DateTime?> lastEventUpdatedAt = const Value.absent(),
+            Value<DateTime?> lastMediaUpdatedAt = const Value.absent(),
+            Value<DateTime?> lastRoutePointCapturedAt = const Value.absent(),
+            Value<DateTime?> lastSessionUpdatedAt = const Value.absent(),
+            Value<DateTime?> dirtyFromCapturedAt = const Value.absent(),
+            Value<String?> dirtyReason = const Value.absent(),
+            Value<int> fullRebuildRequired = const Value.absent(),
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TimelineCompileCursorCompanion.insert(
+            tripLocalId: tripLocalId,
+            compilerVersion: compilerVersion,
+            projectionSchemaVersion: projectionSchemaVersion,
+            lastCompiledAt: lastCompiledAt,
+            lastEventUpdatedAt: lastEventUpdatedAt,
+            lastMediaUpdatedAt: lastMediaUpdatedAt,
+            lastRoutePointCapturedAt: lastRoutePointCapturedAt,
+            lastSessionUpdatedAt: lastSessionUpdatedAt,
+            dirtyFromCapturedAt: dirtyFromCapturedAt,
+            dirtyReason: dirtyReason,
+            fullRebuildRequired: fullRebuildRequired,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TimelineCompileCursorTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $TimelineCompileCursorTable,
+        TimelineCompileCursorRow,
+        $$TimelineCompileCursorTableFilterComposer,
+        $$TimelineCompileCursorTableOrderingComposer,
+        $$TimelineCompileCursorTableAnnotationComposer,
+        $$TimelineCompileCursorTableCreateCompanionBuilder,
+        $$TimelineCompileCursorTableUpdateCompanionBuilder,
+        (
+          TimelineCompileCursorRow,
+          BaseReferences<_$AppDatabase, $TimelineCompileCursorTable,
+              TimelineCompileCursorRow>
+        ),
+        TimelineCompileCursorRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -24451,4 +28080,11 @@ class $AppDatabaseManager {
   $$ResolverAttemptJournalTableTableManager get resolverAttemptJournal =>
       $$ResolverAttemptJournalTableTableManager(
           _db, _db.resolverAttemptJournal);
+  $$TimelineProjectionLocalTableTableManager get timelineProjectionLocal =>
+      $$TimelineProjectionLocalTableTableManager(
+          _db, _db.timelineProjectionLocal);
+  $$RouteProjectionLocalTableTableManager get routeProjectionLocal =>
+      $$RouteProjectionLocalTableTableManager(_db, _db.routeProjectionLocal);
+  $$TimelineCompileCursorTableTableManager get timelineCompileCursor =>
+      $$TimelineCompileCursorTableTableManager(_db, _db.timelineCompileCursor);
 }

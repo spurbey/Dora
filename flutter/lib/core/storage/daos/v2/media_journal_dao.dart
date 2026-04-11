@@ -50,6 +50,43 @@ class MediaJournalDao extends DatabaseAccessor<AppDatabase>
             ]))
           .get();
 
+  Future<List<MediaJournalRow>> listMediaForTrip(String tripLocalId) =>
+      (select(mediaJournal)
+            ..where((row) => row.tripLocalId.equals(tripLocalId))
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.asc,
+                  ),
+              (row) => OrderingTerm(
+                    expression: row.mediaId,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
+  Future<List<MediaJournalRow>> listMediaForTripFromCapturedAt(
+    String tripLocalId,
+    DateTime fromCapturedAt,
+  ) =>
+      (select(mediaJournal)
+            ..where(
+              (row) =>
+                  row.tripLocalId.equals(tripLocalId) &
+                  row.capturedAt.isBiggerOrEqualValue(fromCapturedAt.toUtc()),
+            )
+            ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.capturedAt,
+                    mode: OrderingMode.asc,
+                  ),
+              (row) => OrderingTerm(
+                    expression: row.mediaId,
+                    mode: OrderingMode.asc,
+                  ),
+            ]))
+          .get();
+
   Future<int> markUploadState({
     required String mediaId,
     required String uploadState,

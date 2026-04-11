@@ -57,6 +57,23 @@ Future<Set<String>> _v2IndexNames(AppDatabase db) async {
   return rows.map((row) => row.read<String>('name')).toSet();
 }
 
+Future<Set<String>> _v2ProjectionIndexNames(AppDatabase db) async {
+  final rows = await db.customSelect(
+    '''
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'index'
+      AND (
+        name LIKE 'timeline_projection_local_%_idx' OR
+        name LIKE 'route_projection_local_%_idx' OR
+        name = 'timeline_projection_local_trip_source_unique_idx' OR
+        name = 'timeline_compile_cursor_updated_idx'
+      )
+    ''',
+  ).get();
+  return rows.map((row) => row.read<String>('name')).toSet();
+}
+
 void main() {
   group('AppDatabase migration', () {
     test('upgrades schema v13 to v15 and applies resolver columns/indexes',
@@ -251,5 +268,85 @@ void main() {
         }
       }
     });
+
+    test(
+      'upgrades schema v18 to v19 and creates V2 local projection tables/cursor',
+      () async {
+        final tempDir =
+            await Directory.systemTemp.createTemp('dora_drift_v2_proj_');
+        final dbFile =
+            File(p.join(tempDir.path, 'app_migration_v2_projection_test.db'));
+
+        AppDatabase? seedDb;
+        AppDatabase? upgradedDb;
+        try {
+          seedDb = AppDatabase(NativeDatabase(dbFile));
+          final now = DateTime.utc(2026, 4, 11, 9, 30);
+          await seedDb.into(seedDb.trips).insert(
+                TripsCompanion.insert(
+                  id: 'trip-v2-projection-migration-1',
+                  userId: 'user-v2-projection-migration-1',
+                  name: 'V2 Projection Migration Trip',
+                  localUpdatedAt: now,
+                  serverUpdatedAt: now,
+                  syncStatus: 'synced',
+                  createdAt: now,
+                ),
+              );
+
+          await seedDb.customStatement(
+              'DROP TABLE IF EXISTS timeline_projection_local');
+          await seedDb
+              .customStatement('DROP TABLE IF EXISTS route_projection_local');
+          await seedDb
+              .customStatement('DROP TABLE IF EXISTS timeline_compile_cursor');
+          await seedDb.customStatement('PRAGMA user_version = 18');
+          await seedDb.close();
+          seedDb = null;
+
+          upgradedDb = AppDatabase(NativeDatabase(dbFile));
+
+          expect(
+            await _tableExists(upgradedDb, 'timeline_projection_local'),
+            isTrue,
+          );
+          expect(
+              await _tableExists(upgradedDb, 'route_projection_local'), isTrue);
+          expect(
+            await _tableExists(upgradedDb, 'timeline_compile_cursor'),
+            isTrue,
+          );
+
+          final v2ProjectionIndexes = await _v2ProjectionIndexNames(upgradedDb);
+          expect(
+            v2ProjectionIndexes,
+            containsAll(<String>{
+              'timeline_projection_local_trip_captured_idx',
+              'timeline_projection_local_trip_bucket_captured_idx',
+              'timeline_projection_local_trip_captured_session_idx',
+              'timeline_projection_local_trip_source_unique_idx',
+              'route_projection_local_trip_started_idx',
+              'route_projection_local_trip_session_started_idx',
+              'timeline_compile_cursor_updated_idx',
+            }),
+          );
+
+          final trip = await (upgradedDb.select(upgradedDb.trips)
+                ..where((t) => t.id.equals('trip-v2-projection-migration-1')))
+              .getSingleOrNull();
+          expect(trip, isNotNull);
+          expect(trip!.name, 'V2 Projection Migration Trip');
+        } finally {
+          await seedDb?.close();
+          await upgradedDb?.close();
+          if (await dbFile.exists()) {
+            await dbFile.delete();
+          }
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        }
+      },
+    );
   });
 }

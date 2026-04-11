@@ -61,6 +61,15 @@ class V2MediaJournalRepository {
   Future<List<MediaJournalRow>> listMediaForSession(String sessionId) =>
       _dao.listMediaForSession(sessionId);
 
+  Future<List<MediaJournalRow>> listMediaForTrip(String tripLocalId) =>
+      _dao.listMediaForTrip(tripLocalId);
+
+  Future<List<MediaJournalRow>> listMediaForTripFromCapturedAt(
+    String tripLocalId,
+    DateTime fromCapturedAt,
+  ) =>
+      _dao.listMediaForTripFromCapturedAt(tripLocalId, fromCapturedAt);
+
   Future<int> markUploadState({
     required String mediaId,
     required String uploadState,

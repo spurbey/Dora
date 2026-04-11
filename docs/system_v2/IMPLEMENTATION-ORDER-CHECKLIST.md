@@ -1,7 +1,7 @@
 ﻿# Implementation Order Checklist (V2)
 
 Status: Execution checklist
-Last updated: 2026-04-10
+Last updated: 2026-04-12
 Reference plan: [Execution Plan V2](./execution-plan-v2.md)
 
 Use this file as the day-to-day gate checklist. Do not advance phase until all boxes are checked.
@@ -60,16 +60,20 @@ Use this file as the day-to-day gate checklist. Do not advance phase until all b
 
 ## Phase 5: Session Commit Worker
 
-- [ ] `session_commit_job` + media/chunk tables implemented.
-- [ ] Commit phases implemented:
-  - [ ] prepare
-  - [ ] media_upload
-  - [ ] payload_upload
-  - [ ] finalize_ack
-  - [ ] done
-- [ ] Idempotency key persisted and reused across retries.
-- [ ] Bounded retry + retry CTA implemented.
-- [ ] Crash-recovery resume verified.
+- [x] `session_commit_job` + media/chunk tables implemented.
+- [ ] Commit phases implemented (Phase 5 foundation is prepare-only; upload/finalize in backend phase):
+  - [x] prepare
+  - [ ] media_upload (backend phase)
+  - [ ] payload_upload (backend phase)
+  - [ ] finalize_ack (backend phase)
+  - [ ] done (backend phase)
+- [x] Idempotency key persisted and reused across retries.
+- [x] Bounded retry + retry CTA implemented (backend-off: no network churn).
+- [x] Crash-recovery resume verified (lease takeover + event-driven re-entry triggers).
+- [x] Stop idempotency lock aligned:
+  - [x] `stop_client_event_id` rotates per new `seal_version`
+  - [x] same stop id reused for retries of the same sealed attempt
+- [x] Prepare snapshot payload shape locked as spec-complete (session/event/media/route points).
 
 ## Phase 6: Backend Ingest + Server Projection
 

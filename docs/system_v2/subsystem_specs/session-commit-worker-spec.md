@@ -182,6 +182,11 @@ The worker executes deterministic phases.
 6. Idempotency key format is fixed:
 - `finalize:{trip_local_id}:{session_id}:{seal_version}`
 7. Snapshot is immutable per job once persisted.
+8. Snapshot payload shape is contract-complete for ingest:
+  - session metadata,
+  - full event rows (resolver/binding/manual-lock fields included),
+  - full media rows,
+  - full route-point rows.
 
 ### Phase 2: `media_upload`
 
@@ -215,6 +220,9 @@ The worker executes deterministic phases.
 2. Backend must treat duplicate finalize calls with same key as safe replay.
 3. Client must not rotate idempotency key during retries.
 4. Duplicate app restarts must resume same job row, not create new active job.
+5. Stop command idempotency is seal-version scoped:
+  - one `stop_client_event_id` is persisted for a given `(session_id, seal_version)`,
+  - when `seal_version` increments, a new `stop_client_event_id` is generated.
 
 ## 10. Chunking Policy
 

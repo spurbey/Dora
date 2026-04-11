@@ -374,7 +374,8 @@ Exit criteria:
   2. code-enforced active-job uniqueness transaction;
   3. lease takeover TTL = 5 minutes from last heartbeat timestamp;
   4. immutable snapshot per job (no recompute across retries);
-  5. persisted `stop_client_event_id` reuse for the sealed session.
+  5. `stop_client_event_id` is persisted per seal-version attempt (new id when seal_version increments).
+  6. prepare snapshot payload is spec-complete for backend ingest contract (full session/event/media/route-point shape).
 4. Backend ingest deferred:
   1. with `enable_v2_backend_ingest=false`, worker performs local `prepare` only;
   2. no upload/finalize network phases yet.

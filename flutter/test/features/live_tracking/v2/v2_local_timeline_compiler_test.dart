@@ -213,5 +213,48 @@ void main() {
         isTrue,
       );
     });
+
+    test('points-only session compiles route projection without crash',
+        () async {
+      final startedAt = DateTime.utc(2026, 4, 12, 7, 0);
+      await sessionRepository.upsertSession(
+        sessionId: 'session-points-only',
+        tripLocalId: 'trip-points-only',
+        controlState: 'sealed',
+        startedAt: startedAt,
+        endedAt: startedAt.add(const Duration(minutes: 12)),
+        sessionSeq: 1,
+        deviceId: 'device-1',
+        createdAt: startedAt,
+        updatedAt: startedAt.add(const Duration(minutes: 12)),
+      );
+      await routePointRepository.upsertPoint(
+        pointId: 'point-a',
+        sessionId: 'session-points-only',
+        tripLocalId: 'trip-points-only',
+        capturedAt: startedAt.add(const Duration(minutes: 1)),
+        latitude: 27.7000,
+        longitude: 85.3000,
+        pointSeq: 1,
+      );
+      await routePointRepository.upsertPoint(
+        pointId: 'point-b',
+        sessionId: 'session-points-only',
+        tripLocalId: 'trip-points-only',
+        capturedAt: startedAt.add(const Duration(minutes: 8)),
+        latitude: 27.7050,
+        longitude: 85.3050,
+        pointSeq: 2,
+      );
+
+      await compiler.compileTrip(tripId: 'trip-points-only');
+
+      final entries =
+          await projectionRepository.listTimelineEntries('trip-points-only');
+      final segments =
+          await projectionRepository.listRouteSegments('trip-points-only');
+      expect(entries, isEmpty);
+      expect(segments.length, 1);
+    });
   });
 }

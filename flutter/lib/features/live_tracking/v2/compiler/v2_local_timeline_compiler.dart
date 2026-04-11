@@ -149,6 +149,7 @@ class V2LocalTimelineCompiler {
       fullRebuild: requiresFullRebuild,
       now: now,
     );
+    final shouldRebuildTimeline = requiresFullRebuild || dirtyFrom != null;
 
     await _database.transaction(() async {
       if (requiresFullRebuild) {
@@ -169,6 +170,22 @@ class V2LocalTimelineCompiler {
       final routeBySession = <String, V2RouteProjectionSegment>{
         for (final segment in routeSegments) segment.sessionId: segment,
       };
+      if (!shouldRebuildTimeline) {
+        await _projectionRepository.upsertCursor(
+          tripId: tripId,
+          compilerVersion: compilerVersion,
+          projectionSchemaVersion: projectionSchemaVersion,
+          lastCompiledAt: now,
+          lastEventUpdatedAt: currentWatermarks.maxEventUpdatedAt,
+          lastMediaUpdatedAt: currentWatermarks.maxMediaUpdatedAt,
+          lastRoutePointCapturedAt: currentWatermarks.maxRoutePointCapturedAt,
+          lastSessionUpdatedAt: currentWatermarks.maxSessionUpdatedAt,
+          dirtyFromCapturedAt: null,
+          dirtyReason: reason,
+          fullRebuildRequired: 0,
+        );
+        return;
+      }
 
       final events = requiresFullRebuild
           ? await _eventRepository.listEventsForTripChronological(tripId)

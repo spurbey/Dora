@@ -107,34 +107,35 @@ final v2ProjectionRefreshSignalProvider =
   final query = db.customSelect(
     '''
     SELECT
-      (SELECT MAX(updated_at) FROM event_journal WHERE trip_local_id = ?) AS max_event_updated_at,
-      (SELECT MAX(updated_at) FROM media_journal WHERE trip_local_id = ?) AS max_media_updated_at,
-      (SELECT MAX(captured_at) FROM route_point_journal WHERE trip_local_id = ?) AS max_route_point_captured_at,
-      (SELECT MAX(updated_at) FROM session_journal WHERE trip_local_id = ?) AS max_session_updated_at
+      (SELECT MAX(updated_at)
+       FROM session_journal
+       WHERE trip_local_id = ?
+         AND control_state = 'sealed') AS max_sealed_session_updated_at,
+      (SELECT GROUP_CONCAT(session_id, '|')
+       FROM session_journal
+       WHERE trip_local_id = ?
+         AND control_state = 'sealed') AS sealed_session_ids
     ''',
     variables: [
-      Variable<String>(tripId),
-      Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
     ],
     readsFrom: {
       db.sessionJournal,
-      db.eventJournal,
-      db.mediaJournal,
-      db.routePointJournal,
     },
   );
 
   return query
       .watchSingle()
       .map((row) {
-        final event = row.data['max_event_updated_at']?.toString() ?? '';
-        final media = row.data['max_media_updated_at']?.toString() ?? '';
-        final points =
-            row.data['max_route_point_captured_at']?.toString() ?? '';
-        final session = row.data['max_session_updated_at']?.toString() ?? '';
-        return Object.hash(event, media, points, session);
+        final maxSealedUpdatedAt =
+            row.data['max_sealed_session_updated_at']?.toString() ?? '';
+        final sealedSessionIds =
+            row.data['sealed_session_ids']?.toString() ?? '';
+        if (maxSealedUpdatedAt.isEmpty && sealedSessionIds.isEmpty) {
+          return 0;
+        }
+        return Object.hash(maxSealedUpdatedAt, sealedSessionIds);
       })
       .distinct()
       .transform(
@@ -162,12 +163,16 @@ final v2ProjectionCompileDriverProvider =
   }
 
   final sub = refreshStream.listen(
-    (_) => unawaited(runCompile(reason: 'refresh_signal')),
+    (signal) {
+      if (signal == 0) {
+        return;
+      }
+      unawaited(runCompile(reason: 'sealed_session_refresh'));
+    },
     onError: (_, __) {
       // No-op: compile remains best-effort for provider consumers.
     },
   );
-  unawaited(runCompile(reason: 'initial_open'));
   ref.onDispose(() async {
     disposed = true;
     await sub.cancel();

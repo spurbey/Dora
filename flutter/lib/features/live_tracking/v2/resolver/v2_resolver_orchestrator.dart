@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/core/network/network_probe.dart';
 import 'package:dora/core/utils/logger.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/resolver_journal_repository.dart';
@@ -182,6 +183,17 @@ class V2ResolverOrchestrator {
     required V2ResolverTriggerSource source,
     required int limit,
   }) async {
+    final online = await isNetworkAvailable();
+    if (!online) {
+      Logger.info(
+        'resolver_recovery_skipped_offline',
+        <String, Object>{
+          'trip_id': tripId,
+          'source': source.name,
+        },
+      );
+      return;
+    }
     Logger.info(
       'resolver_recovery_triggered',
       <String, Object>{

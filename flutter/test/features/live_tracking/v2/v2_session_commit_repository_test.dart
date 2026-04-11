@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -185,6 +187,26 @@ void main() {
       expect(second.snapshotPointCount, first.snapshotPointCount);
       expect(secondChunks.length, firstChunks.length);
       expect(secondMedia.length, firstMedia.length);
+
+      final decodedPayload =
+          jsonDecode(firstChunks.first.payloadJson) as Map<String, dynamic>;
+      final events = decodedPayload['events'] as List<dynamic>;
+      final media = decodedPayload['media'] as List<dynamic>;
+      final routePoints = decodedPayload['route_points'] as List<dynamic>;
+      final firstEvent = events.first as Map<String, dynamic>;
+      expect(firstEvent.containsKey('latitude'), isTrue);
+      expect(firstEvent.containsKey('decision_source'), isTrue);
+      expect(firstEvent.containsKey('manual_lock'), isTrue);
+      expect(firstEvent.containsKey('place_bind_name'), isTrue);
+      expect(firstEvent.containsKey('geotag_final_reason'), isTrue);
+      expect((media.first as Map<String, dynamic>).containsKey('bytes_size'),
+          isTrue);
+      expect((media.first as Map<String, dynamic>).containsKey('upload_state'),
+          isTrue);
+      expect(routePoints, isNotEmpty);
+      expect(
+          (routePoints.first as Map<String, dynamic>).containsKey('point_seq'),
+          isTrue);
     });
   });
 }

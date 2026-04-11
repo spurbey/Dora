@@ -37,7 +37,7 @@ void main() {
       await database.close();
     });
 
-    test('stop uses persisted stop_client_event_id when present', () async {
+    test('stop rotates stop_client_event_id for new seal version', () async {
       await sessionRepository.upsertSession(
         sessionId: 'session-stop-id',
         tripLocalId: 'trip-stop-id',
@@ -45,7 +45,7 @@ void main() {
         controlState: 'active',
         startAckAt: DateTime.utc(2026, 4, 12, 12, 50),
         startedAt: DateTime.utc(2026, 4, 12, 12, 50),
-        stopClientEventId: 'stop-fixed-id',
+        stopClientEventId: 'stop-old-id',
         sessionSeq: 1,
         deviceId: 'device-1',
         startRequestSeq: 1,
@@ -54,12 +54,13 @@ void main() {
       final stopped = await repository.stopSession(tripId: 'trip-stop-id');
       expect(stopped, isNotNull);
       expect(commandApi.stopClientEventIds, hasLength(1));
-      expect(commandApi.stopClientEventIds.single, 'stop-fixed-id');
+      expect(commandApi.stopClientEventIds.single, isNot('stop-old-id'));
 
       final persisted =
           await sessionRepository.getSessionById('session-stop-id');
       expect(persisted, isNotNull);
-      expect(persisted!.stopClientEventId, 'stop-fixed-id');
+      expect(
+          persisted!.stopClientEventId, commandApi.stopClientEventIds.single);
     });
   });
 }

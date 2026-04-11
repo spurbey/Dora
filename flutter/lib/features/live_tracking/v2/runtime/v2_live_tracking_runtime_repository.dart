@@ -272,10 +272,9 @@ class V2LiveTrackingRuntimeRepository {
 
     var stopAckAt = session.stopAckAt;
     var stopServerPending = 0;
-    final stopClientEventId = (session.stopClientEventId != null &&
-            session.stopClientEventId!.trim().isNotEmpty)
-        ? session.stopClientEventId!.trim()
-        : _uuid.v4();
+    // Lock stop idempotency to the current seal-version attempt.
+    // Each stop increments sealVersion, so a new stop client event id is created.
+    final stopClientEventId = _uuid.v4();
     String? remoteTripId = session.serverTripId;
     try {
       remoteTripId ??= await _resolveRemoteTripIdForStart(tripId);

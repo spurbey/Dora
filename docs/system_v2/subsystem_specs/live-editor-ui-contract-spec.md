@@ -72,10 +72,12 @@ Each unresolved card includes:
 
 ### 6.4 Actions
 
-1. `Accept` -> sets place-bound state + manual lock.
-2. `Add place manually` -> deep-links to place picker/create flow.
-3. `Geo-Tag` -> sets geotag resolved route state + manual lock.
-4. If manual add is dismissed/cancelled -> default to `Geo-Tag`.
+1. Live lane is informational only in Phase 3 (`Review in editor` CTA).
+2. Editor lane is actionable: `Accept`, `Add place manually`, `Geo-Tag`.
+3. `Accept` -> sets place-bound state + manual lock.
+4. `Add place manually` -> deep-links to place picker/create flow.
+5. `Geo-Tag` -> sets geotag resolved route state + manual lock.
+6. If manual add is dismissed/cancelled -> default to `Geo-Tag` with `manual_add_cancelled` reason.
 
 ### 6.5 Priority order
 
@@ -113,6 +115,7 @@ Each unresolved card includes:
 1. Panel must be non-blocking.
 2. User can continue capturing while unresolved items exist.
 3. Panel count indicator should reflect unresolved queue size.
+4. Live panel does not expose `Accept/Add/Geo-Tag` buttons in Phase 3.
 
 ## 8. Editor Screen Contract
 
@@ -150,7 +153,7 @@ Each entry can surface:
 
 ### 9.1 Live -> Editor manual add
 
-1. Trigger: user taps `Add place manually` in live unresolved card.
+1. Trigger: user taps `Review in editor` in live unresolved panel.
 2. App opens editor place picker/create flow scoped to target event.
 3. On selection, returns selection and applies manual place decision with lock.
 4. On cancel/dismiss, applies `Geo-Tag` default behavior.

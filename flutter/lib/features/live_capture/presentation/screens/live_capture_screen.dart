@@ -38,6 +38,9 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_bot
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
+import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
+import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
+import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 
@@ -79,7 +82,7 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final ImagePicker _imagePicker = ImagePicker();
   final Set<String> _dismissedReviewPromptEventIds = <String>{};
   static const AppLatLng _defaultLiveCenter = AppLatLng(
@@ -87,6 +90,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     longitude: 78.9629,
   );
   bool _useV2Lane = false;
+  bool _didTriggerV2LiveOpenRecovery = false;
   bool _actionInFlight = false;
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
@@ -103,6 +107,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _entranceCtrl = AnimationController(
       vsync: this,
       duration: AnimationTokens.slow,
@@ -124,23 +129,37 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       if (!mounted) return;
       _entranceCtrl.forward();
       if (widget.previewState == null) {
-        _triggerResolverReconcile();
+        if (_isV2LaneEnabled()) {
+          _triggerV2Recovery(source: V2ResolverTriggerSource.liveOpen);
+        } else {
+          _triggerResolverReconcile();
+        }
+      }
+      if (widget.previewState == null && !_isV2LaneEnabled()) {
+        _resolverReconcileTimer = Timer.periodic(
+          const Duration(seconds: 45),
+          (_) => _triggerResolverReconcile(),
+        );
       }
     });
-    if (widget.previewState == null) {
-      _resolverReconcileTimer = Timer.periodic(
-        const Duration(seconds: 45),
-        (_) => _triggerResolverReconcile(),
-      );
-    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _entranceCtrl.dispose();
     _effectController.close();
     _resolverReconcileTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        widget.previewState == null &&
+        _isV2LaneEnabled()) {
+      _triggerV2Recovery(source: V2ResolverTriggerSource.resumed);
+    }
   }
 
   void _emitEffect(TransientEffectType type) {
@@ -218,6 +237,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final v2EventsAsync = usePreview || !useV2Lane
         ? null
         : ref.watch(v2LiveCaptureEventsProvider(widget.tripId));
+    final v2InboxAsync = usePreview || !useV2Lane
+        ? null
+        : ref.watch(v2UnresolvedInboxProvider(widget.tripId));
     final tripName = usePreview
         ? 'Live preview'
         : ref.watch(liveCaptureTripNameProvider(widget.tripId)).valueOrNull ??
@@ -262,6 +284,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             : _defaultLiveCenter);
     final reviewEvent = unresolvedSummary.latestReviewRequired;
     final reviewHints = unresolvedSummary.reviewHints;
+    final v2InboxItems =
+        v2InboxAsync?.valueOrNull ?? const <V2UnresolvedInboxItem>[];
     final showReviewPrompt = !usePreview &&
         reviewEvent != null &&
         reviewHints.isNotEmpty &&
@@ -283,6 +307,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           onReview: _actionInFlight
               ? null
               : () => context.push(Routes.editorPath(widget.tripId)),
+        ),
+      if (!usePreview && useV2Lane && v2InboxItems.isNotEmpty)
+        V2UnresolvedReviewPanel(
+          items: v2InboxItems,
+          interactive: false,
+          onReviewInEditor: _actionInFlight
+              ? null
+              : () => context.push(Routes.editorPath(widget.tripId)),
+          title: 'Needs review',
         ),
       if (!useV2Lane && showReviewPrompt)
         _ProbablePlacePromptCard(
@@ -662,10 +695,24 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             eventType: event.eventType,
             note: _extractV2EventNote(event),
             capturedAt: event.capturedAt,
-            syncLabel: 'Local',
+            syncLabel: _resolverLabel(event.resolverState),
           ),
         )
         .toList(growable: false);
+  }
+
+  String _resolverLabel(String resolverState) {
+    switch (resolverState) {
+      case 'place_bound':
+        return 'Bound';
+      case 'review_required':
+        return 'Needs review';
+      case 'geotag_final':
+        return 'Geo-tagged';
+      case 'geotag_unresolved':
+      default:
+        return 'Local';
+    }
   }
 
   String? _extractV2EventNote(EventJournalRow event) {
@@ -1084,6 +1131,28 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     );
   }
 
+  void _triggerV2Recovery({
+    required V2ResolverTriggerSource source,
+  }) {
+    if (!mounted || widget.previewState != null || !_isV2LaneEnabled()) {
+      return;
+    }
+    if (source == V2ResolverTriggerSource.liveOpen &&
+        _didTriggerV2LiveOpenRecovery) {
+      return;
+    }
+    if (source == V2ResolverTriggerSource.liveOpen) {
+      _didTriggerV2LiveOpenRecovery = true;
+    }
+    unawaited(
+      ref.read(v2ResolverOrchestratorProvider).runRecoveryForTrip(
+            tripId: widget.tripId,
+            source: source,
+            limit: 20,
+          ),
+    );
+  }
+
   Future<void> _captureQuickEvent({
     required LiveTrackingEventType eventType,
     required String note,
@@ -1104,13 +1173,21 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           _showMessage('Location required to capture this event.');
           return;
         }
-        await ref.read(v2LiveCaptureJournalRepositoryProvider).createEventNow(
+        final v2EventId = await ref
+            .read(v2LiveCaptureJournalRepositoryProvider)
+            .createEventNow(
           tripId: widget.tripId,
           eventType: eventType,
           note: note,
-          latitude: position?.latitude,
-          longitude: position?.longitude,
+          latitude: position.latitude,
+          longitude: position.longitude,
           payload: <String, dynamic>{'note': note},
+        );
+        unawaited(
+          ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
+                tripId: widget.tripId,
+                eventId: v2EventId,
+              ),
         );
       } else {
         final repository = ref.read(liveTrackingEventRepositoryProvider);
@@ -1126,7 +1203,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         return;
       }
       onSuccess?.call();
-      _showMessage(successMessage);
+      _showMessage(_isV2LaneEnabled()
+          ? 'Captured locally. Review in editor if a place needs confirmation.'
+          : successMessage);
     } catch (_) {
       _showMessage('Failed to capture item. Try again.');
     } finally {
@@ -1254,11 +1333,21 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         return;
       }
       _dismissedReviewPromptEventIds.remove(eventId);
+      if (isV2Lane) {
+        unawaited(
+          ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
+                tripId: widget.tripId,
+                eventId: eventId,
+              ),
+        );
+      }
       if (eventType == LiveTrackingEventType.photo) {
         _emitEffect(TransientEffectType.photoCaptured);
       }
       if (isV2Lane) {
-        _showMessage('Captured locally. Place review starts in Phase 3.');
+        _showMessage(
+          'Captured locally. Review in editor if place confirmation is needed.',
+        );
       } else {
         if (decisionState == 'resolved') {
           _showMessage('Captured and auto-bound to nearby place.');

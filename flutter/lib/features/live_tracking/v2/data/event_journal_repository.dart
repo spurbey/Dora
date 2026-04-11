@@ -84,4 +84,32 @@ class V2EventJournalRepository {
     int limit = 50,
   }) =>
       _dao.watchUnresolvedEventsForTrip(tripLocalId, limit: limit);
+
+  Future<int> updateResolverOutcome({
+    required String eventId,
+    required String resolverState,
+    String? decisionSource,
+    int? manualLock,
+    String? placeBindKind,
+    String? placeBindId,
+    String? placeBindName,
+    String? geotagFinalReason,
+    int? candidateSetVersion,
+    DateTime? resolvedAt,
+    DateTime? updatedAt,
+  }) {
+    return _dao.updateResolverOutcome(
+      eventId: eventId,
+      resolverState: resolverState,
+      decisionSource: decisionSource,
+      manualLock: manualLock,
+      placeBindKind: placeBindKind,
+      placeBindId: placeBindId,
+      placeBindName: placeBindName,
+      geotagFinalReason: geotagFinalReason,
+      candidateSetVersion: candidateSetVersion,
+      resolvedAt: resolvedAt,
+      updatedAt: updatedAt,
+    );
+  }
 }

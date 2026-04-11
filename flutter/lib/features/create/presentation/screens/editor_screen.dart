@@ -53,6 +53,10 @@ import 'package:dora/features/create/presentation/widgets/route_studio/route_det
 import 'package:dora/features/create/presentation/widgets/route_studio/waypoint_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/timeline_sidebar.dart';
 import 'package:dora/features/create/presentation/widgets/media_attachment_viewer.dart';
+import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
+import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
+import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
+import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 
@@ -65,7 +69,8 @@ class EditorScreen extends ConsumerStatefulWidget {
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends ConsumerState<EditorScreen> {
+class _EditorScreenState extends ConsumerState<EditorScreen>
+    with WidgetsBindingObserver {
   AppLatLng? _deviceCenter;
   bool _didAutoCenterOnDevice = false;
   AppMarker? _mediaFocusMarker;
@@ -75,6 +80,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   final Set<String> _candidateActionsInFlight = <String>{};
   bool _momentCreateInFlight = false;
   final Set<String> _momentActionsInFlight = <String>{};
+  final Set<String> _v2ReviewActionsInFlight = <String>{};
+  bool _didTriggerV2EditorOpenRecovery = false;
   static const _noLinkedMomentPlaceValue = '__no_linked_place__';
   final bool _showLegacyTrackingWidgets = false;
   static const _defaultEditorCenter = AppLatLng(
@@ -85,14 +92,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _resolveDeviceCenter();
+      _triggerV2Recovery(source: V2ResolverTriggerSource.editorOpen);
     });
   }
 
   @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _triggerV2Recovery(source: V2ResolverTriggerSource.resumed);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    ref.read(liveSystemV2RolloutGateProvider).evaluate(
+    final v2GateDecision = ref.read(liveSystemV2RolloutGateProvider).evaluate(
       tripId: widget.tripId,
       surface: LiveSystemV2Surface.editor,
       requiredSubsystems: const {
@@ -100,6 +122,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         LiveSystemV2Subsystem.liveEditorUiContract,
       },
     );
+    final useV2ReviewLane = v2GateDecision.enabled;
+    if (useV2ReviewLane) {
+      _triggerV2Recovery(source: V2ResolverTriggerSource.editorOpen);
+    }
     final editorAsync = ref.watch(editorControllerProvider(widget.tripId));
 
     ref.listen(editorControllerProvider(widget.tripId), (prev, next) {
@@ -137,8 +163,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ref.watch(compiledProjectionViewProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-        final candidateInboxAsync =
-            ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
+        final candidateInboxAsync = useV2ReviewLane
+            ? null
+            : ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
+        final v2InboxAsync = useV2ReviewLane
+            ? ref.watch(v2UnresolvedInboxProvider(widget.tripId))
+            : null;
         final momentListAsync = _showLegacyTrackingWidgets
             ? ref.watch(liveTrackingMomentsProvider(widget.tripId))
             : null;
@@ -223,7 +253,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     trackingRuntimeAsync: trackingRuntimeAsync,
                     syncStatusAsync: syncStatusAsync,
                   ),
-                  _buildLiveTrackingCandidateInbox(candidateInboxAsync),
+                  useV2ReviewLane
+                      ? _buildV2UnresolvedReviewInbox(
+                          editor: editor,
+                          inboxAsync: v2InboxAsync!,
+                        )
+                      : _buildLiveTrackingCandidateInbox(candidateInboxAsync!),
                   if (_showLegacyTrackingWidgets) ...[
                     _buildLiveTrackingControlStrip(trackingRuntimeAsync),
                     _buildLiveTrackingMomentStrip(
@@ -747,6 +782,59 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  Widget _buildV2UnresolvedReviewInbox({
+    required EditorState editor,
+    required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
+  }) {
+    return inboxAsync.when(
+      data: (items) {
+        if (items.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return V2UnresolvedReviewPanel(
+          items: items,
+          interactive: true,
+          onReviewInEditor: null,
+          busyEventIds: _v2ReviewActionsInFlight,
+          onAcceptCandidate: (eventId, candidate) => unawaited(
+            _runV2ReviewAction(
+              eventId: eventId,
+              action: () => ref
+                  .read(v2UnresolvedReviewControllerProvider)
+                  .acceptCandidate(
+                    eventId: eventId,
+                    candidate: candidate,
+                  ),
+              successMessage: 'Capture bound to place.',
+            ),
+          ),
+          onAddPlace: (eventId) => unawaited(
+            _runV2ReviewAction(
+              eventId: eventId,
+              action: () => _assignV2ManualPlace(
+                eventId: eventId,
+                editor: editor,
+              ),
+              successMessage: 'Capture review updated.',
+            ),
+          ),
+          onKeepGeotag: (eventId) => unawaited(
+            _runV2ReviewAction(
+              eventId: eventId,
+              action: () => ref
+                  .read(v2UnresolvedReviewControllerProvider)
+                  .keepGeotag(eventId: eventId),
+              successMessage: 'Capture kept as geotag.',
+            ),
+          ),
+          title: 'Needs review',
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildLiveTrackingMomentStrip({
     required AsyncValue<List<TrackingMomentRow>> momentListAsync,
     required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
@@ -858,6 +946,152 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         });
       }
     }
+  }
+
+  bool _isV2ReviewLaneEnabled() {
+    return ref.read(liveSystemV2RolloutGateProvider).evaluate(
+      tripId: widget.tripId,
+      surface: LiveSystemV2Surface.editor,
+      requiredSubsystems: const {
+        LiveSystemV2Subsystem.localCompiler,
+        LiveSystemV2Subsystem.liveEditorUiContract,
+      },
+    ).enabled;
+  }
+
+  void _triggerV2Recovery({
+    required V2ResolverTriggerSource source,
+  }) {
+    if (!_isV2ReviewLaneEnabled()) {
+      return;
+    }
+    if (source == V2ResolverTriggerSource.editorOpen &&
+        _didTriggerV2EditorOpenRecovery) {
+      return;
+    }
+    if (source == V2ResolverTriggerSource.editorOpen) {
+      _didTriggerV2EditorOpenRecovery = true;
+    }
+    unawaited(
+      ref.read(v2ResolverOrchestratorProvider).runRecoveryForTrip(
+            tripId: widget.tripId,
+            source: source,
+            limit: 20,
+          ),
+    );
+  }
+
+  Future<void> _runV2ReviewAction({
+    required String eventId,
+    required Future<void> Function() action,
+    required String successMessage,
+  }) async {
+    if (!mounted || _v2ReviewActionsInFlight.contains(eventId)) {
+      return;
+    }
+    setState(() {
+      _v2ReviewActionsInFlight.add(eventId);
+    });
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successMessage),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to apply review action.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _v2ReviewActionsInFlight.remove(eventId);
+        });
+      }
+    }
+  }
+
+  Future<void> _assignV2ManualPlace({
+    required String eventId,
+    required EditorState editor,
+  }) async {
+    final places =
+        editor.places.where((place) => place.placeType != 'city').toList();
+    if (places.isEmpty) {
+      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
+            eventId: eventId,
+            fromManualAddCancel: true,
+          );
+      return;
+    }
+
+    final selectedPlaceId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView(
+            children: [
+              const ListTile(
+                dense: true,
+                title: Text(
+                  'Select place',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              for (final place in places)
+                ListTile(
+                  leading: const Icon(Icons.place_outlined),
+                  title: Text(place.name),
+                  subtitle: place.address?.trim().isNotEmpty == true
+                      ? Text(place.address!.trim())
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(place.id),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedPlaceId == null || selectedPlaceId.trim().isEmpty) {
+      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
+            eventId: eventId,
+            fromManualAddCancel: true,
+          );
+      return;
+    }
+
+    Place? selectedPlace;
+    for (final place in places) {
+      if (place.id == selectedPlaceId) {
+        selectedPlace = place;
+        break;
+      }
+    }
+    if (selectedPlace == null) {
+      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
+            eventId: eventId,
+            fromManualAddCancel: true,
+          );
+      return;
+    }
+    await ref.read(v2UnresolvedReviewControllerProvider).assignManualPlace(
+          eventId: eventId,
+          placeId: selectedPlace.id,
+          placeName: selectedPlace.name,
+        );
   }
 
   Future<void> _captureMomentNow({

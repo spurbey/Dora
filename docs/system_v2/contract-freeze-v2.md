@@ -57,6 +57,22 @@ Rule:
 - `abs(top-second) <= 0.02` => `review_required`
 6. UI shows top 2-3 candidates.
 
+## 4.2 Resolver Attempt Policy (Final)
+
+1. Run once at capture if network available.
+2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
+3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
+4. Recovery trigger sources are fixed: app resumed, live screen open, editor screen open.
+5. Recovery scan is bounded (`limit=20`) with one in-flight runner per trip.
+6. No polling loop and no connectivity package dependency in Phase 3.
+7. No manual retry UI exists; no further attempts.
+
+## 4.1 Directions Provider Contract (Final)
+
+1. Provider: Mapbox Directions API direct from app.
+2. Purpose: route suggestions/preview only (not resolver truth).
+3. No server proxy in V2 baseline.
+
 ## 5. Retry and Idempotency (Final)
 
 Retry schedule:

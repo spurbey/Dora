@@ -238,7 +238,7 @@ Columns:
 2. `event_id` TEXT NOT NULL
 3. `attempt_no` INTEGER NOT NULL
 4. `trigger_reason` TEXT NOT NULL
-- enum: `capture_created`, `manual_retry`, `network_recovered`, `editor_open`
+- enum: `capture_created`, `network_recovered`, `live_open`, `editor_open`
 5. `started_at` DATETIME NOT NULL
 6. `finished_at` DATETIME NULL
 7. `result_kind` TEXT NOT NULL
@@ -301,12 +301,15 @@ Resolver may apply only when `manual_lock = 0`.
   - `resolver_state = geotag_unresolved` until user acts.
   - No automatic retry is triggered after a successful response (even empty).
 
-  ### 8.2.1 Resolver Attempt Policy (Lock)
+### 8.2.1 Resolver Attempt Policy (Lock)
 
-  1. Run once at capture if network is available.
-  2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
-  3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
-  4. No manual retry UI exists in V2; further attempts must not occur.
+1. Run once at capture if network is available.
+2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
+3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
+4. Recovery triggers are explicit only: app resume, live screen open, editor open.
+5. Recovery scan is bounded (`limit=20`) and deduped (one in-flight runner per trip).
+6. No polling loop and no connectivity package dependency in Phase 3.
+7. No manual retry UI exists in V2; further attempts must not occur.
 
 ### 8.3 Manual transitions
 
@@ -395,14 +398,15 @@ Resolver processing is event-driven, not free-running.
 Allowed triggers:
 
 1. `capture_created`
-2. `manual_retry`
-3. `network_recovered`
+2. `network_recovered` (`AppLifecycleState.resumed`)
+3. `live_open` (bounded scan)
 4. `editor_open` (bounded scan)
 
 Forbidden:
 
 1. Constant polling loops.
 2. Unbounded whole-trip rescans per UI frame.
+3. Connectivity plugin listeners in Phase 3.
 
 ## 12. Performance and Limits
 

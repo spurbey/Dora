@@ -7,6 +7,9 @@ import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dar
 import 'package:dora/features/live_tracking/v2/data/resolver_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/route_point_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
+import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_client.dart';
+import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_decision_reducer.dart';
+import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_orchestrator.dart';
 
 final v2SessionJournalRepositoryProvider =
     Provider<V2SessionJournalRepository>((ref) {
@@ -50,5 +53,23 @@ final v2LiveCaptureJournalRepositoryProvider =
     sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
     eventRepository: ref.watch(v2EventJournalRepositoryProvider),
     mediaRepository: ref.watch(v2MediaJournalRepositoryProvider),
+  );
+});
+
+final v2ResolverClientProvider = Provider<V2ResolverClient>((ref) {
+  return V2ResolverClient();
+});
+
+final v2ResolverDecisionReducerProvider =
+    Provider<V2ResolverDecisionReducer>((ref) {
+  return const V2ResolverDecisionReducer();
+});
+
+final v2ResolverOrchestratorProvider = Provider<V2ResolverOrchestrator>((ref) {
+  return V2ResolverOrchestrator(
+    eventRepository: ref.watch(v2EventJournalRepositoryProvider),
+    resolverRepository: ref.watch(v2ResolverJournalRepositoryProvider),
+    resolverClient: ref.watch(v2ResolverClientProvider),
+    reducer: ref.watch(v2ResolverDecisionReducerProvider),
   );
 });

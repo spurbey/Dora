@@ -89,4 +89,37 @@ class EventJournalDao extends DatabaseAccessor<AppDatabase>
             ])
             ..limit(limit))
           .watch();
+
+  Future<int> updateResolverOutcome({
+    required String eventId,
+    required String resolverState,
+    String? decisionSource,
+    int? manualLock,
+    String? placeBindKind,
+    String? placeBindId,
+    String? placeBindName,
+    String? geotagFinalReason,
+    int? candidateSetVersion,
+    DateTime? resolvedAt,
+    DateTime? updatedAt,
+  }) {
+    return (update(eventJournal)..where((row) => row.eventId.equals(eventId)))
+        .write(
+      EventJournalCompanion(
+        resolverState: Value(resolverState),
+        decisionSource: Value(decisionSource),
+        manualLock:
+            manualLock == null ? const Value.absent() : Value(manualLock),
+        placeBindKind: Value(placeBindKind),
+        placeBindId: Value(placeBindId),
+        placeBindName: Value(placeBindName),
+        geotagFinalReason: Value(geotagFinalReason),
+        candidateSetVersion: candidateSetVersion == null
+            ? const Value.absent()
+            : Value(candidateSetVersion),
+        resolvedAt: Value(resolvedAt?.toUtc()),
+        updatedAt: Value((updatedAt ?? DateTime.now()).toUtc()),
+      ),
+    );
+  }
 }

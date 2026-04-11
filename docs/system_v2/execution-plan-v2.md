@@ -167,6 +167,8 @@ Behavior:
 1. immediate local resolve pass, network fallback async
 2. manual lock enforced on all reconcile paths
 3. inbox renders top 2–3 candidates
+4. recovery trigger is explicit only: app resume, live open, editor open (no polling loop)
+5. live shows informational review CTA; editor owns review actions
 
 ---
 
@@ -317,6 +319,7 @@ Changes:
 2. State transitions and manual lock enforcement.
 3. Shared unresolved inbox provider and action handlers.
 4. Live/editor unresolved widgets/actions wired to same reducer.
+5. Retry contract lock: exactly one recovery attempt after provider error; sources = resumed/live_open/editor_open.
 
 Exit criteria:
 

@@ -1,8 +1,8 @@
 ﻿# Dora Live System V2 Master Blueprint
 
 Status: Draft for implementation lock
-Version: v2.0
-Last updated: 2026-04-10
+Version: v2.1
+Last updated: 2026-04-12
 Audience: Product, Flutter, backend, QA, SRE, new agents
 
 ## 1. Intent
@@ -195,6 +195,7 @@ Reason:
 1. Device -> external place API:
 - Used for resolver candidate discovery.
 - Provider contract locked to ORS direct for V2.
+- Directions provider locked to Mapbox Directions API direct from app.
 - Must use secure key strategy and strict limits.
 
 2. Device -> Dora backend:
@@ -268,6 +269,12 @@ Phase 5: Deletion and hardening
 
 1. Remove legacy live sync paths.
 2. Soak test long sessions, offline/online transitions, reinstall restore.
+
+Phase 4 stabilization note (2026-04-12):
+
+1. Local compiler null dirty-window crash guard is mandatory.
+2. Local compiler runtime trigger is narrowed to session-sealed transitions for this phase to avoid compile churn during active capture.
+3. Route-association complexity scaling is a deferred performance guardrail (next hardening slice), not a current correctness blocker.
 
 ## 14. Acceptance Criteria
 

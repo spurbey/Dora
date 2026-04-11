@@ -1,8 +1,8 @@
 ﻿# Local Timeline Compiler Spec (V2)
 
 Status: Draft for implementation lock
-Version: v2.0
-Last updated: 2026-04-10
+Version: v2.1
+Last updated: 2026-04-12
 Owner: Flutter timeline/editor team
 
 ## 1. Purpose
@@ -194,11 +194,17 @@ Allowed triggers:
 5. Route point append or route window seal.
 6. Session commit state change.
 7. App start recovery and explicit rebuild action.
+8. Session sealed transition (primary trigger for Phase 4 runtime lane).
 
 Forbidden:
 
 1. Continuous polling loops for timeline rebuild.
 2. Full-trip recompute on every small state change when incremental path is possible.
+
+Phase 4 hotfix lock (2026-04-12):
+
+1. Compiler trigger was narrowed to sealed-session transitions to prevent compile churn during active capture.
+2. Triggering compile on every event/media/point append is explicitly disallowed for this phase.
 
 ## 11. Incremental Invalidation Strategy
 
@@ -208,6 +214,7 @@ Forbidden:
 - compiler version changes,
 - cursor corruption detected,
 - user/developer explicit rebuild action.
+4. Safety rule: if incremental dirty window resolves to null (`dirty_from_ts` cannot be derived), compiler must skip timeline-window recompute and still advance route/cursor metadata safely. Null-dereference is forbidden.
 
 ## 12. UI Consumption Contract
 
@@ -282,4 +289,5 @@ This subsystem is complete only when:
 2. UI grouping policy for multi-session same-day merges.
 3. Maximum recent strip entry count for live screen.
 4. Compiler versioning and rollback policy.
+5. Performance guardrail (deferred to next phase): route-association cost can grow with point volume (`events x points`). If runtime profiling shows pressure, add capped candidate search/windowing and/or compile-on-seal-only policy for route-heavy sessions without changing source-of-truth contracts.
 

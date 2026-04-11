@@ -1,8 +1,8 @@
 ﻿# System V2 Execution Plan
 
 Status: Draft for execution lock
-Version: v2.0
-Last updated: 2026-04-10
+Version: v2.1
+Last updated: 2026-04-12
 Owner: Tech lead + Flutter lead + Backend lead + QA lead
 
 ## 1. Purpose
@@ -345,6 +345,11 @@ Exit criteria:
 
 1. No server dependency for timeline visibility during live/edit.
 2. Compiler deterministic and performant under target loads.
+3. Post-lock hotfixes applied:
+   - null dirty-window safety guard (no `dirtyFrom` null dereference),
+   - compile trigger narrowed to session-sealed transitions for this phase.
+4. Deferred guardrail logged for next phase:
+   - route association cost growth (`events x points`) is tracked as a performance hardening item, not a Phase 4 correctness blocker.
 
 ---
 

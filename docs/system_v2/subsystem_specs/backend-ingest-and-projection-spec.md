@@ -1,8 +1,8 @@
 ﻿# Backend Ingest and Projection Spec (V2)
 
 Status: Draft for implementation lock
-Version: v2.0
-Last updated: 2026-04-10
+Version: v2.1
+Last updated: 2026-04-12
 Owner: Backend API + compiler team
 
 ## 1. Purpose
@@ -380,6 +380,7 @@ Responses must include machine-readable code and user-safe message.
 2. Ingest endpoints are optimized for bounded burst at stop/publish milestones.
 3. Chunking limits must protect request size and DB transaction boundaries.
 4. Projection reads must be index-backed and paginatable.
+5. Client-side local compiler policy for Phase 4: compile is triggered primarily on session-sealed transition, not on every live route/event append, to avoid unnecessary read pressure from UI-triggered refresh churn.
 
 ## 15. Security Baseline
 

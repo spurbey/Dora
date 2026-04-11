@@ -63,9 +63,10 @@ Rule:
 2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
 3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
 4. Recovery trigger sources are fixed: app resumed, live screen open, editor screen open.
-5. Recovery scan is bounded (`limit=20`) with one in-flight runner per trip.
-6. No polling loop and no connectivity package dependency in Phase 3.
-7. No manual retry UI exists; no further attempts.
+5. Recovery must run only when connectivity is online (do not spend the retry while still offline).
+6. Recovery scan is bounded (`limit=20`) with one in-flight runner per trip.
+7. No polling loop and no connectivity package dependency in Phase 3 (use lightweight online check).
+8. No manual retry UI exists; no further attempts.
 
 ## 4.1 Directions Provider Contract (Final)
 

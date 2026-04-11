@@ -318,6 +318,7 @@ Changes:
 1. Resolver worker and candidate normalization.
 2. State transitions and manual lock enforcement.
 3. Shared unresolved inbox provider and action handlers.
+   - Use a single batch candidate lookup per trip to avoid N+1 local DB queries.
 4. Live/editor unresolved widgets/actions wired to same reducer.
 5. Retry contract lock: exactly one recovery attempt after provider error; sources = resumed/live_open/editor_open.
 

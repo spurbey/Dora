@@ -303,13 +303,14 @@ Resolver may apply only when `manual_lock = 0`.
 
 ### 8.2.1 Resolver Attempt Policy (Lock)
 
-1. Run once at capture if network is available.
-2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
-3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
-4. Recovery triggers are explicit only: app resume, live screen open, editor open.
-5. Recovery scan is bounded (`limit=20`) and deduped (one in-flight runner per trip).
-6. No polling loop and no connectivity package dependency in Phase 3.
-7. No manual retry UI exists in V2; further attempts must not occur.
+  1. Run once at capture if network is available.
+  2. If the attempt returns a valid response (including zero candidates), do not retry automatically.
+  3. If the attempt fails (network/timeout/5xx/parse), allow exactly one automatic retry on network recovery.
+  4. Recovery triggers are explicit only: app resume, live screen open, editor open.
+  5. Recovery must run only when connectivity is online (do not spend the retry while still offline).
+  6. Recovery scan is bounded (`limit=20`) and deduped (one in-flight runner per trip).
+  7. No polling loop and no connectivity package dependency in Phase 3 (use lightweight online check).
+  8. No manual retry UI exists in V2; further attempts must not occur.
 
 ### 8.3 Manual transitions
 

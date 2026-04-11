@@ -74,6 +74,23 @@ Future<Set<String>> _v2ProjectionIndexNames(AppDatabase db) async {
   return rows.map((row) => row.read<String>('name')).toSet();
 }
 
+Future<Set<String>> _v2CommitIndexNames(AppDatabase db) async {
+  final rows = await db.customSelect(
+    '''
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'index'
+      AND (
+        name LIKE 'session_commit_job_%_idx' OR
+        name LIKE 'session_commit_media_item_%_idx' OR
+        name LIKE 'session_commit_chunk_%_idx' OR
+        name = 'session_commit_chunk_job_index_unique_idx'
+      )
+    ''',
+  ).get();
+  return rows.map((row) => row.read<String>('name')).toSet();
+}
+
 void main() {
   group('AppDatabase migration', () {
     test('upgrades schema v13 to v15 and applies resolver columns/indexes',
@@ -336,6 +353,85 @@ void main() {
               .getSingleOrNull();
           expect(trip, isNotNull);
           expect(trip!.name, 'V2 Projection Migration Trip');
+        } finally {
+          await seedDb?.close();
+          await upgradedDb?.close();
+          if (await dbFile.exists()) {
+            await dbFile.delete();
+          }
+          if (await tempDir.exists()) {
+            await tempDir.delete(recursive: true);
+          }
+        }
+      },
+    );
+
+    test(
+      'upgrades schema v19 to v20 and creates V2 commit tables/columns',
+      () async {
+        final tempDir =
+            await Directory.systemTemp.createTemp('dora_drift_v2_commit_');
+        final dbFile =
+            File(p.join(tempDir.path, 'app_migration_v2_commit_test.db'));
+
+        AppDatabase? seedDb;
+        AppDatabase? upgradedDb;
+        try {
+          seedDb = AppDatabase(NativeDatabase(dbFile));
+          final now = DateTime.utc(2026, 4, 12, 7, 15);
+          await seedDb.into(seedDb.trips).insert(
+                TripsCompanion.insert(
+                  id: 'trip-v2-commit-migration-1',
+                  userId: 'user-v2-commit-migration-1',
+                  name: 'V2 Commit Migration Trip',
+                  localUpdatedAt: now,
+                  serverUpdatedAt: now,
+                  syncStatus: 'synced',
+                  createdAt: now,
+                ),
+              );
+
+          await seedDb
+              .customStatement('DROP TABLE IF EXISTS session_commit_job');
+          await seedDb.customStatement(
+              'DROP TABLE IF EXISTS session_commit_media_item');
+          await seedDb
+              .customStatement('DROP TABLE IF EXISTS session_commit_chunk');
+          await seedDb.customStatement('PRAGMA user_version = 19');
+          await seedDb.close();
+          seedDb = null;
+
+          upgradedDb = AppDatabase(NativeDatabase(dbFile));
+
+          expect(await _tableExists(upgradedDb, 'session_commit_job'), isTrue);
+          expect(
+            await _tableExists(upgradedDb, 'session_commit_media_item'),
+            isTrue,
+          );
+          expect(
+              await _tableExists(upgradedDb, 'session_commit_chunk'), isTrue);
+
+          final sessionColumns = await upgradedDb
+              .customSelect('PRAGMA table_info(session_journal)')
+              .get();
+          final sessionColumnNames =
+              sessionColumns.map((row) => row.read<String>('name')).toSet();
+          expect(sessionColumnNames, contains('stop_client_event_id'));
+
+          final v2CommitIndexes = await _v2CommitIndexNames(upgradedDb);
+          expect(
+            v2CommitIndexes,
+            containsAll(<String>{
+              'session_commit_job_state_retry_idx',
+              'session_commit_job_session_idx',
+              'session_commit_job_trip_created_idx',
+              'session_commit_job_lease_idx',
+              'session_commit_media_item_job_state_idx',
+              'session_commit_media_item_media_idx',
+              'session_commit_chunk_job_state_idx',
+              'session_commit_chunk_job_index_unique_idx',
+            }),
+          );
         } finally {
           await seedDb?.close();
           await upgradedDb?.close();

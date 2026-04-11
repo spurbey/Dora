@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +8,9 @@ import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_timeline_compiler.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
+import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
+import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_orchestrator.dart';
+import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/live_capture_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
@@ -87,6 +91,38 @@ final v2LocalProjectionRepositoryProvider =
     routeDao: ref.watch(v2RouteProjectionLocalDaoProvider),
     cursorDao: ref.watch(v2TimelineCompileCursorDaoProvider),
   );
+});
+
+final v2SessionCommitRepositoryProvider =
+    Provider<V2SessionCommitRepository>((ref) {
+  return V2SessionCommitRepository(
+    database: ref.watch(appDatabaseProvider),
+    sessionDao: ref.watch(v2SessionJournalDaoProvider),
+    jobDao: ref.watch(v2SessionCommitJobDaoProvider),
+    mediaItemDao: ref.watch(v2SessionCommitMediaItemDaoProvider),
+    chunkDao: ref.watch(v2SessionCommitChunkDaoProvider),
+    eventDao: ref.watch(v2EventJournalDaoProvider),
+    mediaDao: ref.watch(v2MediaJournalDaoProvider),
+    routePointDao: ref.watch(v2RoutePointJournalDaoProvider),
+  );
+});
+
+final v2SessionCommitOrchestratorProvider =
+    Provider<V2SessionCommitOrchestrator>((ref) {
+  return V2SessionCommitOrchestrator(
+    gate: ref.watch(liveSystemV2RolloutGateProvider),
+    sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
+    commitRepository: ref.watch(v2SessionCommitRepositoryProvider),
+  );
+});
+
+final v2CommitSyncSnapshotProvider =
+    StreamProvider.autoDispose.family<V2CommitSyncSnapshot, String>((
+  ref,
+  tripId,
+) {
+  final repository = ref.watch(v2SessionCommitRepositoryProvider);
+  return repository.watchTripSyncSnapshot(tripId);
 });
 
 final v2LocalTimelineCompilerProvider =

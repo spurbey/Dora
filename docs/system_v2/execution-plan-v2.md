@@ -369,6 +369,15 @@ Exit criteria:
 
 1. One commit job per sealed session.
 2. Retry behavior bounded and user-actionable.
+3. Lock-ins for this phase:
+  1. deterministic job id `commit:{session_id}:{seal_version}`;
+  2. code-enforced active-job uniqueness transaction;
+  3. lease takeover TTL = 5 minutes from last heartbeat timestamp;
+  4. immutable snapshot per job (no recompute across retries);
+  5. persisted `stop_client_event_id` reuse for the sealed session.
+4. Backend ingest deferred:
+  1. with `enable_v2_backend_ingest=false`, worker performs local `prepare` only;
+  2. no upload/finalize network phases yet.
 
 ---
 

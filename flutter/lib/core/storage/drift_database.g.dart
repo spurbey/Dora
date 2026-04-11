@@ -12089,6 +12089,12 @@ class $SessionJournalTable extends SessionJournal
   late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
       'ended_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _stopClientEventIdMeta =
+      const VerificationMeta('stopClientEventId');
+  @override
+  late final GeneratedColumn<String> stopClientEventId =
+      GeneratedColumn<String>('stop_client_event_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -12140,6 +12146,7 @@ class $SessionJournalTable extends SessionJournal
         stopAckAt,
         startedAt,
         endedAt,
+        stopClientEventId,
         createdAt,
         updatedAt,
         sealVersion,
@@ -12211,6 +12218,12 @@ class $SessionJournalTable extends SessionJournal
       context.handle(_endedAtMeta,
           endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
     }
+    if (data.containsKey('stop_client_event_id')) {
+      context.handle(
+          _stopClientEventIdMeta,
+          stopClientEventId.isAcceptableOrUnknown(
+              data['stop_client_event_id']!, _stopClientEventIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -12276,6 +12289,8 @@ class $SessionJournalTable extends SessionJournal
           .read(DriftSqlType.dateTime, data['${effectivePrefix}started_at']),
       endedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}ended_at']),
+      stopClientEventId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}stop_client_event_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -12308,6 +12323,7 @@ class SessionJournalRow extends DataClass
   final DateTime? stopAckAt;
   final DateTime? startedAt;
   final DateTime? endedAt;
+  final String? stopClientEventId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int sealVersion;
@@ -12324,6 +12340,7 @@ class SessionJournalRow extends DataClass
       this.stopAckAt,
       this.startedAt,
       this.endedAt,
+      this.stopClientEventId,
       required this.createdAt,
       required this.updatedAt,
       required this.sealVersion,
@@ -12351,6 +12368,9 @@ class SessionJournalRow extends DataClass
     }
     if (!nullToAbsent || endedAt != null) {
       map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || stopClientEventId != null) {
+      map['stop_client_event_id'] = Variable<String>(stopClientEventId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -12382,6 +12402,9 @@ class SessionJournalRow extends DataClass
       endedAt: endedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(endedAt),
+      stopClientEventId: stopClientEventId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stopClientEventId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       sealVersion: Value(sealVersion),
@@ -12404,6 +12427,8 @@ class SessionJournalRow extends DataClass
       stopAckAt: serializer.fromJson<DateTime?>(json['stopAckAt']),
       startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      stopClientEventId:
+          serializer.fromJson<String?>(json['stopClientEventId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       sealVersion: serializer.fromJson<int>(json['sealVersion']),
@@ -12425,6 +12450,7 @@ class SessionJournalRow extends DataClass
       'stopAckAt': serializer.toJson<DateTime?>(stopAckAt),
       'startedAt': serializer.toJson<DateTime?>(startedAt),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'stopClientEventId': serializer.toJson<String?>(stopClientEventId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'sealVersion': serializer.toJson<int>(sealVersion),
@@ -12444,6 +12470,7 @@ class SessionJournalRow extends DataClass
           Value<DateTime?> stopAckAt = const Value.absent(),
           Value<DateTime?> startedAt = const Value.absent(),
           Value<DateTime?> endedAt = const Value.absent(),
+          Value<String?> stopClientEventId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
           int? sealVersion,
@@ -12461,6 +12488,9 @@ class SessionJournalRow extends DataClass
         stopAckAt: stopAckAt.present ? stopAckAt.value : this.stopAckAt,
         startedAt: startedAt.present ? startedAt.value : this.startedAt,
         endedAt: endedAt.present ? endedAt.value : this.endedAt,
+        stopClientEventId: stopClientEventId.present
+            ? stopClientEventId.value
+            : this.stopClientEventId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         sealVersion: sealVersion ?? this.sealVersion,
@@ -12487,6 +12517,9 @@ class SessionJournalRow extends DataClass
       stopAckAt: data.stopAckAt.present ? data.stopAckAt.value : this.stopAckAt,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      stopClientEventId: data.stopClientEventId.present
+          ? data.stopClientEventId.value
+          : this.stopClientEventId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       sealVersion:
@@ -12512,6 +12545,7 @@ class SessionJournalRow extends DataClass
           ..write('stopAckAt: $stopAckAt, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
+          ..write('stopClientEventId: $stopClientEventId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('sealVersion: $sealVersion, ')
@@ -12533,6 +12567,7 @@ class SessionJournalRow extends DataClass
       stopAckAt,
       startedAt,
       endedAt,
+      stopClientEventId,
       createdAt,
       updatedAt,
       sealVersion,
@@ -12552,6 +12587,7 @@ class SessionJournalRow extends DataClass
           other.stopAckAt == this.stopAckAt &&
           other.startedAt == this.startedAt &&
           other.endedAt == this.endedAt &&
+          other.stopClientEventId == this.stopClientEventId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.sealVersion == this.sealVersion &&
@@ -12570,6 +12606,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
   final Value<DateTime?> stopAckAt;
   final Value<DateTime?> startedAt;
   final Value<DateTime?> endedAt;
+  final Value<String?> stopClientEventId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> sealVersion;
@@ -12587,6 +12624,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
     this.stopAckAt = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
+    this.stopClientEventId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.sealVersion = const Value.absent(),
@@ -12605,6 +12643,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
     this.stopAckAt = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
+    this.stopClientEventId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.sealVersion = const Value.absent(),
@@ -12629,6 +12668,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
     Expression<DateTime>? stopAckAt,
     Expression<DateTime>? startedAt,
     Expression<DateTime>? endedAt,
+    Expression<String>? stopClientEventId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? sealVersion,
@@ -12647,6 +12687,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
       if (stopAckAt != null) 'stop_ack_at': stopAckAt,
       if (startedAt != null) 'started_at': startedAt,
       if (endedAt != null) 'ended_at': endedAt,
+      if (stopClientEventId != null) 'stop_client_event_id': stopClientEventId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (sealVersion != null) 'seal_version': sealVersion,
@@ -12667,6 +12708,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
       Value<DateTime?>? stopAckAt,
       Value<DateTime?>? startedAt,
       Value<DateTime?>? endedAt,
+      Value<String?>? stopClientEventId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? sealVersion,
@@ -12684,6 +12726,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
       stopAckAt: stopAckAt ?? this.stopAckAt,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
+      stopClientEventId: stopClientEventId ?? this.stopClientEventId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sealVersion: sealVersion ?? this.sealVersion,
@@ -12724,6 +12767,9 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
     if (endedAt.present) {
       map['ended_at'] = Variable<DateTime>(endedAt.value);
     }
+    if (stopClientEventId.present) {
+      map['stop_client_event_id'] = Variable<String>(stopClientEventId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -12760,6 +12806,7 @@ class SessionJournalCompanion extends UpdateCompanion<SessionJournalRow> {
           ..write('stopAckAt: $stopAckAt, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
+          ..write('stopClientEventId: $stopClientEventId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('sealVersion: $sealVersion, ')
@@ -16834,6 +16881,2531 @@ class ResolverAttemptJournalCompanion
   }
 }
 
+class $SessionCommitJobTable extends SessionCommitJob
+    with TableInfo<$SessionCommitJobTable, SessionCommitJobRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SessionCommitJobTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<String> jobId = GeneratedColumn<String>(
+      'job_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serverTripIdMeta =
+      const VerificationMeta('serverTripId');
+  @override
+  late final GeneratedColumn<String> serverTripId = GeneratedColumn<String>(
+      'server_trip_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _jobStateMeta =
+      const VerificationMeta('jobState');
+  @override
+  late final GeneratedColumn<String> jobState = GeneratedColumn<String>(
+      'job_state', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+      'phase', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _attemptCountMeta =
+      const VerificationMeta('attemptCount');
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+      'attempt_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _nextRetryAtMeta =
+      const VerificationMeta('nextRetryAt');
+  @override
+  late final GeneratedColumn<DateTime> nextRetryAt = GeneratedColumn<DateTime>(
+      'next_retry_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMessageMeta =
+      const VerificationMeta('lastErrorMessage');
+  @override
+  late final GeneratedColumn<String> lastErrorMessage = GeneratedColumn<String>(
+      'last_error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _idempotencyKeyMeta =
+      const VerificationMeta('idempotencyKey');
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+      'idempotency_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionCommitTokenMeta =
+      const VerificationMeta('sessionCommitToken');
+  @override
+  late final GeneratedColumn<String> sessionCommitToken =
+      GeneratedColumn<String>('session_commit_token', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isExecutingMeta =
+      const VerificationMeta('isExecuting');
+  @override
+  late final GeneratedColumn<int> isExecuting = GeneratedColumn<int>(
+      'is_executing', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _executionStartedAtMeta =
+      const VerificationMeta('executionStartedAt');
+  @override
+  late final GeneratedColumn<DateTime> executionStartedAt =
+      GeneratedColumn<DateTime>('execution_started_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _executionOwnerIdMeta =
+      const VerificationMeta('executionOwnerId');
+  @override
+  late final GeneratedColumn<String> executionOwnerId = GeneratedColumn<String>(
+      'execution_owner_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _leaseVersionMeta =
+      const VerificationMeta('leaseVersion');
+  @override
+  late final GeneratedColumn<int> leaseVersion = GeneratedColumn<int>(
+      'lease_version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _snapshotHashMeta =
+      const VerificationMeta('snapshotHash');
+  @override
+  late final GeneratedColumn<String> snapshotHash = GeneratedColumn<String>(
+      'snapshot_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _snapshotCreatedAtMeta =
+      const VerificationMeta('snapshotCreatedAt');
+  @override
+  late final GeneratedColumn<DateTime> snapshotCreatedAt =
+      GeneratedColumn<DateTime>('snapshot_created_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _snapshotEventCountMeta =
+      const VerificationMeta('snapshotEventCount');
+  @override
+  late final GeneratedColumn<int> snapshotEventCount = GeneratedColumn<int>(
+      'snapshot_event_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _snapshotMediaCountMeta =
+      const VerificationMeta('snapshotMediaCount');
+  @override
+  late final GeneratedColumn<int> snapshotMediaCount = GeneratedColumn<int>(
+      'snapshot_media_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _snapshotPointCountMeta =
+      const VerificationMeta('snapshotPointCount');
+  @override
+  late final GeneratedColumn<int> snapshotPointCount = GeneratedColumn<int>(
+      'snapshot_point_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _snapshotPayloadBytesMeta =
+      const VerificationMeta('snapshotPayloadBytes');
+  @override
+  late final GeneratedColumn<int> snapshotPayloadBytes = GeneratedColumn<int>(
+      'snapshot_payload_bytes', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+      'completed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        jobId,
+        sessionId,
+        tripLocalId,
+        serverTripId,
+        jobState,
+        phase,
+        attemptCount,
+        nextRetryAt,
+        lastErrorCode,
+        lastErrorMessage,
+        idempotencyKey,
+        sessionCommitToken,
+        isExecuting,
+        executionStartedAt,
+        executionOwnerId,
+        leaseVersion,
+        snapshotHash,
+        snapshotCreatedAt,
+        snapshotEventCount,
+        snapshotMediaCount,
+        snapshotPointCount,
+        snapshotPayloadBytes,
+        createdAt,
+        updatedAt,
+        completedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'session_commit_job';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<SessionCommitJobRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('job_id')) {
+      context.handle(
+          _jobIdMeta, jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta));
+    } else if (isInserting) {
+      context.missing(_jobIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('server_trip_id')) {
+      context.handle(
+          _serverTripIdMeta,
+          serverTripId.isAcceptableOrUnknown(
+              data['server_trip_id']!, _serverTripIdMeta));
+    }
+    if (data.containsKey('job_state')) {
+      context.handle(_jobStateMeta,
+          jobState.isAcceptableOrUnknown(data['job_state']!, _jobStateMeta));
+    } else if (isInserting) {
+      context.missing(_jobStateMeta);
+    }
+    if (data.containsKey('phase')) {
+      context.handle(
+          _phaseMeta, phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta));
+    } else if (isInserting) {
+      context.missing(_phaseMeta);
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+          _attemptCountMeta,
+          attemptCount.isAcceptableOrUnknown(
+              data['attempt_count']!, _attemptCountMeta));
+    }
+    if (data.containsKey('next_retry_at')) {
+      context.handle(
+          _nextRetryAtMeta,
+          nextRetryAt.isAcceptableOrUnknown(
+              data['next_retry_at']!, _nextRetryAtMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('last_error_message')) {
+      context.handle(
+          _lastErrorMessageMeta,
+          lastErrorMessage.isAcceptableOrUnknown(
+              data['last_error_message']!, _lastErrorMessageMeta));
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+          _idempotencyKeyMeta,
+          idempotencyKey.isAcceptableOrUnknown(
+              data['idempotency_key']!, _idempotencyKeyMeta));
+    } else if (isInserting) {
+      context.missing(_idempotencyKeyMeta);
+    }
+    if (data.containsKey('session_commit_token')) {
+      context.handle(
+          _sessionCommitTokenMeta,
+          sessionCommitToken.isAcceptableOrUnknown(
+              data['session_commit_token']!, _sessionCommitTokenMeta));
+    }
+    if (data.containsKey('is_executing')) {
+      context.handle(
+          _isExecutingMeta,
+          isExecuting.isAcceptableOrUnknown(
+              data['is_executing']!, _isExecutingMeta));
+    }
+    if (data.containsKey('execution_started_at')) {
+      context.handle(
+          _executionStartedAtMeta,
+          executionStartedAt.isAcceptableOrUnknown(
+              data['execution_started_at']!, _executionStartedAtMeta));
+    }
+    if (data.containsKey('execution_owner_id')) {
+      context.handle(
+          _executionOwnerIdMeta,
+          executionOwnerId.isAcceptableOrUnknown(
+              data['execution_owner_id']!, _executionOwnerIdMeta));
+    }
+    if (data.containsKey('lease_version')) {
+      context.handle(
+          _leaseVersionMeta,
+          leaseVersion.isAcceptableOrUnknown(
+              data['lease_version']!, _leaseVersionMeta));
+    }
+    if (data.containsKey('snapshot_hash')) {
+      context.handle(
+          _snapshotHashMeta,
+          snapshotHash.isAcceptableOrUnknown(
+              data['snapshot_hash']!, _snapshotHashMeta));
+    }
+    if (data.containsKey('snapshot_created_at')) {
+      context.handle(
+          _snapshotCreatedAtMeta,
+          snapshotCreatedAt.isAcceptableOrUnknown(
+              data['snapshot_created_at']!, _snapshotCreatedAtMeta));
+    }
+    if (data.containsKey('snapshot_event_count')) {
+      context.handle(
+          _snapshotEventCountMeta,
+          snapshotEventCount.isAcceptableOrUnknown(
+              data['snapshot_event_count']!, _snapshotEventCountMeta));
+    }
+    if (data.containsKey('snapshot_media_count')) {
+      context.handle(
+          _snapshotMediaCountMeta,
+          snapshotMediaCount.isAcceptableOrUnknown(
+              data['snapshot_media_count']!, _snapshotMediaCountMeta));
+    }
+    if (data.containsKey('snapshot_point_count')) {
+      context.handle(
+          _snapshotPointCountMeta,
+          snapshotPointCount.isAcceptableOrUnknown(
+              data['snapshot_point_count']!, _snapshotPointCountMeta));
+    }
+    if (data.containsKey('snapshot_payload_bytes')) {
+      context.handle(
+          _snapshotPayloadBytesMeta,
+          snapshotPayloadBytes.isAcceptableOrUnknown(
+              data['snapshot_payload_bytes']!, _snapshotPayloadBytesMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {jobId};
+  @override
+  SessionCommitJobRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SessionCommitJobRow(
+      jobId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}job_id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      serverTripId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_trip_id']),
+      jobState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}job_state'])!,
+      phase: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phase'])!,
+      attemptCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt_count'])!,
+      nextRetryAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}next_retry_at']),
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      lastErrorMessage: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_error_message']),
+      idempotencyKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}idempotency_key'])!,
+      sessionCommitToken: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}session_commit_token']),
+      isExecuting: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}is_executing'])!,
+      executionStartedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}execution_started_at']),
+      executionOwnerId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}execution_owner_id']),
+      leaseVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}lease_version'])!,
+      snapshotHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}snapshot_hash']),
+      snapshotCreatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}snapshot_created_at']),
+      snapshotEventCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}snapshot_event_count'])!,
+      snapshotMediaCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}snapshot_media_count'])!,
+      snapshotPointCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}snapshot_point_count'])!,
+      snapshotPayloadBytes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}snapshot_payload_bytes'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at']),
+    );
+  }
+
+  @override
+  $SessionCommitJobTable createAlias(String alias) {
+    return $SessionCommitJobTable(attachedDatabase, alias);
+  }
+}
+
+class SessionCommitJobRow extends DataClass
+    implements Insertable<SessionCommitJobRow> {
+  final String jobId;
+  final String sessionId;
+  final String tripLocalId;
+  final String? serverTripId;
+  final String jobState;
+  final String phase;
+  final int attemptCount;
+  final DateTime? nextRetryAt;
+  final String? lastErrorCode;
+  final String? lastErrorMessage;
+  final String idempotencyKey;
+  final String? sessionCommitToken;
+  final int isExecuting;
+  final DateTime? executionStartedAt;
+  final String? executionOwnerId;
+  final int leaseVersion;
+  final String? snapshotHash;
+  final DateTime? snapshotCreatedAt;
+  final int snapshotEventCount;
+  final int snapshotMediaCount;
+  final int snapshotPointCount;
+  final int snapshotPayloadBytes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? completedAt;
+  const SessionCommitJobRow(
+      {required this.jobId,
+      required this.sessionId,
+      required this.tripLocalId,
+      this.serverTripId,
+      required this.jobState,
+      required this.phase,
+      required this.attemptCount,
+      this.nextRetryAt,
+      this.lastErrorCode,
+      this.lastErrorMessage,
+      required this.idempotencyKey,
+      this.sessionCommitToken,
+      required this.isExecuting,
+      this.executionStartedAt,
+      this.executionOwnerId,
+      required this.leaseVersion,
+      this.snapshotHash,
+      this.snapshotCreatedAt,
+      required this.snapshotEventCount,
+      required this.snapshotMediaCount,
+      required this.snapshotPointCount,
+      required this.snapshotPayloadBytes,
+      required this.createdAt,
+      required this.updatedAt,
+      this.completedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['job_id'] = Variable<String>(jobId);
+    map['session_id'] = Variable<String>(sessionId);
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    if (!nullToAbsent || serverTripId != null) {
+      map['server_trip_id'] = Variable<String>(serverTripId);
+    }
+    map['job_state'] = Variable<String>(jobState);
+    map['phase'] = Variable<String>(phase);
+    map['attempt_count'] = Variable<int>(attemptCount);
+    if (!nullToAbsent || nextRetryAt != null) {
+      map['next_retry_at'] = Variable<DateTime>(nextRetryAt);
+    }
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    if (!nullToAbsent || lastErrorMessage != null) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage);
+    }
+    map['idempotency_key'] = Variable<String>(idempotencyKey);
+    if (!nullToAbsent || sessionCommitToken != null) {
+      map['session_commit_token'] = Variable<String>(sessionCommitToken);
+    }
+    map['is_executing'] = Variable<int>(isExecuting);
+    if (!nullToAbsent || executionStartedAt != null) {
+      map['execution_started_at'] = Variable<DateTime>(executionStartedAt);
+    }
+    if (!nullToAbsent || executionOwnerId != null) {
+      map['execution_owner_id'] = Variable<String>(executionOwnerId);
+    }
+    map['lease_version'] = Variable<int>(leaseVersion);
+    if (!nullToAbsent || snapshotHash != null) {
+      map['snapshot_hash'] = Variable<String>(snapshotHash);
+    }
+    if (!nullToAbsent || snapshotCreatedAt != null) {
+      map['snapshot_created_at'] = Variable<DateTime>(snapshotCreatedAt);
+    }
+    map['snapshot_event_count'] = Variable<int>(snapshotEventCount);
+    map['snapshot_media_count'] = Variable<int>(snapshotMediaCount);
+    map['snapshot_point_count'] = Variable<int>(snapshotPointCount);
+    map['snapshot_payload_bytes'] = Variable<int>(snapshotPayloadBytes);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    return map;
+  }
+
+  SessionCommitJobCompanion toCompanion(bool nullToAbsent) {
+    return SessionCommitJobCompanion(
+      jobId: Value(jobId),
+      sessionId: Value(sessionId),
+      tripLocalId: Value(tripLocalId),
+      serverTripId: serverTripId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverTripId),
+      jobState: Value(jobState),
+      phase: Value(phase),
+      attemptCount: Value(attemptCount),
+      nextRetryAt: nextRetryAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextRetryAt),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      lastErrorMessage: lastErrorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorMessage),
+      idempotencyKey: Value(idempotencyKey),
+      sessionCommitToken: sessionCommitToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionCommitToken),
+      isExecuting: Value(isExecuting),
+      executionStartedAt: executionStartedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(executionStartedAt),
+      executionOwnerId: executionOwnerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(executionOwnerId),
+      leaseVersion: Value(leaseVersion),
+      snapshotHash: snapshotHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snapshotHash),
+      snapshotCreatedAt: snapshotCreatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snapshotCreatedAt),
+      snapshotEventCount: Value(snapshotEventCount),
+      snapshotMediaCount: Value(snapshotMediaCount),
+      snapshotPointCount: Value(snapshotPointCount),
+      snapshotPayloadBytes: Value(snapshotPayloadBytes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+    );
+  }
+
+  factory SessionCommitJobRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SessionCommitJobRow(
+      jobId: serializer.fromJson<String>(json['jobId']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      serverTripId: serializer.fromJson<String?>(json['serverTripId']),
+      jobState: serializer.fromJson<String>(json['jobState']),
+      phase: serializer.fromJson<String>(json['phase']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      nextRetryAt: serializer.fromJson<DateTime?>(json['nextRetryAt']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      lastErrorMessage: serializer.fromJson<String?>(json['lastErrorMessage']),
+      idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
+      sessionCommitToken:
+          serializer.fromJson<String?>(json['sessionCommitToken']),
+      isExecuting: serializer.fromJson<int>(json['isExecuting']),
+      executionStartedAt:
+          serializer.fromJson<DateTime?>(json['executionStartedAt']),
+      executionOwnerId: serializer.fromJson<String?>(json['executionOwnerId']),
+      leaseVersion: serializer.fromJson<int>(json['leaseVersion']),
+      snapshotHash: serializer.fromJson<String?>(json['snapshotHash']),
+      snapshotCreatedAt:
+          serializer.fromJson<DateTime?>(json['snapshotCreatedAt']),
+      snapshotEventCount: serializer.fromJson<int>(json['snapshotEventCount']),
+      snapshotMediaCount: serializer.fromJson<int>(json['snapshotMediaCount']),
+      snapshotPointCount: serializer.fromJson<int>(json['snapshotPointCount']),
+      snapshotPayloadBytes:
+          serializer.fromJson<int>(json['snapshotPayloadBytes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'jobId': serializer.toJson<String>(jobId),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'serverTripId': serializer.toJson<String?>(serverTripId),
+      'jobState': serializer.toJson<String>(jobState),
+      'phase': serializer.toJson<String>(phase),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'nextRetryAt': serializer.toJson<DateTime?>(nextRetryAt),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'lastErrorMessage': serializer.toJson<String?>(lastErrorMessage),
+      'idempotencyKey': serializer.toJson<String>(idempotencyKey),
+      'sessionCommitToken': serializer.toJson<String?>(sessionCommitToken),
+      'isExecuting': serializer.toJson<int>(isExecuting),
+      'executionStartedAt': serializer.toJson<DateTime?>(executionStartedAt),
+      'executionOwnerId': serializer.toJson<String?>(executionOwnerId),
+      'leaseVersion': serializer.toJson<int>(leaseVersion),
+      'snapshotHash': serializer.toJson<String?>(snapshotHash),
+      'snapshotCreatedAt': serializer.toJson<DateTime?>(snapshotCreatedAt),
+      'snapshotEventCount': serializer.toJson<int>(snapshotEventCount),
+      'snapshotMediaCount': serializer.toJson<int>(snapshotMediaCount),
+      'snapshotPointCount': serializer.toJson<int>(snapshotPointCount),
+      'snapshotPayloadBytes': serializer.toJson<int>(snapshotPayloadBytes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+    };
+  }
+
+  SessionCommitJobRow copyWith(
+          {String? jobId,
+          String? sessionId,
+          String? tripLocalId,
+          Value<String?> serverTripId = const Value.absent(),
+          String? jobState,
+          String? phase,
+          int? attemptCount,
+          Value<DateTime?> nextRetryAt = const Value.absent(),
+          Value<String?> lastErrorCode = const Value.absent(),
+          Value<String?> lastErrorMessage = const Value.absent(),
+          String? idempotencyKey,
+          Value<String?> sessionCommitToken = const Value.absent(),
+          int? isExecuting,
+          Value<DateTime?> executionStartedAt = const Value.absent(),
+          Value<String?> executionOwnerId = const Value.absent(),
+          int? leaseVersion,
+          Value<String?> snapshotHash = const Value.absent(),
+          Value<DateTime?> snapshotCreatedAt = const Value.absent(),
+          int? snapshotEventCount,
+          int? snapshotMediaCount,
+          int? snapshotPointCount,
+          int? snapshotPayloadBytes,
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          Value<DateTime?> completedAt = const Value.absent()}) =>
+      SessionCommitJobRow(
+        jobId: jobId ?? this.jobId,
+        sessionId: sessionId ?? this.sessionId,
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        serverTripId:
+            serverTripId.present ? serverTripId.value : this.serverTripId,
+        jobState: jobState ?? this.jobState,
+        phase: phase ?? this.phase,
+        attemptCount: attemptCount ?? this.attemptCount,
+        nextRetryAt: nextRetryAt.present ? nextRetryAt.value : this.nextRetryAt,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        lastErrorMessage: lastErrorMessage.present
+            ? lastErrorMessage.value
+            : this.lastErrorMessage,
+        idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+        sessionCommitToken: sessionCommitToken.present
+            ? sessionCommitToken.value
+            : this.sessionCommitToken,
+        isExecuting: isExecuting ?? this.isExecuting,
+        executionStartedAt: executionStartedAt.present
+            ? executionStartedAt.value
+            : this.executionStartedAt,
+        executionOwnerId: executionOwnerId.present
+            ? executionOwnerId.value
+            : this.executionOwnerId,
+        leaseVersion: leaseVersion ?? this.leaseVersion,
+        snapshotHash:
+            snapshotHash.present ? snapshotHash.value : this.snapshotHash,
+        snapshotCreatedAt: snapshotCreatedAt.present
+            ? snapshotCreatedAt.value
+            : this.snapshotCreatedAt,
+        snapshotEventCount: snapshotEventCount ?? this.snapshotEventCount,
+        snapshotMediaCount: snapshotMediaCount ?? this.snapshotMediaCount,
+        snapshotPointCount: snapshotPointCount ?? this.snapshotPointCount,
+        snapshotPayloadBytes: snapshotPayloadBytes ?? this.snapshotPayloadBytes,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        completedAt: completedAt.present ? completedAt.value : this.completedAt,
+      );
+  SessionCommitJobRow copyWithCompanion(SessionCommitJobCompanion data) {
+    return SessionCommitJobRow(
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      serverTripId: data.serverTripId.present
+          ? data.serverTripId.value
+          : this.serverTripId,
+      jobState: data.jobState.present ? data.jobState.value : this.jobState,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      nextRetryAt:
+          data.nextRetryAt.present ? data.nextRetryAt.value : this.nextRetryAt,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      lastErrorMessage: data.lastErrorMessage.present
+          ? data.lastErrorMessage.value
+          : this.lastErrorMessage,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      sessionCommitToken: data.sessionCommitToken.present
+          ? data.sessionCommitToken.value
+          : this.sessionCommitToken,
+      isExecuting:
+          data.isExecuting.present ? data.isExecuting.value : this.isExecuting,
+      executionStartedAt: data.executionStartedAt.present
+          ? data.executionStartedAt.value
+          : this.executionStartedAt,
+      executionOwnerId: data.executionOwnerId.present
+          ? data.executionOwnerId.value
+          : this.executionOwnerId,
+      leaseVersion: data.leaseVersion.present
+          ? data.leaseVersion.value
+          : this.leaseVersion,
+      snapshotHash: data.snapshotHash.present
+          ? data.snapshotHash.value
+          : this.snapshotHash,
+      snapshotCreatedAt: data.snapshotCreatedAt.present
+          ? data.snapshotCreatedAt.value
+          : this.snapshotCreatedAt,
+      snapshotEventCount: data.snapshotEventCount.present
+          ? data.snapshotEventCount.value
+          : this.snapshotEventCount,
+      snapshotMediaCount: data.snapshotMediaCount.present
+          ? data.snapshotMediaCount.value
+          : this.snapshotMediaCount,
+      snapshotPointCount: data.snapshotPointCount.present
+          ? data.snapshotPointCount.value
+          : this.snapshotPointCount,
+      snapshotPayloadBytes: data.snapshotPayloadBytes.present
+          ? data.snapshotPayloadBytes.value
+          : this.snapshotPayloadBytes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitJobRow(')
+          ..write('jobId: $jobId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('serverTripId: $serverTripId, ')
+          ..write('jobState: $jobState, ')
+          ..write('phase: $phase, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('nextRetryAt: $nextRetryAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('sessionCommitToken: $sessionCommitToken, ')
+          ..write('isExecuting: $isExecuting, ')
+          ..write('executionStartedAt: $executionStartedAt, ')
+          ..write('executionOwnerId: $executionOwnerId, ')
+          ..write('leaseVersion: $leaseVersion, ')
+          ..write('snapshotHash: $snapshotHash, ')
+          ..write('snapshotCreatedAt: $snapshotCreatedAt, ')
+          ..write('snapshotEventCount: $snapshotEventCount, ')
+          ..write('snapshotMediaCount: $snapshotMediaCount, ')
+          ..write('snapshotPointCount: $snapshotPointCount, ')
+          ..write('snapshotPayloadBytes: $snapshotPayloadBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        jobId,
+        sessionId,
+        tripLocalId,
+        serverTripId,
+        jobState,
+        phase,
+        attemptCount,
+        nextRetryAt,
+        lastErrorCode,
+        lastErrorMessage,
+        idempotencyKey,
+        sessionCommitToken,
+        isExecuting,
+        executionStartedAt,
+        executionOwnerId,
+        leaseVersion,
+        snapshotHash,
+        snapshotCreatedAt,
+        snapshotEventCount,
+        snapshotMediaCount,
+        snapshotPointCount,
+        snapshotPayloadBytes,
+        createdAt,
+        updatedAt,
+        completedAt
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SessionCommitJobRow &&
+          other.jobId == this.jobId &&
+          other.sessionId == this.sessionId &&
+          other.tripLocalId == this.tripLocalId &&
+          other.serverTripId == this.serverTripId &&
+          other.jobState == this.jobState &&
+          other.phase == this.phase &&
+          other.attemptCount == this.attemptCount &&
+          other.nextRetryAt == this.nextRetryAt &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.lastErrorMessage == this.lastErrorMessage &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.sessionCommitToken == this.sessionCommitToken &&
+          other.isExecuting == this.isExecuting &&
+          other.executionStartedAt == this.executionStartedAt &&
+          other.executionOwnerId == this.executionOwnerId &&
+          other.leaseVersion == this.leaseVersion &&
+          other.snapshotHash == this.snapshotHash &&
+          other.snapshotCreatedAt == this.snapshotCreatedAt &&
+          other.snapshotEventCount == this.snapshotEventCount &&
+          other.snapshotMediaCount == this.snapshotMediaCount &&
+          other.snapshotPointCount == this.snapshotPointCount &&
+          other.snapshotPayloadBytes == this.snapshotPayloadBytes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.completedAt == this.completedAt);
+}
+
+class SessionCommitJobCompanion extends UpdateCompanion<SessionCommitJobRow> {
+  final Value<String> jobId;
+  final Value<String> sessionId;
+  final Value<String> tripLocalId;
+  final Value<String?> serverTripId;
+  final Value<String> jobState;
+  final Value<String> phase;
+  final Value<int> attemptCount;
+  final Value<DateTime?> nextRetryAt;
+  final Value<String?> lastErrorCode;
+  final Value<String?> lastErrorMessage;
+  final Value<String> idempotencyKey;
+  final Value<String?> sessionCommitToken;
+  final Value<int> isExecuting;
+  final Value<DateTime?> executionStartedAt;
+  final Value<String?> executionOwnerId;
+  final Value<int> leaseVersion;
+  final Value<String?> snapshotHash;
+  final Value<DateTime?> snapshotCreatedAt;
+  final Value<int> snapshotEventCount;
+  final Value<int> snapshotMediaCount;
+  final Value<int> snapshotPointCount;
+  final Value<int> snapshotPayloadBytes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> completedAt;
+  final Value<int> rowid;
+  const SessionCommitJobCompanion({
+    this.jobId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.tripLocalId = const Value.absent(),
+    this.serverTripId = const Value.absent(),
+    this.jobState = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.nextRetryAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.sessionCommitToken = const Value.absent(),
+    this.isExecuting = const Value.absent(),
+    this.executionStartedAt = const Value.absent(),
+    this.executionOwnerId = const Value.absent(),
+    this.leaseVersion = const Value.absent(),
+    this.snapshotHash = const Value.absent(),
+    this.snapshotCreatedAt = const Value.absent(),
+    this.snapshotEventCount = const Value.absent(),
+    this.snapshotMediaCount = const Value.absent(),
+    this.snapshotPointCount = const Value.absent(),
+    this.snapshotPayloadBytes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SessionCommitJobCompanion.insert({
+    required String jobId,
+    required String sessionId,
+    required String tripLocalId,
+    this.serverTripId = const Value.absent(),
+    required String jobState,
+    required String phase,
+    this.attemptCount = const Value.absent(),
+    this.nextRetryAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    required String idempotencyKey,
+    this.sessionCommitToken = const Value.absent(),
+    this.isExecuting = const Value.absent(),
+    this.executionStartedAt = const Value.absent(),
+    this.executionOwnerId = const Value.absent(),
+    this.leaseVersion = const Value.absent(),
+    this.snapshotHash = const Value.absent(),
+    this.snapshotCreatedAt = const Value.absent(),
+    this.snapshotEventCount = const Value.absent(),
+    this.snapshotMediaCount = const Value.absent(),
+    this.snapshotPointCount = const Value.absent(),
+    this.snapshotPayloadBytes = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : jobId = Value(jobId),
+        sessionId = Value(sessionId),
+        tripLocalId = Value(tripLocalId),
+        jobState = Value(jobState),
+        phase = Value(phase),
+        idempotencyKey = Value(idempotencyKey),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<SessionCommitJobRow> custom({
+    Expression<String>? jobId,
+    Expression<String>? sessionId,
+    Expression<String>? tripLocalId,
+    Expression<String>? serverTripId,
+    Expression<String>? jobState,
+    Expression<String>? phase,
+    Expression<int>? attemptCount,
+    Expression<DateTime>? nextRetryAt,
+    Expression<String>? lastErrorCode,
+    Expression<String>? lastErrorMessage,
+    Expression<String>? idempotencyKey,
+    Expression<String>? sessionCommitToken,
+    Expression<int>? isExecuting,
+    Expression<DateTime>? executionStartedAt,
+    Expression<String>? executionOwnerId,
+    Expression<int>? leaseVersion,
+    Expression<String>? snapshotHash,
+    Expression<DateTime>? snapshotCreatedAt,
+    Expression<int>? snapshotEventCount,
+    Expression<int>? snapshotMediaCount,
+    Expression<int>? snapshotPointCount,
+    Expression<int>? snapshotPayloadBytes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? completedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (jobId != null) 'job_id': jobId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (serverTripId != null) 'server_trip_id': serverTripId,
+      if (jobState != null) 'job_state': jobState,
+      if (phase != null) 'phase': phase,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (nextRetryAt != null) 'next_retry_at': nextRetryAt,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (lastErrorMessage != null) 'last_error_message': lastErrorMessage,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (sessionCommitToken != null)
+        'session_commit_token': sessionCommitToken,
+      if (isExecuting != null) 'is_executing': isExecuting,
+      if (executionStartedAt != null)
+        'execution_started_at': executionStartedAt,
+      if (executionOwnerId != null) 'execution_owner_id': executionOwnerId,
+      if (leaseVersion != null) 'lease_version': leaseVersion,
+      if (snapshotHash != null) 'snapshot_hash': snapshotHash,
+      if (snapshotCreatedAt != null) 'snapshot_created_at': snapshotCreatedAt,
+      if (snapshotEventCount != null)
+        'snapshot_event_count': snapshotEventCount,
+      if (snapshotMediaCount != null)
+        'snapshot_media_count': snapshotMediaCount,
+      if (snapshotPointCount != null)
+        'snapshot_point_count': snapshotPointCount,
+      if (snapshotPayloadBytes != null)
+        'snapshot_payload_bytes': snapshotPayloadBytes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SessionCommitJobCompanion copyWith(
+      {Value<String>? jobId,
+      Value<String>? sessionId,
+      Value<String>? tripLocalId,
+      Value<String?>? serverTripId,
+      Value<String>? jobState,
+      Value<String>? phase,
+      Value<int>? attemptCount,
+      Value<DateTime?>? nextRetryAt,
+      Value<String?>? lastErrorCode,
+      Value<String?>? lastErrorMessage,
+      Value<String>? idempotencyKey,
+      Value<String?>? sessionCommitToken,
+      Value<int>? isExecuting,
+      Value<DateTime?>? executionStartedAt,
+      Value<String?>? executionOwnerId,
+      Value<int>? leaseVersion,
+      Value<String?>? snapshotHash,
+      Value<DateTime?>? snapshotCreatedAt,
+      Value<int>? snapshotEventCount,
+      Value<int>? snapshotMediaCount,
+      Value<int>? snapshotPointCount,
+      Value<int>? snapshotPayloadBytes,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<DateTime?>? completedAt,
+      Value<int>? rowid}) {
+    return SessionCommitJobCompanion(
+      jobId: jobId ?? this.jobId,
+      sessionId: sessionId ?? this.sessionId,
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      serverTripId: serverTripId ?? this.serverTripId,
+      jobState: jobState ?? this.jobState,
+      phase: phase ?? this.phase,
+      attemptCount: attemptCount ?? this.attemptCount,
+      nextRetryAt: nextRetryAt ?? this.nextRetryAt,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      lastErrorMessage: lastErrorMessage ?? this.lastErrorMessage,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      sessionCommitToken: sessionCommitToken ?? this.sessionCommitToken,
+      isExecuting: isExecuting ?? this.isExecuting,
+      executionStartedAt: executionStartedAt ?? this.executionStartedAt,
+      executionOwnerId: executionOwnerId ?? this.executionOwnerId,
+      leaseVersion: leaseVersion ?? this.leaseVersion,
+      snapshotHash: snapshotHash ?? this.snapshotHash,
+      snapshotCreatedAt: snapshotCreatedAt ?? this.snapshotCreatedAt,
+      snapshotEventCount: snapshotEventCount ?? this.snapshotEventCount,
+      snapshotMediaCount: snapshotMediaCount ?? this.snapshotMediaCount,
+      snapshotPointCount: snapshotPointCount ?? this.snapshotPointCount,
+      snapshotPayloadBytes: snapshotPayloadBytes ?? this.snapshotPayloadBytes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      completedAt: completedAt ?? this.completedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (jobId.present) {
+      map['job_id'] = Variable<String>(jobId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (serverTripId.present) {
+      map['server_trip_id'] = Variable<String>(serverTripId.value);
+    }
+    if (jobState.present) {
+      map['job_state'] = Variable<String>(jobState.value);
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (nextRetryAt.present) {
+      map['next_retry_at'] = Variable<DateTime>(nextRetryAt.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (lastErrorMessage.present) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (sessionCommitToken.present) {
+      map['session_commit_token'] = Variable<String>(sessionCommitToken.value);
+    }
+    if (isExecuting.present) {
+      map['is_executing'] = Variable<int>(isExecuting.value);
+    }
+    if (executionStartedAt.present) {
+      map['execution_started_at'] =
+          Variable<DateTime>(executionStartedAt.value);
+    }
+    if (executionOwnerId.present) {
+      map['execution_owner_id'] = Variable<String>(executionOwnerId.value);
+    }
+    if (leaseVersion.present) {
+      map['lease_version'] = Variable<int>(leaseVersion.value);
+    }
+    if (snapshotHash.present) {
+      map['snapshot_hash'] = Variable<String>(snapshotHash.value);
+    }
+    if (snapshotCreatedAt.present) {
+      map['snapshot_created_at'] = Variable<DateTime>(snapshotCreatedAt.value);
+    }
+    if (snapshotEventCount.present) {
+      map['snapshot_event_count'] = Variable<int>(snapshotEventCount.value);
+    }
+    if (snapshotMediaCount.present) {
+      map['snapshot_media_count'] = Variable<int>(snapshotMediaCount.value);
+    }
+    if (snapshotPointCount.present) {
+      map['snapshot_point_count'] = Variable<int>(snapshotPointCount.value);
+    }
+    if (snapshotPayloadBytes.present) {
+      map['snapshot_payload_bytes'] = Variable<int>(snapshotPayloadBytes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitJobCompanion(')
+          ..write('jobId: $jobId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('serverTripId: $serverTripId, ')
+          ..write('jobState: $jobState, ')
+          ..write('phase: $phase, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('nextRetryAt: $nextRetryAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('sessionCommitToken: $sessionCommitToken, ')
+          ..write('isExecuting: $isExecuting, ')
+          ..write('executionStartedAt: $executionStartedAt, ')
+          ..write('executionOwnerId: $executionOwnerId, ')
+          ..write('leaseVersion: $leaseVersion, ')
+          ..write('snapshotHash: $snapshotHash, ')
+          ..write('snapshotCreatedAt: $snapshotCreatedAt, ')
+          ..write('snapshotEventCount: $snapshotEventCount, ')
+          ..write('snapshotMediaCount: $snapshotMediaCount, ')
+          ..write('snapshotPointCount: $snapshotPointCount, ')
+          ..write('snapshotPayloadBytes: $snapshotPayloadBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SessionCommitMediaItemTable extends SessionCommitMediaItem
+    with TableInfo<$SessionCommitMediaItemTable, SessionCommitMediaItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SessionCommitMediaItemTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+      'item_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<String> jobId = GeneratedColumn<String>(
+      'job_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mediaIdMeta =
+      const VerificationMeta('mediaId');
+  @override
+  late final GeneratedColumn<String> mediaId = GeneratedColumn<String>(
+      'media_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _uploadStateMeta =
+      const VerificationMeta('uploadState');
+  @override
+  late final GeneratedColumn<String> uploadState = GeneratedColumn<String>(
+      'upload_state', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _localUriMeta =
+      const VerificationMeta('localUri');
+  @override
+  late final GeneratedColumn<String> localUri = GeneratedColumn<String>(
+      'local_uri', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mimeTypeMeta =
+      const VerificationMeta('mimeType');
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+      'mime_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _bytesSizeMeta =
+      const VerificationMeta('bytesSize');
+  @override
+  late final GeneratedColumn<int> bytesSize = GeneratedColumn<int>(
+      'bytes_size', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _uploadRefMeta =
+      const VerificationMeta('uploadRef');
+  @override
+  late final GeneratedColumn<String> uploadRef = GeneratedColumn<String>(
+      'upload_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _remoteChecksumMeta =
+      const VerificationMeta('remoteChecksum');
+  @override
+  late final GeneratedColumn<String> remoteChecksum = GeneratedColumn<String>(
+      'remote_checksum', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _attemptCountMeta =
+      const VerificationMeta('attemptCount');
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+      'attempt_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMessageMeta =
+      const VerificationMeta('lastErrorMessage');
+  @override
+  late final GeneratedColumn<String> lastErrorMessage = GeneratedColumn<String>(
+      'last_error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        itemId,
+        jobId,
+        mediaId,
+        uploadState,
+        localUri,
+        mimeType,
+        bytesSize,
+        uploadRef,
+        remoteChecksum,
+        attemptCount,
+        lastErrorCode,
+        lastErrorMessage,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'session_commit_media_item';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<SessionCommitMediaItemRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('item_id')) {
+      context.handle(_itemIdMeta,
+          itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta));
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+          _jobIdMeta, jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta));
+    } else if (isInserting) {
+      context.missing(_jobIdMeta);
+    }
+    if (data.containsKey('media_id')) {
+      context.handle(_mediaIdMeta,
+          mediaId.isAcceptableOrUnknown(data['media_id']!, _mediaIdMeta));
+    } else if (isInserting) {
+      context.missing(_mediaIdMeta);
+    }
+    if (data.containsKey('upload_state')) {
+      context.handle(
+          _uploadStateMeta,
+          uploadState.isAcceptableOrUnknown(
+              data['upload_state']!, _uploadStateMeta));
+    } else if (isInserting) {
+      context.missing(_uploadStateMeta);
+    }
+    if (data.containsKey('local_uri')) {
+      context.handle(_localUriMeta,
+          localUri.isAcceptableOrUnknown(data['local_uri']!, _localUriMeta));
+    } else if (isInserting) {
+      context.missing(_localUriMeta);
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(_mimeTypeMeta,
+          mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
+    }
+    if (data.containsKey('bytes_size')) {
+      context.handle(_bytesSizeMeta,
+          bytesSize.isAcceptableOrUnknown(data['bytes_size']!, _bytesSizeMeta));
+    }
+    if (data.containsKey('upload_ref')) {
+      context.handle(_uploadRefMeta,
+          uploadRef.isAcceptableOrUnknown(data['upload_ref']!, _uploadRefMeta));
+    }
+    if (data.containsKey('remote_checksum')) {
+      context.handle(
+          _remoteChecksumMeta,
+          remoteChecksum.isAcceptableOrUnknown(
+              data['remote_checksum']!, _remoteChecksumMeta));
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+          _attemptCountMeta,
+          attemptCount.isAcceptableOrUnknown(
+              data['attempt_count']!, _attemptCountMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('last_error_message')) {
+      context.handle(
+          _lastErrorMessageMeta,
+          lastErrorMessage.isAcceptableOrUnknown(
+              data['last_error_message']!, _lastErrorMessageMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {itemId};
+  @override
+  SessionCommitMediaItemRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SessionCommitMediaItemRow(
+      itemId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}item_id'])!,
+      jobId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}job_id'])!,
+      mediaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}media_id'])!,
+      uploadState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_state'])!,
+      localUri: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uri'])!,
+      mimeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
+      bytesSize: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}bytes_size']),
+      uploadRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_ref']),
+      remoteChecksum: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}remote_checksum']),
+      attemptCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt_count'])!,
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      lastErrorMessage: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_error_message']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $SessionCommitMediaItemTable createAlias(String alias) {
+    return $SessionCommitMediaItemTable(attachedDatabase, alias);
+  }
+}
+
+class SessionCommitMediaItemRow extends DataClass
+    implements Insertable<SessionCommitMediaItemRow> {
+  final String itemId;
+  final String jobId;
+  final String mediaId;
+  final String uploadState;
+  final String localUri;
+  final String? mimeType;
+  final int? bytesSize;
+  final String? uploadRef;
+  final String? remoteChecksum;
+  final int attemptCount;
+  final String? lastErrorCode;
+  final String? lastErrorMessage;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SessionCommitMediaItemRow(
+      {required this.itemId,
+      required this.jobId,
+      required this.mediaId,
+      required this.uploadState,
+      required this.localUri,
+      this.mimeType,
+      this.bytesSize,
+      this.uploadRef,
+      this.remoteChecksum,
+      required this.attemptCount,
+      this.lastErrorCode,
+      this.lastErrorMessage,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['item_id'] = Variable<String>(itemId);
+    map['job_id'] = Variable<String>(jobId);
+    map['media_id'] = Variable<String>(mediaId);
+    map['upload_state'] = Variable<String>(uploadState);
+    map['local_uri'] = Variable<String>(localUri);
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    if (!nullToAbsent || bytesSize != null) {
+      map['bytes_size'] = Variable<int>(bytesSize);
+    }
+    if (!nullToAbsent || uploadRef != null) {
+      map['upload_ref'] = Variable<String>(uploadRef);
+    }
+    if (!nullToAbsent || remoteChecksum != null) {
+      map['remote_checksum'] = Variable<String>(remoteChecksum);
+    }
+    map['attempt_count'] = Variable<int>(attemptCount);
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    if (!nullToAbsent || lastErrorMessage != null) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SessionCommitMediaItemCompanion toCompanion(bool nullToAbsent) {
+    return SessionCommitMediaItemCompanion(
+      itemId: Value(itemId),
+      jobId: Value(jobId),
+      mediaId: Value(mediaId),
+      uploadState: Value(uploadState),
+      localUri: Value(localUri),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      bytesSize: bytesSize == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bytesSize),
+      uploadRef: uploadRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadRef),
+      remoteChecksum: remoteChecksum == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteChecksum),
+      attemptCount: Value(attemptCount),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      lastErrorMessage: lastErrorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorMessage),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SessionCommitMediaItemRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SessionCommitMediaItemRow(
+      itemId: serializer.fromJson<String>(json['itemId']),
+      jobId: serializer.fromJson<String>(json['jobId']),
+      mediaId: serializer.fromJson<String>(json['mediaId']),
+      uploadState: serializer.fromJson<String>(json['uploadState']),
+      localUri: serializer.fromJson<String>(json['localUri']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      bytesSize: serializer.fromJson<int?>(json['bytesSize']),
+      uploadRef: serializer.fromJson<String?>(json['uploadRef']),
+      remoteChecksum: serializer.fromJson<String?>(json['remoteChecksum']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      lastErrorMessage: serializer.fromJson<String?>(json['lastErrorMessage']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'itemId': serializer.toJson<String>(itemId),
+      'jobId': serializer.toJson<String>(jobId),
+      'mediaId': serializer.toJson<String>(mediaId),
+      'uploadState': serializer.toJson<String>(uploadState),
+      'localUri': serializer.toJson<String>(localUri),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'bytesSize': serializer.toJson<int?>(bytesSize),
+      'uploadRef': serializer.toJson<String?>(uploadRef),
+      'remoteChecksum': serializer.toJson<String?>(remoteChecksum),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'lastErrorMessage': serializer.toJson<String?>(lastErrorMessage),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SessionCommitMediaItemRow copyWith(
+          {String? itemId,
+          String? jobId,
+          String? mediaId,
+          String? uploadState,
+          String? localUri,
+          Value<String?> mimeType = const Value.absent(),
+          Value<int?> bytesSize = const Value.absent(),
+          Value<String?> uploadRef = const Value.absent(),
+          Value<String?> remoteChecksum = const Value.absent(),
+          int? attemptCount,
+          Value<String?> lastErrorCode = const Value.absent(),
+          Value<String?> lastErrorMessage = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      SessionCommitMediaItemRow(
+        itemId: itemId ?? this.itemId,
+        jobId: jobId ?? this.jobId,
+        mediaId: mediaId ?? this.mediaId,
+        uploadState: uploadState ?? this.uploadState,
+        localUri: localUri ?? this.localUri,
+        mimeType: mimeType.present ? mimeType.value : this.mimeType,
+        bytesSize: bytesSize.present ? bytesSize.value : this.bytesSize,
+        uploadRef: uploadRef.present ? uploadRef.value : this.uploadRef,
+        remoteChecksum:
+            remoteChecksum.present ? remoteChecksum.value : this.remoteChecksum,
+        attemptCount: attemptCount ?? this.attemptCount,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        lastErrorMessage: lastErrorMessage.present
+            ? lastErrorMessage.value
+            : this.lastErrorMessage,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  SessionCommitMediaItemRow copyWithCompanion(
+      SessionCommitMediaItemCompanion data) {
+    return SessionCommitMediaItemRow(
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
+      mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
+      uploadState:
+          data.uploadState.present ? data.uploadState.value : this.uploadState,
+      localUri: data.localUri.present ? data.localUri.value : this.localUri,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      bytesSize: data.bytesSize.present ? data.bytesSize.value : this.bytesSize,
+      uploadRef: data.uploadRef.present ? data.uploadRef.value : this.uploadRef,
+      remoteChecksum: data.remoteChecksum.present
+          ? data.remoteChecksum.value
+          : this.remoteChecksum,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      lastErrorMessage: data.lastErrorMessage.present
+          ? data.lastErrorMessage.value
+          : this.lastErrorMessage,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitMediaItemRow(')
+          ..write('itemId: $itemId, ')
+          ..write('jobId: $jobId, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('uploadState: $uploadState, ')
+          ..write('localUri: $localUri, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('bytesSize: $bytesSize, ')
+          ..write('uploadRef: $uploadRef, ')
+          ..write('remoteChecksum: $remoteChecksum, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      itemId,
+      jobId,
+      mediaId,
+      uploadState,
+      localUri,
+      mimeType,
+      bytesSize,
+      uploadRef,
+      remoteChecksum,
+      attemptCount,
+      lastErrorCode,
+      lastErrorMessage,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SessionCommitMediaItemRow &&
+          other.itemId == this.itemId &&
+          other.jobId == this.jobId &&
+          other.mediaId == this.mediaId &&
+          other.uploadState == this.uploadState &&
+          other.localUri == this.localUri &&
+          other.mimeType == this.mimeType &&
+          other.bytesSize == this.bytesSize &&
+          other.uploadRef == this.uploadRef &&
+          other.remoteChecksum == this.remoteChecksum &&
+          other.attemptCount == this.attemptCount &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.lastErrorMessage == this.lastErrorMessage &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SessionCommitMediaItemCompanion
+    extends UpdateCompanion<SessionCommitMediaItemRow> {
+  final Value<String> itemId;
+  final Value<String> jobId;
+  final Value<String> mediaId;
+  final Value<String> uploadState;
+  final Value<String> localUri;
+  final Value<String?> mimeType;
+  final Value<int?> bytesSize;
+  final Value<String?> uploadRef;
+  final Value<String?> remoteChecksum;
+  final Value<int> attemptCount;
+  final Value<String?> lastErrorCode;
+  final Value<String?> lastErrorMessage;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SessionCommitMediaItemCompanion({
+    this.itemId = const Value.absent(),
+    this.jobId = const Value.absent(),
+    this.mediaId = const Value.absent(),
+    this.uploadState = const Value.absent(),
+    this.localUri = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.bytesSize = const Value.absent(),
+    this.uploadRef = const Value.absent(),
+    this.remoteChecksum = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SessionCommitMediaItemCompanion.insert({
+    required String itemId,
+    required String jobId,
+    required String mediaId,
+    required String uploadState,
+    required String localUri,
+    this.mimeType = const Value.absent(),
+    this.bytesSize = const Value.absent(),
+    this.uploadRef = const Value.absent(),
+    this.remoteChecksum = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : itemId = Value(itemId),
+        jobId = Value(jobId),
+        mediaId = Value(mediaId),
+        uploadState = Value(uploadState),
+        localUri = Value(localUri),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<SessionCommitMediaItemRow> custom({
+    Expression<String>? itemId,
+    Expression<String>? jobId,
+    Expression<String>? mediaId,
+    Expression<String>? uploadState,
+    Expression<String>? localUri,
+    Expression<String>? mimeType,
+    Expression<int>? bytesSize,
+    Expression<String>? uploadRef,
+    Expression<String>? remoteChecksum,
+    Expression<int>? attemptCount,
+    Expression<String>? lastErrorCode,
+    Expression<String>? lastErrorMessage,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (itemId != null) 'item_id': itemId,
+      if (jobId != null) 'job_id': jobId,
+      if (mediaId != null) 'media_id': mediaId,
+      if (uploadState != null) 'upload_state': uploadState,
+      if (localUri != null) 'local_uri': localUri,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (bytesSize != null) 'bytes_size': bytesSize,
+      if (uploadRef != null) 'upload_ref': uploadRef,
+      if (remoteChecksum != null) 'remote_checksum': remoteChecksum,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (lastErrorMessage != null) 'last_error_message': lastErrorMessage,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SessionCommitMediaItemCompanion copyWith(
+      {Value<String>? itemId,
+      Value<String>? jobId,
+      Value<String>? mediaId,
+      Value<String>? uploadState,
+      Value<String>? localUri,
+      Value<String?>? mimeType,
+      Value<int?>? bytesSize,
+      Value<String?>? uploadRef,
+      Value<String?>? remoteChecksum,
+      Value<int>? attemptCount,
+      Value<String?>? lastErrorCode,
+      Value<String?>? lastErrorMessage,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return SessionCommitMediaItemCompanion(
+      itemId: itemId ?? this.itemId,
+      jobId: jobId ?? this.jobId,
+      mediaId: mediaId ?? this.mediaId,
+      uploadState: uploadState ?? this.uploadState,
+      localUri: localUri ?? this.localUri,
+      mimeType: mimeType ?? this.mimeType,
+      bytesSize: bytesSize ?? this.bytesSize,
+      uploadRef: uploadRef ?? this.uploadRef,
+      remoteChecksum: remoteChecksum ?? this.remoteChecksum,
+      attemptCount: attemptCount ?? this.attemptCount,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      lastErrorMessage: lastErrorMessage ?? this.lastErrorMessage,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<String>(jobId.value);
+    }
+    if (mediaId.present) {
+      map['media_id'] = Variable<String>(mediaId.value);
+    }
+    if (uploadState.present) {
+      map['upload_state'] = Variable<String>(uploadState.value);
+    }
+    if (localUri.present) {
+      map['local_uri'] = Variable<String>(localUri.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (bytesSize.present) {
+      map['bytes_size'] = Variable<int>(bytesSize.value);
+    }
+    if (uploadRef.present) {
+      map['upload_ref'] = Variable<String>(uploadRef.value);
+    }
+    if (remoteChecksum.present) {
+      map['remote_checksum'] = Variable<String>(remoteChecksum.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (lastErrorMessage.present) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitMediaItemCompanion(')
+          ..write('itemId: $itemId, ')
+          ..write('jobId: $jobId, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('uploadState: $uploadState, ')
+          ..write('localUri: $localUri, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('bytesSize: $bytesSize, ')
+          ..write('uploadRef: $uploadRef, ')
+          ..write('remoteChecksum: $remoteChecksum, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SessionCommitChunkTable extends SessionCommitChunk
+    with TableInfo<$SessionCommitChunkTable, SessionCommitChunkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SessionCommitChunkTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chunkIdMeta =
+      const VerificationMeta('chunkId');
+  @override
+  late final GeneratedColumn<String> chunkId = GeneratedColumn<String>(
+      'chunk_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _jobIdMeta = const VerificationMeta('jobId');
+  @override
+  late final GeneratedColumn<String> jobId = GeneratedColumn<String>(
+      'job_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chunkIndexMeta =
+      const VerificationMeta('chunkIndex');
+  @override
+  late final GeneratedColumn<int> chunkIndex = GeneratedColumn<int>(
+      'chunk_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _totalChunksMeta =
+      const VerificationMeta('totalChunks');
+  @override
+  late final GeneratedColumn<int> totalChunks = GeneratedColumn<int>(
+      'total_chunks', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _byteSizeMeta =
+      const VerificationMeta('byteSize');
+  @override
+  late final GeneratedColumn<int> byteSize = GeneratedColumn<int>(
+      'byte_size', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _contentHashMeta =
+      const VerificationMeta('contentHash');
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+      'content_hash', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chunkStateMeta =
+      const VerificationMeta('chunkState');
+  @override
+  late final GeneratedColumn<String> chunkState = GeneratedColumn<String>(
+      'chunk_state', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _attemptCountMeta =
+      const VerificationMeta('attemptCount');
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+      'attempt_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        chunkId,
+        jobId,
+        chunkIndex,
+        totalChunks,
+        byteSize,
+        contentHash,
+        payloadJson,
+        chunkState,
+        attemptCount,
+        lastErrorCode,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'session_commit_chunk';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<SessionCommitChunkRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chunk_id')) {
+      context.handle(_chunkIdMeta,
+          chunkId.isAcceptableOrUnknown(data['chunk_id']!, _chunkIdMeta));
+    } else if (isInserting) {
+      context.missing(_chunkIdMeta);
+    }
+    if (data.containsKey('job_id')) {
+      context.handle(
+          _jobIdMeta, jobId.isAcceptableOrUnknown(data['job_id']!, _jobIdMeta));
+    } else if (isInserting) {
+      context.missing(_jobIdMeta);
+    }
+    if (data.containsKey('chunk_index')) {
+      context.handle(
+          _chunkIndexMeta,
+          chunkIndex.isAcceptableOrUnknown(
+              data['chunk_index']!, _chunkIndexMeta));
+    } else if (isInserting) {
+      context.missing(_chunkIndexMeta);
+    }
+    if (data.containsKey('total_chunks')) {
+      context.handle(
+          _totalChunksMeta,
+          totalChunks.isAcceptableOrUnknown(
+              data['total_chunks']!, _totalChunksMeta));
+    } else if (isInserting) {
+      context.missing(_totalChunksMeta);
+    }
+    if (data.containsKey('byte_size')) {
+      context.handle(_byteSizeMeta,
+          byteSize.isAcceptableOrUnknown(data['byte_size']!, _byteSizeMeta));
+    } else if (isInserting) {
+      context.missing(_byteSizeMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+          _contentHashMeta,
+          contentHash.isAcceptableOrUnknown(
+              data['content_hash']!, _contentHashMeta));
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('chunk_state')) {
+      context.handle(
+          _chunkStateMeta,
+          chunkState.isAcceptableOrUnknown(
+              data['chunk_state']!, _chunkStateMeta));
+    } else if (isInserting) {
+      context.missing(_chunkStateMeta);
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+          _attemptCountMeta,
+          attemptCount.isAcceptableOrUnknown(
+              data['attempt_count']!, _attemptCountMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chunkId};
+  @override
+  SessionCommitChunkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SessionCommitChunkRow(
+      chunkId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chunk_id'])!,
+      jobId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}job_id'])!,
+      chunkIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}chunk_index'])!,
+      totalChunks: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}total_chunks'])!,
+      byteSize: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}byte_size'])!,
+      contentHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_hash'])!,
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
+      chunkState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chunk_state'])!,
+      attemptCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt_count'])!,
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $SessionCommitChunkTable createAlias(String alias) {
+    return $SessionCommitChunkTable(attachedDatabase, alias);
+  }
+}
+
+class SessionCommitChunkRow extends DataClass
+    implements Insertable<SessionCommitChunkRow> {
+  final String chunkId;
+  final String jobId;
+  final int chunkIndex;
+  final int totalChunks;
+  final int byteSize;
+  final String contentHash;
+  final String payloadJson;
+  final String chunkState;
+  final int attemptCount;
+  final String? lastErrorCode;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SessionCommitChunkRow(
+      {required this.chunkId,
+      required this.jobId,
+      required this.chunkIndex,
+      required this.totalChunks,
+      required this.byteSize,
+      required this.contentHash,
+      required this.payloadJson,
+      required this.chunkState,
+      required this.attemptCount,
+      this.lastErrorCode,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chunk_id'] = Variable<String>(chunkId);
+    map['job_id'] = Variable<String>(jobId);
+    map['chunk_index'] = Variable<int>(chunkIndex);
+    map['total_chunks'] = Variable<int>(totalChunks);
+    map['byte_size'] = Variable<int>(byteSize);
+    map['content_hash'] = Variable<String>(contentHash);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['chunk_state'] = Variable<String>(chunkState);
+    map['attempt_count'] = Variable<int>(attemptCount);
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SessionCommitChunkCompanion toCompanion(bool nullToAbsent) {
+    return SessionCommitChunkCompanion(
+      chunkId: Value(chunkId),
+      jobId: Value(jobId),
+      chunkIndex: Value(chunkIndex),
+      totalChunks: Value(totalChunks),
+      byteSize: Value(byteSize),
+      contentHash: Value(contentHash),
+      payloadJson: Value(payloadJson),
+      chunkState: Value(chunkState),
+      attemptCount: Value(attemptCount),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SessionCommitChunkRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SessionCommitChunkRow(
+      chunkId: serializer.fromJson<String>(json['chunkId']),
+      jobId: serializer.fromJson<String>(json['jobId']),
+      chunkIndex: serializer.fromJson<int>(json['chunkIndex']),
+      totalChunks: serializer.fromJson<int>(json['totalChunks']),
+      byteSize: serializer.fromJson<int>(json['byteSize']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      chunkState: serializer.fromJson<String>(json['chunkState']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chunkId': serializer.toJson<String>(chunkId),
+      'jobId': serializer.toJson<String>(jobId),
+      'chunkIndex': serializer.toJson<int>(chunkIndex),
+      'totalChunks': serializer.toJson<int>(totalChunks),
+      'byteSize': serializer.toJson<int>(byteSize),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'chunkState': serializer.toJson<String>(chunkState),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SessionCommitChunkRow copyWith(
+          {String? chunkId,
+          String? jobId,
+          int? chunkIndex,
+          int? totalChunks,
+          int? byteSize,
+          String? contentHash,
+          String? payloadJson,
+          String? chunkState,
+          int? attemptCount,
+          Value<String?> lastErrorCode = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      SessionCommitChunkRow(
+        chunkId: chunkId ?? this.chunkId,
+        jobId: jobId ?? this.jobId,
+        chunkIndex: chunkIndex ?? this.chunkIndex,
+        totalChunks: totalChunks ?? this.totalChunks,
+        byteSize: byteSize ?? this.byteSize,
+        contentHash: contentHash ?? this.contentHash,
+        payloadJson: payloadJson ?? this.payloadJson,
+        chunkState: chunkState ?? this.chunkState,
+        attemptCount: attemptCount ?? this.attemptCount,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  SessionCommitChunkRow copyWithCompanion(SessionCommitChunkCompanion data) {
+    return SessionCommitChunkRow(
+      chunkId: data.chunkId.present ? data.chunkId.value : this.chunkId,
+      jobId: data.jobId.present ? data.jobId.value : this.jobId,
+      chunkIndex:
+          data.chunkIndex.present ? data.chunkIndex.value : this.chunkIndex,
+      totalChunks:
+          data.totalChunks.present ? data.totalChunks.value : this.totalChunks,
+      byteSize: data.byteSize.present ? data.byteSize.value : this.byteSize,
+      contentHash:
+          data.contentHash.present ? data.contentHash.value : this.contentHash,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      chunkState:
+          data.chunkState.present ? data.chunkState.value : this.chunkState,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitChunkRow(')
+          ..write('chunkId: $chunkId, ')
+          ..write('jobId: $jobId, ')
+          ..write('chunkIndex: $chunkIndex, ')
+          ..write('totalChunks: $totalChunks, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('chunkState: $chunkState, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      chunkId,
+      jobId,
+      chunkIndex,
+      totalChunks,
+      byteSize,
+      contentHash,
+      payloadJson,
+      chunkState,
+      attemptCount,
+      lastErrorCode,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SessionCommitChunkRow &&
+          other.chunkId == this.chunkId &&
+          other.jobId == this.jobId &&
+          other.chunkIndex == this.chunkIndex &&
+          other.totalChunks == this.totalChunks &&
+          other.byteSize == this.byteSize &&
+          other.contentHash == this.contentHash &&
+          other.payloadJson == this.payloadJson &&
+          other.chunkState == this.chunkState &&
+          other.attemptCount == this.attemptCount &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SessionCommitChunkCompanion
+    extends UpdateCompanion<SessionCommitChunkRow> {
+  final Value<String> chunkId;
+  final Value<String> jobId;
+  final Value<int> chunkIndex;
+  final Value<int> totalChunks;
+  final Value<int> byteSize;
+  final Value<String> contentHash;
+  final Value<String> payloadJson;
+  final Value<String> chunkState;
+  final Value<int> attemptCount;
+  final Value<String?> lastErrorCode;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SessionCommitChunkCompanion({
+    this.chunkId = const Value.absent(),
+    this.jobId = const Value.absent(),
+    this.chunkIndex = const Value.absent(),
+    this.totalChunks = const Value.absent(),
+    this.byteSize = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.chunkState = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SessionCommitChunkCompanion.insert({
+    required String chunkId,
+    required String jobId,
+    required int chunkIndex,
+    required int totalChunks,
+    required int byteSize,
+    required String contentHash,
+    required String payloadJson,
+    required String chunkState,
+    this.attemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : chunkId = Value(chunkId),
+        jobId = Value(jobId),
+        chunkIndex = Value(chunkIndex),
+        totalChunks = Value(totalChunks),
+        byteSize = Value(byteSize),
+        contentHash = Value(contentHash),
+        payloadJson = Value(payloadJson),
+        chunkState = Value(chunkState),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<SessionCommitChunkRow> custom({
+    Expression<String>? chunkId,
+    Expression<String>? jobId,
+    Expression<int>? chunkIndex,
+    Expression<int>? totalChunks,
+    Expression<int>? byteSize,
+    Expression<String>? contentHash,
+    Expression<String>? payloadJson,
+    Expression<String>? chunkState,
+    Expression<int>? attemptCount,
+    Expression<String>? lastErrorCode,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chunkId != null) 'chunk_id': chunkId,
+      if (jobId != null) 'job_id': jobId,
+      if (chunkIndex != null) 'chunk_index': chunkIndex,
+      if (totalChunks != null) 'total_chunks': totalChunks,
+      if (byteSize != null) 'byte_size': byteSize,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (chunkState != null) 'chunk_state': chunkState,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SessionCommitChunkCompanion copyWith(
+      {Value<String>? chunkId,
+      Value<String>? jobId,
+      Value<int>? chunkIndex,
+      Value<int>? totalChunks,
+      Value<int>? byteSize,
+      Value<String>? contentHash,
+      Value<String>? payloadJson,
+      Value<String>? chunkState,
+      Value<int>? attemptCount,
+      Value<String?>? lastErrorCode,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return SessionCommitChunkCompanion(
+      chunkId: chunkId ?? this.chunkId,
+      jobId: jobId ?? this.jobId,
+      chunkIndex: chunkIndex ?? this.chunkIndex,
+      totalChunks: totalChunks ?? this.totalChunks,
+      byteSize: byteSize ?? this.byteSize,
+      contentHash: contentHash ?? this.contentHash,
+      payloadJson: payloadJson ?? this.payloadJson,
+      chunkState: chunkState ?? this.chunkState,
+      attemptCount: attemptCount ?? this.attemptCount,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chunkId.present) {
+      map['chunk_id'] = Variable<String>(chunkId.value);
+    }
+    if (jobId.present) {
+      map['job_id'] = Variable<String>(jobId.value);
+    }
+    if (chunkIndex.present) {
+      map['chunk_index'] = Variable<int>(chunkIndex.value);
+    }
+    if (totalChunks.present) {
+      map['total_chunks'] = Variable<int>(totalChunks.value);
+    }
+    if (byteSize.present) {
+      map['byte_size'] = Variable<int>(byteSize.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (chunkState.present) {
+      map['chunk_state'] = Variable<String>(chunkState.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SessionCommitChunkCompanion(')
+          ..write('chunkId: $chunkId, ')
+          ..write('jobId: $jobId, ')
+          ..write('chunkIndex: $chunkIndex, ')
+          ..write('totalChunks: $totalChunks, ')
+          ..write('byteSize: $byteSize, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('chunkState: $chunkState, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TimelineProjectionLocalTable extends TimelineProjectionLocal
     with TableInfo<$TimelineProjectionLocalTable, TimelineProjectionLocalRow> {
   @override
@@ -19369,6 +21941,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ResolverCandidateJournalTable(this);
   late final $ResolverAttemptJournalTable resolverAttemptJournal =
       $ResolverAttemptJournalTable(this);
+  late final $SessionCommitJobTable sessionCommitJob =
+      $SessionCommitJobTable(this);
+  late final $SessionCommitMediaItemTable sessionCommitMediaItem =
+      $SessionCommitMediaItemTable(this);
+  late final $SessionCommitChunkTable sessionCommitChunk =
+      $SessionCommitChunkTable(this);
   late final $TimelineProjectionLocalTable timelineProjectionLocal =
       $TimelineProjectionLocalTable(this);
   late final $RouteProjectionLocalTable routeProjectionLocal =
@@ -19482,6 +22060,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index resolverAttemptJournalStartedIdx = Index(
       'resolver_attempt_journal_started_idx',
       'CREATE INDEX resolver_attempt_journal_started_idx ON resolver_attempt_journal (started_at)');
+  late final Index sessionCommitJobStateRetryIdx = Index(
+      'session_commit_job_state_retry_idx',
+      'CREATE INDEX session_commit_job_state_retry_idx ON session_commit_job (job_state, next_retry_at)');
+  late final Index sessionCommitJobSessionIdx = Index(
+      'session_commit_job_session_idx',
+      'CREATE INDEX session_commit_job_session_idx ON session_commit_job (session_id)');
+  late final Index sessionCommitJobTripCreatedIdx = Index(
+      'session_commit_job_trip_created_idx',
+      'CREATE INDEX session_commit_job_trip_created_idx ON session_commit_job (trip_local_id, created_at)');
+  late final Index sessionCommitMediaItemJobStateIdx = Index(
+      'session_commit_media_item_job_state_idx',
+      'CREATE INDEX session_commit_media_item_job_state_idx ON session_commit_media_item (job_id, upload_state)');
+  late final Index sessionCommitMediaItemMediaIdx = Index(
+      'session_commit_media_item_media_idx',
+      'CREATE INDEX session_commit_media_item_media_idx ON session_commit_media_item (media_id)');
+  late final Index sessionCommitChunkJobStateIdx = Index(
+      'session_commit_chunk_job_state_idx',
+      'CREATE INDEX session_commit_chunk_job_state_idx ON session_commit_chunk (job_id, chunk_state)');
   late final Index timelineProjectionLocalTripCapturedIdx = Index(
       'timeline_projection_local_trip_captured_idx',
       'CREATE INDEX timeline_projection_local_trip_captured_idx ON timeline_projection_local (trip_local_id, captured_at)');
@@ -19532,6 +22128,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ResolverCandidateJournalDao(this as AppDatabase);
   late final ResolverAttemptJournalDao resolverAttemptJournalDao =
       ResolverAttemptJournalDao(this as AppDatabase);
+  late final SessionCommitJobDao sessionCommitJobDao =
+      SessionCommitJobDao(this as AppDatabase);
+  late final SessionCommitMediaItemDao sessionCommitMediaItemDao =
+      SessionCommitMediaItemDao(this as AppDatabase);
+  late final SessionCommitChunkDao sessionCommitChunkDao =
+      SessionCommitChunkDao(this as AppDatabase);
   late final TimelineProjectionLocalDao timelineProjectionLocalDao =
       TimelineProjectionLocalDao(this as AppDatabase);
   late final RouteProjectionLocalDao routeProjectionLocalDao =
@@ -19563,6 +22165,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         mediaJournal,
         resolverCandidateJournal,
         resolverAttemptJournal,
+        sessionCommitJob,
+        sessionCommitMediaItem,
+        sessionCommitChunk,
         timelineProjectionLocal,
         routeProjectionLocal,
         timelineCompileCursor,
@@ -19602,6 +22207,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         resolverCandidateJournalEventVersionTieIdx,
         resolverAttemptJournalEventAttemptIdx,
         resolverAttemptJournalStartedIdx,
+        sessionCommitJobStateRetryIdx,
+        sessionCommitJobSessionIdx,
+        sessionCommitJobTripCreatedIdx,
+        sessionCommitMediaItemJobStateIdx,
+        sessionCommitMediaItemMediaIdx,
+        sessionCommitChunkJobStateIdx,
         timelineProjectionLocalTripCapturedIdx,
         timelineProjectionLocalTripBucketCapturedIdx,
         timelineProjectionLocalTripCapturedSessionIdx,
@@ -24779,6 +27390,7 @@ typedef $$SessionJournalTableCreateCompanionBuilder = SessionJournalCompanion
   Value<DateTime?> stopAckAt,
   Value<DateTime?> startedAt,
   Value<DateTime?> endedAt,
+  Value<String?> stopClientEventId,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> sealVersion,
@@ -24798,6 +27410,7 @@ typedef $$SessionJournalTableUpdateCompanionBuilder = SessionJournalCompanion
   Value<DateTime?> stopAckAt,
   Value<DateTime?> startedAt,
   Value<DateTime?> endedAt,
+  Value<String?> stopClientEventId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> sealVersion,
@@ -24843,6 +27456,10 @@ class $$SessionJournalTableFilterComposer
 
   ColumnFilters<DateTime> get endedAt => $composableBuilder(
       column: $table.endedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stopClientEventId => $composableBuilder(
+      column: $table.stopClientEventId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -24903,6 +27520,10 @@ class $$SessionJournalTableOrderingComposer
   ColumnOrderings<DateTime> get endedAt => $composableBuilder(
       column: $table.endedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get stopClientEventId => $composableBuilder(
+      column: $table.stopClientEventId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -24959,6 +27580,9 @@ class $$SessionJournalTableAnnotationComposer
   GeneratedColumn<DateTime> get endedAt =>
       $composableBuilder(column: $table.endedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get stopClientEventId => $composableBuilder(
+      column: $table.stopClientEventId, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -25014,6 +27638,7 @@ class $$SessionJournalTableTableManager extends RootTableManager<
             Value<DateTime?> stopAckAt = const Value.absent(),
             Value<DateTime?> startedAt = const Value.absent(),
             Value<DateTime?> endedAt = const Value.absent(),
+            Value<String?> stopClientEventId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> sealVersion = const Value.absent(),
@@ -25032,6 +27657,7 @@ class $$SessionJournalTableTableManager extends RootTableManager<
             stopAckAt: stopAckAt,
             startedAt: startedAt,
             endedAt: endedAt,
+            stopClientEventId: stopClientEventId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             sealVersion: sealVersion,
@@ -25050,6 +27676,7 @@ class $$SessionJournalTableTableManager extends RootTableManager<
             Value<DateTime?> stopAckAt = const Value.absent(),
             Value<DateTime?> startedAt = const Value.absent(),
             Value<DateTime?> endedAt = const Value.absent(),
+            Value<String?> stopClientEventId = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> sealVersion = const Value.absent(),
@@ -25068,6 +27695,7 @@ class $$SessionJournalTableTableManager extends RootTableManager<
             stopAckAt: stopAckAt,
             startedAt: startedAt,
             endedAt: endedAt,
+            stopClientEventId: stopClientEventId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             sealVersion: sealVersion,
@@ -26947,6 +29575,1110 @@ typedef $$ResolverAttemptJournalTableProcessedTableManager
         ),
         ResolverAttemptJournalRow,
         PrefetchHooks Function()>;
+typedef $$SessionCommitJobTableCreateCompanionBuilder
+    = SessionCommitJobCompanion Function({
+  required String jobId,
+  required String sessionId,
+  required String tripLocalId,
+  Value<String?> serverTripId,
+  required String jobState,
+  required String phase,
+  Value<int> attemptCount,
+  Value<DateTime?> nextRetryAt,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  required String idempotencyKey,
+  Value<String?> sessionCommitToken,
+  Value<int> isExecuting,
+  Value<DateTime?> executionStartedAt,
+  Value<String?> executionOwnerId,
+  Value<int> leaseVersion,
+  Value<String?> snapshotHash,
+  Value<DateTime?> snapshotCreatedAt,
+  Value<int> snapshotEventCount,
+  Value<int> snapshotMediaCount,
+  Value<int> snapshotPointCount,
+  Value<int> snapshotPayloadBytes,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<DateTime?> completedAt,
+  Value<int> rowid,
+});
+typedef $$SessionCommitJobTableUpdateCompanionBuilder
+    = SessionCommitJobCompanion Function({
+  Value<String> jobId,
+  Value<String> sessionId,
+  Value<String> tripLocalId,
+  Value<String?> serverTripId,
+  Value<String> jobState,
+  Value<String> phase,
+  Value<int> attemptCount,
+  Value<DateTime?> nextRetryAt,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  Value<String> idempotencyKey,
+  Value<String?> sessionCommitToken,
+  Value<int> isExecuting,
+  Value<DateTime?> executionStartedAt,
+  Value<String?> executionOwnerId,
+  Value<int> leaseVersion,
+  Value<String?> snapshotHash,
+  Value<DateTime?> snapshotCreatedAt,
+  Value<int> snapshotEventCount,
+  Value<int> snapshotMediaCount,
+  Value<int> snapshotPointCount,
+  Value<int> snapshotPayloadBytes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+  Value<int> rowid,
+});
+
+class $$SessionCommitJobTableFilterComposer
+    extends Composer<_$AppDatabase, $SessionCommitJobTable> {
+  $$SessionCommitJobTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get jobState => $composableBuilder(
+      column: $table.jobState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get nextRetryAt => $composableBuilder(
+      column: $table.nextRetryAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+      column: $table.idempotencyKey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionCommitToken => $composableBuilder(
+      column: $table.sessionCommitToken,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get isExecuting => $composableBuilder(
+      column: $table.isExecuting, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get executionStartedAt => $composableBuilder(
+      column: $table.executionStartedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get executionOwnerId => $composableBuilder(
+      column: $table.executionOwnerId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get leaseVersion => $composableBuilder(
+      column: $table.leaseVersion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get snapshotHash => $composableBuilder(
+      column: $table.snapshotHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get snapshotCreatedAt => $composableBuilder(
+      column: $table.snapshotCreatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get snapshotEventCount => $composableBuilder(
+      column: $table.snapshotEventCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get snapshotMediaCount => $composableBuilder(
+      column: $table.snapshotMediaCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get snapshotPointCount => $composableBuilder(
+      column: $table.snapshotPointCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get snapshotPayloadBytes => $composableBuilder(
+      column: $table.snapshotPayloadBytes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SessionCommitJobTableOrderingComposer
+    extends Composer<_$AppDatabase, $SessionCommitJobTable> {
+  $$SessionCommitJobTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get jobState => $composableBuilder(
+      column: $table.jobState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get nextRetryAt => $composableBuilder(
+      column: $table.nextRetryAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+      column: $table.idempotencyKey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionCommitToken => $composableBuilder(
+      column: $table.sessionCommitToken,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get isExecuting => $composableBuilder(
+      column: $table.isExecuting, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get executionStartedAt => $composableBuilder(
+      column: $table.executionStartedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get executionOwnerId => $composableBuilder(
+      column: $table.executionOwnerId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get leaseVersion => $composableBuilder(
+      column: $table.leaseVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get snapshotHash => $composableBuilder(
+      column: $table.snapshotHash,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get snapshotCreatedAt => $composableBuilder(
+      column: $table.snapshotCreatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get snapshotEventCount => $composableBuilder(
+      column: $table.snapshotEventCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get snapshotMediaCount => $composableBuilder(
+      column: $table.snapshotMediaCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get snapshotPointCount => $composableBuilder(
+      column: $table.snapshotPointCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get snapshotPayloadBytes => $composableBuilder(
+      column: $table.snapshotPayloadBytes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SessionCommitJobTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SessionCommitJobTable> {
+  $$SessionCommitJobTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get jobId =>
+      $composableBuilder(column: $table.jobId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get serverTripId => $composableBuilder(
+      column: $table.serverTripId, builder: (column) => column);
+
+  GeneratedColumn<String> get jobState =>
+      $composableBuilder(column: $table.jobState, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextRetryAt => $composableBuilder(
+      column: $table.nextRetryAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+      column: $table.idempotencyKey, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionCommitToken => $composableBuilder(
+      column: $table.sessionCommitToken, builder: (column) => column);
+
+  GeneratedColumn<int> get isExecuting => $composableBuilder(
+      column: $table.isExecuting, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get executionStartedAt => $composableBuilder(
+      column: $table.executionStartedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get executionOwnerId => $composableBuilder(
+      column: $table.executionOwnerId, builder: (column) => column);
+
+  GeneratedColumn<int> get leaseVersion => $composableBuilder(
+      column: $table.leaseVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshotHash => $composableBuilder(
+      column: $table.snapshotHash, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get snapshotCreatedAt => $composableBuilder(
+      column: $table.snapshotCreatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get snapshotEventCount => $composableBuilder(
+      column: $table.snapshotEventCount, builder: (column) => column);
+
+  GeneratedColumn<int> get snapshotMediaCount => $composableBuilder(
+      column: $table.snapshotMediaCount, builder: (column) => column);
+
+  GeneratedColumn<int> get snapshotPointCount => $composableBuilder(
+      column: $table.snapshotPointCount, builder: (column) => column);
+
+  GeneratedColumn<int> get snapshotPayloadBytes => $composableBuilder(
+      column: $table.snapshotPayloadBytes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+}
+
+class $$SessionCommitJobTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SessionCommitJobTable,
+    SessionCommitJobRow,
+    $$SessionCommitJobTableFilterComposer,
+    $$SessionCommitJobTableOrderingComposer,
+    $$SessionCommitJobTableAnnotationComposer,
+    $$SessionCommitJobTableCreateCompanionBuilder,
+    $$SessionCommitJobTableUpdateCompanionBuilder,
+    (
+      SessionCommitJobRow,
+      BaseReferences<_$AppDatabase, $SessionCommitJobTable, SessionCommitJobRow>
+    ),
+    SessionCommitJobRow,
+    PrefetchHooks Function()> {
+  $$SessionCommitJobTableTableManager(
+      _$AppDatabase db, $SessionCommitJobTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SessionCommitJobTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SessionCommitJobTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SessionCommitJobTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> jobId = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<String> tripLocalId = const Value.absent(),
+            Value<String?> serverTripId = const Value.absent(),
+            Value<String> jobState = const Value.absent(),
+            Value<String> phase = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<DateTime?> nextRetryAt = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            Value<String> idempotencyKey = const Value.absent(),
+            Value<String?> sessionCommitToken = const Value.absent(),
+            Value<int> isExecuting = const Value.absent(),
+            Value<DateTime?> executionStartedAt = const Value.absent(),
+            Value<String?> executionOwnerId = const Value.absent(),
+            Value<int> leaseVersion = const Value.absent(),
+            Value<String?> snapshotHash = const Value.absent(),
+            Value<DateTime?> snapshotCreatedAt = const Value.absent(),
+            Value<int> snapshotEventCount = const Value.absent(),
+            Value<int> snapshotMediaCount = const Value.absent(),
+            Value<int> snapshotPointCount = const Value.absent(),
+            Value<int> snapshotPayloadBytes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitJobCompanion(
+            jobId: jobId,
+            sessionId: sessionId,
+            tripLocalId: tripLocalId,
+            serverTripId: serverTripId,
+            jobState: jobState,
+            phase: phase,
+            attemptCount: attemptCount,
+            nextRetryAt: nextRetryAt,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            idempotencyKey: idempotencyKey,
+            sessionCommitToken: sessionCommitToken,
+            isExecuting: isExecuting,
+            executionStartedAt: executionStartedAt,
+            executionOwnerId: executionOwnerId,
+            leaseVersion: leaseVersion,
+            snapshotHash: snapshotHash,
+            snapshotCreatedAt: snapshotCreatedAt,
+            snapshotEventCount: snapshotEventCount,
+            snapshotMediaCount: snapshotMediaCount,
+            snapshotPointCount: snapshotPointCount,
+            snapshotPayloadBytes: snapshotPayloadBytes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String jobId,
+            required String sessionId,
+            required String tripLocalId,
+            Value<String?> serverTripId = const Value.absent(),
+            required String jobState,
+            required String phase,
+            Value<int> attemptCount = const Value.absent(),
+            Value<DateTime?> nextRetryAt = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            required String idempotencyKey,
+            Value<String?> sessionCommitToken = const Value.absent(),
+            Value<int> isExecuting = const Value.absent(),
+            Value<DateTime?> executionStartedAt = const Value.absent(),
+            Value<String?> executionOwnerId = const Value.absent(),
+            Value<int> leaseVersion = const Value.absent(),
+            Value<String?> snapshotHash = const Value.absent(),
+            Value<DateTime?> snapshotCreatedAt = const Value.absent(),
+            Value<int> snapshotEventCount = const Value.absent(),
+            Value<int> snapshotMediaCount = const Value.absent(),
+            Value<int> snapshotPointCount = const Value.absent(),
+            Value<int> snapshotPayloadBytes = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<DateTime?> completedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitJobCompanion.insert(
+            jobId: jobId,
+            sessionId: sessionId,
+            tripLocalId: tripLocalId,
+            serverTripId: serverTripId,
+            jobState: jobState,
+            phase: phase,
+            attemptCount: attemptCount,
+            nextRetryAt: nextRetryAt,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            idempotencyKey: idempotencyKey,
+            sessionCommitToken: sessionCommitToken,
+            isExecuting: isExecuting,
+            executionStartedAt: executionStartedAt,
+            executionOwnerId: executionOwnerId,
+            leaseVersion: leaseVersion,
+            snapshotHash: snapshotHash,
+            snapshotCreatedAt: snapshotCreatedAt,
+            snapshotEventCount: snapshotEventCount,
+            snapshotMediaCount: snapshotMediaCount,
+            snapshotPointCount: snapshotPointCount,
+            snapshotPayloadBytes: snapshotPayloadBytes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SessionCommitJobTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SessionCommitJobTable,
+    SessionCommitJobRow,
+    $$SessionCommitJobTableFilterComposer,
+    $$SessionCommitJobTableOrderingComposer,
+    $$SessionCommitJobTableAnnotationComposer,
+    $$SessionCommitJobTableCreateCompanionBuilder,
+    $$SessionCommitJobTableUpdateCompanionBuilder,
+    (
+      SessionCommitJobRow,
+      BaseReferences<_$AppDatabase, $SessionCommitJobTable, SessionCommitJobRow>
+    ),
+    SessionCommitJobRow,
+    PrefetchHooks Function()>;
+typedef $$SessionCommitMediaItemTableCreateCompanionBuilder
+    = SessionCommitMediaItemCompanion Function({
+  required String itemId,
+  required String jobId,
+  required String mediaId,
+  required String uploadState,
+  required String localUri,
+  Value<String?> mimeType,
+  Value<int?> bytesSize,
+  Value<String?> uploadRef,
+  Value<String?> remoteChecksum,
+  Value<int> attemptCount,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$SessionCommitMediaItemTableUpdateCompanionBuilder
+    = SessionCommitMediaItemCompanion Function({
+  Value<String> itemId,
+  Value<String> jobId,
+  Value<String> mediaId,
+  Value<String> uploadState,
+  Value<String> localUri,
+  Value<String?> mimeType,
+  Value<int?> bytesSize,
+  Value<String?> uploadRef,
+  Value<String?> remoteChecksum,
+  Value<int> attemptCount,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$SessionCommitMediaItemTableFilterComposer
+    extends Composer<_$AppDatabase, $SessionCommitMediaItemTable> {
+  $$SessionCommitMediaItemTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get itemId => $composableBuilder(
+      column: $table.itemId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get localUri => $composableBuilder(
+      column: $table.localUri, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get bytesSize => $composableBuilder(
+      column: $table.bytesSize, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadRef => $composableBuilder(
+      column: $table.uploadRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteChecksum => $composableBuilder(
+      column: $table.remoteChecksum,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SessionCommitMediaItemTableOrderingComposer
+    extends Composer<_$AppDatabase, $SessionCommitMediaItemTable> {
+  $$SessionCommitMediaItemTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get itemId => $composableBuilder(
+      column: $table.itemId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get localUri => $composableBuilder(
+      column: $table.localUri, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get bytesSize => $composableBuilder(
+      column: $table.bytesSize, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadRef => $composableBuilder(
+      column: $table.uploadRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteChecksum => $composableBuilder(
+      column: $table.remoteChecksum,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SessionCommitMediaItemTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SessionCommitMediaItemTable> {
+  $$SessionCommitMediaItemTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get jobId =>
+      $composableBuilder(column: $table.jobId, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaId =>
+      $composableBuilder(column: $table.mediaId, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => column);
+
+  GeneratedColumn<String> get localUri =>
+      $composableBuilder(column: $table.localUri, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get bytesSize =>
+      $composableBuilder(column: $table.bytesSize, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadRef =>
+      $composableBuilder(column: $table.uploadRef, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteChecksum => $composableBuilder(
+      column: $table.remoteChecksum, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SessionCommitMediaItemTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SessionCommitMediaItemTable,
+    SessionCommitMediaItemRow,
+    $$SessionCommitMediaItemTableFilterComposer,
+    $$SessionCommitMediaItemTableOrderingComposer,
+    $$SessionCommitMediaItemTableAnnotationComposer,
+    $$SessionCommitMediaItemTableCreateCompanionBuilder,
+    $$SessionCommitMediaItemTableUpdateCompanionBuilder,
+    (
+      SessionCommitMediaItemRow,
+      BaseReferences<_$AppDatabase, $SessionCommitMediaItemTable,
+          SessionCommitMediaItemRow>
+    ),
+    SessionCommitMediaItemRow,
+    PrefetchHooks Function()> {
+  $$SessionCommitMediaItemTableTableManager(
+      _$AppDatabase db, $SessionCommitMediaItemTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SessionCommitMediaItemTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SessionCommitMediaItemTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SessionCommitMediaItemTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> itemId = const Value.absent(),
+            Value<String> jobId = const Value.absent(),
+            Value<String> mediaId = const Value.absent(),
+            Value<String> uploadState = const Value.absent(),
+            Value<String> localUri = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> bytesSize = const Value.absent(),
+            Value<String?> uploadRef = const Value.absent(),
+            Value<String?> remoteChecksum = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitMediaItemCompanion(
+            itemId: itemId,
+            jobId: jobId,
+            mediaId: mediaId,
+            uploadState: uploadState,
+            localUri: localUri,
+            mimeType: mimeType,
+            bytesSize: bytesSize,
+            uploadRef: uploadRef,
+            remoteChecksum: remoteChecksum,
+            attemptCount: attemptCount,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String itemId,
+            required String jobId,
+            required String mediaId,
+            required String uploadState,
+            required String localUri,
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> bytesSize = const Value.absent(),
+            Value<String?> uploadRef = const Value.absent(),
+            Value<String?> remoteChecksum = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitMediaItemCompanion.insert(
+            itemId: itemId,
+            jobId: jobId,
+            mediaId: mediaId,
+            uploadState: uploadState,
+            localUri: localUri,
+            mimeType: mimeType,
+            bytesSize: bytesSize,
+            uploadRef: uploadRef,
+            remoteChecksum: remoteChecksum,
+            attemptCount: attemptCount,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SessionCommitMediaItemTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $SessionCommitMediaItemTable,
+        SessionCommitMediaItemRow,
+        $$SessionCommitMediaItemTableFilterComposer,
+        $$SessionCommitMediaItemTableOrderingComposer,
+        $$SessionCommitMediaItemTableAnnotationComposer,
+        $$SessionCommitMediaItemTableCreateCompanionBuilder,
+        $$SessionCommitMediaItemTableUpdateCompanionBuilder,
+        (
+          SessionCommitMediaItemRow,
+          BaseReferences<_$AppDatabase, $SessionCommitMediaItemTable,
+              SessionCommitMediaItemRow>
+        ),
+        SessionCommitMediaItemRow,
+        PrefetchHooks Function()>;
+typedef $$SessionCommitChunkTableCreateCompanionBuilder
+    = SessionCommitChunkCompanion Function({
+  required String chunkId,
+  required String jobId,
+  required int chunkIndex,
+  required int totalChunks,
+  required int byteSize,
+  required String contentHash,
+  required String payloadJson,
+  required String chunkState,
+  Value<int> attemptCount,
+  Value<String?> lastErrorCode,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$SessionCommitChunkTableUpdateCompanionBuilder
+    = SessionCommitChunkCompanion Function({
+  Value<String> chunkId,
+  Value<String> jobId,
+  Value<int> chunkIndex,
+  Value<int> totalChunks,
+  Value<int> byteSize,
+  Value<String> contentHash,
+  Value<String> payloadJson,
+  Value<String> chunkState,
+  Value<int> attemptCount,
+  Value<String?> lastErrorCode,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$SessionCommitChunkTableFilterComposer
+    extends Composer<_$AppDatabase, $SessionCommitChunkTable> {
+  $$SessionCommitChunkTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chunkId => $composableBuilder(
+      column: $table.chunkId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get chunkIndex => $composableBuilder(
+      column: $table.chunkIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get totalChunks => $composableBuilder(
+      column: $table.totalChunks, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get byteSize => $composableBuilder(
+      column: $table.byteSize, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chunkState => $composableBuilder(
+      column: $table.chunkState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SessionCommitChunkTableOrderingComposer
+    extends Composer<_$AppDatabase, $SessionCommitChunkTable> {
+  $$SessionCommitChunkTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chunkId => $composableBuilder(
+      column: $table.chunkId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get jobId => $composableBuilder(
+      column: $table.jobId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get chunkIndex => $composableBuilder(
+      column: $table.chunkIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get totalChunks => $composableBuilder(
+      column: $table.totalChunks, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get byteSize => $composableBuilder(
+      column: $table.byteSize, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chunkState => $composableBuilder(
+      column: $table.chunkState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SessionCommitChunkTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SessionCommitChunkTable> {
+  $$SessionCommitChunkTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chunkId =>
+      $composableBuilder(column: $table.chunkId, builder: (column) => column);
+
+  GeneratedColumn<String> get jobId =>
+      $composableBuilder(column: $table.jobId, builder: (column) => column);
+
+  GeneratedColumn<int> get chunkIndex => $composableBuilder(
+      column: $table.chunkIndex, builder: (column) => column);
+
+  GeneratedColumn<int> get totalChunks => $composableBuilder(
+      column: $table.totalChunks, builder: (column) => column);
+
+  GeneratedColumn<int> get byteSize =>
+      $composableBuilder(column: $table.byteSize, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<String> get chunkState => $composableBuilder(
+      column: $table.chunkState, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SessionCommitChunkTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SessionCommitChunkTable,
+    SessionCommitChunkRow,
+    $$SessionCommitChunkTableFilterComposer,
+    $$SessionCommitChunkTableOrderingComposer,
+    $$SessionCommitChunkTableAnnotationComposer,
+    $$SessionCommitChunkTableCreateCompanionBuilder,
+    $$SessionCommitChunkTableUpdateCompanionBuilder,
+    (
+      SessionCommitChunkRow,
+      BaseReferences<_$AppDatabase, $SessionCommitChunkTable,
+          SessionCommitChunkRow>
+    ),
+    SessionCommitChunkRow,
+    PrefetchHooks Function()> {
+  $$SessionCommitChunkTableTableManager(
+      _$AppDatabase db, $SessionCommitChunkTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SessionCommitChunkTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SessionCommitChunkTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SessionCommitChunkTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chunkId = const Value.absent(),
+            Value<String> jobId = const Value.absent(),
+            Value<int> chunkIndex = const Value.absent(),
+            Value<int> totalChunks = const Value.absent(),
+            Value<int> byteSize = const Value.absent(),
+            Value<String> contentHash = const Value.absent(),
+            Value<String> payloadJson = const Value.absent(),
+            Value<String> chunkState = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitChunkCompanion(
+            chunkId: chunkId,
+            jobId: jobId,
+            chunkIndex: chunkIndex,
+            totalChunks: totalChunks,
+            byteSize: byteSize,
+            contentHash: contentHash,
+            payloadJson: payloadJson,
+            chunkState: chunkState,
+            attemptCount: attemptCount,
+            lastErrorCode: lastErrorCode,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chunkId,
+            required String jobId,
+            required int chunkIndex,
+            required int totalChunks,
+            required int byteSize,
+            required String contentHash,
+            required String payloadJson,
+            required String chunkState,
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionCommitChunkCompanion.insert(
+            chunkId: chunkId,
+            jobId: jobId,
+            chunkIndex: chunkIndex,
+            totalChunks: totalChunks,
+            byteSize: byteSize,
+            contentHash: contentHash,
+            payloadJson: payloadJson,
+            chunkState: chunkState,
+            attemptCount: attemptCount,
+            lastErrorCode: lastErrorCode,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SessionCommitChunkTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SessionCommitChunkTable,
+    SessionCommitChunkRow,
+    $$SessionCommitChunkTableFilterComposer,
+    $$SessionCommitChunkTableOrderingComposer,
+    $$SessionCommitChunkTableAnnotationComposer,
+    $$SessionCommitChunkTableCreateCompanionBuilder,
+    $$SessionCommitChunkTableUpdateCompanionBuilder,
+    (
+      SessionCommitChunkRow,
+      BaseReferences<_$AppDatabase, $SessionCommitChunkTable,
+          SessionCommitChunkRow>
+    ),
+    SessionCommitChunkRow,
+    PrefetchHooks Function()>;
 typedef $$TimelineProjectionLocalTableCreateCompanionBuilder
     = TimelineProjectionLocalCompanion Function({
   required String entryId,
@@ -28080,6 +31812,13 @@ class $AppDatabaseManager {
   $$ResolverAttemptJournalTableTableManager get resolverAttemptJournal =>
       $$ResolverAttemptJournalTableTableManager(
           _db, _db.resolverAttemptJournal);
+  $$SessionCommitJobTableTableManager get sessionCommitJob =>
+      $$SessionCommitJobTableTableManager(_db, _db.sessionCommitJob);
+  $$SessionCommitMediaItemTableTableManager get sessionCommitMediaItem =>
+      $$SessionCommitMediaItemTableTableManager(
+          _db, _db.sessionCommitMediaItem);
+  $$SessionCommitChunkTableTableManager get sessionCommitChunk =>
+      $$SessionCommitChunkTableTableManager(_db, _db.sessionCommitChunk);
   $$TimelineProjectionLocalTableTableManager get timelineProjectionLocal =>
       $$TimelineProjectionLocalTableTableManager(
           _db, _db.timelineProjectionLocal);

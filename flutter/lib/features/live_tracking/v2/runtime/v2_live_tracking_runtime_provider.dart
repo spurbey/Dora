@@ -137,6 +137,12 @@ final v2CaptureCoordinatorProvider = Provider<V2CaptureCoordinator>((ref) {
   final locationService = ref.watch(locationServiceProvider);
   final coordinator = V2CaptureCoordinator(
     repository: repository,
+    onSessionSealed: ({required tripId, required sessionId}) async {
+      await ref.read(v2SessionCommitOrchestratorProvider).onSessionSealed(
+            tripId: tripId,
+            sessionId: sessionId,
+          );
+    },
     ensureLocationAccess: ({
       required bool requestIfDenied,
     }) {

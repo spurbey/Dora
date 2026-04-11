@@ -13,23 +13,30 @@ typedef V2EnsureLocationAccess = Future<LocationAccessState> Function({
 });
 
 typedef V2TrackingPointStreamFactory = Stream<TrackingPointSample> Function();
+typedef V2SessionSealedCallback = Future<void> Function({
+  required String tripId,
+  required String sessionId,
+});
 
 class V2CaptureCoordinator {
   V2CaptureCoordinator({
     required V2LiveTrackingRuntimeRepository repository,
     required V2EnsureLocationAccess ensureLocationAccess,
     required V2TrackingPointStreamFactory pointStreamFactory,
+    V2SessionSealedCallback? onSessionSealed,
     Duration restartInitialDelay = const Duration(seconds: 1),
     Duration restartMaxDelay = const Duration(seconds: 30),
   })  : _repository = repository,
         _ensureLocationAccess = ensureLocationAccess,
         _pointStreamFactory = pointStreamFactory,
+        _onSessionSealed = onSessionSealed,
         _restartInitialDelay = restartInitialDelay,
         _restartMaxDelay = restartMaxDelay;
 
   final V2LiveTrackingRuntimeRepository _repository;
   final V2EnsureLocationAccess _ensureLocationAccess;
   final V2TrackingPointStreamFactory _pointStreamFactory;
+  final V2SessionSealedCallback? _onSessionSealed;
   final Duration _restartInitialDelay;
   final Duration _restartMaxDelay;
 
@@ -98,6 +105,12 @@ class V2CaptureCoordinator {
     }
     _activeSessions.remove(stopped.sessionId);
     await _syncCaptureSubscription();
+    if (_onSessionSealed != null) {
+      await _onSessionSealed!(
+        tripId: stopped.tripLocalId,
+        sessionId: stopped.sessionId,
+      );
+    }
     return stopped;
   }
 

@@ -13,6 +13,9 @@ import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_chunk_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_job_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_media_item_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
@@ -113,4 +116,20 @@ final v2TimelineCompileCursorDaoProvider =
     Provider<TimelineCompileCursorDao>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return TimelineCompileCursorDao(db);
+});
+
+final v2SessionCommitJobDaoProvider = Provider<SessionCommitJobDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return SessionCommitJobDao(db);
+});
+
+final v2SessionCommitMediaItemDaoProvider =
+    Provider<SessionCommitMediaItemDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return SessionCommitMediaItemDao(db);
+});
+
+final v2SessionCommitChunkDaoProvider = Provider<SessionCommitChunkDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return SessionCommitChunkDao(db);
 });

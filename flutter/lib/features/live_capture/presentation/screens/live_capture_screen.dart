@@ -41,6 +41,7 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_tra
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
+import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
@@ -92,6 +93,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   );
   bool _useV2Lane = false;
   bool _didTriggerV2LiveOpenRecovery = false;
+  bool _didTriggerV2LiveOpenCommit = false;
   bool _actionInFlight = false;
   String? _actionLabel;
   Timer? _resolverReconcileTimer;
@@ -132,6 +134,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       if (widget.previewState == null) {
         if (_isV2LaneEnabled()) {
           _triggerV2Recovery(source: V2ResolverTriggerSource.liveOpen);
+          _triggerV2CommitRun(source: V2CommitTriggerSource.liveOpen);
         } else {
           _triggerResolverReconcile();
         }
@@ -160,6 +163,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         widget.previewState == null &&
         _isV2LaneEnabled()) {
       _triggerV2Recovery(source: V2ResolverTriggerSource.resumed);
+      _triggerV2CommitRun(source: V2CommitTriggerSource.resumed);
     }
   }
 
@@ -236,6 +240,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         : useV2Lane
             ? null
             : ref.watch(liveTrackingSyncStatusProvider(widget.tripId));
+    final v2CommitSyncAsync = usePreview || !useV2Lane
+        ? null
+        : ref.watch(v2CommitSyncSnapshotProvider(widget.tripId));
     final mapOverlay = usePreview
         ? null
         : useV2Lane
@@ -281,12 +288,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final shellState = usePreview
         ? widget.previewState!
         : _resolveShellState(runtimeState: runtimeState);
-    final syncKind = syncStatus?.kind;
+    final syncKind = useV2Lane
+        ? _resolveV2SyncKind(v2CommitSyncAsync?.valueOrNull)
+        : syncStatus?.kind;
     final syncLabel = _resolveSyncLabel(
       usePreview: usePreview,
       useV2Lane: useV2Lane,
       shellState: shellState,
       syncStatus: syncStatusAsync?.valueOrNull,
+      v2CommitSyncSnapshot: v2CommitSyncAsync?.valueOrNull,
     );
     final blockedMessage =
         syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
@@ -657,12 +667,29 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     required bool useV2Lane,
     required LiveCaptureShellState shellState,
     required EditorSyncStatus? syncStatus,
+    required V2CommitSyncSnapshot? v2CommitSyncSnapshot,
   }) {
     if (usePreview) {
       return _previewSyncLabel(shellState);
     }
     if (useV2Lane) {
-      return 'Local journal';
+      final snapshot = v2CommitSyncSnapshot;
+      if (snapshot == null) {
+        return 'Saved locally';
+      }
+      if (snapshot.committingJobs > 0) {
+        return 'Committing...';
+      }
+      if (snapshot.failedJobs > 0) {
+        return 'Commit failed';
+      }
+      if (snapshot.pendingJobs > 0) {
+        return 'Upload pending';
+      }
+      if (snapshot.committedJobs > 0) {
+        return 'Committed';
+      }
+      return 'Saved locally';
     }
     switch (syncStatus?.kind) {
       case EditorSyncStatusKind.blocked:
@@ -678,6 +705,22 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       case null:
         return 'Syncing...';
     }
+  }
+
+  EditorSyncStatusKind _resolveV2SyncKind(V2CommitSyncSnapshot? snapshot) {
+    if (snapshot == null) {
+      return EditorSyncStatusKind.localSaved;
+    }
+    if (snapshot.failedJobs > 0) {
+      return EditorSyncStatusKind.failed;
+    }
+    if (snapshot.committingJobs > 0) {
+      return EditorSyncStatusKind.syncing;
+    }
+    if (snapshot.pendingJobs > 0) {
+      return EditorSyncStatusKind.localSaved;
+    }
+    return EditorSyncStatusKind.synced;
   }
 
   String _previewSyncLabel(LiveCaptureShellState value) {
@@ -809,6 +852,24 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       return;
     }
     context.go(Routes.liveHubPath());
+  }
+
+  void _triggerV2CommitRun({
+    required V2CommitTriggerSource source,
+  }) {
+    if (_didTriggerV2LiveOpenCommit &&
+        source == V2CommitTriggerSource.liveOpen) {
+      return;
+    }
+    if (source == V2CommitTriggerSource.liveOpen) {
+      _didTriggerV2LiveOpenCommit = true;
+    }
+    unawaited(
+      ref.read(v2SessionCommitOrchestratorProvider).runForTrip(
+            tripId: widget.tripId,
+            source: source,
+          ),
+    );
   }
 
   Future<void> _showDebugDiagnostics() async {

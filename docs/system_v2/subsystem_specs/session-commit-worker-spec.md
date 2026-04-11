@@ -1,8 +1,8 @@
 ﻿# Session Commit Worker Spec (V2)
 
-Status: Draft for implementation lock
+Status: Phase 5 foundation implemented (backend ingest deferred)
 Version: v2.0
-Last updated: 2026-04-10
+Last updated: 2026-04-12
 Owner: Flutter sync/runtime team + backend ingest team
 
 ## 1. Purpose
@@ -70,15 +70,26 @@ Columns:
 10. `last_error_message` TEXT NULL
 11. `idempotency_key` TEXT NOT NULL
 12. `session_commit_token` TEXT NULL
-13. `created_at` DATETIME NOT NULL
-14. `updated_at` DATETIME NOT NULL
-15. `completed_at` DATETIME NULL
+13. `is_executing` INTEGER NOT NULL DEFAULT 0
+14. `execution_started_at` DATETIME NULL (last heartbeat timestamp)
+15. `execution_owner_id` TEXT NULL
+16. `lease_version` INTEGER NOT NULL DEFAULT 0
+17. `snapshot_hash` TEXT NULL
+18. `snapshot_created_at` DATETIME NULL
+19. `snapshot_event_count` INTEGER NOT NULL DEFAULT 0
+20. `snapshot_media_count` INTEGER NOT NULL DEFAULT 0
+21. `snapshot_point_count` INTEGER NOT NULL DEFAULT 0
+22. `snapshot_payload_bytes` INTEGER NOT NULL DEFAULT 0
+23. `created_at` DATETIME NOT NULL
+24. `updated_at` DATETIME NOT NULL
+25. `completed_at` DATETIME NULL
 
 Indexes:
 
 1. `(job_state, next_retry_at)`
 2. `(session_id)`
 3. `(trip_local_id, created_at DESC)`
+4. `(is_executing, execution_started_at)`
 
 ### 6.2 `session_commit_media_item`
 
@@ -148,6 +159,15 @@ Forbidden:
 1. periodic auto polling that creates duplicate jobs.
 2. one job per entity model.
 
+### 7.1 Deterministic identity + uniqueness lock
+
+1. Job id is deterministic: `commit:{session_id}:{seal_version}`.
+2. Active-job uniqueness is code-enforced inside one transaction:
+   1. find existing active (`commit_pending|committing|commit_failed_retryable`) for same session;
+   2. reuse/reactivate if same deterministic id;
+   3. insert only when no active job conflicts.
+3. New seal version may create a new deterministic job id.
+
 ## 8. Commit Phase Pipeline
 
 The worker executes deterministic phases.
@@ -161,6 +181,7 @@ The worker executes deterministic phases.
 5. Ensure `idempotency_key` exists.
 6. Idempotency key format is fixed:
 - `finalize:{trip_local_id}:{session_id}:{seal_version}`
+7. Snapshot is immutable per job once persisted.
 
 ### Phase 2: `media_upload`
 
@@ -229,6 +250,12 @@ V2 allows bounded, explicit retries only for commit lane.
 5. Manual retry:
 - user can trigger retry from live/editor sync panel.
 
+### 11.1 Lease and takeover lock
+
+1. Lease TTL is 5 minutes from **last heartbeat timestamp** (`execution_started_at`).
+2. Heartbeat updates happen at phase boundaries and explicit lease refresh points.
+3. Takeover is allowed only when lease is stale (`now - execution_started_at > 5 minutes`).
+
 ## 12. UI State Contract
 
 UI must reflect commit state, not legacy entity-sync state.
@@ -245,6 +272,15 @@ Rules:
 1. No generic “sync blocked” copy from V1 entity model.
 2. Show actionable retry CTA on retryable failure.
 3. Preserve local timeline visibility regardless of commit state.
+4. Backend-ingest-off mode must not show false long-running “committing” state.
+   1. Local `prepare` may run briefly.
+   2. Steady-state remains `commit_pending` with upload-pending copy.
+
+## 12.1 Backend-deferred execution policy (Phase 5)
+
+1. With `enable_v2_backend_ingest=false`, worker runs local `prepare` only.
+2. No network upload/finalize phases are executed in this phase.
+3. Jobs remain `commit_pending` without retry churn.
 
 ## 13. Crash and Recovery Behavior
 

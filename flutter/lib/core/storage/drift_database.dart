@@ -26,6 +26,9 @@ import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_chunk_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_job_dao.dart';
+import 'package:dora/core/storage/daos/v2/session_commit_media_item_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
@@ -48,6 +51,9 @@ import 'package:dora/core/storage/tables/v2/route_projection_local_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_attempt_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_candidate_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/route_point_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/session_commit_chunk_table.dart';
+import 'package:dora/core/storage/tables/v2/session_commit_job_table.dart';
+import 'package:dora/core/storage/tables/v2/session_commit_media_item_table.dart';
 import 'package:dora/core/storage/tables/v2/session_activity_window_table.dart';
 import 'package:dora/core/storage/tables/v2/session_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/timeline_compile_cursor_table.dart';
@@ -77,6 +83,9 @@ part 'drift_database.g.dart';
     MediaJournal,
     ResolverCandidateJournal,
     ResolverAttemptJournal,
+    SessionCommitJob,
+    SessionCommitMediaItem,
+    SessionCommitChunk,
     TimelineProjectionLocal,
     RouteProjectionLocal,
     TimelineCompileCursor,
@@ -101,6 +110,9 @@ part 'drift_database.g.dart';
     MediaJournalDao,
     ResolverCandidateJournalDao,
     ResolverAttemptJournalDao,
+    SessionCommitJobDao,
+    SessionCommitMediaItemDao,
+    SessionCommitChunkDao,
     TimelineProjectionLocalDao,
     RouteProjectionLocalDao,
     TimelineCompileCursorDao,
@@ -110,7 +122,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -565,6 +577,65 @@ class AppDatabase extends _$AppDatabase {
               '''
               CREATE INDEX IF NOT EXISTS timeline_compile_cursor_updated_idx
               ON timeline_compile_cursor (updated_at)
+              ''',
+            );
+          }
+          if (from < 20) {
+            await _addColumnIfMissing(
+              tableName: 'session_journal',
+              columnName: 'stop_client_event_id',
+              definition: 'TEXT',
+            );
+            await m.createTable(sessionCommitJob);
+            await m.createTable(sessionCommitMediaItem);
+            await m.createTable(sessionCommitChunk);
+
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_job_state_retry_idx
+              ON session_commit_job (job_state, next_retry_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_job_session_idx
+              ON session_commit_job (session_id)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_job_trip_created_idx
+              ON session_commit_job (trip_local_id, created_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_job_lease_idx
+              ON session_commit_job (is_executing, execution_started_at)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_media_item_job_state_idx
+              ON session_commit_media_item (job_id, upload_state)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_media_item_media_idx
+              ON session_commit_media_item (media_id)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS session_commit_chunk_job_state_idx
+              ON session_commit_chunk (job_id, chunk_state)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE UNIQUE INDEX IF NOT EXISTS session_commit_chunk_job_index_unique_idx
+              ON session_commit_chunk (job_id, chunk_index)
               ''',
             );
           }

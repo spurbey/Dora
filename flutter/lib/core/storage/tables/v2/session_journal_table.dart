@@ -22,6 +22,7 @@ class SessionJournal extends Table {
   DateTimeColumn get stopAckAt => dateTime().nullable()();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get endedAt => dateTime().nullable()();
+  TextColumn get stopClientEventId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   IntColumn get sealVersion => integer().withDefault(const Constant(0))();

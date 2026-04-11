@@ -119,6 +119,7 @@ class V2LiveTrackingRuntimeRepository {
       stopServerPending: 0,
       startAckAt: now,
       startedAt: startResult.startedAt ?? now,
+      stopClientEventId: null,
       sealVersion: 0,
       startRequestSeq: startRequestSeq,
       sessionSeq: sessionSeq,
@@ -183,6 +184,7 @@ class V2LiveTrackingRuntimeRepository {
       stopAckAt: session.stopAckAt,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
+      stopClientEventId: session.stopClientEventId,
       sealVersion: session.sealVersion,
       startRequestSeq: session.startRequestSeq,
       sessionSeq: session.sessionSeq,
@@ -227,6 +229,7 @@ class V2LiveTrackingRuntimeRepository {
       stopAckAt: session.stopAckAt,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
+      stopClientEventId: session.stopClientEventId,
       sealVersion: session.sealVersion,
       startRequestSeq: session.startRequestSeq,
       sessionSeq: session.sessionSeq,
@@ -258,6 +261,7 @@ class V2LiveTrackingRuntimeRepository {
       stopAckAt: session.stopAckAt,
       startedAt: session.startedAt,
       endedAt: now,
+      stopClientEventId: session.stopClientEventId,
       sealVersion: nextSealVersion,
       startRequestSeq: session.startRequestSeq,
       sessionSeq: session.sessionSeq,
@@ -268,6 +272,10 @@ class V2LiveTrackingRuntimeRepository {
 
     var stopAckAt = session.stopAckAt;
     var stopServerPending = 0;
+    final stopClientEventId = (session.stopClientEventId != null &&
+            session.stopClientEventId!.trim().isNotEmpty)
+        ? session.stopClientEventId!.trim()
+        : _uuid.v4();
     String? remoteTripId = session.serverTripId;
     try {
       remoteTripId ??= await _resolveRemoteTripIdForStart(tripId);
@@ -276,7 +284,7 @@ class V2LiveTrackingRuntimeRepository {
       await _commandApi.stop(
         remoteTripId: remoteTripId,
         idempotencyKey: idempotencyKey,
-        clientEventId: _uuid.v4(),
+        clientEventId: stopClientEventId,
         stoppedAt: now,
         remoteSessionId: _remoteSessionIdsByClientSessionId[session.sessionId],
       );
@@ -295,6 +303,7 @@ class V2LiveTrackingRuntimeRepository {
       stopAckAt: stopAckAt,
       startedAt: session.startedAt,
       endedAt: now,
+      stopClientEventId: stopClientEventId,
       sealVersion: nextSealVersion,
       startRequestSeq: session.startRequestSeq,
       sessionSeq: session.sessionSeq,
@@ -363,6 +372,7 @@ class V2LiveTrackingRuntimeRepository {
         stopAckAt: stale.stopAckAt,
         startedAt: stale.startedAt,
         endedAt: stale.endedAt ?? now,
+        stopClientEventId: stale.stopClientEventId,
         sealVersion: math.max(stale.sealVersion, 1),
         startRequestSeq: stale.startRequestSeq,
         sessionSeq: stale.sessionSeq,

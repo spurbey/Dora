@@ -73,4 +73,31 @@ class ResolverCandidateJournalDao extends DatabaseAccessor<AppDatabase>
           .toList(growable: false);
     });
   }
+
+  Future<List<ResolverCandidateJournalRow>> listCandidatesForEvents(
+    List<String> eventIds,
+  ) {
+    if (eventIds.isEmpty) {
+      return Future<List<ResolverCandidateJournalRow>>.value(
+        const <ResolverCandidateJournalRow>[],
+      );
+    }
+    return (select(resolverCandidateJournal)
+          ..where((row) => row.eventId.isIn(eventIds))
+          ..orderBy([
+            (row) => OrderingTerm(
+                  expression: row.eventId,
+                  mode: OrderingMode.asc,
+                ),
+            (row) => OrderingTerm(
+                  expression: row.candidateVersion,
+                  mode: OrderingMode.desc,
+                ),
+            (row) => OrderingTerm(
+                  expression: row.rankIndex,
+                  mode: OrderingMode.asc,
+                ),
+          ]))
+        .get();
+  }
 }

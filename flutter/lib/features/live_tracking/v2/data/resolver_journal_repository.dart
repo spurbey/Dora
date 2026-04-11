@@ -75,6 +75,11 @@ class V2ResolverJournalRepository {
         limit: limit,
       );
 
+  Future<List<ResolverCandidateJournalRow>> listCandidatesForEvents(
+    List<String> eventIds,
+  ) =>
+      _resolverCandidateDao.listCandidatesForEvents(eventIds);
+
   Future<int> upsertAttempt({
     required String attemptId,
     required String eventId,

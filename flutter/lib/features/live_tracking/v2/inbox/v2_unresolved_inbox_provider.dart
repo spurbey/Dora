@@ -78,18 +78,19 @@ final v2UnresolvedReviewControllerProvider =
 final v2UnresolvedInboxProvider =
     StreamProvider.autoDispose.family<List<V2UnresolvedInboxItem>, String>(
   (ref, tripId) {
-    final eventRepository = ref.watch(v2EventJournalRepositoryProvider);
-    final resolverRepository = ref.watch(v2ResolverJournalRepositoryProvider);
-    return eventRepository
-        .watchUnresolvedEventsForTrip(tripId, limit: 20)
-        .asyncMap((events) async {
+  final eventRepository = ref.watch(v2EventJournalRepositoryProvider);
+  final resolverRepository = ref.watch(v2ResolverJournalRepositoryProvider);
+  return eventRepository
+      .watchUnresolvedEventsForTrip(tripId, limit: 20)
+      .asyncMap((events) async {
       final inbox = <V2UnresolvedInboxItem>[];
+      final eventIds = events.map((event) => event.eventId).toList();
+      final allCandidates =
+          await resolverRepository.listCandidatesForEvents(eventIds);
+      final latestByEvent = _latestCandidatesByEvent(allCandidates, limit: 3);
       for (final event in events) {
-        final candidates =
-            await resolverRepository.listLatestCandidatesForEvent(
-          event.eventId,
-          limit: 3,
-        );
+        final candidates = latestByEvent[event.eventId] ??
+            const <ResolverCandidateJournalRow>[];
         final normalizedCandidates =
             candidates.map(_toCandidate).toList(growable: false);
         final lastActivityAt = _resolveLastActivityAt(
@@ -164,4 +165,36 @@ int _resolverPriority(String state) {
     default:
       return 2;
   }
+}
+
+Map<String, List<ResolverCandidateJournalRow>> _latestCandidatesByEvent(
+  List<ResolverCandidateJournalRow> rows, {
+  int limit = 3,
+}) {
+  if (rows.isEmpty) {
+    return const <String, List<ResolverCandidateJournalRow>>{};
+  }
+  final Map<String, List<ResolverCandidateJournalRow>> result =
+      <String, List<ResolverCandidateJournalRow>>{};
+  final Map<String, int> latestVersion = <String, int>{};
+  for (final row in rows) {
+    final current = latestVersion[row.eventId];
+    if (current == null || row.candidateVersion > current) {
+      latestVersion[row.eventId] = row.candidateVersion;
+    }
+  }
+  for (final row in rows) {
+    final version = latestVersion[row.eventId];
+    if (version == null || row.candidateVersion != version) {
+      continue;
+    }
+    final list = result.putIfAbsent(
+      row.eventId,
+      () => <ResolverCandidateJournalRow>[],
+    );
+    if (list.length < limit) {
+      list.add(row);
+    }
+  }
+  return result;
 }

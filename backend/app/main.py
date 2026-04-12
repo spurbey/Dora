@@ -50,6 +50,7 @@ from app.api.v1 import (
     live_tracking,
     compiled_projection,
 )
+from app.api.v2 import live_tracking as live_tracking_v2
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ app.include_router(components.router, prefix="/api/v1")
 app.include_router(exports.router, prefix="/api/v1")
 app.include_router(live_tracking.router, prefix="/api/v1")
 app.include_router(compiled_projection.router, prefix="/api/v1")
+app.include_router(live_tracking_v2.router, prefix="/api/v2")
 
 
 @app.on_event("startup")

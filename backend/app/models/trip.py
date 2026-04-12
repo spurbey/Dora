@@ -107,6 +107,12 @@ class Trip(Base):
         default=False,
         comment="Whether live tracking features are enabled for this trip",
     )
+    v2_backend_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether strict V2 ingest/projection backend lane is enabled for this trip",
+    )
     tracking_started_at = Column(
         DateTime(timezone=True),
         comment="Time when tracking first started for this trip",

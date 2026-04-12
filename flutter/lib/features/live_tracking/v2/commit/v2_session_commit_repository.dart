@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
@@ -232,8 +234,11 @@ class V2SessionCommitRepository {
       final points =
           await _routePointDao.listPointsForSession(session.sessionId);
       final now = _now().toUtc();
+      final mediaManifest = await _buildMediaManifest(media);
+      final mediaManifestDigest = _stableHash(_canonicalJson(mediaManifest));
 
       final payload = <String, Object?>{
+        'schema_version': 1,
         'job_id': jobId,
         'trip_local_id': session.tripLocalId,
         'server_trip_id': session.serverTripId,
@@ -293,6 +298,8 @@ class V2SessionCommitRepository {
               },
             )
             .toList(growable: false),
+        'media_manifest': mediaManifest,
+        'media_manifest_digest': mediaManifestDigest,
         'route_points': points
             .map(
               (point) => <String, Object?>{
@@ -500,15 +507,7 @@ class V2SessionCommitRepository {
   }
 
   String _stableHash(String value) {
-    const int fnvOffset = 0xcbf29ce484222325;
-    const int fnvPrime = 0x100000001b3;
-    var hash = fnvOffset;
-    final bytes = utf8.encode(value);
-    for (final byte in bytes) {
-      hash ^= byte;
-      hash = (hash * fnvPrime) & 0xFFFFFFFFFFFFFFFF;
-    }
-    return hash.toRadixString(16).padLeft(16, '0');
+    return crypto.sha256.convert(utf8.encode(value)).toString();
   }
 
   int? _sealVersionFromJobId(String jobId) {
@@ -517,5 +516,64 @@ class V2SessionCommitRepository {
       return null;
     }
     return int.tryParse(parts.last);
+  }
+
+  Future<List<Map<String, Object?>>> _buildMediaManifest(
+    List<MediaJournalRow> media,
+  ) async {
+    final manifest = <Map<String, Object?>>[];
+    for (final item in media) {
+      manifest.add(
+        <String, Object?>{
+          'client_media_id': item.mediaId,
+          'mime_type': item.mimeType,
+          'size_bytes': item.bytesSize,
+          'media_content_hash': await _computeMediaContentHash(item),
+        },
+      );
+    }
+    manifest.sort(
+      (a, b) => (a['client_media_id'] as String)
+          .compareTo(b['client_media_id'] as String),
+    );
+    return manifest;
+  }
+
+  Future<String> _computeMediaContentHash(MediaJournalRow item) async {
+    final file = _fileFromLocalUri(item.localUri);
+    if (file != null && await file.exists()) {
+      final digest = await crypto.sha256.bind(file.openRead()).first;
+      return digest.toString();
+    }
+    return _stableHash(
+      _canonicalJson(
+        <String, Object?>{
+          'media_id': item.mediaId,
+          'event_id': item.eventId,
+          'local_uri': item.localUri,
+          'mime_type': item.mimeType,
+          'bytes_size': item.bytesSize,
+          'captured_at': item.capturedAt.toIso8601String(),
+        },
+      ),
+    );
+  }
+
+  File? _fileFromLocalUri(String localUri) {
+    if (localUri.isEmpty) {
+      return null;
+    }
+    final parsed = Uri.tryParse(localUri);
+    if (parsed != null && parsed.scheme == 'file') {
+      return File.fromUri(parsed);
+    }
+    if (parsed != null && parsed.hasScheme && parsed.scheme != 'file') {
+      return null;
+    }
+    return File(localUri);
+  }
+
+  String _canonicalJson(Object? value) {
+    return jsonEncode(value);
   }
 }

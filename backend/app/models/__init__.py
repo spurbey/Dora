@@ -46,6 +46,13 @@ from app.models.trip_compiled_projection_state import TripCompiledProjectionStat
 from app.models.trip_compiled_projection_item import TripCompiledProjectionItem
 from app.models.trip_compiled_route_segment import TripCompiledRouteSegment
 from app.models.trip_compiled_projection_override import TripCompiledProjectionOverride
+from app.models.trip_session_raw import TripSessionRaw
+from app.models.trip_event_raw import TripEventRaw
+from app.models.trip_media_raw import TripMediaRaw
+from app.models.trip_route_raw_point import TripRouteRawPoint
+from app.models.trip_commit_manifest import TripCommitManifest
+from app.models.trip_timeline_projection_v2 import TripTimelineProjectionV2
+from app.models.trip_route_projection_v2 import TripRouteProjectionV2
 
 __all__ = [
     "User",
@@ -77,4 +84,11 @@ __all__ = [
     "TripCompiledProjectionItem",
     "TripCompiledRouteSegment",
     "TripCompiledProjectionOverride",
+    "TripSessionRaw",
+    "TripEventRaw",
+    "TripMediaRaw",
+    "TripRouteRawPoint",
+    "TripCommitManifest",
+    "TripTimelineProjectionV2",
+    "TripRouteProjectionV2",
 ]

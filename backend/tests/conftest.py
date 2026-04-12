@@ -58,9 +58,20 @@ def setup_test_views():
     Phase A3: Creates trip_components_view for unified timeline.
     """
     from sqlalchemy import text
+    from app.models.trip_commit_manifest import TripCommitManifest
+    from app.models.trip_event_raw import TripEventRaw
+    from app.models.trip_media_raw import TripMediaRaw
+    from app.models.trip_route_projection_v2 import TripRouteProjectionV2
+    from app.models.trip_route_raw_point import TripRouteRawPoint
+    from app.models.trip_session_raw import TripSessionRaw
+    from app.models.trip_timeline_projection_v2 import TripTimelineProjectionV2
 
     connection = engine.connect()
     try:
+        connection.execute(text("""
+            ALTER TABLE trips
+            ADD COLUMN IF NOT EXISTS v2_backend_enabled BOOLEAN NOT NULL DEFAULT false;
+        """))
         connection.execute(text("""
             CREATE OR REPLACE VIEW trip_components_view AS
             SELECT
@@ -89,6 +100,16 @@ def setup_test_views():
                 id as source_id
             FROM routes;
         """))
+        for table in (
+            TripSessionRaw.__table__,
+            TripEventRaw.__table__,
+            TripMediaRaw.__table__,
+            TripRouteRawPoint.__table__,
+            TripCommitManifest.__table__,
+            TripTimelineProjectionV2.__table__,
+            TripRouteProjectionV2.__table__,
+        ):
+            table.create(bind=connection, checkfirst=True)
         connection.commit()
     except Exception:
         # View might already exist, ignore

@@ -192,6 +192,9 @@ void main() {
           jsonDecode(firstChunks.first.payloadJson) as Map<String, dynamic>;
       final events = decodedPayload['events'] as List<dynamic>;
       final media = decodedPayload['media'] as List<dynamic>;
+      final mediaManifest = decodedPayload['media_manifest'] as List<dynamic>;
+      final mediaManifestDigest =
+          decodedPayload['media_manifest_digest'] as String;
       final routePoints = decodedPayload['route_points'] as List<dynamic>;
       final firstEvent = events.first as Map<String, dynamic>;
       expect(firstEvent.containsKey('latitude'), isTrue);
@@ -203,6 +206,14 @@ void main() {
           isTrue);
       expect((media.first as Map<String, dynamic>).containsKey('upload_state'),
           isTrue);
+      expect(mediaManifest, hasLength(1));
+      final firstManifestItem = mediaManifest.first as Map<String, dynamic>;
+      expect(firstManifestItem['client_media_id'], 'media-a');
+      expect(
+        (firstManifestItem['media_content_hash'] as String).length,
+        64,
+      );
+      expect(mediaManifestDigest.length, 64);
       expect(routePoints, isNotEmpty);
       expect(
           (routePoints.first as Map<String, dynamic>).containsKey('point_seq'),

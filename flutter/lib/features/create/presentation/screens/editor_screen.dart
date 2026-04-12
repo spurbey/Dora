@@ -56,7 +56,6 @@ import 'package:dora/features/create/presentation/widgets/media_attachment_viewe
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_captured_storyline_panel.dart';
-import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
@@ -85,7 +84,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   final Set<String> _momentActionsInFlight = <String>{};
   final Set<String> _v2ReviewActionsInFlight = <String>{};
   bool _didTriggerV2EditorOpenRecovery = false;
-  bool _didTriggerV2EditorOpenCommit = false;
   static const _noLinkedMomentPlaceValue = '__no_linked_place__';
   final bool _showLegacyTrackingWidgets = false;
   static const _defaultEditorCenter = AppLatLng(
@@ -100,7 +98,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _resolveDeviceCenter();
       _triggerV2Recovery(source: V2ResolverTriggerSource.editorOpen);
-      _triggerV2CommitRun(source: V2CommitTriggerSource.editorOpen);
     });
   }
 
@@ -114,7 +111,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _triggerV2Recovery(source: V2ResolverTriggerSource.resumed);
-      _triggerV2CommitRun(source: V2CommitTriggerSource.resumed);
     }
   }
 
@@ -131,7 +127,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     final useV2ReviewLane = v2GateDecision.enabled;
     if (useV2ReviewLane) {
       _triggerV2Recovery(source: V2ResolverTriggerSource.editorOpen);
-      _triggerV2CommitRun(source: V2CommitTriggerSource.editorOpen);
     }
     final editorAsync = ref.watch(editorControllerProvider(widget.tripId));
 
@@ -165,9 +160,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       data: (editor) {
         final mapState = ref.watch(mapStateProvider(widget.tripId));
         final syncStatusAsync = useV2ReviewLane
-            ? ref
-                .watch(v2CommitSyncSnapshotProvider(widget.tripId))
-                .whenData(_mapV2CommitStatus)
+            ? const AsyncValue<EditorSyncStatus>.data(
+                EditorSyncStatus(
+                  kind: EditorSyncStatusKind.localSaved,
+                  label: 'Saved locally',
+                  snapshot: EditorSyncSnapshot(
+                    blockedItems: 0,
+                    failedItems: 0,
+                    activeItems: 0,
+                    unsyncedRows: 0,
+                  ),
+                ),
+              )
             : ref.watch(editorSyncStatusProvider(widget.tripId));
         final compiledProjectionAsync = useV2ReviewLane
             ? null
@@ -198,7 +202,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         final syncCallout = _resolveEditorSyncCallout(
           syncStatusAsync: syncStatusAsync,
           controller: controller,
-          useV2ReviewLane: useV2ReviewLane,
         );
 
         final mediaQuery = MediaQuery.of(context);
@@ -454,7 +457,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   _EditorSyncCallout? _resolveEditorSyncCallout({
     required AsyncValue<EditorSyncStatus> syncStatusAsync,
     required EditorController controller,
-    required bool useV2ReviewLane,
   }) {
     return syncStatusAsync.when(
       data: (status) {
@@ -464,13 +466,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
               message: 'Some changes failed to sync.',
               tint: AppColors.error,
               actionLabel: 'Retry now',
-              onAction: () => unawaited(
-                useV2ReviewLane
-                    ? ref
-                        .read(v2SessionCommitOrchestratorProvider)
-                        .manualRetry(tripId: widget.tripId)
-                    : _retrySyncNow(),
-              ),
+              onAction: () => unawaited(_retrySyncNow()),
             );
           case EditorSyncStatusKind.blocked:
             final snapshot = status.snapshot;
@@ -1018,55 +1014,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     ).enabled;
   }
 
-  EditorSyncStatus _mapV2CommitStatus(V2CommitSyncSnapshot snapshot) {
-    if (snapshot.failedJobs > 0) {
-      return EditorSyncStatus(
-        kind: EditorSyncStatusKind.failed,
-        label: 'Commit failed',
-        snapshot: EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: snapshot.failedJobs,
-          activeItems: snapshot.committingJobs,
-          unsyncedRows: snapshot.pendingJobs,
-        ),
-      );
-    }
-    if (snapshot.committingJobs > 0) {
-      return EditorSyncStatus(
-        kind: EditorSyncStatusKind.syncing,
-        label: 'Committing...',
-        snapshot: EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: snapshot.committingJobs,
-          unsyncedRows: snapshot.pendingJobs,
-        ),
-      );
-    }
-    if (snapshot.pendingJobs > 0) {
-      return EditorSyncStatus(
-        kind: EditorSyncStatusKind.localSaved,
-        label: 'Upload pending',
-        snapshot: EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: 0,
-          unsyncedRows: snapshot.pendingJobs,
-        ),
-      );
-    }
-    return EditorSyncStatus(
-      kind: EditorSyncStatusKind.synced,
-      label: snapshot.committedJobs > 0 ? 'Committed' : 'Saved locally',
-      snapshot: const EditorSyncSnapshot(
-        blockedItems: 0,
-        failedItems: 0,
-        activeItems: 0,
-        unsyncedRows: 0,
-      ),
-    );
-  }
-
   void _triggerV2Recovery({
     required V2ResolverTriggerSource source,
   }) {
@@ -1082,28 +1029,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     }
     unawaited(
       ref.read(v2ResolverOrchestratorProvider).runRecoveryForTrip(
-            tripId: widget.tripId,
-            source: source,
-            limit: 20,
-          ),
-    );
-  }
-
-  void _triggerV2CommitRun({
-    required V2CommitTriggerSource source,
-  }) {
-    if (!_isV2ReviewLaneEnabled()) {
-      return;
-    }
-    if (source == V2CommitTriggerSource.editorOpen &&
-        _didTriggerV2EditorOpenCommit) {
-      return;
-    }
-    if (source == V2CommitTriggerSource.editorOpen) {
-      _didTriggerV2EditorOpenCommit = true;
-    }
-    unawaited(
-      ref.read(v2SessionCommitOrchestratorProvider).runForTrip(
             tripId: widget.tripId,
             source: source,
             limit: 20,

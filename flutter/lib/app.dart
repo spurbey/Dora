@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,8 +11,6 @@ import 'package:dora/features/create/presentation/providers/entity_sync_provider
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
-import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
-import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 
 class DoraApp extends ConsumerStatefulWidget {
   const DoraApp({super.key});
@@ -38,14 +34,8 @@ class _DoraAppState extends ConsumerState<DoraApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(
-        ref.read(v2SessionCommitOrchestratorProvider).runGlobal(
-              source: V2CommitTriggerSource.resumed,
-              limit: 20,
-            ),
-      );
-    }
+    // Publish-only V2 lane: app lifecycle should not trigger session-commit uploads.
+    if (state == AppLifecycleState.resumed) return;
   }
 
   @override

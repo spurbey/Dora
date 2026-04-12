@@ -21,6 +21,8 @@ import os
 import pytest
 from uuid import uuid4
 
+os.environ.setdefault("V2_STORAGE_REQUIRE_EXISTENCE_CHECK", "false")
+
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 

@@ -1,347 +1,127 @@
-﻿# Dora Live System V2 Master Blueprint
+# Dora Live System V2 Master Blueprint
 
 Status: Draft for implementation lock
-Version: v2.1
+Version: v2.2
 Last updated: 2026-04-12
-Audience: Product, Flutter, backend, QA, SRE, new agents
+Audience: Product, Flutter, backend, QA, SRE
 
 ## 1. Intent
 
-This document defines the new Live System V2 as a clean architecture reset.
+System V2 is a clean reset for live tracking:
 
-It is not an additive patch on prior sync-heavy behavior. It is a new operating model designed to be:
+1. local-first runtime,
+2. bounded server writes,
+3. deterministic resolver and timeline behavior,
+4. strong replay/idempotency.
 
-1. Local-first for runtime responsiveness.
-2. Bounded-write for server scalability.
-3. Deterministic for resolver and timeline behavior.
-4. Recoverable for cross-device and reinstall use cases.
+## 2. Core Problem Being Solved
 
-This blueprint is the authoritative high-level contract. Subsystem docs must conform to it.
+V1-style continuous sync caused:
 
-## 2. Problem Statement
+1. request floods,
+2. state mismatches between live/editor/server,
+3. sticky retry loops,
+4. fragile coupling between capture and server availability.
 
-The previous model accumulated complexity through always-on data sync and read-refresh coupling.
+## 3. Product Principles
 
-Observed failure patterns:
+1. Capture first, sync later.
+2. Manual user decisions are final.
+3. Server writes are milestone-based.
+4. Local timeline must be visible immediately.
+5. Cross-device view comes from published server projection.
 
-1. High server request volume from continuous background syncing and refresh triggers.
-2. User confusion from state mismatches between local capture, sync status, and timeline visibility.
-3. Fragile behavior when identity mapping or retry loops entered inconsistent states.
-4. Slow iteration due to many interdependent workers and side effects.
+## 4. Architecture Lanes
 
-Root issue: too much behavior attempted in real time, across too many lanes, for data that does not need immediate server persistence.
+### 4.1 Command lane
 
-## 3. Product-Level Principles
+1. server-bound: `start`, `stop`
+2. local-only: `pause`, `resume`
+3. no command heartbeat loops
 
-V2 follows these principles:
+### 4.2 Local journal lane
 
-1. Capture first, sync later: capture latency is always prioritized.
-2. Manual user decision is final: automation cannot overwrite user intent.
-3. Server writes are milestone-based, not heartbeat-based.
-4. Timeline editing is local and instant; publish is explicit.
-5. Server stores canonical history suitable for recompile and cross-device restore.
+1. points/events/media/resolver states are local during active editing/live
+2. local compiler renders timeline and route for current device
 
-## 4. Scope
+### 4.3 Publish lane
 
-Included:
+1. explicit publish is the only V2 data-plane ingest trigger
+2. session-stop commit artifacts are local staging only
+3. backend ingest + projection happen at publish milestones
 
-1. Live session runtime model.
-2. Local journal schema and state contracts.
-3. Local resolver workflow with review queue.
-4. Session-end commit flow.
-5. Trip publish flow.
-6. Server canonical storage + server compiled projection for remote devices.
+## 5. Canonical Truth by Lifecycle
 
-Not included in this wave:
+1. During live/edit: local journal is canonical.
+2. After publish: server raw rows are canonical.
+3. Server projection is derived read model for cross-device.
 
-1. Advisory lane redesign and recommendation engine expansion.
-2. High-frequency server telemetry streaming.
-3. Real-time cross-device co-editing while a session is active.
-4. New social collaboration features.
+## 6. Runtime Flow (High Level)
 
-## 5. Architecture Overview
+### 6.1 Live capture
 
-V2 has three lanes only.
+1. capture writes locally immediately,
+2. resolver runs locally,
+3. unresolved items go to shared review queue,
+4. manual action locks decision.
 
-1. Command Lane
-- Purpose: session control.
-- Operations:
-  1. server-bound: `start`, `stop`
-  2. local-only: `pause`, `resume`
-- Characteristics:
-  1. no command heartbeat retry loop
-  2. stop seals locally immediately and completes server ack in finalize path if needed
+### 6.2 Session stop
 
-2. Local Journal Lane
-- Purpose: runtime truth on device.
-- Data: route points, events, media, resolver candidates, resolver decisions, manual locks.
-- Characteristics: local-only during active session and local editing.
+1. session seals locally immediately,
+2. stop command attempts server ack,
+3. on failure, mark `stop_server_pending`,
+4. create/update local session staging artifacts.
 
-3. Commit Lane
-- Purpose: bounded server persistence.
-- Milestones:
-  1. Session finalize commit.
-  2. Trip publish/save commit.
-- Characteristics: idempotent, chunked, bounded retry, explicit user feedback.
+### 6.3 Editor publish
 
-## 6. Canonical Truth Model
+1. user explicitly taps save/upload,
+2. client freezes snapshot and starts publish job,
+3. backend ingests raw payload and compiles projection synchronously,
+4. second device reads timeline/route from projection endpoints.
 
-Canonical truth differs by phase.
+## 7. Locked Behavioral Contracts
 
-1. During active session and local editing:
-- Local journal is canonical for the current device.
+1. no automatic publish on background/close,
+2. stop does not imply upload success,
+3. one active publish per trip,
+4. immutable snapshot per publish job,
+5. replay-safe idempotency and fingerprint validation,
+6. manual-lock never overwritten by automation.
 
-2. After session finalize or trip publish:
-- Server raw journal is canonical for account-level history.
-- Server compiled projection is a derived read model.
+## 8. Performance and Load Targets
 
-Rule:
+1. near-zero active-session data-plane writes,
+2. bounded publish ingest with chunking,
+3. bounded read APIs (cursor timeline and capped route response),
+4. no unbounded polling loops.
 
-1. Raw journal remains canonical on server.
-2. Compiled timeline is derived/cache materialization.
+## 9. Security Baseline
 
-Reason:
+1. V2 mutating endpoints require `Idempotency-Key`,
+2. publish token bound to user/trip/job/schema context,
+3. media references verified for existence and ownership,
+4. provider-specific storage URLs are not canonical identity.
 
-1. Recompile safety after resolver/compiler rule changes.
-2. Better diagnostics and audit of user decisions.
-3. Reliable cross-device restoration.
+## 10. Rollout Direction
 
-## 7. Runtime Flow (High Level)
+1. feature-flagged cohorts,
+2. publish lane behind `enable_v2_backend_ingest` until all Phase 6 gates pass,
+3. legacy V1 sync/projection deactivated only after soak success.
 
-### 7.1 Command behavior flow
-
-1. `start` requires network/auth and is fail-fast if server call fails.
-2. `pause` and `resume` are local-only control state transitions.
-3. `stop` always seals locally first.
-4. If server stop fails/offline, `stop_server_pending = true` and finalize job completes stop acknowledgement later.
-
-### 7.2 Live capture flow
-
-1. User captures note/tag/warn/photo/media.
-2. App writes event/media locally immediately.
-3. Event enters `geotag_unresolved` state.
-4. Resolver runs locally using external place API.
-5. Outcome:
-- unique confident candidate -> auto bind.
-- ambiguous high candidates -> review required with candidate list.
-- no reliable candidate -> unresolved until user action.
-
-### 7.3 User review flow
-
-1. Shared unresolved inbox appears in Live and Editor.
-2. Per event actions:
-- Accept candidate.
-- Add place manually.
-- Keep geotag.
-3. Decision is persisted locally with decision source and manual lock.
-4. Manual lock prevents any future auto override.
-
-### 7.4 Session finalize flow
-
-1. User stops session.
-2. App seals session locally.
-3. App creates one `session_finalize_job`.
-4. Commit lane uploads media and journal payload in idempotent chunks.
-5. On success, local rows become committed.
-6. On failure, job remains retryable with explicit UI state.
-
-### 7.5 Trip publish flow
-
-1. User taps save/upload in editor.
-2. App creates one `trip_publish_job` from local canonical journal and editor state.
-3. Server persists canonical raw payload and compiles published projection.
-
-### 7.6 Cross-device restore
-
-1. New device fetches server compiled projection for immediate viewing.
-2. Server raw journal remains available for future recompile consistency.
-
-## 8. State Contracts (Top-Level)
-
-### 8.1 Resolution states
-
-1. `geotag_unresolved`
-2. `review_required`
-3. `place_bound`
-4. `geotag_final`
-
-### 8.1.1 Geotag final reason
-
-1. `user_keep_geotag`
-2. `no_reliable_candidate`
-3. `manual_add_cancelled`
-
-### 8.2 Decision source values
-
-1. `auto_high_confidence`
-2. `user_accept_candidate`
-3. `user_manual_place`
-4. `user_keep_geotag`
-
-### 8.3 Manual lock
-
-1. `manual_lock = true` for any user decision.
-2. Resolver and reconcile logic must short-circuit for locked rows.
-
-### 8.4 Commit states
-
-1. `commit_pending`
-2. `committing`
-3. `commit_failed_retryable`
-4. `committed`
-
-## 9. API Boundary Policy
-
-1. Device -> external place API:
-- Used for resolver candidate discovery.
-- Provider contract locked to ORS direct for V2.
-- Directions provider locked to Mapbox Directions API direct from app.
-- Must use secure key strategy and strict limits.
-
-2. Device -> Dora backend:
-- Control APIs for session lifecycle.
-- Session finalize ingest.
-- Trip publish ingest.
-- Read APIs for remote compiled timeline.
-
-3. Forbidden patterns:
-- Continuous event/media/point flush during active session.
-- Sync heartbeat loops for live entities.
-- Poll-driven projection flood behavior.
-
-## 10. Scalability Policy
-
-Target behavior:
-
-1. Active session should generate near-zero data-plane server writes.
-2. Data-plane writes should happen only at explicit milestone commits.
-3. No generalized worker storms from per-entity retries.
-
-Key controls:
-
-1. One finalize job per stopped session.
-2. One publish job per explicit user publish.
-3. Bounded retries with backoff and user-visible retry action.
-4. Chunked ingest for large media/session payloads.
-5. Idempotency keys for finalize and publish operations.
-
-## 11. Security and Compliance Baseline
-
-1. External resolver provider keys must be protected.
-2. Prefer short-lived scoped tokens or backend-minted session tokens.
-3. Avoid shipping unrestricted long-lived provider secrets.
-4. Track provider quota and abuse controls.
-
-## 12. V1 Decommission Direction
-
-V2 explicitly retires these patterns from live critical path:
-
-1. Generic entity sync pipeline for live entities.
-2. Continuous tracking point batch server sync.
-3. Projection refresh mechanisms coupled to sync-task churn.
-4. Reconcile paths that can overwrite manual decisions.
-
-## 13. Delivery Strategy
-
-Phase 1: Contracts and schema lock
-
-1. Freeze state machine and payload contracts.
-2. Introduce v2 local journal schema.
-3. Add unresolved inbox and lock semantics.
-
-Phase 2: Local-first runtime migration
-
-1. Route all live capture and local compile to v2 journal.
-2. Disable legacy continuous data flush for v2 sessions.
-
-Phase 3: Commit lane
-
-1. Implement finalize/publish jobs with idempotent ingest.
-2. Add explicit retry UI and observability.
-
-Phase 4: Server canonical + projection
-
-1. Persist raw canonical journal on server.
-2. Materialize compiled projection read model.
-3. Validate cross-device restore.
-
-Phase 5: Deletion and hardening
-
-1. Remove legacy live sync paths.
-2. Soak test long sessions, offline/online transitions, reinstall restore.
-
-Phase 4 stabilization note (2026-04-12):
-
-1. Local compiler null dirty-window crash guard is mandatory.
-2. Local compiler runtime trigger is narrowed to session-sealed transitions for this phase to avoid compile churn during active capture.
-3. Route-association complexity scaling is a deferred performance guardrail (next hardening slice), not a current correctness blocker.
-
-## 14. Acceptance Criteria
-
-V2 is considered successful only if all hold:
-
-1. Live capture remains responsive under network loss.
-2. No continuous server write loop during active session.
-3. User manual resolution choices are never auto-overwritten.
-4. Session finalize and trip publish are reliable and idempotent.
-5. Timeline is visible immediately locally and reproducible on new devices.
-6. Server request profile remains bounded under prolonged live usage.
-
-## 15. Locked Decisions
-
-1. Lane contract:
-  1. command lane server-bound: `start`, `stop`
-  2. local-only controls: `pause`, `resume`
-2. Resolver provider and rules:
-  1. ORS direct from app
-  2. reverse + nearby POI in parallel
-  3. 1500ms timeout per call
-  4. auto bind requires:
-    1. score >= 0.60
-    2. unique top candidate
-    3. `top - second >= 0.05`
-    4. distance <= 100m
-  5. ambiguous tie rule: `abs(top-second) <= 0.02` => `review_required`
-3. Retry constants:
-  1. max auto attempts = 3
-  2. backoff schedule = 15s, 60s, 180s
-4. Commit states (strict):
-  1. `commit_pending`
-  2. `committing`
-  3. `commit_failed_retryable`
-  4. `committed`
-5. Publish states (strict):
-  1. `publish_pending`
-  2. `publishing`
-  3. `publish_failed_retryable`
-  4. `published`
-6. Publish retry semantics: snapshot-lock payload per publish job.
-
-## 16. Glossary
-
-1. Local journal: on-device canonical runtime records.
-2. Resolve state: current place/geotag status for an event.
-3. Manual lock: immutable marker after user decision.
-4. Finalize job: session-end upload transaction.
-5. Publish job: explicit editor save/upload transaction.
-6. Compiled projection: derived timeline/read model.
-
-## 17. Related Specs
-
-This blueprint is the entry contract. Detailed design and implementation rules are split into subsystem specs.
-
-Primary references:
-
-1. Subsystem index: [Subsystem Specs Index](./README.md)
-2. System index: [System V2 Index](../README.md)
-
-Key specs:
-
-1. `local-journal-and-resolver-spec.md`
-2. `session-commit-worker-spec.md`
-3. `trip-publish-spec.md`
-4. `local-timeline-compiler-spec.md`
-5. `backend-ingest-and-projection-spec.md`
-6. `live-editor-ui-contract-spec.md`
-7. `command-lane-spec.md`
-
+## 11. Acceptance Criteria
+
+1. local capture is responsive under network loss,
+2. publish is idempotent and replay-safe,
+3. no V1 flood behavior in V2 cohorts,
+4. second-device reads match published snapshot,
+5. no manual-lock overwrite incidents.
+
+## 12. Related Specs
+
+1. [Command Lane Spec](./command-lane-spec.md)
+2. [Local Journal and Resolver Spec](./local-journal-and-resolver-spec.md)
+3. [Session Commit Worker Spec](./session-commit-worker-spec.md)
+4. [Trip Publish Spec](./trip-publish-spec.md)
+5. [Local Timeline Compiler Spec](./local-timeline-compiler-spec.md)
+6. [Backend Ingest and Projection Spec](./backend-ingest-and-projection-spec.md)
+7. [Live and Editor UI Contract Spec](./live-editor-ui-contract-spec.md)

@@ -11,14 +11,14 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.live_tracking_v2 import (
-    V2FinalizeCommitRequest,
-    V2FinalizeCommitResponse,
-    V2FinalizeMediaCompleteRequest,
-    V2FinalizeMediaCompleteResponse,
-    V2FinalizeStartRequest,
-    V2FinalizeStartResponse,
-    V2PayloadChunkRequest,
-    V2PayloadChunkResponse,
+    V2PublishCommitRequest,
+    V2PublishCommitResponse,
+    V2PublishMediaCompleteRequest,
+    V2PublishMediaCompleteResponse,
+    V2PublishPayloadChunkRequest,
+    V2PublishPayloadChunkResponse,
+    V2PublishStartRequest,
+    V2PublishStartResponse,
     V2RouteResponse,
     V2SessionResponse,
     V2SessionStartRequest,
@@ -102,102 +102,105 @@ async def stop_v2_session(
 
 
 @router.post(
-    "/trips/{trip_id}/sessions/{client_session_id}/finalize:start",
-    response_model=V2FinalizeStartResponse,
+    "/trips/{trip_id}/publish:start",
+    response_model=V2PublishStartResponse,
 )
-async def finalize_start(
+async def publish_start(
     trip_id: UUID,
-    client_session_id: str,
-    request: V2FinalizeStartRequest,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = LiveTrackingV2Service(db)
-    _, body = service.finalize_start(
-        trip_id=trip_id,
-        user_id=current_user.id,
-        client_session_id=client_session_id,
-        client_job_id=request.client_job_id,
-        schema_version=request.schema_version,
-        session_summary=request.session_summary.model_dump(mode="json"),
-        media_manifest=[item.model_dump(mode="json") for item in request.media_manifest],
-        media_manifest_digest=request.media_manifest_digest,
-        idempotency_key=_require_idempotency_key(idempotency_key),
-    )
-    return body
-
-
-@router.post(
-    "/trips/{trip_id}/sessions/{client_session_id}/finalize:media-complete",
-    response_model=V2FinalizeMediaCompleteResponse,
-)
-async def finalize_media_complete(
-    trip_id: UUID,
-    client_session_id: str,
-    request: V2FinalizeMediaCompleteRequest,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = LiveTrackingV2Service(db)
-    _, body = service.finalize_media_complete(
-        trip_id=trip_id,
-        user_id=current_user.id,
-        client_session_id=client_session_id,
-        session_commit_token=request.session_commit_token,
-        uploaded_media=[item.model_dump(mode="json") for item in request.uploaded_media],
-        idempotency_key=_require_idempotency_key(idempotency_key),
-    )
-    return body
-
-
-@router.post(
-    "/trips/{trip_id}/sessions/{client_session_id}/finalize:payload-chunk",
-    response_model=V2PayloadChunkResponse,
-)
-async def finalize_payload_chunk(
-    trip_id: UUID,
-    client_session_id: str,
-    request: V2PayloadChunkRequest,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    service = LiveTrackingV2Service(db)
-    _, body = service.finalize_payload_chunk(
-        trip_id=trip_id,
-        user_id=current_user.id,
-        client_session_id=client_session_id,
-        session_commit_token=request.session_commit_token,
-        chunk_index=request.chunk_index,
-        total_chunks=request.total_chunks,
-        chunk_content_hash=request.chunk_content_hash,
-        chunk_json=request.chunk_json,
-        idempotency_key=_require_idempotency_key(idempotency_key),
-    )
-    return body
-
-
-@router.post(
-    "/trips/{trip_id}/sessions/{client_session_id}/finalize:commit",
-    response_model=V2FinalizeCommitResponse,
-)
-async def finalize_commit(
-    trip_id: UUID,
-    client_session_id: str,
-    request: V2FinalizeCommitRequest,
+    request: V2PublishStartRequest,
     response: Response,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = LiveTrackingV2Service(db)
-    status_code, body = service.finalize_commit(
+    status_code, body = service.publish_start(
         trip_id=trip_id,
         user_id=current_user.id,
-        client_session_id=client_session_id,
-        session_commit_token=request.session_commit_token,
+        client_job_id=request.client_job_id,
+        schema_version=request.schema_version,
+        publish_summary=request.publish_summary.model_dump(mode="json"),
+        media_manifest=[item.model_dump(mode="json") for item in request.media_manifest],
+        media_manifest_digest=request.media_manifest_digest,
+        idempotency_key=_require_idempotency_key(idempotency_key),
+    )
+    response.status_code = status_code
+    return body
+
+
+@router.post(
+    "/trips/{trip_id}/publish:media-complete",
+    response_model=V2PublishMediaCompleteResponse,
+)
+async def publish_media_complete(
+    trip_id: UUID,
+    request: V2PublishMediaCompleteRequest,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingV2Service(db)
+    status_code, body = service.publish_media_complete(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        publish_token=request.publish_token,
+        client_job_id=request.client_job_id,
+        schema_version=request.schema_version,
+        uploaded_media=[item.model_dump(mode="json") for item in request.uploaded_media],
+        idempotency_key=_require_idempotency_key(idempotency_key),
+    )
+    response.status_code = status_code
+    return body
+
+
+@router.post(
+    "/trips/{trip_id}/publish:payload-chunk",
+    response_model=V2PublishPayloadChunkResponse,
+)
+async def publish_payload_chunk(
+    trip_id: UUID,
+    request: V2PublishPayloadChunkRequest,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingV2Service(db)
+    status_code, body = service.publish_payload_chunk(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        publish_token=request.publish_token,
+        client_job_id=request.client_job_id,
+        schema_version=request.schema_version,
+        chunk_index=request.chunk_index,
+        total_chunks=request.total_chunks,
+        chunk_content_hash=request.chunk_content_hash,
+        chunk_json=request.chunk_json,
+        idempotency_key=_require_idempotency_key(idempotency_key),
+    )
+    response.status_code = status_code
+    return body
+
+
+@router.post(
+    "/trips/{trip_id}/publish:commit",
+    response_model=V2PublishCommitResponse,
+)
+async def publish_commit(
+    trip_id: UUID,
+    request: V2PublishCommitRequest,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = LiveTrackingV2Service(db)
+    status_code, body = service.publish_commit(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        publish_token=request.publish_token,
+        client_job_id=request.client_job_id,
         schema_version=request.schema_version,
         idempotency_key=_require_idempotency_key(idempotency_key),
     )

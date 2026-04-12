@@ -55,8 +55,9 @@ ROUTE_ASSOCIATION_THRESHOLD_M = 100.0
 ROUTE_ASSOCIATION_PRIMARY_WINDOW_SECONDS = 3 * 60
 ROUTE_ASSOCIATION_FALLBACK_WINDOW_SECONDS = 10 * 60
 ROUTE_ASSOCIATION_CANDIDATE_CAP = 20
-MANIFEST_OPERATION_KIND = "session_finalize"
+PUBLISH_MANIFEST_OPERATION_KIND = "trip_publish"
 TERMINAL_MANIFEST_STATUSES = {"committed", "failed_terminal", "idempotency_conflict"}
+ACTIVE_PUBLISH_STATUSES = {"started", "failed_retryable"}
 
 MANIFEST_TRANSITIONS: set[tuple[tuple[str, str], tuple[str, str]]] = {
     (("started", "start_received"), ("started", "media_verified")),
@@ -149,6 +150,7 @@ class LiveTrackingV2Service:
     def _normalize_session_summary(self, summary: dict[str, Any]) -> dict[str, Any]:
         return {
             "snapshot_hash": summary.get("snapshot_hash"),
+            "session_count": int(summary.get("session_count", 0)),
             "event_count": int(summary.get("event_count", 0)),
             "media_count": int(summary.get("media_count", 0)),
             "point_count": int(summary.get("point_count", 0)),
@@ -156,6 +158,41 @@ class LiveTrackingV2Service:
             "started_at": summary.get("started_at"),
             "ended_at": summary.get("ended_at"),
         }
+
+    def _assert_no_active_sessions(self, *, trip_id: UUID, user_id: UUID) -> None:
+        active_count = (
+            self.db.query(func.count(TripSessionRaw.session_server_id))
+            .filter(
+                TripSessionRaw.trip_server_id == trip_id,
+                TripSessionRaw.user_id == user_id,
+                TripSessionRaw.status == "active",
+            )
+            .scalar()
+        )
+        if int(active_count or 0) > 0:
+            self._error(
+                status.HTTP_409_CONFLICT,
+                "active_session_present",
+                "Stop all active sessions before starting publish.",
+            )
+
+    def _resolve_publish_anchor_session(self, *, trip_id: UUID, user_id: UUID) -> TripSessionRaw:
+        anchor = (
+            self.db.query(TripSessionRaw)
+            .filter(
+                TripSessionRaw.trip_server_id == trip_id,
+                TripSessionRaw.user_id == user_id,
+            )
+            .order_by(TripSessionRaw.ended_at.desc().nullslast(), TripSessionRaw.started_at.desc())
+            .first()
+        )
+        if anchor is None:
+            self._error(
+                status.HTTP_409_CONFLICT,
+                "invalid_payload",
+                "Publish requires at least one session for the trip.",
+            )
+        return anchor
 
     def _request_fingerprint(self, payload: dict[str, Any]) -> str:
         return self._sha256(payload)
@@ -304,19 +341,30 @@ class LiveTrackingV2Service:
             self._error(status.HTTP_404_NOT_FOUND, "session_not_found", "Session not found.")
         return session
 
-    def _require_manifest(self, *, trip_id: UUID, user_id: UUID, client_session_id: str, session_commit_token: str) -> TripCommitManifest:
+    def _require_publish_manifest(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        publish_token: str,
+        expected_client_job_id: Optional[str] = None,
+        expected_schema_version: Optional[int] = None,
+    ) -> TripCommitManifest:
         manifest = (
             self.db.query(TripCommitManifest)
-            .filter(
-                TripCommitManifest.trip_server_id == trip_id,
-                TripCommitManifest.user_id == user_id,
-                TripCommitManifest.client_session_id == client_session_id,
-                TripCommitManifest.session_commit_token == session_commit_token,
-            )
+            .filter(TripCommitManifest.session_commit_token == publish_token)
             .first()
         )
         if manifest is None:
-            self._error(status.HTTP_404_NOT_FOUND, "session_not_found", "Finalize manifest not found.")
+            self._error(status.HTTP_404_NOT_FOUND, "publish_not_found", "Publish manifest not found.")
+        if manifest.operation_kind != PUBLISH_MANIFEST_OPERATION_KIND:
+            self._error(status.HTTP_403_FORBIDDEN, "token_scope_mismatch", "Publish token is out of scope.")
+        if manifest.user_id != user_id or manifest.trip_server_id != trip_id:
+            self._error(status.HTTP_403_FORBIDDEN, "token_scope_mismatch", "Publish token is out of scope.")
+        if expected_client_job_id is not None and manifest.client_job_id != expected_client_job_id:
+            self._error(status.HTTP_403_FORBIDDEN, "token_scope_mismatch", "Publish token is out of scope.")
+        if expected_schema_version is not None and manifest.schema_version != expected_schema_version:
+            self._error(status.HTTP_403_FORBIDDEN, "token_scope_mismatch", "Publish token is out of scope.")
         return manifest
 
     def _session_response(self, row: TripSessionRaw) -> dict[str, Any]:
@@ -440,6 +488,338 @@ class LiveTrackingV2Service:
             operation=_operation,
         )
 
+    def _active_publish_manifest(self, *, trip_id: UUID, user_id: UUID) -> Optional[TripCommitManifest]:
+        return (
+            self.db.query(TripCommitManifest)
+            .filter(
+                TripCommitManifest.trip_server_id == trip_id,
+                TripCommitManifest.user_id == user_id,
+                TripCommitManifest.operation_kind == PUBLISH_MANIFEST_OPERATION_KIND,
+                TripCommitManifest.status.in_(ACTIVE_PUBLISH_STATUSES),
+            )
+            .order_by(TripCommitManifest.updated_at.desc())
+            .first()
+        )
+
+    def publish_start(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        client_job_id: str,
+        schema_version: int,
+        publish_summary: dict[str, Any],
+        media_manifest: list[dict[str, Any]],
+        media_manifest_digest: str,
+        idempotency_key: str,
+    ) -> tuple[int, dict[str, Any]]:
+        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
+        self._require_supported_schema(schema_version)
+        self._assert_no_active_sessions(trip_id=trip.id, user_id=user_id)
+        anchor_session = self._resolve_publish_anchor_session(trip_id=trip.id, user_id=user_id)
+
+        normalized_summary = self._normalize_session_summary(publish_summary)
+        normalized_manifest = self._normalize_media_manifest(media_manifest)
+        expected_digest = self._sha256(normalized_manifest)
+        if media_manifest_digest != expected_digest:
+            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "media_manifest_digest does not match media_manifest.")
+        if len(normalized_manifest) > MAX_MEDIA:
+            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Media manifest exceeds the allowed size.")
+
+        fingerprint = self._request_fingerprint(
+            {
+                "trip_id": str(trip.id),
+                "client_job_id": client_job_id,
+                "schema_version": schema_version,
+                "publish_summary": normalized_summary,
+                "media_manifest": normalized_manifest,
+                "media_manifest_digest": media_manifest_digest,
+            }
+        )
+        existing = (
+            self.db.query(TripCommitManifest)
+            .filter(
+                TripCommitManifest.trip_server_id == trip.id,
+                TripCommitManifest.operation_kind == PUBLISH_MANIFEST_OPERATION_KIND,
+                TripCommitManifest.idempotency_key == idempotency_key,
+            )
+            .first()
+        )
+        if existing is not None:
+            if existing.request_fingerprint != fingerprint:
+                self._idempotency_conflict()
+            return status.HTTP_200_OK, {
+                "publish_token": existing.session_commit_token,
+                "manifest_status": existing.status,
+                "manifest_phase": existing.phase,
+                "accepted_media_count": len(existing.media_manifest or []),
+                "upload_targets": self._build_upload_targets(trip_id=trip.id, user_id=user_id, manifest=existing),
+            }
+
+        active_publish = self._active_publish_manifest(trip_id=trip.id, user_id=user_id)
+        if active_publish is not None:
+            self._error(
+                status.HTTP_409_CONFLICT,
+                "active_publish_exists",
+                "A publish manifest is already active for this trip.",
+            )
+
+        manifest = TripCommitManifest(
+            trip_server_id=trip.id,
+            user_id=user_id,
+            session_server_id=anchor_session.session_server_id,
+            client_session_id=anchor_session.client_session_id,
+            client_job_id=client_job_id,
+            session_commit_token=uuid.uuid4().hex,
+            idempotency_key=idempotency_key,
+            operation_kind=PUBLISH_MANIFEST_OPERATION_KIND,
+            status="started",
+            phase="start_received",
+            schema_version=schema_version,
+            request_fingerprint=fingerprint,
+            session_summary=normalized_summary,
+            media_manifest=normalized_manifest,
+            media_manifest_digest=media_manifest_digest,
+            accepted_media_refs={},
+            payload_chunks={},
+            step_idempotency={
+                "publish:start": {
+                    "idempotency_key": idempotency_key,
+                    "fingerprint": fingerprint,
+                }
+            },
+            payload_total_bytes=0,
+        )
+        self.db.add(manifest)
+        self.db.commit()
+        return status.HTTP_200_OK, {
+            "publish_token": manifest.session_commit_token,
+            "manifest_status": manifest.status,
+            "manifest_phase": manifest.phase,
+            "accepted_media_count": len(normalized_manifest),
+            "upload_targets": self._build_upload_targets(trip_id=trip.id, user_id=user_id, manifest=manifest),
+        }
+
+    def publish_media_complete(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        publish_token: str,
+        client_job_id: str,
+        schema_version: int,
+        uploaded_media: list[dict[str, Any]],
+        idempotency_key: str,
+    ) -> tuple[int, dict[str, Any]]:
+        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
+        self._require_supported_schema(schema_version)
+        manifest = self._require_publish_manifest(
+            trip_id=trip.id,
+            user_id=user_id,
+            publish_token=publish_token,
+            expected_client_job_id=client_job_id,
+            expected_schema_version=schema_version,
+        )
+        normalized_media = self._normalize_media_manifest(uploaded_media)
+        fingerprint = self._request_fingerprint(
+            {
+                "publish_token": publish_token,
+                "client_job_id": client_job_id,
+                "schema_version": schema_version,
+                "uploaded_media": normalized_media,
+            }
+        )
+        self._assert_manifest_step_key(
+            manifest=manifest,
+            step_name="publish:media-complete",
+            idempotency_key=idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if manifest.status == "committed" and manifest.phase == "finalized":
+            return status.HTTP_200_OK, {
+                "publish_token": manifest.session_commit_token,
+                "manifest_status": manifest.status,
+                "manifest_phase": manifest.phase,
+                "accepted_media_count": len(manifest.accepted_media_refs or {}),
+            }
+
+        manifest_lookup = {item["client_media_id"]: item for item in (manifest.media_manifest or [])}
+        uploaded_lookup = {item["client_media_id"]: item for item in normalized_media}
+        if set(uploaded_lookup.keys()) != set(manifest_lookup.keys()):
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="media_ref_invalid",
+                error_message="Uploaded media refs do not match the stored media manifest.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_400_BAD_REQUEST, "media_ref_invalid", "Uploaded media refs do not match the stored media manifest.")
+
+        accepted_refs: dict[str, dict[str, Any]] = {}
+        for client_media_id in sorted(manifest_lookup.keys()):
+            storage_ref = uploaded_lookup[client_media_id]["storage_ref"]
+            if not self.storage_service.verify_storage_ref(
+                trip_id=trip.id,
+                user_id=user_id,
+                session_commit_token=publish_token,
+                client_media_id=client_media_id,
+                storage_ref=storage_ref,
+            ):
+                self._mark_manifest_failure(
+                    manifest=manifest,
+                    retryable=False,
+                    error_code="media_ref_invalid",
+                    error_message=f"storage_ref is invalid for media {client_media_id}.",
+                )
+                self.db.commit()
+                self._error(status.HTTP_400_BAD_REQUEST, "media_ref_invalid", f"storage_ref is invalid for media {client_media_id}.")
+            accepted_refs[client_media_id] = {
+                "storage_ref": storage_ref,
+                "mime_type": manifest_lookup[client_media_id].get("mime_type"),
+                "size_bytes": manifest_lookup[client_media_id].get("size_bytes"),
+                "media_content_hash": manifest_lookup[client_media_id].get("media_content_hash"),
+            }
+
+        manifest.accepted_media_refs = accepted_refs
+        self._set_manifest_state(manifest, "started", "media_verified")
+        manifest.updated_at = self._utcnow()
+        self.db.commit()
+        return status.HTTP_200_OK, {
+            "publish_token": manifest.session_commit_token,
+            "manifest_status": manifest.status,
+            "manifest_phase": manifest.phase,
+            "accepted_media_count": len(accepted_refs),
+        }
+
+    def publish_payload_chunk(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        publish_token: str,
+        client_job_id: str,
+        schema_version: int,
+        chunk_index: int,
+        total_chunks: int,
+        chunk_content_hash: str,
+        chunk_json: str,
+        idempotency_key: str,
+    ) -> tuple[int, dict[str, Any]]:
+        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
+        self._require_supported_schema(schema_version)
+        manifest = self._require_publish_manifest(
+            trip_id=trip.id,
+            user_id=user_id,
+            publish_token=publish_token,
+            expected_client_job_id=client_job_id,
+            expected_schema_version=schema_version,
+        )
+        if manifest.phase not in {"media_verified", "chunks_complete"} and not (
+            manifest.status == "failed_retryable" and manifest.phase == "chunks_complete"
+        ):
+            self._error(status.HTTP_409_CONFLICT, "invalid_manifest_state", "Chunks can only be accepted after media verification.")
+
+        if chunk_index < 0 or chunk_index >= total_chunks:
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="invalid_payload",
+                error_message="chunk_index is out of range for total_chunks.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "chunk_index must satisfy 0 <= chunk_index < total_chunks.")
+
+        chunk_bytes = len(chunk_json.encode("utf-8"))
+        if chunk_bytes > MAX_CHUNK_BYTES:
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="payload_too_large",
+                error_message="Chunk exceeds the 128KB limit.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Chunk exceeds the 128KB limit.")
+
+        recomputed_hash = self._sha256(chunk_json)
+        if recomputed_hash != chunk_content_hash:
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="invalid_payload",
+                error_message="chunk_content_hash does not match chunk_json.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "chunk_content_hash does not match chunk_json.")
+
+        fingerprint = self._request_fingerprint(
+            {
+                "publish_token": publish_token,
+                "client_job_id": client_job_id,
+                "schema_version": schema_version,
+                "chunk_index": chunk_index,
+                "total_chunks": total_chunks,
+                "chunk_content_hash": chunk_content_hash,
+                "chunk_json": chunk_json,
+            }
+        )
+        self._assert_manifest_step_key(
+            manifest=manifest,
+            step_name=f"publish:payload-chunk:{chunk_index}",
+            idempotency_key=idempotency_key,
+            fingerprint=fingerprint,
+        )
+
+        chunks = dict(manifest.payload_chunks or {})
+        existing = chunks.get(str(chunk_index))
+        if existing is not None:
+            if existing.get("chunk_content_hash") != chunk_content_hash:
+                self._idempotency_conflict()
+        else:
+            chunks[str(chunk_index)] = {
+                "chunk_index": chunk_index,
+                "total_chunks": total_chunks,
+                "chunk_content_hash": chunk_content_hash,
+                "chunk_json": chunk_json,
+                "byte_size": chunk_bytes,
+            }
+
+        all_totals = {chunk.get("total_chunks") for chunk in chunks.values()}
+        if len(all_totals) != 1 or total_chunks not in all_totals:
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="invalid_payload",
+                error_message="Chunk set disagrees on total_chunks.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Chunk set disagrees on total_chunks.")
+
+        payload_total_bytes = sum(int(chunk.get("byte_size", 0)) for chunk in chunks.values())
+        if payload_total_bytes > MAX_TOTAL_PAYLOAD_BYTES:
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=False,
+                error_code="payload_too_large",
+                error_message="Publish payload exceeds the 64MB limit.",
+            )
+            self.db.commit()
+            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Publish payload exceeds the 64MB limit.")
+
+        manifest.payload_chunks = chunks
+        manifest.payload_total_bytes = payload_total_bytes
+        if len(chunks) == total_chunks and all(str(idx) in chunks for idx in range(total_chunks)):
+            self._set_manifest_state(manifest, "started", "chunks_complete")
+        manifest.updated_at = self._utcnow()
+        self.db.commit()
+        return status.HTTP_200_OK, {
+            "publish_token": manifest.session_commit_token,
+            "manifest_status": manifest.status,
+            "manifest_phase": manifest.phase,
+            "chunk_index": chunk_index,
+            "total_chunks": total_chunks,
+            "accepted_total_bytes": payload_total_bytes,
+        }
+
     def _assert_manifest_step_key(
         self,
         *,
@@ -515,298 +895,14 @@ class LiveTrackingV2Service:
             )
         return targets
 
-    def finalize_start(
-        self,
-        *,
-        trip_id: UUID,
-        user_id: UUID,
-        client_session_id: str,
-        client_job_id: str,
-        schema_version: int,
-        session_summary: dict[str, Any],
-        media_manifest: list[dict[str, Any]],
-        media_manifest_digest: str,
-        idempotency_key: str,
-    ) -> tuple[int, dict[str, Any]]:
-        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
-        self._require_supported_schema(schema_version)
-        session = self._get_session(trip_id=trip.id, user_id=user_id, client_session_id=client_session_id)
-
-        normalized_summary = self._normalize_session_summary(session_summary)
-        normalized_manifest = self._normalize_media_manifest(media_manifest)
-        expected_digest = self._sha256(normalized_manifest)
-        if media_manifest_digest != expected_digest:
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "media_manifest_digest does not match media_manifest.")
-        if len(normalized_manifest) > MAX_MEDIA:
-            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Media manifest exceeds the allowed size.")
-
-        fingerprint = self._request_fingerprint(
-            {
-                "trip_id": str(trip.id),
-                "client_session_id": client_session_id,
-                "client_job_id": client_job_id,
-                "schema_version": schema_version,
-                "session_summary": normalized_summary,
-                "media_manifest": normalized_manifest,
-                "media_manifest_digest": media_manifest_digest,
-            }
-        )
-        existing = (
-            self.db.query(TripCommitManifest)
-            .filter(
-                TripCommitManifest.trip_server_id == trip.id,
-                TripCommitManifest.operation_kind == MANIFEST_OPERATION_KIND,
-                TripCommitManifest.idempotency_key == idempotency_key,
-            )
-            .first()
-        )
-        if existing is not None:
-            if existing.request_fingerprint != fingerprint:
-                self._idempotency_conflict()
-            return status.HTTP_200_OK, {
-                "session_commit_token": existing.session_commit_token,
-                "manifest_status": existing.status,
-                "manifest_phase": existing.phase,
-                "accepted_media_count": len(existing.media_manifest or []),
-                "upload_targets": self._build_upload_targets(trip_id=trip.id, user_id=user_id, manifest=existing),
-            }
-
-        manifest = TripCommitManifest(
-            trip_server_id=trip.id,
-            user_id=user_id,
-            session_server_id=session.session_server_id,
-            client_session_id=client_session_id,
-            client_job_id=client_job_id,
-            session_commit_token=uuid.uuid4().hex,
-            idempotency_key=idempotency_key,
-            operation_kind=MANIFEST_OPERATION_KIND,
-            status="started",
-            phase="start_received",
-            schema_version=schema_version,
-            request_fingerprint=fingerprint,
-            session_summary=normalized_summary,
-            media_manifest=normalized_manifest,
-            media_manifest_digest=media_manifest_digest,
-            accepted_media_refs={},
-            payload_chunks={},
-            step_idempotency={
-                "finalize:start": {
-                    "idempotency_key": idempotency_key,
-                    "fingerprint": fingerprint,
-                }
-            },
-            payload_total_bytes=0,
-        )
-        session.commit_token = manifest.session_commit_token
-        session.schema_version = schema_version
-        session.updated_at = self._utcnow()
-        self.db.add(manifest)
-        self.db.commit()
-        return status.HTTP_200_OK, {
-            "session_commit_token": manifest.session_commit_token,
-            "manifest_status": manifest.status,
-            "manifest_phase": manifest.phase,
-            "accepted_media_count": len(normalized_manifest),
-            "upload_targets": self._build_upload_targets(trip_id=trip.id, user_id=user_id, manifest=manifest),
-        }
-
-    def finalize_media_complete(
-        self,
-        *,
-        trip_id: UUID,
-        user_id: UUID,
-        client_session_id: str,
-        session_commit_token: str,
-        uploaded_media: list[dict[str, Any]],
-        idempotency_key: str,
-    ) -> tuple[int, dict[str, Any]]:
-        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
-        manifest = self._require_manifest(
-            trip_id=trip.id,
-            user_id=user_id,
-            client_session_id=client_session_id,
-            session_commit_token=session_commit_token,
-        )
-        normalized_media = self._normalize_media_manifest(uploaded_media)
-        fingerprint = self._request_fingerprint(
-            {
-                "session_commit_token": session_commit_token,
-                "uploaded_media": normalized_media,
-            }
-        )
-        self._assert_manifest_step_key(
-            manifest=manifest,
-            step_name="finalize:media-complete",
-            idempotency_key=idempotency_key,
-            fingerprint=fingerprint,
-        )
-        if manifest.status == "committed" and manifest.phase == "finalized":
-            return status.HTTP_200_OK, {
-                "session_commit_token": manifest.session_commit_token,
-                "manifest_status": manifest.status,
-                "manifest_phase": manifest.phase,
-                "accepted_media_count": len(manifest.accepted_media_refs or {}),
-            }
-
-        manifest_lookup = {item["client_media_id"]: item for item in (manifest.media_manifest or [])}
-        uploaded_lookup = {item["client_media_id"]: item for item in normalized_media}
-        if set(uploaded_lookup.keys()) != set(manifest_lookup.keys()):
-            self._mark_manifest_failure(
-                manifest=manifest,
-                retryable=False,
-                error_code="media_ref_invalid",
-                error_message="Uploaded media refs do not match the stored media manifest.",
-            )
-            self.db.commit()
-            self._error(status.HTTP_400_BAD_REQUEST, "media_ref_invalid", "Uploaded media refs do not match the stored media manifest.")
-
-        accepted_refs: dict[str, dict[str, Any]] = {}
-        for client_media_id in sorted(manifest_lookup.keys()):
-            storage_ref = uploaded_lookup[client_media_id]["storage_ref"]
-            if not self.storage_service.verify_storage_ref(
-                trip_id=trip.id,
-                user_id=user_id,
-                session_commit_token=session_commit_token,
-                client_media_id=client_media_id,
-                storage_ref=storage_ref,
-            ):
-                self._mark_manifest_failure(
-                    manifest=manifest,
-                    retryable=False,
-                    error_code="media_ref_invalid",
-                    error_message=f"storage_ref is invalid for media {client_media_id}.",
-                )
-                self.db.commit()
-                self._error(status.HTTP_400_BAD_REQUEST, "media_ref_invalid", f"storage_ref is invalid for media {client_media_id}.")
-            accepted_refs[client_media_id] = {
-                "storage_ref": storage_ref,
-                "mime_type": manifest_lookup[client_media_id].get("mime_type"),
-                "size_bytes": manifest_lookup[client_media_id].get("size_bytes"),
-                "media_content_hash": manifest_lookup[client_media_id].get("media_content_hash"),
-            }
-
-        manifest.accepted_media_refs = accepted_refs
-        self._set_manifest_state(manifest, "started", "media_verified")
-        manifest.updated_at = self._utcnow()
-        self.db.commit()
-        return status.HTTP_200_OK, {
-            "session_commit_token": manifest.session_commit_token,
-            "manifest_status": manifest.status,
-            "manifest_phase": manifest.phase,
-            "accepted_media_count": len(accepted_refs),
-        }
-
-    def finalize_payload_chunk(
-        self,
-        *,
-        trip_id: UUID,
-        user_id: UUID,
-        client_session_id: str,
-        session_commit_token: str,
-        chunk_index: int,
-        total_chunks: int,
-        chunk_content_hash: str,
-        chunk_json: str,
-        idempotency_key: str,
-    ) -> tuple[int, dict[str, Any]]:
-        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
-        manifest = self._require_manifest(
-            trip_id=trip.id,
-            user_id=user_id,
-            client_session_id=client_session_id,
-            session_commit_token=session_commit_token,
-        )
-        if manifest.phase not in {"media_verified", "chunks_complete"} and not (
-            manifest.status == "failed_retryable" and manifest.phase == "chunks_complete"
-        ):
-            self._error(status.HTTP_409_CONFLICT, "invalid_manifest_state", "Chunks can only be accepted after media verification.")
-
-        chunk_bytes = len(chunk_json.encode("utf-8"))
-        if chunk_bytes > MAX_CHUNK_BYTES:
-            self._mark_manifest_failure(
-                manifest=manifest,
-                retryable=False,
-                error_code="payload_too_large",
-                error_message="Chunk exceeds the 128KB limit.",
-            )
-            self.db.commit()
-            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Chunk exceeds the 128KB limit.")
-
-        fingerprint = self._request_fingerprint(
-            {
-                "session_commit_token": session_commit_token,
-                "chunk_index": chunk_index,
-                "total_chunks": total_chunks,
-                "chunk_content_hash": chunk_content_hash,
-                "chunk_json": chunk_json,
-            }
-        )
-        self._assert_manifest_step_key(
-            manifest=manifest,
-            step_name=f"finalize:payload-chunk:{chunk_index}",
-            idempotency_key=idempotency_key,
-            fingerprint=fingerprint,
-        )
-
-        chunks = dict(manifest.payload_chunks or {})
-        existing = chunks.get(str(chunk_index))
-        if existing is not None:
-            if existing.get("chunk_content_hash") != chunk_content_hash:
-                self._idempotency_conflict()
-        else:
-            chunks[str(chunk_index)] = {
-                "chunk_index": chunk_index,
-                "total_chunks": total_chunks,
-                "chunk_content_hash": chunk_content_hash,
-                "chunk_json": chunk_json,
-                "byte_size": chunk_bytes,
-            }
-
-        all_totals = {chunk.get("total_chunks") for chunk in chunks.values()}
-        if len(all_totals) != 1 or total_chunks not in all_totals:
-            self._mark_manifest_failure(
-                manifest=manifest,
-                retryable=False,
-                error_code="invalid_payload",
-                error_message="Chunk set disagrees on total_chunks.",
-            )
-            self.db.commit()
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Chunk set disagrees on total_chunks.")
-
-        payload_total_bytes = sum(int(chunk.get("byte_size", 0)) for chunk in chunks.values())
-        if payload_total_bytes > MAX_TOTAL_PAYLOAD_BYTES:
-            self._mark_manifest_failure(
-                manifest=manifest,
-                retryable=False,
-                error_code="payload_too_large",
-                error_message="Finalize payload exceeds the 64MB limit.",
-            )
-            self.db.commit()
-            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Finalize payload exceeds the 64MB limit.")
-
-        manifest.payload_chunks = chunks
-        manifest.payload_total_bytes = payload_total_bytes
-        if len(chunks) == total_chunks and all(str(idx) in chunks for idx in range(total_chunks)):
-            self._set_manifest_state(manifest, "started", "chunks_complete")
-        manifest.updated_at = self._utcnow()
-        self.db.commit()
-        return status.HTTP_200_OK, {
-            "session_commit_token": manifest.session_commit_token,
-            "manifest_status": manifest.status,
-            "manifest_phase": manifest.phase,
-            "chunk_index": chunk_index,
-            "total_chunks": total_chunks,
-            "accepted_total_bytes": payload_total_bytes,
-        }
-
     def _materialize_payload(self, manifest: TripCommitManifest) -> dict[str, Any]:
         chunks = dict(manifest.payload_chunks or {})
         if not chunks:
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Finalize payload chunks are missing.")
+            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Payload chunks are missing.")
 
         total_chunks = next(iter(chunks.values())).get("total_chunks")
         if total_chunks is None or len(chunks) != total_chunks or any(str(idx) not in chunks for idx in range(total_chunks)):
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Finalize payload chunks are incomplete.")
+            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Publish payload chunks are incomplete.")
 
         with tempfile.SpooledTemporaryFile(max_size=1024 * 1024, mode="w+b") as temp_file:
             for idx in range(total_chunks):
@@ -815,57 +911,135 @@ class LiveTrackingV2Service:
             text_wrapper = io.TextIOWrapper(temp_file, encoding="utf-8")
             return json.load(text_wrapper)
 
-    def _bulk_replace_session_rows(
-        self,
-        *,
-        manifest: TripCommitManifest,
-        session: TripSessionRaw,
-        payload: dict[str, Any],
-    ) -> tuple[int, int, int]:
+    def _normalize_publish_payload(self, payload: dict[str, Any], *, default_trip_id: UUID) -> dict[str, Any]:
+        sessions = list(payload.get("sessions") or [])
         events = list(payload.get("events") or [])
         media = list(payload.get("media") or [])
         points = list(payload.get("route_points") or [])
+        if not sessions:
+            # Backward compatibility for single-session snapshot payload shape.
+            session_id = payload.get("session_id")
+            if not session_id:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "sessions[] is required for publish payload.")
+            sessions = [
+                {
+                    "session_id": session_id,
+                    "seal_version": payload.get("seal_version", 1),
+                    "control_state": payload.get("control_state", "sealed"),
+                    "stop_server_pending": payload.get("stop_server_pending", 0),
+                    "started_at": payload.get("started_at"),
+                    "ended_at": payload.get("ended_at"),
+                    "device_id": payload.get("device_id"),
+                    "stop_client_event_id": payload.get("stop_client_event_id"),
+                    "timezone": payload.get("timezone"),
+                    "trip_id": str(default_trip_id),
+                }
+            ]
+        return {
+            "sessions": sessions,
+            "events": events,
+            "media": media,
+            "route_points": points,
+        }
+
+    def _bulk_replace_trip_rows(
+        self,
+        *,
+        manifest: TripCommitManifest,
+        trip_id: UUID,
+        user_id: UUID,
+        payload: dict[str, Any],
+    ) -> tuple[int, int, int, int]:
+        normalized = self._normalize_publish_payload(payload, default_trip_id=trip_id)
+        sessions = list(normalized["sessions"])
+        events = list(normalized["events"])
+        media = list(normalized["media"])
+        points = list(normalized["route_points"])
 
         if len(events) > MAX_EVENTS or len(media) > MAX_MEDIA or len(points) > MAX_POINTS:
-            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Finalize snapshot exceeds backend safety limits.")
+            self._error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "Publish snapshot exceeds backend safety limits.")
 
         summary = manifest.session_summary or {}
+        expected_session_count = int(summary.get("session_count", len(sessions)))
+        if expected_session_count != len(sessions):
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Session count does not match publish summary.")
         if len(events) != int(summary.get("event_count", len(events))):
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Event count does not match session summary.")
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Event count does not match publish summary.")
         if len(media) != int(summary.get("media_count", len(media))):
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Media count does not match session summary.")
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Media count does not match publish summary.")
         if len(points) != int(summary.get("point_count", len(points))):
-            self._error(status.HTTP_400_BAD_REQUEST, "invalid_payload", "Point count does not match session summary.")
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Point count does not match publish summary.")
 
-        session.schema_version = manifest.schema_version
-        session.stop_server_pending = False
-        session.commit_token = manifest.session_commit_token
-        session.seal_version = int(payload.get("seal_version") or session.seal_version or 0)
-        session.stop_client_event_id = payload.get("stop_client_event_id") or session.stop_client_event_id
-        if payload.get("ended_at"):
-            session.ended_at = self._to_utc(datetime.fromisoformat(str(payload["ended_at"]).replace("Z", "+00:00")))
-        if payload.get("started_at"):
-            session.started_at = self._to_utc(datetime.fromisoformat(str(payload["started_at"]).replace("Z", "+00:00")))
-        session.device_id = payload.get("device_id") or session.device_id
-        session.status = "sealed"
-        session.updated_at = self._utcnow()
+        existing_sessions = (
+            self.db.query(TripSessionRaw)
+            .filter(
+                TripSessionRaw.trip_server_id == trip_id,
+                TripSessionRaw.user_id == user_id,
+            )
+            .all()
+        )
+        session_by_client_id = {row.client_session_id: row for row in existing_sessions}
+        session_server_ids: dict[str, UUID] = {}
+        for item in sessions:
+            client_session_id = str(item.get("session_id") or item.get("client_session_id") or "").strip()
+            if not client_session_id:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Every session must include session_id.")
+            row = session_by_client_id.get(client_session_id)
+            if row is None:
+                started_at = item.get("started_at")
+                if not started_at:
+                    self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", f"Session {client_session_id} is missing started_at.")
+                row = TripSessionRaw(
+                    trip_server_id=trip_id,
+                    user_id=user_id,
+                    client_session_id=client_session_id,
+                    started_at=self._to_utc(datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))),
+                    status="sealed",
+                    stop_server_pending=False,
+                    seal_version=int(item.get("seal_version", 1)),
+                )
+                self.db.add(row)
+                self.db.flush()
+                session_by_client_id[client_session_id] = row
 
-        self.db.query(TripMediaRaw).filter(TripMediaRaw.session_server_id == session.session_server_id).delete()
-        self.db.query(TripEventRaw).filter(TripEventRaw.session_server_id == session.session_server_id).delete()
-        self.db.query(TripRouteRawPoint).filter(TripRouteRawPoint.session_server_id == session.session_server_id).delete()
+            row.timezone = item.get("timezone") or row.timezone
+            row.device_id = item.get("device_id") or row.device_id
+            row.seal_version = int(item.get("seal_version") or row.seal_version or 0)
+            row.stop_client_event_id = item.get("stop_client_event_id") or row.stop_client_event_id
+            row.stop_reason = item.get("reason") or row.stop_reason
+            if item.get("ended_at"):
+                row.ended_at = self._to_utc(datetime.fromisoformat(str(item["ended_at"]).replace("Z", "+00:00")))
+            if item.get("started_at"):
+                row.started_at = self._to_utc(datetime.fromisoformat(str(item["started_at"]).replace("Z", "+00:00")))
+            row.status = "sealed"
+            row.stop_server_pending = bool(item.get("stop_server_pending", 0))
+            row.schema_version = manifest.schema_version
+            row.commit_token = manifest.session_commit_token
+            row.updated_at = self._utcnow()
+            session_server_ids[client_session_id] = row.session_server_id
+
+        self.db.query(TripMediaRaw).filter(TripMediaRaw.trip_server_id == trip_id).delete()
+        self.db.query(TripEventRaw).filter(TripEventRaw.trip_server_id == trip_id).delete()
+        self.db.query(TripRouteRawPoint).filter(TripRouteRawPoint.trip_server_id == trip_id).delete()
         self.db.flush()
 
         event_id_map: dict[str, UUID] = {}
         event_rows: list[dict[str, Any]] = []
         for item in events:
-            client_event_id = str(item["event_id"])
+            client_event_id = str(item.get("event_id") or item.get("client_event_id") or "").strip()
+            if not client_event_id:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", "Every event must include event_id.")
+            session_id = str(item.get("session_id") or item.get("client_session_id") or "").strip()
+            session_server_id = session_server_ids.get(session_id)
+            if session_server_id is None:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", f"Event {client_event_id} references unknown session {session_id}.")
             server_event_id = uuid.uuid4()
             event_id_map[client_event_id] = server_event_id
             event_rows.append(
                 {
                     "event_server_id": server_event_id,
-                    "trip_server_id": session.trip_server_id,
-                    "session_server_id": session.session_server_id,
+                    "trip_server_id": trip_id,
+                    "session_server_id": session_server_id,
                     "client_event_id": client_event_id,
                     "event_type": item["event_type"],
                     "captured_at": self._to_utc(datetime.fromisoformat(str(item["captured_at"]).replace("Z", "+00:00"))),
@@ -883,8 +1057,8 @@ class LiveTrackingV2Service:
                     "captured_while_paused": bool(item.get("captured_while_paused", 0)),
                     "candidate_set_version": int(item.get("candidate_set_version", 0)),
                     "resolved_at": self._to_utc(datetime.fromisoformat(str(item["resolved_at"]).replace("Z", "+00:00"))) if item.get("resolved_at") else None,
-                    "created_at": self._to_utc(datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00"))),
-                    "updated_at": self._to_utc(datetime.fromisoformat(str(item["updated_at"]).replace("Z", "+00:00"))),
+                    "created_at": self._to_utc(datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00"))) if item.get("created_at") else self._utcnow(),
+                    "updated_at": self._to_utc(datetime.fromisoformat(str(item["updated_at"]).replace("Z", "+00:00"))) if item.get("updated_at") else self._utcnow(),
                 }
             )
 
@@ -894,17 +1068,19 @@ class LiveTrackingV2Service:
         accepted_media_refs = dict(manifest.accepted_media_refs or {})
         media_rows: list[dict[str, Any]] = []
         for item in media:
-            client_media_id = str(item["media_id"])
-            client_event_id = str(item["event_id"])
+            client_media_id = str(item.get("media_id") or item.get("client_media_id") or "").strip()
+            client_event_id = str(item.get("event_id") or item.get("client_event_id") or "").strip()
+            session_id = str(item.get("session_id") or item.get("client_session_id") or "").strip()
+            session_server_id = session_server_ids.get(session_id)
             event_server_id = event_id_map.get(client_event_id)
             accepted_media = accepted_media_refs.get(client_media_id)
-            if event_server_id is None or accepted_media is None:
-                self._error(status.HTTP_400_BAD_REQUEST, "media_ref_invalid", f"Media {client_media_id} does not map to an accepted event/storage ref.")
+            if session_server_id is None or event_server_id is None or accepted_media is None:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "media_ref_invalid", f"Media {client_media_id} does not map to an accepted event/storage ref.")
             media_rows.append(
                 {
                     "media_server_id": uuid.uuid4(),
-                    "trip_server_id": session.trip_server_id,
-                    "session_server_id": session.session_server_id,
+                    "trip_server_id": trip_id,
+                    "session_server_id": session_server_id,
                     "event_server_id": event_server_id,
                     "client_media_id": client_media_id,
                     "captured_at": self._to_utc(datetime.fromisoformat(str(item["captured_at"]).replace("Z", "+00:00"))),
@@ -915,8 +1091,8 @@ class LiveTrackingV2Service:
                     "width_px": item.get("width_px"),
                     "height_px": item.get("height_px"),
                     "duration_ms": item.get("duration_ms"),
-                    "created_at": self._to_utc(datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00"))),
-                    "updated_at": self._to_utc(datetime.fromisoformat(str(item["updated_at"]).replace("Z", "+00:00"))),
+                    "created_at": self._to_utc(datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00"))) if item.get("created_at") else self._utcnow(),
+                    "updated_at": self._to_utc(datetime.fromisoformat(str(item["updated_at"]).replace("Z", "+00:00"))) if item.get("updated_at") else self._utcnow(),
                 }
             )
         if media_rows:
@@ -924,11 +1100,15 @@ class LiveTrackingV2Service:
 
         point_rows: list[dict[str, Any]] = []
         for item in points:
+            session_id = str(item.get("session_id") or item.get("client_session_id") or "").strip()
+            session_server_id = session_server_ids.get(session_id)
+            if session_server_id is None:
+                self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_payload", f"Point references unknown session {session_id}.")
             point_rows.append(
                 {
                     "point_server_id": uuid.uuid4(),
-                    "trip_server_id": session.trip_server_id,
-                    "session_server_id": session.session_server_id,
+                    "trip_server_id": trip_id,
+                    "session_server_id": session_server_id,
                     "client_point_id": item.get("point_id"),
                     "captured_at": self._to_utc(datetime.fromisoformat(str(item["captured_at"]).replace("Z", "+00:00"))),
                     "latitude": float(item["latitude"]),
@@ -947,7 +1127,168 @@ class LiveTrackingV2Service:
         manifest.raw_ingest_completed_at = self._utcnow()
         self._set_manifest_state(manifest, "started", "raw_ingest_completed")
         manifest.updated_at = self._utcnow()
-        return len(event_rows), len(media_rows), len(point_rows)
+        return len(sessions), len(event_rows), len(media_rows), len(point_rows)
+
+    def _reconcile_pending_stops_for_publish(self, *, trip_id: UUID, user_id: UUID) -> None:
+        pending_sessions = (
+            self.db.query(TripSessionRaw)
+            .filter(
+                TripSessionRaw.trip_server_id == trip_id,
+                TripSessionRaw.user_id == user_id,
+                TripSessionRaw.stop_server_pending.is_(True),
+            )
+            .all()
+        )
+        for row in pending_sessions:
+            if not row.stop_client_event_id or row.ended_at is None:
+                raise TimeoutError(f"stop reconciliation pending for session {row.client_session_id}")
+            row.stop_server_pending = False
+            row.updated_at = self._utcnow()
+
+    def publish_commit(
+        self,
+        *,
+        trip_id: UUID,
+        user_id: UUID,
+        publish_token: str,
+        client_job_id: str,
+        schema_version: int,
+        idempotency_key: str,
+    ) -> tuple[int, dict[str, Any]]:
+        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
+        server_trip_id = trip.id
+        self._require_supported_schema(schema_version)
+        manifest = self._require_publish_manifest(
+            trip_id=server_trip_id,
+            user_id=user_id,
+            publish_token=publish_token,
+            expected_client_job_id=client_job_id,
+            expected_schema_version=schema_version,
+        )
+        if manifest.schema_version != schema_version:
+            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_schema", "schema_version does not match the publish manifest.")
+
+        fingerprint = self._request_fingerprint(
+            {
+                "publish_token": publish_token,
+                "client_job_id": client_job_id,
+                "schema_version": schema_version,
+                "accepted_media_refs": manifest.accepted_media_refs,
+                "payload_chunk_hashes": {
+                    key: value.get("chunk_content_hash")
+                    for key, value in sorted((manifest.payload_chunks or {}).items(), key=lambda item: int(item[0]))
+                },
+            }
+        )
+        self._assert_manifest_step_key(
+            manifest=manifest,
+            step_name="publish:commit",
+            idempotency_key=idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if manifest.status == "committed" and manifest.phase == "finalized":
+            counts = manifest.session_summary or {}
+            return status.HTTP_200_OK, {
+                "publish_token": manifest.session_commit_token,
+                "manifest_status": manifest.status,
+                "manifest_phase": manifest.phase,
+                "accepted_session_count": int(counts.get("session_count", 0)),
+                "accepted_event_count": int(counts.get("event_count", 0)),
+                "accepted_media_count": int(counts.get("media_count", 0)),
+                "accepted_point_count": int(counts.get("point_count", 0)),
+                "compiled_at": manifest.committed_at or manifest.projection_compiled_at or self._utcnow(),
+            }
+        if manifest.phase not in {"chunks_complete", "raw_ingest_completed"} and not (
+            manifest.status == "failed_retryable" and manifest.phase == "raw_ingest_completed"
+        ):
+            self._error(status.HTTP_409_CONFLICT, "invalid_manifest_state", "Manifest is not ready for publish:commit.")
+
+        session_count = 0
+        event_count = 0
+        media_count = 0
+        point_count = 0
+        if manifest.phase != "raw_ingest_completed":
+            payload = self._materialize_payload(manifest)
+            try:
+                session_count, event_count, media_count, point_count = self._bulk_replace_trip_rows(
+                    manifest=manifest,
+                    trip_id=server_trip_id,
+                    user_id=user_id,
+                    payload=payload,
+                )
+                self.db.commit()
+            except HTTPException:
+                self.db.rollback()
+                manifest = self._require_publish_manifest(
+                    trip_id=server_trip_id,
+                    user_id=user_id,
+                    publish_token=publish_token,
+                )
+                self._mark_manifest_failure(
+                    manifest=manifest,
+                    retryable=False,
+                    error_code="invalid_payload",
+                    error_message="Publish payload validation failed during raw ingest.",
+                )
+                self.db.commit()
+                raise
+        else:
+            counts = manifest.session_summary or {}
+            session_count = int(counts.get("session_count", 0))
+            event_count = int(counts.get("event_count", 0))
+            media_count = int(counts.get("media_count", 0))
+            point_count = int(counts.get("point_count", 0))
+
+        manifest = self._require_publish_manifest(
+            trip_id=server_trip_id,
+            user_id=user_id,
+            publish_token=publish_token,
+        )
+        if manifest.status == "failed_retryable":
+            self._set_manifest_state(manifest, "started", manifest.phase)
+            self.db.commit()
+            manifest = self._require_publish_manifest(
+                trip_id=server_trip_id,
+                user_id=user_id,
+                publish_token=publish_token,
+            )
+
+        try:
+            with self.db.begin_nested():
+                self._reconcile_pending_stops_for_publish(trip_id=server_trip_id, user_id=user_id)
+                compiled_at = self._compile_trip_projection(trip_id=server_trip_id, user_id=user_id)
+                manifest.projection_compiled_at = compiled_at
+                self._set_manifest_state(manifest, "started", "projection_compiled")
+                manifest.response_fingerprint = fingerprint
+                manifest.committed_at = compiled_at
+                self._set_manifest_state(manifest, "committed", "finalized")
+                manifest.updated_at = compiled_at
+            self.db.commit()
+        except TimeoutError as exc:
+            manifest = self._require_publish_manifest(
+                trip_id=server_trip_id,
+                user_id=user_id,
+                publish_token=publish_token,
+            )
+            self._mark_manifest_failure(
+                manifest=manifest,
+                retryable=True,
+                error_code="projection_retryable",
+                error_message=str(exc),
+            )
+            self.db.commit()
+            self._error(status.HTTP_503_SERVICE_UNAVAILABLE, "projection_retryable", str(exc))
+
+        return status.HTTP_200_OK, {
+            "publish_token": manifest.session_commit_token,
+            "manifest_status": manifest.status,
+            "manifest_phase": manifest.phase,
+            "accepted_session_count": session_count,
+            "accepted_event_count": event_count,
+            "accepted_media_count": media_count,
+            "accepted_point_count": point_count,
+            "compiled_at": manifest.committed_at,
+        }
 
     def _bucket_type_for_event(self, resolver_state: str) -> str:
         if resolver_state == "place_bound":
@@ -1082,20 +1423,24 @@ class LiveTrackingV2Service:
         self.db.query(TripRouteProjectionV2).filter(TripRouteProjectionV2.trip_server_id == trip_id).delete()
         self.db.flush()
 
-        session_points: dict[UUID, list[_SessionPoint]] = {}
-        route_rows: list[TripRouteProjectionV2] = []
-        session_segment_key: dict[UUID, str] = {}
-        for index, session in enumerate(sessions):
-            raw_points = [
+        raw_points_by_session: dict[UUID, list[_SessionPoint]] = {}
+        for point in points:
+            raw_points_by_session.setdefault(point.session_server_id, []).append(
                 _SessionPoint(
                     captured_at=self._to_utc(point.captured_at),
                     latitude=float(point.latitude),
                     longitude=float(point.longitude),
                     point_seq=int(point.point_seq),
                 )
-                for point in points
-                if point.session_server_id == session.session_server_id
-            ]
+            )
+
+        session_points: dict[UUID, list[_SessionPoint]] = {}
+        route_rows: list[TripRouteProjectionV2] = []
+        session_segment_key: dict[UUID, str] = {}
+        for index, session in enumerate(sessions):
+            if (time.monotonic() - started) * 1000 > MAX_PROJECTION_COMPILE_MS:
+                raise TimeoutError("projection compile exceeded the 10s timeout")
+            raw_points = raw_points_by_session.get(session.session_server_id, [])
             session_points[session.session_server_id] = raw_points
             if not raw_points:
                 continue
@@ -1132,6 +1477,11 @@ class LiveTrackingV2Service:
             self.db.add_all(route_rows)
             self.db.flush()
 
+        session_timestamps: dict[UUID, list[datetime]] = {
+            session_id: [point.captured_at for point in points_for_session]
+            for session_id, points_for_session in session_points.items()
+        }
+
         media_by_event: dict[UUID, list[TripMediaRaw]] = {}
         for item in media:
             media_by_event.setdefault(item.event_server_id, []).append(item)
@@ -1145,7 +1495,7 @@ class LiveTrackingV2Service:
             seen_media.update(item.media_server_id for item in linked_media)
             segment_key = session_segment_key.get(event.session_server_id)
             points_for_session = session_points.get(event.session_server_id, [])
-            timestamps = [point.captured_at for point in points_for_session]
+            timestamps = session_timestamps.get(event.session_server_id, [])
             association = self._route_association(
                 event=event,
                 session_key=segment_key or "",
@@ -1192,6 +1542,8 @@ class LiveTrackingV2Service:
             )
 
         for item in media:
+            if (time.monotonic() - started) * 1000 > MAX_PROJECTION_COMPILE_MS:
+                raise TimeoutError("projection compile exceeded the 10s timeout")
             if item.media_server_id in seen_media:
                 continue
             timeline_rows.append(
@@ -1228,152 +1580,6 @@ class LiveTrackingV2Service:
             self.db.add_all(timeline_rows)
             self.db.flush()
         return compiled_at
-
-    def finalize_commit(
-        self,
-        *,
-        trip_id: UUID,
-        user_id: UUID,
-        client_session_id: str,
-        session_commit_token: str,
-        schema_version: int,
-        idempotency_key: str,
-    ) -> tuple[int, dict[str, Any]]:
-        trip = self._require_v2_trip(trip_id=trip_id, user_id=user_id)
-        server_trip_id = trip.id
-        self._require_supported_schema(schema_version)
-        manifest = self._require_manifest(
-            trip_id=server_trip_id,
-            user_id=user_id,
-            client_session_id=client_session_id,
-            session_commit_token=session_commit_token,
-        )
-        session = self._get_session(trip_id=server_trip_id, user_id=user_id, client_session_id=client_session_id)
-        fingerprint = self._request_fingerprint(
-            {
-                "session_commit_token": session_commit_token,
-                "schema_version": schema_version,
-                "accepted_media_refs": manifest.accepted_media_refs,
-                "payload_chunk_hashes": {
-                    key: value.get("chunk_content_hash")
-                    for key, value in sorted((manifest.payload_chunks or {}).items(), key=lambda item: int(item[0]))
-                },
-            }
-        )
-        self._assert_manifest_step_key(
-            manifest=manifest,
-            step_name="finalize:commit",
-            idempotency_key=idempotency_key,
-            fingerprint=fingerprint,
-        )
-        if manifest.schema_version != schema_version:
-            self._error(status.HTTP_422_UNPROCESSABLE_ENTITY, "unsupported_schema", "schema_version does not match the manifest.")
-        if manifest.status == "committed" and manifest.phase == "finalized":
-            compiled_at = manifest.committed_at or manifest.projection_compiled_at or self._utcnow()
-            counts = manifest.session_summary or {}
-            return status.HTTP_200_OK, {
-                "session_commit_token": manifest.session_commit_token,
-                "manifest_status": manifest.status,
-                "manifest_phase": manifest.phase,
-                "session_server_id": session.session_server_id,
-                "accepted_event_count": int(counts.get("event_count", 0)),
-                "accepted_media_count": int(counts.get("media_count", 0)),
-                "accepted_point_count": int(counts.get("point_count", 0)),
-                "compiled_at": compiled_at,
-            }
-        if manifest.phase not in {"chunks_complete", "raw_ingest_completed"} and not (
-            manifest.status == "failed_retryable" and manifest.phase == "raw_ingest_completed"
-        ):
-            self._error(status.HTTP_409_CONFLICT, "invalid_manifest_state", "Manifest is not ready for finalize:commit.")
-
-        event_count = 0
-        media_count = 0
-        point_count = 0
-        if manifest.phase != "raw_ingest_completed":
-            payload = self._materialize_payload(manifest)
-            try:
-                event_count, media_count, point_count = self._bulk_replace_session_rows(
-                    manifest=manifest,
-                    session=session,
-                    payload=payload,
-                )
-                self.db.commit()
-            except HTTPException:
-                self.db.rollback()
-                manifest = self._require_manifest(
-                    trip_id=server_trip_id,
-                    user_id=user_id,
-                    client_session_id=client_session_id,
-                    session_commit_token=session_commit_token,
-                )
-                self._mark_manifest_failure(
-                    manifest=manifest,
-                    retryable=False,
-                    error_code="invalid_payload",
-                    error_message="Finalize payload validation failed during raw ingest.",
-                )
-                self.db.commit()
-                raise
-        else:
-            counts = manifest.session_summary or {}
-            event_count = int(counts.get("event_count", 0))
-            media_count = int(counts.get("media_count", 0))
-            point_count = int(counts.get("point_count", 0))
-
-        manifest = self._require_manifest(
-            trip_id=server_trip_id,
-            user_id=user_id,
-            client_session_id=client_session_id,
-            session_commit_token=session_commit_token,
-        )
-        if manifest.status == "failed_retryable":
-            self._set_manifest_state(manifest, "started", manifest.phase)
-            self.db.commit()
-            manifest = self._require_manifest(
-                trip_id=server_trip_id,
-                user_id=user_id,
-                client_session_id=client_session_id,
-                session_commit_token=session_commit_token,
-            )
-
-        try:
-            with self.db.begin_nested():
-                compiled_at = self._compile_trip_projection(trip_id=server_trip_id, user_id=user_id)
-                manifest.projection_compiled_at = compiled_at
-                self._set_manifest_state(manifest, "started", "projection_compiled")
-                manifest.response_fingerprint = fingerprint
-                manifest.committed_at = compiled_at
-                session.status = "committed"
-                session.updated_at = compiled_at
-                self._set_manifest_state(manifest, "committed", "finalized")
-                manifest.updated_at = compiled_at
-            self.db.commit()
-        except TimeoutError as exc:
-            manifest = self._require_manifest(
-                trip_id=server_trip_id,
-                user_id=user_id,
-                client_session_id=client_session_id,
-                session_commit_token=session_commit_token,
-            )
-            self._mark_manifest_failure(
-                manifest=manifest,
-                retryable=True,
-                error_code="projection_retryable",
-                error_message=str(exc),
-            )
-            self.db.commit()
-            self._error(status.HTTP_503_SERVICE_UNAVAILABLE, "projection_retryable", str(exc))
-
-        return status.HTTP_200_OK, {
-            "session_commit_token": manifest.session_commit_token,
-            "manifest_status": manifest.status,
-            "manifest_phase": manifest.phase,
-            "session_server_id": session.session_server_id,
-            "accepted_event_count": event_count,
-            "accepted_media_count": media_count,
-            "accepted_point_count": point_count,
-            "compiled_at": manifest.committed_at,
-        }
 
     def _encode_cursor(self, payload: dict[str, Any]) -> str:
         return base64.urlsafe_b64encode(self._canonical_json(payload).encode("utf-8")).decode("utf-8")

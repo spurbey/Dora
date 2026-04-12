@@ -1,123 +1,104 @@
-﻿# Command Lane Spec (V2)
+# Command Lane Spec (V2)
 
 Status: Locked contract
-Version: v2.0
-Last updated: 2026-04-10
+Version: v2.2
+Last updated: 2026-04-12
 Owner: Flutter runtime team + backend command API team
 
 ## 1. Purpose
 
-This spec locks V2 command-lane behavior.
+This spec locks V2 command behavior.
 
 It defines:
 
-1. Which actions are server-bound vs local-only.
-2. Start/stop API expectations.
-3. Local pause/resume behavior.
-4. Failure and retry semantics.
-5. Session stop acknowledgement handling in finalize.
+1. server-bound vs local-only actions,
+2. start/stop payload and idempotency,
+3. local pause/resume behavior,
+4. stop reconciliation via publish commit.
 
-## 2. References
+## 2. Command Split (Final)
 
-1. Master blueprint: [Master Blueprint](./master-blueprint.md)
-2. Local state schema: [Local Journal and Resolver Spec](./local-journal-and-resolver-spec.md)
-3. Session finalize flow: [Session Commit Worker Spec](./session-commit-worker-spec.md)
-4. Backend ingest/projection: [Backend Ingest and Projection Spec](./backend-ingest-and-projection-spec.md)
+1. Server-bound:
+   - `start`
+   - `stop`
+2. Local-only:
+   - `pause`
+   - `resume`
+3. No command heartbeat loop.
 
-## 3. Command Contract (Final)
+## 3. Start Contract
 
-1. Server-bound commands:
-- `start`
-- `stop`
+1. Requires network + auth.
+2. If start fails, do not create active local session.
+3. Explicit user retry only.
 
-2. Local-only control actions:
-- `pause`
-- `resume`
+Payload:
 
-3. No heartbeat retry loop for commands.
+1. `client_session_id`
+2. `started_at`
+3. optional `timezone`
+4. optional `device_context`
 
-## 4. Start Command
-
-1. Requires network + authenticated session.
-2. If start fails, do not create active session state.
-3. Explicit user retry only; no background auto-retry loop.
-4. Idempotency key required.
-5. Bridge payload fields (until backend V2 command endpoints land):
-- `client_session_id`
-- `started_at`
-- optional `timezone`
-- optional `device_context`
-
-Idempotency key format:
+Idempotency key:
 
 1. `start:{trip_local_id}:{session_id}:{start_request_seq}`
 
-`start_request_seq` rules:
-
-1. Stored in `session_journal`.
-2. First start attempt uses `start_request_seq = 1`.
-3. Network retries for the same attempt must reuse the same sequence value.
-4. Increment only when user initiates a new explicit start retry after a terminal start failure.
-
-## 5. Pause Action (Local-Only)
+## 4. Pause/Resume Contract
 
 1. No server call.
-2. Update local `control_state = paused`.
-3. Stop route point capture while paused.
-4. Manual captures remain allowed and must be marked `captured_while_paused = true`.
+2. Pause sets local `control_state=paused` and stops route point capture.
+3. Resume sets local `control_state=active` and resumes point capture.
+4. Manual captures while paused are allowed and marked accordingly.
 
-## 6. Resume Action (Local-Only)
+## 5. Stop Contract
 
-1. No server call.
-2. Update local `control_state = active`.
-3. Restart route point capture.
+1. Always seal locally first.
+2. Attempt server stop immediately.
+3. If stop call fails/offline, set `stop_server_pending=true` and keep session sealed.
 
-## 7. Stop Command
+Canonical session identity is path `client_session_id`.
 
-1. Always seal session locally immediately.
-2. Attempt server stop call immediately when online.
-3. If stop call fails/offline:
-- set `stop_server_pending = true`
-- keep session sealed locally.
-4. Do not block user from exiting live flow.
-5. Bridge payload fields (until backend V2 command endpoints land):
-- `client_event_id`
-- `session_id`
-- `stopped_at`
-- optional `reason`
+Stop request body:
 
-Idempotency key format:
+1. `seal_version`
+2. `stop_client_event_id`
+3. `stopped_at`
+4. `reason` (optional opaque string)
+5. optional `client_session_id` echo for audit only (must match path if present)
+
+Idempotency key:
 
 1. `stop:{trip_local_id}:{session_id}:{seal_version}`
 
-## 8. Stop Ack Completion in Finalize
+## 6. Stop Reconciliation in Publish
 
-1. Session finalize must include stop-ack completion phase.
-2. If `stop_server_pending = true`, finalize pipeline performs server stop acknowledgement before `done`.
-3. On success, set `stop_server_pending = false` and populate `stop_ack_at`.
+1. Pending stop ack is reconciled during `publish:commit`.
+2. `publish:commit` cannot return success until pending stop reconciliation succeeds.
+3. On successful reconciliation:
+   - `stop_server_pending=false`
+   - `stop_ack_at` populated
 
-## 9. Local Session Fields (Required)
+## 7. Required Local Fields
 
-`session_journal` requires these fields:
+`session_journal` requires:
 
-1. `control_state` enum: `planned|active|paused|sealed`
-2. `stop_server_pending` boolean
-3. `start_ack_at` datetime nullable
-4. `stop_ack_at` datetime nullable
-5. `seal_version` integer
-6. `start_request_seq` integer (monotonic per session)
+1. `control_state` (`planned|active|paused|sealed`)
+2. `stop_server_pending`
+3. `start_ack_at`
+4. `stop_ack_at`
+5. `seal_version`
+6. `start_request_seq`
 
-## 10. Error Model
+## 8. Error Model
 
-1. `start` errors are fail-fast and user-visible.
-2. `pause/resume` are local and should only fail on local persistence errors.
-3. `stop` server failure transitions to local sealed + pending server stop.
+1. Start failures are fail-fast and user-visible.
+2. Pause/resume failures are local persistence failures only.
+3. Stop server failure transitions to sealed local state with pending stop flag.
 
-## 11. Acceptance Criteria
+## 9. Acceptance Criteria
 
-1. Start never creates active local session when server start fails.
-2. Pause/resume never call backend.
-3. Stop always seals locally, even offline.
-4. Pending stop acknowledgement is completed by finalize path.
-5. No command heartbeat retry loop exists.
-
+1. start never leaves active local session on failed start call,
+2. pause/resume never call server,
+3. stop always seals locally,
+4. pending stop is reconciled before publish commit success,
+5. no command retry storm loop.

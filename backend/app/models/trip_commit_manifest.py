@@ -1,5 +1,5 @@
 """
-V2 finalize manifest and replay ledger.
+V2 publish manifest and replay ledger.
 """
 
 import uuid
@@ -12,7 +12,7 @@ from app.database import Base
 
 
 class TripCommitManifest(Base):
-    """Session finalize manifest and replay checkpoint container."""
+    """Trip publish manifest and replay checkpoint container."""
 
     __tablename__ = "trip_commit_manifest"
 

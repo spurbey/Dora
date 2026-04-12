@@ -137,12 +137,8 @@ final v2CaptureCoordinatorProvider = Provider<V2CaptureCoordinator>((ref) {
   final locationService = ref.watch(locationServiceProvider);
   final coordinator = V2CaptureCoordinator(
     repository: repository,
-    onSessionSealed: ({required tripId, required sessionId}) async {
-      await ref.read(v2SessionCommitOrchestratorProvider).onSessionSealed(
-            tripId: tripId,
-            sessionId: sessionId,
-          );
-    },
+    // Publish-only lane: sealing a session must not trigger session-commit uploads.
+    onSessionSealed: null,
     ensureLocationAccess: ({
       required bool requestIfDenied,
     }) {

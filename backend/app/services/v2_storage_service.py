@@ -1,9 +1,15 @@
 """
-Provider-neutral storage adapter contract for V2 commit finalize.
+Provider-neutral storage adapter contract for V2 trip publish.
 """
 
+from typing import Optional
 from dataclasses import dataclass
 from uuid import UUID
+
+from fastapi import HTTPException
+
+from app.config import settings
+from app.services.storage_service import StorageConfigurationError, StorageService
 
 
 @dataclass(frozen=True)
@@ -20,6 +26,14 @@ class V2StorageService:
 
     STORAGE_PROVIDER = "supabase"
     BUCKET = "tracking-v2"
+
+    def __init__(self, require_existence_check: Optional[bool] = None):
+        self.require_existence_check = (
+            settings.V2_STORAGE_REQUIRE_EXISTENCE_CHECK
+            if require_existence_check is None
+            else bool(require_existence_check)
+        )
+        self._storage_service: Optional[StorageService] = None
 
     def build_upload_target(
         self,
@@ -54,4 +68,33 @@ class V2StorageService:
             session_commit_token=session_commit_token,
             client_media_id=client_media_id,
         )
-        return expected.storage_ref == storage_ref
+        if expected.storage_ref != storage_ref:
+            return False
+        if not self.require_existence_check:
+            return True
+        return self._storage_object_exists(
+            bucket=expected.bucket,
+            object_key=expected.object_key,
+        )
+
+    def _get_storage_service(self) -> StorageService:
+        if self._storage_service is None:
+            self._storage_service = StorageService()
+        return self._storage_service
+
+    def _storage_object_exists(self, *, bucket: str, object_key: str) -> bool:
+        try:
+            storage = self._get_storage_service()
+        except StorageConfigurationError:
+            return False
+        try:
+            signed_url = storage.get_signed_url(
+                bucket=bucket,
+                file_path=object_key,
+                expires_in=60,
+            )
+            return bool(signed_url and signed_url.strip())
+        except HTTPException:
+            return False
+        except Exception:
+            return False

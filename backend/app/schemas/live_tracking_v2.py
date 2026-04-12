@@ -55,8 +55,9 @@ class V2SessionResponse(BaseModel):
     commit_token: Optional[str] = None
 
 
-class V2SessionSummary(BaseModel):
+class V2PublishSummary(BaseModel):
     snapshot_hash: str = Field(..., min_length=1, max_length=128)
+    session_count: int = Field(default=0, ge=0)
     event_count: int = Field(..., ge=0)
     media_count: int = Field(..., ge=0)
     point_count: int = Field(..., ge=0)
@@ -72,10 +73,10 @@ class V2MediaManifestItem(BaseModel):
     media_content_hash: str = Field(..., min_length=1, max_length=128)
 
 
-class V2FinalizeStartRequest(BaseModel):
+class V2PublishStartRequest(BaseModel):
     client_job_id: str = Field(..., min_length=1, max_length=128)
     schema_version: int = Field(..., ge=1)
-    session_summary: V2SessionSummary
+    publish_summary: V2PublishSummary
     media_manifest: list[V2MediaManifestItem] = Field(default_factory=list)
     media_manifest_digest: str = Field(..., min_length=1, max_length=128)
 
@@ -88,8 +89,8 @@ class V2UploadTarget(BaseModel):
     object_key: str
 
 
-class V2FinalizeStartResponse(BaseModel):
-    session_commit_token: str
+class V2PublishStartResponse(BaseModel):
+    publish_token: str
     manifest_status: ManifestStatus
     manifest_phase: ManifestPhase
     accepted_media_count: int
@@ -101,28 +102,32 @@ class V2UploadedMediaRef(BaseModel):
     storage_ref: str = Field(..., min_length=1, max_length=512)
 
 
-class V2FinalizeMediaCompleteRequest(BaseModel):
-    session_commit_token: str = Field(..., min_length=1, max_length=128)
+class V2PublishMediaCompleteRequest(BaseModel):
+    publish_token: str = Field(..., min_length=1, max_length=128)
+    client_job_id: str = Field(..., min_length=1, max_length=128)
+    schema_version: int = Field(..., ge=1)
     uploaded_media: list[V2UploadedMediaRef] = Field(default_factory=list)
 
 
-class V2FinalizeMediaCompleteResponse(BaseModel):
-    session_commit_token: str
+class V2PublishMediaCompleteResponse(BaseModel):
+    publish_token: str
     manifest_status: ManifestStatus
     manifest_phase: ManifestPhase
     accepted_media_count: int
 
 
-class V2PayloadChunkRequest(BaseModel):
-    session_commit_token: str = Field(..., min_length=1, max_length=128)
+class V2PublishPayloadChunkRequest(BaseModel):
+    publish_token: str = Field(..., min_length=1, max_length=128)
+    client_job_id: str = Field(..., min_length=1, max_length=128)
+    schema_version: int = Field(..., ge=1)
     chunk_index: int = Field(..., ge=0)
     total_chunks: int = Field(..., ge=1)
     chunk_content_hash: str = Field(..., min_length=1, max_length=128)
     chunk_json: str = Field(..., min_length=1)
 
 
-class V2PayloadChunkResponse(BaseModel):
-    session_commit_token: str
+class V2PublishPayloadChunkResponse(BaseModel):
+    publish_token: str
     manifest_status: ManifestStatus
     manifest_phase: ManifestPhase
     chunk_index: int
@@ -130,16 +135,17 @@ class V2PayloadChunkResponse(BaseModel):
     accepted_total_bytes: int
 
 
-class V2FinalizeCommitRequest(BaseModel):
-    session_commit_token: str = Field(..., min_length=1, max_length=128)
+class V2PublishCommitRequest(BaseModel):
+    publish_token: str = Field(..., min_length=1, max_length=128)
+    client_job_id: str = Field(..., min_length=1, max_length=128)
     schema_version: int = Field(..., ge=1)
 
 
-class V2FinalizeCommitResponse(BaseModel):
-    session_commit_token: str
+class V2PublishCommitResponse(BaseModel):
+    publish_token: str
     manifest_status: ManifestStatus
     manifest_phase: ManifestPhase
-    session_server_id: UUID
+    accepted_session_count: int
     accepted_event_count: int
     accepted_media_count: int
     accepted_point_count: int

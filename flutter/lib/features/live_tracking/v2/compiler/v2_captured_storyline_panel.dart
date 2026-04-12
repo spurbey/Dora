@@ -236,13 +236,13 @@ class _SessionGroup extends StatelessWidget {
   String _syncLabel(String syncChipState) {
     switch (syncChipState) {
       case 'commit_pending':
-        return 'Commit pending';
+        return 'Saved locally';
       case 'committing':
-        return 'Committing';
+        return 'Saved locally';
       case 'committed':
-        return 'Committed';
+        return 'Saved locally';
       case 'commit_failed_retryable':
-        return 'Retry';
+        return 'Saved locally';
       case 'local_only':
       default:
         return 'Local only';

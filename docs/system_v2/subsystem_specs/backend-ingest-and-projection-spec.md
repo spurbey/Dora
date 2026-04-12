@@ -1,448 +1,277 @@
-﻿# Backend Ingest and Projection Spec (V2)
+# Backend Ingest and Projection Spec (V2)
 
 Status: Draft for implementation lock
-Version: v2.1
+Version: v2.2
 Last updated: 2026-04-12
 Owner: Backend API + compiler team
 
 ## 1. Purpose
 
-This spec defines the backend contract for Live System V2.
+This spec defines the Phase 6 backend lane for V2.
 
-It covers:
+Scope:
 
-1. Raw canonical ingest model.
-2. Session finalize ingest APIs.
-3. Trip publish ingest APIs.
-4. Server-side timeline projection compilation.
-5. Cross-device read APIs.
-6. Idempotency, reliability, and load controls.
+1. command endpoints (`start/stop`),
+2. publish-only data ingest,
+3. canonical raw storage,
+4. synchronous projection compile,
+5. bounded read APIs,
+6. idempotency/replay/error contracts.
 
-## 2. References
+Out of scope for this phase:
 
-1. Master blueprint: [Master Blueprint](./master-blueprint.md)
-2. Command behavior source: [Command Lane Spec](./command-lane-spec.md)
-3. Local input source: [Local Journal and Resolver Spec](./local-journal-and-resolver-spec.md)
-4. Commit producer: [Session Commit Worker Spec](./session-commit-worker-spec.md)
-5. Local compiler model: [Local Timeline Compiler Spec](./local-timeline-compiler-spec.md)
-6. Subsystem index: [Subsystem Specs Index](./README.md)
-7. System index: [System V2 Index](../README.md)
+1. session-finalize ingest endpoints,
+2. publish incremental-delta protocol,
+3. advisory lane backend.
 
-## 3. Depends On
+## 2. Core Contract
 
-1. V2 local journal and resolver state/decision semantics.
-2. V2 session commit worker phase model and idempotency behavior.
+1. V2 data-plane ingest happens only on explicit publish.
+2. V2 requests must never silently fall back into V1 ingest/projection services.
+3. Raw rows are canonical truth; projection rows are derived.
+4. One active publish manifest per `trip_id` by status (`started|failed_retryable`).
 
-## 4. Used By
+## 3. Endpoint Set (Canonical)
 
-1. `trip-publish-spec.md`
-2. Mobile cross-device timeline fetch flows.
-3. Admin/ops diagnostics and replay tooling.
-
-## 5. Backend Responsibilities
-
-1. Persist raw session and publish payloads as canonical truth.
-2. Guarantee idempotent commit/publish replay behavior.
-3. Materialize compiled timeline projection for fast read.
-4. Preserve user manual decisions and lock semantics.
-5. Expose bounded, query-efficient read endpoints.
-
-## 6. Canonical Storage Policy
-
-1. Canonical truth is raw journal data plus final resolver/user decisions.
-2. Compiled timeline projection is a derived read model.
-3. Compiler outputs can be regenerated from canonical raw data.
-
-## 7. Core Backend Tables
-
-Names are logical and may map to physical names by backend conventions.
-
-### 7.1 `trip_session_raw`
-
-Columns:
-
-1. `session_server_id` UUID PRIMARY KEY
-2. `trip_server_id` UUID NOT NULL
-3. `client_session_id` TEXT NOT NULL
-4. `device_id` TEXT NOT NULL
-5. `started_at` TIMESTAMP NOT NULL
-6. `ended_at` TIMESTAMP NULL
-7. `status` TEXT NOT NULL
-8. `commit_token` TEXT NULL
-9. `created_at` TIMESTAMP NOT NULL
-10. `updated_at` TIMESTAMP NOT NULL
-
-Indexes:
-
-1. `(trip_server_id, started_at)`
-2. `(trip_server_id, client_session_id)` UNIQUE
-
-### 7.2 `trip_event_raw`
-
-Columns:
-
-1. `event_server_id` UUID PRIMARY KEY
-2. `trip_server_id` UUID NOT NULL
-3. `session_server_id` UUID NOT NULL
-4. `client_event_id` TEXT NOT NULL
-5. `event_type` TEXT NOT NULL
-6. `captured_at` TIMESTAMP NOT NULL
-7. `latitude` DOUBLE PRECISION NOT NULL
-8. `longitude` DOUBLE PRECISION NOT NULL
-9. `resolver_state` TEXT NOT NULL
-10. `decision_source` TEXT NULL
-11. `manual_lock` BOOLEAN NOT NULL DEFAULT FALSE
-12. `place_bind_kind` TEXT NULL
-13. `place_bind_id` TEXT NULL
-14. `place_bind_name` TEXT NULL
-15. `geotag_final_reason` TEXT NULL
-16. `payload_json` JSONB NULL
-17. `created_at` TIMESTAMP NOT NULL
-18. `updated_at` TIMESTAMP NOT NULL
-
-Indexes:
-
-1. `(trip_server_id, captured_at)`
-2. `(trip_server_id, resolver_state, captured_at)`
-3. `(trip_server_id, client_event_id)` UNIQUE
-
-### 7.2.1 Locked domain enums for `trip_event_raw`
-
-These values must remain aligned with local resolver truth contract.
-
-1. `resolver_state`:
-- `geotag_unresolved`
-- `review_required`
-- `place_bound`
-- `geotag_final`
-
-2. `decision_source`:
-- `auto_high_confidence`
-- `user_accept_candidate`
-- `user_manual_place`
-- `user_keep_geotag`
-
-3. `place_bind_kind`:
-- `none`
-- `provider_poi`
-- `trip_place_local`
-
-4. `geotag_final_reason`:
-- `user_keep_geotag`
-- `no_reliable_candidate`
-- `manual_add_cancelled`
-
-### 7.3 `trip_media_raw`
-
-Columns:
-
-1. `media_server_id` UUID PRIMARY KEY
-2. `trip_server_id` UUID NOT NULL
-3. `session_server_id` UUID NOT NULL
-4. `event_server_id` UUID NOT NULL
-5. `client_media_id` TEXT NOT NULL
-6. `captured_at` TIMESTAMP NOT NULL
-7. `media_type` TEXT NOT NULL
-8. `storage_ref` TEXT NOT NULL
-9. `mime_type` TEXT NULL
-10. `bytes_size` BIGINT NULL
-11. `width_px` INTEGER NULL
-12. `height_px` INTEGER NULL
-13. `duration_ms` INTEGER NULL
-14. `created_at` TIMESTAMP NOT NULL
-15. `updated_at` TIMESTAMP NOT NULL
-
-Indexes:
-
-1. `(trip_server_id, captured_at)`
-2. `(event_server_id)`
-3. `(trip_server_id, client_media_id)` UNIQUE
-
-### 7.4 `trip_route_raw_point` or `trip_route_raw_segment`
-
-Implementation may store points or compressed segments. Must support recompile.
-
-Minimum columns:
-
-1. `trip_server_id` UUID NOT NULL
-2. `session_server_id` UUID NOT NULL
-3. `captured_at` TIMESTAMP NOT NULL
-4. `latitude` DOUBLE PRECISION NOT NULL
-5. `longitude` DOUBLE PRECISION NOT NULL
-6. `accuracy_m` DOUBLE PRECISION NULL
-7. `point_seq` INTEGER NOT NULL
-
-Indexes:
-
-1. `(session_server_id, point_seq)`
-2. `(trip_server_id, captured_at)`
-
-### 7.5 `trip_commit_manifest`
-
-Tracks finalize and publish idempotent transactions.
-
-Columns:
-
-1. `manifest_id` UUID PRIMARY KEY
-2. `trip_server_id` UUID NOT NULL
-3. `client_job_id` TEXT NOT NULL
-4. `idempotency_key` TEXT NOT NULL
-5. `operation_kind` TEXT NOT NULL
-- enum: `session_finalize`, `trip_publish`
-6. `status` TEXT NOT NULL
-- enum: `started`, `media_uploaded`, `payload_uploaded`, `finalized`, `failed`
-7. `request_fingerprint` TEXT NOT NULL
-8. `response_fingerprint` TEXT NULL
-9. `error_code` TEXT NULL
-10. `created_at` TIMESTAMP NOT NULL
-11. `updated_at` TIMESTAMP NOT NULL
-
-Indexes:
-
-1. `(trip_server_id, idempotency_key, operation_kind)` UNIQUE
-2. `(trip_server_id, created_at DESC)`
-
-### 7.6 `trip_timeline_projection`
-
-Derived read model consumed by remote devices.
-
-Columns:
-
-1. `projection_id` UUID PRIMARY KEY
-2. `trip_server_id` UUID NOT NULL
-3. `entry_kind` TEXT NOT NULL
-- enum: `event`, `media`
-4. `source_server_id` UUID NOT NULL
-5. `captured_at` TIMESTAMP NOT NULL
-6. `bucket_type` TEXT NOT NULL
-- enum: `place`, `on_route`, `needs_review`
-7. `place_bind_name` TEXT NULL
-8. `place_bind_id` TEXT NULL
-9. `decision_source` TEXT NULL
-10. `manual_lock` BOOLEAN NOT NULL
-11. `anchor_latitude` DOUBLE PRECISION NOT NULL
-12. `anchor_longitude` DOUBLE PRECISION NOT NULL
-13. `route_segment_key` TEXT NULL
-14. `route_distance_m` DOUBLE PRECISION NULL
-15. `title` TEXT NOT NULL
-16. `subtitle` TEXT NULL
-17. `render_payload_json` JSONB NULL
-18. `compiler_version` INTEGER NOT NULL
-19. `compiled_at` TIMESTAMP NOT NULL
-
-Indexes:
-
-1. `(trip_server_id, captured_at DESC)`
-2. `(trip_server_id, bucket_type, captured_at DESC)`
-3. `(trip_server_id, entry_kind, source_server_id)` UNIQUE
-
-## 8. Command and Finalize API Contracts (High Level)
-
-### 8.0 Command API Contract
-
-Server-bound command endpoints for V2:
+### 3.1 Commands
 
 1. `POST /api/v2/trips/{trip_id}/sessions:start`
 2. `POST /api/v2/trips/{trip_id}/sessions/{client_session_id}:stop`
 
+### 3.2 Publish ingest
+
+1. `POST /api/v2/trips/{trip_id}/publish:start`
+2. `POST /api/v2/trips/{trip_id}/publish:media-complete`
+3. `POST /api/v2/trips/{trip_id}/publish:payload-chunk`
+4. `POST /api/v2/trips/{trip_id}/publish:commit`
+
+### 3.3 Read APIs
+
+1. `GET /api/v2/trips/{trip_id}/timeline`
+2. `GET /api/v2/trips/{trip_id}/route`
+
+## 4. Request Preconditions and Eligibility
+
+Mutating V2 requests require:
+
+1. authenticated user,
+2. trip ownership/permission,
+3. trip V2 capability,
+4. supported `schema_version`,
+5. required fields for endpoint,
+6. `Idempotency-Key` header.
+
+Response mapping:
+
+1. trip not V2-enabled -> `409`.
+2. unsupported schema -> `422` (terminal).
+3. missing required fields -> `400` (terminal).
+4. unknown trip/session/job -> `404`.
+5. same key + different fingerprint -> `409 idempotency_conflict` (terminal).
+6. token scope mismatch -> `403 token_scope_mismatch`.
+
+## 5. Stop Contract
+
+Canonical identity is path `client_session_id`.
+
+Stop body:
+
+1. `seal_version`
+2. `stop_client_event_id`
+3. `stopped_at`
+4. `reason` (optional opaque string)
+
 Rules:
 
-1. `start` is online-required and fail-fast.
-2. `stop` is idempotent and may be acknowledged during finalize if stop was pending offline.
+1. `stop_client_event_id` is scoped to `(client_session_id, seal_version)`.
+2. Optional body echo of `client_session_id` is audit-only; mismatch with path -> `400`.
 
-### 8.1 Start finalize
+## 6. Canonical Tables
 
-`POST /api/v2/trips/{trip_id}/sessions/{client_session_id}/finalize:start`
+### 6.1 Raw tables
 
-Request:
+1. `trip_session_raw`
+2. `trip_event_raw`
+3. `trip_media_raw`
+4. `trip_route_raw_point`
+5. `trip_publish_manifest`
 
-1. `client_job_id`
-2. `idempotency_key`
-3. `session_summary` (counts/hash/timestamps)
-4. `media_manifest` (client media ids + metadata)
+### 6.2 Derived tables
 
-Response:
+1. `trip_timeline_projection_v2`
+2. `trip_route_projection_v2`
 
-1. `session_commit_token`
-2. upload instructions/presigned refs for media if needed
-3. accepted manifest summary
+### 6.3 Required constraints
 
-### 8.2 Upload media
+1. `(trip_server_id, client_session_id)` unique on session raw.
+2. `(trip_server_id, client_event_id)` unique on event raw.
+3. `(trip_server_id, client_media_id)` unique on media raw.
+4. `(trip_server_id, operation_kind, idempotency_key)` unique on manifest.
+5. FKs from event/media/point to session raw.
+6. Timeline read index `(trip_server_id, captured_at, entry_id)`.
 
-Client uploads media and confirms refs.
+## 7. Publish Flow
 
-`POST /api/v2/trips/{trip_id}/sessions/{client_session_id}/finalize:media-complete`
+### 7.1 `publish:start`
 
-### 8.3 Upload payload chunks
+1. validate eligibility and ownership,
+2. enforce active publish uniqueness by status,
+3. persist immutable snapshot metadata:
+   - `publish_job_id`
+   - `snapshot_digest`
+   - `media_manifest`
+   - `media_manifest_digest`
+   - summary counts/hash
+4. persist request fingerprint,
+5. return `publish_token` + storage upload instructions.
 
-`POST /api/v2/trips/{trip_id}/sessions/{client_session_id}/finalize:payload-chunk`
+Snapshot freeze rule: commit must use the frozen manifest/chunk set from this step.
 
-Request includes:
+### 7.2 `publish:media-complete`
 
-1. `chunk_index`
-2. `total_chunks`
-3. `content_hash`
-4. `chunk_json`
+1. request must include `publish_token`, `client_job_id`, `schema_version`,
+2. verify token scope binds to `user_id + trip_id + client_job_id + schema_version`,
+3. verify uploads against frozen media manifest only,
+4. verify object existence + ownership via storage adapter,
+5. reject if any required media invalid/missing (all-or-nothing policy).
 
-### 8.4 Finalize ack
+### 7.3 `publish:payload-chunk`
 
-`POST /api/v2/trips/{trip_id}/sessions/{client_session_id}/finalize:commit`
+1. request must include `publish_token`, `client_job_id`, `schema_version`,
+2. verify token scope binds to `user_id + trip_id + client_job_id + schema_version`,
+3. accept `chunk_index`, `total_chunks`, `chunk_content_hash`, `chunk_json`,
+4. enforce chunk size `<= 128 KiB`,
+5. enforce total payload cap `<= 64 MiB`,
+6. validate `0 <= chunk_index < total_chunks`,
+7. recompute `chunk_content_hash` server-side and reject mismatch,
+8. store/reassemble using streaming or temp storage (no full-memory requirement).
 
-Response:
+### 7.4 `publish:commit`
 
-1. `commit_status`
-2. `session_server_id`
-3. accepted counts and checksum summary
+1. request must include `publish_token`, `client_job_id`, `schema_version`,
+2. validate token scope + frozen manifest + chunk completeness,
+3. perform raw ingest transaction,
+4. perform projection compile transaction,
+5. reconcile pending stop ack before final success,
+6. mark manifest `committed` only after projection and stop reconciliation succeed.
 
-## 9. Trip Publish API Contract (High Level)
+Replay checkpoint rule:
 
-`POST /api/v2/trips/{trip_id}/publish`
+1. if phase is `raw_ingest_completed`, replay skips raw reinsert,
+2. reruns projection + finalization only.
 
-Request includes:
+## 8. Manifest Model
 
-1. `client_job_id`
-2. `idempotency_key`
-3. optional editorial metadata
-4. raw journal references or raw payload pack
-5. publish intent flags
+### 8.1 Status enum
 
-Response includes:
+1. `started`
+2. `failed_retryable`
+3. `failed_terminal`
+4. `idempotency_conflict`
+5. `committed`
 
-1. publish status
-2. projection rebuild token/version
-3. resulting trip version metadata
+### 8.2 Phase enum
 
-## 10. Idempotency and Replay Rules
+1. `start_received`
+2. `media_verified`
+3. `chunks_complete`
+4. `raw_ingest_completed`
+5. `projection_compiled`
+6. `finalized`
 
-1. Same `idempotency_key` + `operation_kind` + `trip_id` must be replay-safe.
-2. Duplicate requests return consistent accepted response.
-3. Request fingerprint mismatch under same key must reject with deterministic conflict error.
-4. Partial progress is tracked in `trip_commit_manifest` and resumable.
+Rules:
 
-## 11. Projection Compiler Rules (Server)
+1. active publish uniqueness is based on status only (`started|failed_retryable`).
+2. `committed` requires `phase=finalized`.
+3. terminal states have no outgoing transitions.
 
-Server compiler must mirror local semantic outcomes.
+## 9. Idempotency and Fingerprints
 
-1. Manual lock has highest precedence.
-2. Bucket mapping uses resolver state from canonical raw rows.
-3. Compiler is pure derived process and must not mutate raw source semantics.
-4. Compiler version is persisted per projection row.
-5. Recompile can be triggered by:
-- finalize commit success
-- publish success
-- explicit admin/maintenance recompile
+1. `Idempotency-Key` required on all mutating endpoints.
+2. Fingerprint algorithm: SHA-256 hex over canonical JSON.
+3. Same key + same fingerprint: replay accepted with stable response.
+4. Same key + different fingerprint: `409 idempotency_conflict`.
 
-## 12. Cross-Device Read APIs
+Locked publish key formats:
 
-### 12.1 Timeline projection read
+1. `publish:start:{trip_id}:{publish_job_id}:{snapshot_digest}`
+2. `publish:media-complete:{trip_id}:{publish_job_id}:{media_manifest_digest}`
+3. `publish:payload-chunk:{trip_id}:{publish_job_id}:{chunk_index}:{chunk_content_hash}`
+4. `publish:commit:{trip_id}:{publish_job_id}:{snapshot_digest}:{accepted_chunks_digest}`
 
-`GET /api/v2/trips/{trip_id}/timeline`
+## 10. Error Classification
 
-Response:
+Terminal:
 
-1. timeline entries sorted by captured time
-2. bucket type and place/on-route metadata
-3. projection version and compiled timestamp
+1. `400` missing/invalid required fields,
+2. `403 token_scope_mismatch`,
+3. `404` not found,
+4. `409 active_publish_exists|idempotency_conflict`,
+5. `413 payload/chunk too large`,
+6. `422 schema/hash/index validation failure`.
 
-### 12.2 Route projection read
+Retryable:
 
-`GET /api/v2/trips/{trip_id}/route`
+1. `503` projection timeout or transient dependency failure,
+2. transient `5xx` infra/storage errors.
 
-Response:
+## 11. Projection and Read Contracts
 
-1. route segments/polyline for trip timeline map
-2. segment metadata
+### 11.1 Synchronous projection guardrails
 
-### 12.3 Unresolved summary read (optional)
+1. `MAX_EVENTS=10000`
+2. `MAX_MEDIA=2000`
+3. `MAX_POINTS=200000`
+4. `MAX_PROJECTION_COMPILE_MS=10000`
 
-`GET /api/v2/trips/{trip_id}/timeline/unresolved-summary`
+Implementation note: timeout guard covers full compile path, including route projection.
 
-For remote display parity where needed.
+Performance note: compile must pre-group points by session once; avoid O(sessions x points) rescans.
 
-## 13. Error Model
+### 11.2 Timeline read
 
-Stable error categories:
+1. cursor pagination,
+2. request `limit 1..200`,
+3. stable order `captured_at ASC, entry_id ASC`,
+4. response includes `entries`, `next_cursor`, `has_more`, `compiled_at`, `compiler_version`.
 
-1. `invalid_payload`
-2. `idempotency_conflict`
-3. `auth_forbidden`
-4. `trip_not_found`
-5. `session_not_found`
-6. `media_ref_invalid`
-7. `chunk_out_of_order`
-8. `transient_upstream_failure`
+### 11.3 Route read
 
-Responses must include machine-readable code and user-safe message.
+1. bounded only,
+2. `limit_segments 1..20` (default 10),
+3. `max_points_returned=5000` after simplification,
+4. include `is_simplified=true` when simplification applied,
+5. never dump unbounded raw points.
 
-## 14. Load and Scalability Controls
+## 12. Storage Adapter Contract
 
-1. No server endpoint should assume high-frequency heartbeat writes.
-2. Ingest endpoints are optimized for bounded burst at stop/publish milestones.
-3. Chunking limits must protect request size and DB transaction boundaries.
-4. Projection reads must be index-backed and paginatable.
-5. Client-side local compiler policy for Phase 4: compile is triggered primarily on session-sealed transition, not on every live route/event append, to avoid unnecessary read pressure from UI-triggered refresh churn.
+1. backend issues upload targets,
+2. backend verifies uploaded refs,
+3. canonical media identity is neutral `storage_ref`,
+4. provider-specific URL/path semantics are not canonical data.
 
-## 15. Security Baseline
-
-1. Authenticate all finalize/publish/read endpoints.
-2. Enforce trip ownership and role checks.
-3. Validate upload refs ownership before linking media rows.
-4. Sanitize JSON payloads and enforce schema version constraints.
-
-## 16. Versioning and Compatibility
-
-1. Every finalize/publish request includes `schema_version`.
-2. Backend supports rolling compatibility for staged app rollout.
-3. Compiler version increments must be traceable.
-
-## 17. Migration and Rollout
-
-1. Deploy V2 ingest and projection tables/endpoints first.
-2. Keep V1 APIs untouched during migration period.
-3. Enable V2 app clients behind feature flag.
-4. Compare V2 ingestion metrics and projection correctness before broad rollout.
-
-## 18. Observability
-
-Required metrics:
-
-1. finalize start rate
-2. finalize success rate
-3. finalize retry and failure rates
-4. publish success rate
-5. projection compile duration
-6. timeline read latency and error rate
+## 13. Observability
 
 Required logs:
 
-1. `finalize_start_received`
-2. `finalize_media_completed`
-3. `finalize_payload_chunk_accepted`
-4. `finalize_committed`
-5. `publish_committed`
-6. `projection_compile_completed`
+1. `publish_start_received`
+2. `publish_media_verified`
+3. `publish_chunk_accepted`
+4. `publish_raw_ingest_completed`
+5. `publish_projection_compiled`
+6. `publish_committed`
 
-## 19. Acceptance Criteria
+Required counters:
 
-This subsystem is complete only when:
+1. publish attempts/success/retryable/terminal,
+2. idempotency replay/conflict,
+3. projection duration and timeout rate,
+4. read p95 and error rates.
 
-1. Session finalize is idempotent and resumable.
-2. Raw canonical rows fully preserve resolver/user decision semantics.
-3. Server projection reproduces timeline correctly on a new device.
-4. Read APIs are stable and index-efficient.
-5. No high-frequency write flood pattern exists in backend logs.
+## 14. Acceptance Criteria
 
-## 20. Locked and Remaining Decisions
-
-Locked:
-
-1. Finalize metadata chunk max size = 256 KB.
-2. Publish endpoint accepts full raw snapshot payload (canonical raw contract).
-3. Retry schedule is fixed client-side at 15s, 60s, 180s with max 3 auto attempts.
-
-Remaining:
-
-1. All-or-nothing vs partial-accept policy for media issues.
-2. Projection freshness SLA after finalize/publish.
-3. Retention policy for raw point-level route data.
-
+1. publish flow is idempotent and replay-safe,
+2. no duplicate raw rows on replay,
+3. stop reconciliation enforced before commit success,
+4. projection/read contracts remain bounded,
+5. V2 endpoints never invoke V1 ingest/projection paths.

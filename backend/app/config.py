@@ -116,6 +116,9 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: Optional[str] = None
     FIREBASE_CREDENTIALS_JSON: Optional[str] = None
 
+    # V2 publish storage verification
+    V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
+
     @field_validator("DEBUG", mode="before")
     @classmethod
     def _coerce_debug(cls, value: object) -> object:

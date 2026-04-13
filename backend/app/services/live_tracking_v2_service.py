@@ -207,6 +207,7 @@ class LiveTrackingV2Service:
             "uq_idempotency_user_endpoint_key",
             "uq_trip_session_raw_trip_client_session",
             "uq_trip_commit_manifest_trip_operation_key",
+            "uq_trip_commit_manifest_trip_active_publish",
             "uq_trip_route_raw_point_session_seq",
             "uq_trip_event_raw_trip_client_event",
             "uq_trip_media_raw_trip_client_media",
@@ -590,8 +591,19 @@ class LiveTrackingV2Service:
             },
             payload_total_bytes=0,
         )
-        self.db.add(manifest)
-        self.db.commit()
+        try:
+            self.db.add(manifest)
+            self.db.commit()
+        except IntegrityError as exc:
+            constraint_name = self._extract_constraint_name(exc)
+            self.db.rollback()
+            if constraint_name == "uq_trip_commit_manifest_trip_active_publish":
+                self._error(
+                    status.HTTP_409_CONFLICT,
+                    "active_publish_exists",
+                    "A publish manifest is already active for this trip.",
+                )
+            raise
         return status.HTTP_200_OK, {
             "publish_token": manifest.session_commit_token,
             "manifest_status": manifest.status,

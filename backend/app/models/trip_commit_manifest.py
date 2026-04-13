@@ -4,7 +4,7 @@ V2 publish manifest and replay ledger.
 
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
@@ -68,6 +68,14 @@ class TripCommitManifest(Base):
             "operation_kind",
             "idempotency_key",
             name="uq_trip_commit_manifest_trip_operation_key",
+        ),
+        Index(
+            "uq_trip_commit_manifest_trip_active_publish",
+            "trip_server_id",
+            unique=True,
+            postgresql_where=text(
+                "operation_kind = 'trip_publish' AND status IN ('started','failed_retryable')"
+            ),
         ),
         Index("idx_trip_commit_manifest_trip_created", "trip_server_id", "created_at"),
         Index("idx_trip_commit_manifest_session_status", "session_server_id", "status"),

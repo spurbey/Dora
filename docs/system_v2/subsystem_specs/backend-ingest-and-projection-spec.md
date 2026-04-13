@@ -94,7 +94,7 @@ Rules:
 2. `trip_event_raw`
 3. `trip_media_raw`
 4. `trip_route_raw_point`
-5. `trip_publish_manifest`
+5. `trip_commit_manifest` (publish manifest ledger; naming retained for migration continuity)
 
 ### 6.2 Derived tables
 

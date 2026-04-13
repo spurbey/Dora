@@ -1387,6 +1387,11 @@ class LiveTrackingV2Service:
             return _RouteAssociation(segment_key=None, distance_m=min_distance)
         return _RouteAssociation(segment_key=session_key, distance_m=min_distance)
 
+    @staticmethod
+    def _assert_projection_deadline(started_monotonic: float) -> None:
+        if (time.monotonic() - started_monotonic) * 1000 > MAX_PROJECTION_COMPILE_MS:
+            raise TimeoutError("projection compile exceeded the 10s timeout")
+
     def _compile_trip_projection(self, *, trip_id: UUID, user_id: UUID) -> datetime:
         started = time.monotonic()
         compiled_at = self._utcnow()
@@ -1424,7 +1429,9 @@ class LiveTrackingV2Service:
         self.db.flush()
 
         raw_points_by_session: dict[UUID, list[_SessionPoint]] = {}
-        for point in points:
+        for point_index, point in enumerate(points):
+            if point_index % 1000 == 0:
+                self._assert_projection_deadline(started)
             raw_points_by_session.setdefault(point.session_server_id, []).append(
                 _SessionPoint(
                     captured_at=self._to_utc(point.captured_at),
@@ -1438,8 +1445,7 @@ class LiveTrackingV2Service:
         route_rows: list[TripRouteProjectionV2] = []
         session_segment_key: dict[UUID, str] = {}
         for index, session in enumerate(sessions):
-            if (time.monotonic() - started) * 1000 > MAX_PROJECTION_COMPILE_MS:
-                raise TimeoutError("projection compile exceeded the 10s timeout")
+            self._assert_projection_deadline(started)
             raw_points = raw_points_by_session.get(session.session_server_id, [])
             session_points[session.session_server_id] = raw_points
             if not raw_points:
@@ -1447,6 +1453,17 @@ class LiveTrackingV2Service:
             segment_key = f"session:{session.client_session_id}"
             session_segment_key[session.session_server_id] = segment_key
             simplified, simplified_flag = self._simplify_points(raw_points, ROUTE_MAX_POINTS_RETURNED)
+            geometry_points: list[dict[str, Any]] = []
+            for point_index, point in enumerate(simplified):
+                if point_index % 500 == 0:
+                    self._assert_projection_deadline(started)
+                geometry_points.append(
+                    {
+                        "latitude": point.latitude,
+                        "longitude": point.longitude,
+                        "captured_at": point.captured_at.isoformat(),
+                    }
+                )
             route_rows.append(
                 TripRouteProjectionV2(
                     trip_server_id=trip_id,
@@ -1457,16 +1474,7 @@ class LiveTrackingV2Service:
                     ended_at=raw_points[-1].captured_at,
                     point_count=len(simplified),
                     raw_point_count=len(raw_points),
-                    geometry_json={
-                        "points": [
-                            {
-                                "latitude": point.latitude,
-                                "longitude": point.longitude,
-                                "captured_at": point.captured_at.isoformat(),
-                            }
-                            for point in simplified
-                        ]
-                    },
+                    geometry_json={"points": geometry_points},
                     is_simplified=simplified_flag,
                     compiler_version=ROUTE_COMPILER_VERSION,
                     compiled_at=compiled_at,
@@ -1489,8 +1497,7 @@ class LiveTrackingV2Service:
         timeline_rows: list[TripTimelineProjectionV2] = []
         seen_media: set[UUID] = set()
         for event in events:
-            if (time.monotonic() - started) * 1000 > MAX_PROJECTION_COMPILE_MS:
-                raise TimeoutError("projection compile exceeded the 10s timeout")
+            self._assert_projection_deadline(started)
             linked_media = media_by_event.get(event.event_server_id, [])
             seen_media.update(item.media_server_id for item in linked_media)
             segment_key = session_segment_key.get(event.session_server_id)
@@ -1542,8 +1549,7 @@ class LiveTrackingV2Service:
             )
 
         for item in media:
-            if (time.monotonic() - started) * 1000 > MAX_PROJECTION_COMPILE_MS:
-                raise TimeoutError("projection compile exceeded the 10s timeout")
+            self._assert_projection_deadline(started)
             if item.media_server_id in seen_media:
                 continue
             timeline_rows.append(

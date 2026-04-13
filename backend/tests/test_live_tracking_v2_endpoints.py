@@ -139,6 +139,109 @@ def _build_publish_payload(*, client_session_id: str, media_id: str = "media-1")
     }
 
 
+def _bootstrap_publish(
+    *,
+    client,
+    trip_id,
+    client_session_id: str,
+    client_job_id: str,
+    media_manifest: list[dict[str, object]],
+    publish_summary: dict[str, object],
+):
+    start = client.post(
+        f"/api/v2/trips/{trip_id}/sessions:start",
+        json={
+            "client_session_id": client_session_id,
+            "started_at": _iso_now(),
+            "timezone": "UTC",
+            "device_context": {"platform": "android", "device_id": "pixel-8"},
+        },
+        headers={"Idempotency-Key": _idem("start")},
+    )
+    assert start.status_code == 200
+
+    stop = client.post(
+        f"/api/v2/trips/{trip_id}/sessions/{client_session_id}:stop",
+        json={
+            "seal_version": 1,
+            "stop_client_event_id": "stop-event-1",
+            "stopped_at": _iso_now(1),
+            "reason": "done",
+        },
+        headers={"Idempotency-Key": _idem("stop")},
+    )
+    assert stop.status_code == 200
+
+    publish_start = client.post(
+        f"/api/v2/trips/{trip_id}/publish:start",
+        json={
+            "client_job_id": client_job_id,
+            "schema_version": 1,
+            "publish_summary": publish_summary,
+            "media_manifest": media_manifest,
+            "media_manifest_digest": _canonical_hash(media_manifest),
+        },
+        headers={"Idempotency-Key": _idem("pstart")},
+    )
+    assert publish_start.status_code == 200
+    body = publish_start.json()
+    token = body["publish_token"]
+
+    upload_targets_by_media_id = {
+        item["client_media_id"]: item["storage_ref"]
+        for item in body.get("upload_targets", [])
+    }
+    uploaded_media = [
+        {
+            "client_media_id": item["client_media_id"],
+            "storage_ref": upload_targets_by_media_id[item["client_media_id"]],
+        }
+        for item in media_manifest
+    ]
+    media_complete = client.post(
+        f"/api/v2/trips/{trip_id}/publish:media-complete",
+        json={
+            "publish_token": token,
+            "client_job_id": client_job_id,
+            "schema_version": 1,
+            "uploaded_media": uploaded_media,
+        },
+        headers={"Idempotency-Key": _idem("pmedia")},
+    )
+    assert media_complete.status_code == 200
+    return token
+
+
+def _upload_payload_chunks(
+    *,
+    client,
+    trip_id,
+    publish_token: str,
+    client_job_id: str,
+    payload_json: str,
+    chunk_size_chars: int = 120 * 1024,
+):
+    total_chunks = max(1, (len(payload_json) + chunk_size_chars - 1) // chunk_size_chars)
+    for chunk_index in range(total_chunks):
+        chunk_json = payload_json[
+            chunk_index * chunk_size_chars : (chunk_index + 1) * chunk_size_chars
+        ]
+        response = client.post(
+            f"/api/v2/trips/{trip_id}/publish:payload-chunk",
+            json={
+                "publish_token": publish_token,
+                "client_job_id": client_job_id,
+                "schema_version": 1,
+                "chunk_index": chunk_index,
+                "total_chunks": total_chunks,
+                "chunk_content_hash": _sha256_text(chunk_json),
+                "chunk_json": chunk_json,
+            },
+            headers={"Idempotency-Key": _idem(f"pchunk:{chunk_index}")},
+        )
+        assert response.status_code == 200
+
+
 def test_v2_endpoints_require_idempotency_key(client, db, test_user, auth_as):
     auth_as(test_user)
     trip = create_v2_trip(db, test_user.id, title="Missing Key")
@@ -540,3 +643,246 @@ def test_v2_publish_commit_retries_projection_without_duplicate_raw_rows(client,
     manifest = db.query(TripCommitManifest).filter(TripCommitManifest.trip_server_id == trip.id).one()
     assert manifest.status == "committed"
     assert manifest.phase == "finalized"
+
+
+def test_v2_timeline_cursor_pagination_is_stable(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_v2_trip(db, test_user.id, title="Timeline Cursor Pagination")
+    client_session_id = "cursor-session"
+    client_job_id = "publish:cursor:1"
+
+    payload = _build_publish_payload(client_session_id=client_session_id)
+    base_captured = datetime(2026, 4, 12, 10, 0, tzinfo=timezone.utc)
+    payload["events"] = [
+        {
+            **payload["events"][0],
+            "event_id": "event-1",
+            "event_seq": 1,
+            "captured_at": (base_captured + timedelta(seconds=0)).isoformat(),
+            "created_at": (base_captured - timedelta(seconds=5)).isoformat(),
+            "updated_at": (base_captured + timedelta(seconds=0)).isoformat(),
+        },
+        {
+            **payload["events"][0],
+            "event_id": "event-2",
+            "event_seq": 2,
+            "captured_at": (base_captured + timedelta(seconds=10)).isoformat(),
+            "created_at": (base_captured + timedelta(seconds=4)).isoformat(),
+            "updated_at": (base_captured + timedelta(seconds=10)).isoformat(),
+            "payload_json": {"note": "Second"},
+            "place_bind_name": "Second Place",
+        },
+        {
+            **payload["events"][0],
+            "event_id": "event-3",
+            "event_seq": 3,
+            "captured_at": (base_captured + timedelta(seconds=20)).isoformat(),
+            "created_at": (base_captured + timedelta(seconds=14)).isoformat(),
+            "updated_at": (base_captured + timedelta(seconds=20)).isoformat(),
+            "payload_json": {"note": "Third"},
+            "place_bind_name": "Third Place",
+        },
+    ]
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+    media_manifest = [
+        {
+            "client_media_id": "media-1",
+            "mime_type": "image/jpeg",
+            "size_bytes": 2048,
+            "media_content_hash": "mediahash-1",
+        }
+    ]
+    publish_summary = {
+        "snapshot_hash": "snapshot-cursor",
+        "session_count": 1,
+        "event_count": len(payload["events"]),
+        "media_count": len(payload["media"]),
+        "point_count": len(payload["route_points"]),
+        "payload_bytes": len(payload_json.encode("utf-8")),
+        "started_at": _iso_now(-600),
+        "ended_at": _iso_now(),
+    }
+    token = _bootstrap_publish(
+        client=client,
+        trip_id=trip.id,
+        client_session_id=client_session_id,
+        client_job_id=client_job_id,
+        media_manifest=media_manifest,
+        publish_summary=publish_summary,
+    )
+
+    _upload_payload_chunks(
+        client=client,
+        trip_id=trip.id,
+        publish_token=token,
+        client_job_id=client_job_id,
+        payload_json=payload_json,
+    )
+
+    commit = client.post(
+        f"/api/v2/trips/{trip.id}/publish:commit",
+        json={
+            "publish_token": token,
+            "client_job_id": client_job_id,
+            "schema_version": 1,
+        },
+        headers={"Idempotency-Key": _idem("pcommit")},
+    )
+    assert commit.status_code == 200
+
+    first_page = client.get(f"/api/v2/trips/{trip.id}/timeline", params={"limit": 2})
+    assert first_page.status_code == 200
+    first_body = first_page.json()
+    assert len(first_body["entries"]) == 2
+    assert first_body["has_more"] is True
+    assert first_body["next_cursor"]
+
+    second_page = client.get(
+        f"/api/v2/trips/{trip.id}/timeline",
+        params={"limit": 2, "cursor": first_body["next_cursor"]},
+    )
+    assert second_page.status_code == 200
+    second_body = second_page.json()
+    assert len(second_body["entries"]) == 1
+    assert second_body["has_more"] is False
+    assert second_body["next_cursor"] is None
+
+    all_entries = first_body["entries"] + second_body["entries"]
+    captured_and_ids = [(entry["captured_at"], entry["entry_id"]) for entry in all_entries]
+    assert captured_and_ids == sorted(captured_and_ids)
+
+
+def test_v2_route_response_is_bounded_to_max_points(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_v2_trip(db, test_user.id, title="Route Bound")
+    client_session_id = "route-bound-session"
+    client_job_id = "publish:route-bound:1"
+
+    base = datetime(2026, 4, 12, 10, 0, tzinfo=timezone.utc)
+    route_points: list[dict[str, object]] = []
+    for idx in range(6001):
+        route_points.append(
+            {
+                "point_id": f"pt-{idx+1}",
+                "session_id": client_session_id,
+                "captured_at": (base + timedelta(seconds=idx)).isoformat(),
+                "latitude": 27.7172 + (idx * 0.000001),
+                "longitude": 85.3240 + (idx * 0.000001),
+                "accuracy_m": 5.0,
+                "speed_mps": 1.0,
+                "bearing_deg": 45.0,
+                "altitude_m": 1300.0,
+                "source": "device_gps",
+                "point_seq": idx + 1,
+            }
+        )
+
+    payload = {
+        "sessions": [
+            {
+                "session_id": client_session_id,
+                "seal_version": 1,
+                "control_state": "sealed",
+                "stop_server_pending": 0,
+                "started_at": (base - timedelta(minutes=10)).isoformat(),
+                "ended_at": (base + timedelta(seconds=6001)).isoformat(),
+                "device_id": "device-1",
+                "stop_client_event_id": "stop-event-1",
+                "timezone": "UTC",
+                "reason": "done",
+            }
+        ],
+        "events": [],
+        "media": [],
+        "route_points": route_points,
+    }
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    publish_summary = {
+        "snapshot_hash": "snapshot-route-bound",
+        "session_count": 1,
+        "event_count": 0,
+        "media_count": 0,
+        "point_count": len(route_points),
+        "payload_bytes": len(payload_json.encode("utf-8")),
+        "started_at": (base - timedelta(minutes=10)).isoformat(),
+        "ended_at": (base + timedelta(seconds=6001)).isoformat(),
+    }
+
+    token = _bootstrap_publish(
+        client=client,
+        trip_id=trip.id,
+        client_session_id=client_session_id,
+        client_job_id=client_job_id,
+        media_manifest=[],
+        publish_summary=publish_summary,
+    )
+
+    _upload_payload_chunks(
+        client=client,
+        trip_id=trip.id,
+        publish_token=token,
+        client_job_id=client_job_id,
+        payload_json=payload_json,
+    )
+
+    commit = client.post(
+        f"/api/v2/trips/{trip.id}/publish:commit",
+        json={
+            "publish_token": token,
+            "client_job_id": client_job_id,
+            "schema_version": 1,
+        },
+        headers={"Idempotency-Key": _idem("pcommit")},
+    )
+    assert commit.status_code == 200
+
+    route = client.get(f"/api/v2/trips/{trip.id}/route", params={"limit_segments": 1})
+    assert route.status_code == 200
+    route_body = route.json()
+    assert len(route_body["segments"]) == 1
+    segment = route_body["segments"][0]
+    assert segment["raw_point_count"] == 6001
+    assert segment["point_count"] <= 5000
+    assert segment["is_simplified"] is True
+
+
+def test_v2_publish_payload_chunk_rejects_index_out_of_range(client, db, test_user, auth_as):
+    auth_as(test_user)
+    trip = create_v2_trip(db, test_user.id, title="Chunk Index Guard")
+    client_session_id = "chunk-index-session"
+    client_job_id = "publish:chunk-index:1"
+
+    token = _bootstrap_publish(
+        client=client,
+        trip_id=trip.id,
+        client_session_id=client_session_id,
+        client_job_id=client_job_id,
+        media_manifest=[],
+        publish_summary={
+            "snapshot_hash": "snapshot-chunk-index",
+            "session_count": 1,
+            "event_count": 0,
+            "media_count": 0,
+            "point_count": 0,
+            "payload_bytes": 2,
+            "started_at": _iso_now(-60),
+            "ended_at": _iso_now(),
+        },
+    )
+
+    invalid_chunk = client.post(
+        f"/api/v2/trips/{trip.id}/publish:payload-chunk",
+        json={
+            "publish_token": token,
+            "client_job_id": client_job_id,
+            "schema_version": 1,
+            "chunk_index": 1,
+            "total_chunks": 1,
+            "chunk_content_hash": _sha256_text("{}"),
+            "chunk_json": "{}",
+        },
+        headers={"Idempotency-Key": _idem("pchunk")},
+    )
+    assert invalid_chunk.status_code == 422
+    assert invalid_chunk.json()["detail"]["error_code"] == "invalid_payload"

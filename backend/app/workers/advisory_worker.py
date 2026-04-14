@@ -21,6 +21,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import SessionLocal
 from app.models.advisory_job import AdvisoryJob
+from app.models.trip_advisory import TripAdvisory
+from app.models.trip import Trip
+from app.models.place import TripPlace
 
 
 STAGE_ORDER = [
@@ -205,25 +208,102 @@ def _heartbeat(db: Session, job: AdvisoryJob) -> None:
 
 
 async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
-    """Segment route into cities, derive keywords. Parse NL intent for on_demand jobs."""
+    """Segment route into cities/destinations. Build scrape plan from trip data."""
     logger.info("[ADVISORY_STAGE] route_segmentation job_id=%s", job.id)
-    # TODO: Fetch trip places/routes from DB, reverse-geocode to cities
-    # TODO: For on_demand jobs, call LLM to parse query_text → parsed_filters
-    # TODO: Generate scrape_plan (seeds, keywords, extraction instructions)
-    job.scrape_plan = job.scrape_plan or {}
-    job.scrape_plan["status"] = "stub_segmentation_done"
+
+    trip = db.query(Trip).filter(Trip.id == job.trip_id).first()
+    if not trip:
+        raise TerminalJobError("trip_not_found", f"Trip {job.trip_id} not found")
+
+    # Gather destination names from trip places
+    places = (
+        db.query(TripPlace)
+        .filter(TripPlace.trip_id == job.trip_id)
+        .order_by(TripPlace.order_index.asc())
+        .all()
+    )
+    city_names = []
+    for p in places:
+        name = getattr(p, "city", None) or getattr(p, "name", None) or ""
+        if name and name not in city_names:
+            city_names.append(name)
+
+    # Fallback: use trip name/description if no places
+    if not city_names:
+        city_names = [trip.name or "travel destination"]
+
+    # Build the question from context
+    if job.job_type == "on_demand" and job.query_text:
+        question = job.query_text
+    else:
+        question = f"travel tips for {', '.join(city_names[:5])}"
+
+    # Default subreddits
+    subs = ["IndiaTravel", "solotravel", "travel"]
+
+    from app.services.scrapers.reddit_scraper import extract_keywords, derive_search_query
+    keywords = extract_keywords(question, city_names)
+
+    plan = job.scrape_plan or {}
+    plan.update({
+        "cities": city_names,
+        "question": question,
+        "keywords": keywords,
+        "search_query": derive_search_query(keywords),
+        "subreddits": subs,
+        "max_pages": 8,
+        "max_depth": 2,
+    })
+    job.scrape_plan = plan
     db.commit()
 
 
 async def _stage_reddit_scrape(db: Session, job: AdvisoryJob) -> None:
     """Deep crawl Reddit + LLM extraction."""
     logger.info("[ADVISORY_STAGE] reddit_scrape job_id=%s", job.id)
+
+    if not settings.OPENROUTER_API_KEY:
+        logger.warning("[ADVISORY_STAGE] reddit_scrape skipped — no OPENROUTER_API_KEY")
+        result = job.result_summary or {}
+        result["reddit"] = {"status": "skipped_no_config", "insights": []}
+        job.result_summary = result
+        db.commit()
+        return
+
     _heartbeat(db, job)
-    # TODO: Call scraper_reddit logic with keywords from scrape_plan
+
+    plan = job.scrape_plan or {}
+    question = plan.get("question", "travel tips")
+    subs = plan.get("subreddits", ["IndiaTravel", "travel"])
+    keywords = plan.get("keywords", [])
+    max_pages = plan.get("max_pages", 8)
+    max_depth = plan.get("max_depth", 2)
+
+    from app.services.scrapers.reddit_scraper import scrape_reddit
+    scrape_result = await scrape_reddit(
+        question=question,
+        subs=subs,
+        extra_keywords=keywords,
+        max_pages=max_pages,
+        max_depth=max_depth,
+        openrouter_api_key=settings.OPENROUTER_API_KEY,
+        openrouter_model=settings.OPENROUTER_MODEL,
+    )
+
+    _heartbeat(db, job)
+
     result = job.result_summary or {}
-    result["reddit"] = {"status": "stub", "insights": []}
+    result["reddit"] = {
+        "status": "done",
+        "pages_visited": scrape_result.get("pages_visited", 0),
+        "insights": scrape_result.get("insights", []),
+    }
     job.result_summary = result
     db.commit()
+    logger.info(
+        "[ADVISORY_STAGE] reddit_scrape done. insights=%d",
+        len(scrape_result.get("insights", [])),
+    )
 
 
 async def _stage_tripadvisor_scrape(db: Session, job: AdvisoryJob) -> None:
@@ -255,31 +335,162 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
 async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
     """Merge and dedupe insights across all sources."""
     logger.info("[ADVISORY_STAGE] llm_extraction job_id=%s", job.id)
-    # TODO: Merge reddit + tripadvisor + gmaps results, dedupe, generate dedupe_keys
+    import hashlib
+
     result = job.result_summary or {}
-    result["merged_insights"] = []
+    all_insights: list[dict] = []
+
+    for source_key in ("reddit", "tripadvisor", "gmaps"):
+        source_data = result.get(source_key, {})
+        for item in source_data.get("insights", []):
+            item["_source"] = source_key
+            all_insights.append(item)
+
+    # Dedupe by (place_name, category, first 100 chars of insight)
+    seen_keys: dict[str, dict] = {}
+    for item in all_insights:
+        place = (item.get("place_name") or "").strip().lower()
+        cat = item.get("category", "general_tip")
+        body = (item.get("insight") or "")[:100].strip().lower()
+        raw = f"{place}|{cat}|{body}"
+        dedupe_key = hashlib.sha256(raw.encode()).hexdigest()
+
+        if dedupe_key in seen_keys:
+            # Corroboration: increment source count
+            seen_keys[dedupe_key]["_source_count"] = seen_keys[dedupe_key].get("_source_count", 1) + 1
+            existing_signal = seen_keys[dedupe_key].get("context_signal") or ""
+            seen_keys[dedupe_key]["context_signal"] = (
+                f"{existing_signal}; also on {item.get('_source', '?')}"
+            ).lstrip("; ")
+        else:
+            item["_dedupe_key"] = dedupe_key
+            item["_source_count"] = 1
+            seen_keys[dedupe_key] = item
+
+    merged = list(seen_keys.values())
+    result["merged_insights"] = merged
     job.result_summary = result
     db.commit()
+    logger.info("[ADVISORY_STAGE] llm_extraction merged %d → %d unique", len(all_insights), len(merged))
 
 
 async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
-    """Assign confidence scores, filter below threshold."""
+    """Assign confidence scores based on source count and context signals."""
     logger.info("[ADVISORY_STAGE] scoring job_id=%s", job.id)
-    # TODO: Score insights by source count, recency, corroboration
+
     result = job.result_summary or {}
-    result["scored_insights"] = []
+    merged = result.get("merged_insights", [])
+
+    scored = []
+    for item in merged:
+        source_count = item.get("_source_count", 1)
+        has_signal = bool(item.get("context_signal"))
+        has_place = bool(item.get("place_name"))
+
+        # Simple scoring: base 0.4, +0.15 per extra source, +0.1 for signal, +0.1 for named place
+        score = 0.4
+        score += min((source_count - 1) * 0.15, 0.3)
+        if has_signal:
+            score += 0.1
+        if has_place:
+            score += 0.1
+        score = min(score, 1.0)
+
+        item["_confidence_score"] = round(score, 2)
+        scored.append(item)
+
+    # Filter out very low confidence
+    scored = [s for s in scored if s["_confidence_score"] >= 0.3]
+    scored.sort(key=lambda x: x["_confidence_score"], reverse=True)
+
+    result["scored_insights"] = scored
     job.result_summary = result
     db.commit()
+    logger.info("[ADVISORY_STAGE] scoring done. %d insights above threshold", len(scored))
 
 
 async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
-    """Write TripAdvisory rows. Push only if above confidence threshold and within hourly limit."""
+    """Write TripAdvisory rows. Push high-confidence ones within hourly throttle."""
     logger.info("[ADVISORY_STAGE] delivery job_id=%s", job.id)
-    # TODO: Create TripAdvisory rows from scored_insights
-    # TODO: Check push throttle: SELECT COUNT(*) FROM trip_advisories
-    #       WHERE trip_id=X AND status='delivered' AND delivered_at >= now()-1hr
-    # TODO: Send push notification for high-confidence advisories
+    from sqlalchemy import func as sa_func
+
+    result = job.result_summary or {}
+    scored = result.get("scored_insights", [])
+    now = utcnow()
+
+    # Check push throttle
+    one_hour_ago = now - timedelta(hours=1)
+    push_count_this_hour = (
+        db.query(sa_func.count(TripAdvisory.id))
+        .filter(
+            TripAdvisory.trip_id == job.trip_id,
+            TripAdvisory.status == "delivered",
+            TripAdvisory.delivered_at >= one_hour_ago,
+        )
+        .scalar()
+    ) or 0
+
+    created_count = 0
+    pushed_count = 0
+
+    for item in scored:
+        dedupe_key = item.get("_dedupe_key", "")
+        if not dedupe_key:
+            continue
+
+        # Skip if advisory with this dedupe_key already exists for this trip
+        existing = (
+            db.query(TripAdvisory.id)
+            .filter(
+                TripAdvisory.trip_id == job.trip_id,
+                TripAdvisory.dedupe_key == dedupe_key,
+            )
+            .first()
+        )
+        if existing:
+            continue
+
+        confidence = item.get("_confidence_score", 0.5)
+        should_push = (
+            confidence >= settings.ADVISORY_MIN_CONFIDENCE_PUSH
+            and (push_count_this_hour + pushed_count) < settings.ADVISORY_MAX_PER_HOUR
+        )
+
+        source_urls = []
+        src_url = item.get("_source_url")
+        if src_url:
+            source_urls.append(src_url)
+
+        advisory = TripAdvisory(
+            trip_id=job.trip_id,
+            user_id=job.user_id,
+            advisory_job_id=job.id,
+            category=item.get("category", "general_tip"),
+            source=item.get("_source", "reddit"),
+            place_name=item.get("place_name"),
+            title=item.get("category", "tip").replace("_", " ").title(),
+            body=item.get("insight", ""),
+            context_signal=item.get("context_signal"),
+            best_for=item.get("best_for"),
+            confidence_score=confidence,
+            source_urls=source_urls or None,
+            source_count=item.get("_source_count", 1),
+            dedupe_key=dedupe_key,
+            status="delivered" if should_push else "pending",
+            observed_at=now,
+            delivered_at=now if should_push else None,
+        )
+        db.add(advisory)
+        created_count += 1
+        if should_push:
+            pushed_count += 1
+
     db.commit()
+    logger.info(
+        "[ADVISORY_STAGE] delivery done. created=%d pushed=%d (throttle: %d/%d this hour)",
+        created_count, pushed_count,
+        push_count_this_hour + pushed_count, settings.ADVISORY_MAX_PER_HOUR,
+    )
 
 
 STAGE_HANDLERS = {

@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import settings
 from app.database import SessionLocal
@@ -219,12 +220,12 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
     places = (
         db.query(TripPlace)
         .filter(TripPlace.trip_id == job.trip_id)
-        .order_by(TripPlace.order_index.asc())
+        .order_by(TripPlace.order_in_trip.asc())
         .all()
     )
     city_names = []
     for p in places:
-        name = getattr(p, "city", None) or getattr(p, "name", None) or ""
+        name = p.name or ""
         if name and name not in city_names:
             city_names.append(name)
 
@@ -255,6 +256,7 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
         "max_depth": 2,
     })
     job.scrape_plan = plan
+    flag_modified(job, "scrape_plan")
     db.commit()
 
 
@@ -299,6 +301,7 @@ async def _stage_reddit_scrape(db: Session, job: AdvisoryJob) -> None:
         "insights": scrape_result.get("insights", []),
     }
     job.result_summary = result
+    flag_modified(job, "result_summary")
     db.commit()
     logger.info(
         "[ADVISORY_STAGE] reddit_scrape done. insights=%d",
@@ -312,6 +315,7 @@ async def _stage_tripadvisor_scrape(db: Session, job: AdvisoryJob) -> None:
     result = job.result_summary or {}
     result["tripadvisor"] = {"status": "skipped", "insights": []}
     job.result_summary = result
+    flag_modified(job, "result_summary")
     db.commit()
 
 
@@ -329,6 +333,7 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
     result = job.result_summary or {}
     result["gmaps"] = {"status": "stub", "insights": []}
     job.result_summary = result
+    flag_modified(job, "result_summary")
     db.commit()
 
 
@@ -370,6 +375,7 @@ async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
     merged = list(seen_keys.values())
     result["merged_insights"] = merged
     job.result_summary = result
+    flag_modified(job, "result_summary")
     db.commit()
     logger.info("[ADVISORY_STAGE] llm_extraction merged %d → %d unique", len(all_insights), len(merged))
 
@@ -405,6 +411,7 @@ async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
 
     result["scored_insights"] = scored
     job.result_summary = result
+    flag_modified(job, "result_summary")
     db.commit()
     logger.info("[ADVISORY_STAGE] scoring done. %d insights above threshold", len(scored))
 

@@ -19,6 +19,7 @@ import 'package:dora/core/storage/daos/v2/session_commit_media_item_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
+import 'package:dora/core/storage/daos/v2/trip_publish_state_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -132,4 +133,9 @@ final v2SessionCommitMediaItemDaoProvider =
 final v2SessionCommitChunkDaoProvider = Provider<SessionCommitChunkDao>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return SessionCommitChunkDao(db);
+});
+
+final v2TripPublishStateDaoProvider = Provider<TripPublishStateDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return TripPublishStateDao(db);
 });

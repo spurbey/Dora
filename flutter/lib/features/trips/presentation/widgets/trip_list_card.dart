@@ -70,6 +70,8 @@ class TripListCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _StatusLabel(status: trip.status),
                   if (trip.syncStatus != 'synced') ...[
                     const SizedBox(height: AppSpacing.xs),
                     _SyncStatusLabel(syncStatus: trip.syncStatus),
@@ -131,5 +133,47 @@ class _SyncStatusLabel extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = _status(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: AppRadius.borderMd,
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  (String, Color) _status(String status) {
+    switch (status) {
+      case 'live_editing':
+        return ('Live + Editing', AppColors.accent);
+      case 'saved':
+        return ('Saved', AppColors.success);
+      case 'published':
+        return ('Published', const Color(0xFF0F766E));
+      case 'editing':
+      default:
+        return ('Editing', AppColors.warning);
+    }
   }
 }

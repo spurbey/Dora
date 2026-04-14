@@ -28,7 +28,8 @@ TripsRepository tripsRepository(TripsRepositoryRef ref) {
   final db = ref.watch(appDatabaseProvider);
   final api = ref.watch(userTripsApiProvider);
   final authService = ref.watch(authServiceProvider);
-  return TripsRepository(db, api, authService);
+  final liveTrackingApi = ref.watch(liveTrackingApiProvider);
+  return TripsRepository(db, api, authService, liveTrackingApi);
 }
 
 @riverpod
@@ -194,7 +195,6 @@ class TripsController extends _$TripsController {
         .map((trip) => trip.id == id
             ? trip.copyWith(
                 visibility: visibility,
-                status: visibility == 'public' ? 'shared' : trip.status,
               )
             : trip)
         .toList();
@@ -229,6 +229,34 @@ class TripsController extends _$TripsController {
     }
   }
 
+  Future<TripPublishActionResult> saveTrip(String id) async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return const TripPublishActionResult(
+        ok: false,
+        message: 'Trips are still loading.',
+      );
+    }
+
+    final result = await ref.read(tripsRepositoryProvider).saveTrip(id);
+    await refresh();
+    return result;
+  }
+
+  Future<TripPublishActionResult> publishTrip(String id) async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      return const TripPublishActionResult(
+        ok: false,
+        message: 'Trips are still loading.',
+      );
+    }
+
+    final result = await ref.read(tripsRepositoryProvider).publishTrip(id);
+    await refresh();
+    return result;
+  }
+
   List<UserTrip> _applyFilters(
     List<UserTrip> trips,
     TripsFilter filter,
@@ -239,13 +267,23 @@ class TripsController extends _$TripsController {
 
     switch (filter) {
       case TripsFilter.active:
-        filtered = filtered.where((trip) => trip.isActive);
+        filtered = filtered.where(
+          (trip) => trip.status == kTripStatusLiveEditing,
+        );
         break;
       case TripsFilter.completed:
-        filtered = filtered.where((trip) => trip.isCompleted);
+        filtered = filtered.where(
+          (trip) =>
+              trip.status == kTripStatusSaved ||
+              trip.status == kTripStatusPublished,
+        );
         break;
       case TripsFilter.shared:
-        filtered = filtered.where((trip) => trip.isShared);
+        filtered = filtered.where(
+          (trip) =>
+              trip.status == kTripStatusPublished ||
+              trip.visibility == 'public',
+        );
         break;
       case TripsFilter.all:
         break;

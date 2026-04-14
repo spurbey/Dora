@@ -28,9 +28,9 @@ class UserTrip with _$UserTrip {
 }
 
 extension UserTripX on UserTrip {
-  bool get isActive => status == 'editing';
-  bool get isCompleted => status == 'completed';
-  bool get isShared => status == 'shared' || visibility == 'public';
+  bool get isActive => status == 'live_editing';
+  bool get isCompleted => status == 'saved' || status == 'published';
+  bool get isShared => status == 'published' || visibility == 'public';
 
   int? get durationDays {
     if (startDate == null || endDate == null) {

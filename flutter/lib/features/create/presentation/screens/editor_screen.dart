@@ -59,6 +59,7 @@ import 'package:dora/features/live_tracking/v2/compiler/v2_captured_storyline_pa
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
+import 'package:dora/features/trips/presentation/providers/trips_provider.dart';
 import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 
@@ -286,7 +287,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                     }),
                     onNameChanged: controller.updateTripName,
                     onExport: _openExportStudio,
-                    onMore: () {},
+                    onMore: _openTripActionsMenu,
                   ),
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
                   _buildLiveCaptureEntryCard(
@@ -2368,6 +2369,67 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       return;
     }
     context.push(Routes.exportStudioPath(widget.tripId));
+  }
+
+  Future<void> _openTripActionsMenu() async {
+    if (!mounted) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.sheetTop,
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.save_outlined),
+                title: const Text('Save trip'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_saveTripFromEditor());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.publish_outlined),
+                title: const Text('Publish trip'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_publishTripFromEditor());
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _saveTripFromEditor() async {
+    final result = await ref
+        .read(tripsControllerProvider.notifier)
+        .saveTrip(widget.tripId);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
+  }
+
+  Future<void> _publishTripFromEditor() async {
+    final result = await ref
+        .read(tripsControllerProvider.notifier)
+        .publishTrip(widget.tripId);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
   }
 
   Widget? _buildDetailContent(

@@ -44,6 +44,45 @@ abstract class LiveTrackingApi {
     String? reason,
   });
 
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  });
+
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  });
+
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  });
+
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  });
+
   Future<Map<String, dynamic>> uploadPointsBatch({
     required String tripId,
     required String idempotencyKey,
@@ -187,10 +226,12 @@ class DioLiveTrackingApi implements LiveTrackingApi {
   final openapi.CompiledProjectionApi _compiledProjectionApi;
 
   static const String _apiV1Prefix = '/api/v1';
+  static const String _apiV2Prefix = '/api/v2';
 
   static DateTime _toUtc(DateTime value) => value.toUtc();
 
   static String _v1Path(String path) => '$_apiV1Prefix$path';
+  static String _v2Path(String path) => '$_apiV2Prefix$path';
 
   static Map<String, dynamic> _asJsonMap(dynamic data) {
     if (data == null) {
@@ -362,6 +403,14 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     );
   }
 
+  Options _v2IdempotentOptions(String key) {
+    return Options(
+      headers: <String, dynamic>{
+        'Idempotency-Key': key,
+      },
+    );
+  }
+
   @override
   Future<Map<String, dynamic>> startTracking({
     required String tripId,
@@ -472,6 +521,100 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       xIdempotencyKey: idempotencyKey,
       authorization: await _authorizationHeader(),
       trackingStopRequest: request,
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/publish:start'),
+      data: <String, dynamic>{
+        'client_job_id': clientJobId,
+        'schema_version': schemaVersion,
+        'publish_summary': publishSummary,
+        'media_manifest': mediaManifest,
+        'media_manifest_digest': mediaManifestDigest,
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/publish:media-complete'),
+      data: <String, dynamic>{
+        'publish_token': publishToken,
+        'client_job_id': clientJobId,
+        'schema_version': schemaVersion,
+        'uploaded_media': uploadedMedia,
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/publish:payload-chunk'),
+      data: <String, dynamic>{
+        'publish_token': publishToken,
+        'client_job_id': clientJobId,
+        'schema_version': schemaVersion,
+        'chunk_index': chunkIndex,
+        'total_chunks': totalChunks,
+        'chunk_content_hash': chunkContentHash,
+        'chunk_json': chunkJson,
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/publish:commit'),
+      data: <String, dynamic>{
+        'publish_token': publishToken,
+        'client_job_id': clientJobId,
+        'schema_version': schemaVersion,
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
     );
     return _asJsonMap(response.data);
   }

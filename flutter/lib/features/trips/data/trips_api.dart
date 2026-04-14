@@ -88,7 +88,6 @@ class OpenApiTripsApi implements TripsApi {
 
   UserTrip _mapTrip(openapi.TripResponse trip) {
     final now = DateTime.now();
-    final status = trip.visibility == 'public' ? 'shared' : 'completed';
     return UserTrip(
       id: trip.id,
       userId: trip.userId,
@@ -99,7 +98,7 @@ class OpenApiTripsApi implements TripsApi {
       endDate: trip.endDate?.toDateTime(),
       visibility: trip.visibility,
       placeCount: trip.placeCount ?? 0,
-      status: status,
+      status: 'editing',
       lastEditedAt: trip.updatedAt,
       localUpdatedAt: now,
       serverUpdatedAt: trip.updatedAt,

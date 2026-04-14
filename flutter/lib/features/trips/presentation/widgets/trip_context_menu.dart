@@ -10,6 +10,8 @@ class TripContextMenu extends StatelessWidget {
     super.key,
     required this.trip,
     required this.onEdit,
+    required this.onSave,
+    required this.onPublish,
     required this.onDuplicate,
     required this.onShare,
     required this.onExport,
@@ -18,6 +20,8 @@ class TripContextMenu extends StatelessWidget {
 
   final UserTrip trip;
   final VoidCallback onEdit;
+  final VoidCallback onSave;
+  final VoidCallback onPublish;
   final VoidCallback onDuplicate;
   final VoidCallback onShare;
   final VoidCallback onExport;
@@ -39,6 +43,22 @@ class TripContextMenu extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               onEdit();
+            },
+          ),
+          _MenuItem(
+            icon: Icons.save_outlined,
+            label: 'Save',
+            onTap: () {
+              Navigator.pop(context);
+              onSave();
+            },
+          ),
+          _MenuItem(
+            icon: Icons.publish_outlined,
+            label: 'Publish',
+            onTap: () {
+              Navigator.pop(context);
+              onPublish();
             },
           ),
           _MenuItem(

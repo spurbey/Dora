@@ -32,6 +32,7 @@ import 'package:dora/core/storage/daos/v2/session_commit_media_item_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
+import 'package:dora/core/storage/daos/v2/trip_publish_state_dao.dart';
 import 'package:dora/core/storage/tables/media_table.dart';
 import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
@@ -58,6 +59,7 @@ import 'package:dora/core/storage/tables/v2/session_activity_window_table.dart';
 import 'package:dora/core/storage/tables/v2/session_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/timeline_compile_cursor_table.dart';
 import 'package:dora/core/storage/tables/v2/timeline_projection_local_table.dart';
+import 'package:dora/core/storage/tables/v2/trip_publish_state_table.dart';
 
 part 'drift_database.g.dart';
 
@@ -86,6 +88,7 @@ part 'drift_database.g.dart';
     SessionCommitJob,
     SessionCommitMediaItem,
     SessionCommitChunk,
+    TripPublishState,
     TimelineProjectionLocal,
     RouteProjectionLocal,
     TimelineCompileCursor,
@@ -113,6 +116,7 @@ part 'drift_database.g.dart';
     SessionCommitJobDao,
     SessionCommitMediaItemDao,
     SessionCommitChunkDao,
+    TripPublishStateDao,
     TimelineProjectionLocalDao,
     RouteProjectionLocalDao,
     TimelineCompileCursorDao,
@@ -122,7 +126,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -636,6 +640,15 @@ class AppDatabase extends _$AppDatabase {
               '''
               CREATE UNIQUE INDEX IF NOT EXISTS session_commit_chunk_job_index_unique_idx
               ON session_commit_chunk (job_id, chunk_index)
+              ''',
+            );
+          }
+          if (from < 21) {
+            await m.createTable(tripPublishState);
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS trip_publish_state_state_updated_idx
+              ON trip_publish_state (publish_state, updated_at)
               ''',
             );
           }

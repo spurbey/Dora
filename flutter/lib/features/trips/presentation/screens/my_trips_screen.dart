@@ -319,6 +319,8 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
       builder: (_) => TripContextMenu(
         trip: trip,
         onEdit: () => _openTrip(trip),
+        onSave: () => _handleSave(controller, trip),
+        onPublish: () => _handlePublish(controller, trip),
         onDuplicate: () => _handleDuplicate(controller, trip.id),
         onShare: () => _handleShare(controller, trip),
         onExport: () => _handleExport(trip),
@@ -339,15 +341,35 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
     TripsController controller,
     UserTrip trip,
   ) async {
+    if (trip.visibility != 'public' && trip.status != 'published') {
+      _showToast('Publish required before sharing');
+      return;
+    }
+
     final nextVisibility = trip.visibility == 'public' ? 'private' : 'public';
     final success = await controller.updateVisibility(trip.id, nextVisibility);
     if (success) {
-      _showToast(nextVisibility == 'public'
-          ? 'Visibility changed'
-          : 'Trip set to private');
+      _showToast(
+          nextVisibility == 'public' ? 'Trip shared' : 'Trip set to private');
     } else {
       _showToast("Couldn't update visibility");
     }
+  }
+
+  Future<void> _handleSave(
+    TripsController controller,
+    UserTrip trip,
+  ) async {
+    final result = await controller.saveTrip(trip.id);
+    _showToast(result.message);
+  }
+
+  Future<void> _handlePublish(
+    TripsController controller,
+    UserTrip trip,
+  ) async {
+    final result = await controller.publishTrip(trip.id);
+    _showToast(result.message);
   }
 
   void _handleExport(UserTrip trip) {

@@ -144,12 +144,14 @@ class _StatusBadge extends StatelessWidget {
 
   String _statusLabel(String status) {
     switch (status) {
+      case 'live_editing':
+        return 'Live + Editing';
       case 'editing':
         return 'Editing';
-      case 'completed':
-        return 'Completed';
-      case 'shared':
-        return 'Public';
+      case 'saved':
+        return 'Saved';
+      case 'published':
+        return 'Published';
       default:
         return 'Editing';
     }
@@ -157,12 +159,14 @@ class _StatusBadge extends StatelessWidget {
 
   Color _statusColor(String status) {
     switch (status) {
+      case 'live_editing':
+        return AppColors.accent;
       case 'editing':
         return AppColors.warning;
-      case 'completed':
+      case 'saved':
         return AppColors.success;
-      case 'shared':
-        return AppColors.accent;
+      case 'published':
+        return const Color(0xFF0F766E);
       default:
         return AppColors.warning;
     }

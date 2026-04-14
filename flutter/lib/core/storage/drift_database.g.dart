@@ -19406,6 +19406,593 @@ class SessionCommitChunkCompanion
   }
 }
 
+class $TripPublishStateTable extends TripPublishState
+    with TableInfo<$TripPublishStateTable, TripPublishStateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TripPublishStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _publishStateMeta =
+      const VerificationMeta('publishState');
+  @override
+  late final GeneratedColumn<String> publishState = GeneratedColumn<String>(
+      'publish_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('publish_pending'));
+  static const VerificationMeta _publishJobIdMeta =
+      const VerificationMeta('publishJobId');
+  @override
+  late final GeneratedColumn<String> publishJobId = GeneratedColumn<String>(
+      'publish_job_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastSavedSnapshotDigestMeta =
+      const VerificationMeta('lastSavedSnapshotDigest');
+  @override
+  late final GeneratedColumn<String> lastSavedSnapshotDigest =
+      GeneratedColumn<String>('last_saved_snapshot_digest', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastSavedAtMeta =
+      const VerificationMeta('lastSavedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastSavedAt = GeneratedColumn<DateTime>(
+      'last_saved_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastPublishedSnapshotDigestMeta =
+      const VerificationMeta('lastPublishedSnapshotDigest');
+  @override
+  late final GeneratedColumn<String> lastPublishedSnapshotDigest =
+      GeneratedColumn<String>(
+          'last_published_snapshot_digest', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastPublishedAtMeta =
+      const VerificationMeta('lastPublishedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastPublishedAt =
+      GeneratedColumn<DateTime>('last_published_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMessageMeta =
+      const VerificationMeta('lastErrorMessage');
+  @override
+  late final GeneratedColumn<String> lastErrorMessage = GeneratedColumn<String>(
+      'last_error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        tripLocalId,
+        publishState,
+        publishJobId,
+        lastSavedSnapshotDigest,
+        lastSavedAt,
+        lastPublishedSnapshotDigest,
+        lastPublishedAt,
+        lastErrorCode,
+        lastErrorMessage,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'trip_publish_state';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TripPublishStateRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('publish_state')) {
+      context.handle(
+          _publishStateMeta,
+          publishState.isAcceptableOrUnknown(
+              data['publish_state']!, _publishStateMeta));
+    }
+    if (data.containsKey('publish_job_id')) {
+      context.handle(
+          _publishJobIdMeta,
+          publishJobId.isAcceptableOrUnknown(
+              data['publish_job_id']!, _publishJobIdMeta));
+    }
+    if (data.containsKey('last_saved_snapshot_digest')) {
+      context.handle(
+          _lastSavedSnapshotDigestMeta,
+          lastSavedSnapshotDigest.isAcceptableOrUnknown(
+              data['last_saved_snapshot_digest']!,
+              _lastSavedSnapshotDigestMeta));
+    }
+    if (data.containsKey('last_saved_at')) {
+      context.handle(
+          _lastSavedAtMeta,
+          lastSavedAt.isAcceptableOrUnknown(
+              data['last_saved_at']!, _lastSavedAtMeta));
+    }
+    if (data.containsKey('last_published_snapshot_digest')) {
+      context.handle(
+          _lastPublishedSnapshotDigestMeta,
+          lastPublishedSnapshotDigest.isAcceptableOrUnknown(
+              data['last_published_snapshot_digest']!,
+              _lastPublishedSnapshotDigestMeta));
+    }
+    if (data.containsKey('last_published_at')) {
+      context.handle(
+          _lastPublishedAtMeta,
+          lastPublishedAt.isAcceptableOrUnknown(
+              data['last_published_at']!, _lastPublishedAtMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('last_error_message')) {
+      context.handle(
+          _lastErrorMessageMeta,
+          lastErrorMessage.isAcceptableOrUnknown(
+              data['last_error_message']!, _lastErrorMessageMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {tripLocalId};
+  @override
+  TripPublishStateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TripPublishStateRow(
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      publishState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}publish_state'])!,
+      publishJobId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}publish_job_id']),
+      lastSavedSnapshotDigest: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_saved_snapshot_digest']),
+      lastSavedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_saved_at']),
+      lastPublishedSnapshotDigest: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}last_published_snapshot_digest']),
+      lastPublishedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_published_at']),
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      lastErrorMessage: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_error_message']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TripPublishStateTable createAlias(String alias) {
+    return $TripPublishStateTable(attachedDatabase, alias);
+  }
+}
+
+class TripPublishStateRow extends DataClass
+    implements Insertable<TripPublishStateRow> {
+  final String tripLocalId;
+  final String publishState;
+  final String? publishJobId;
+  final String? lastSavedSnapshotDigest;
+  final DateTime? lastSavedAt;
+  final String? lastPublishedSnapshotDigest;
+  final DateTime? lastPublishedAt;
+  final String? lastErrorCode;
+  final String? lastErrorMessage;
+  final DateTime updatedAt;
+  const TripPublishStateRow(
+      {required this.tripLocalId,
+      required this.publishState,
+      this.publishJobId,
+      this.lastSavedSnapshotDigest,
+      this.lastSavedAt,
+      this.lastPublishedSnapshotDigest,
+      this.lastPublishedAt,
+      this.lastErrorCode,
+      this.lastErrorMessage,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    map['publish_state'] = Variable<String>(publishState);
+    if (!nullToAbsent || publishJobId != null) {
+      map['publish_job_id'] = Variable<String>(publishJobId);
+    }
+    if (!nullToAbsent || lastSavedSnapshotDigest != null) {
+      map['last_saved_snapshot_digest'] =
+          Variable<String>(lastSavedSnapshotDigest);
+    }
+    if (!nullToAbsent || lastSavedAt != null) {
+      map['last_saved_at'] = Variable<DateTime>(lastSavedAt);
+    }
+    if (!nullToAbsent || lastPublishedSnapshotDigest != null) {
+      map['last_published_snapshot_digest'] =
+          Variable<String>(lastPublishedSnapshotDigest);
+    }
+    if (!nullToAbsent || lastPublishedAt != null) {
+      map['last_published_at'] = Variable<DateTime>(lastPublishedAt);
+    }
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    if (!nullToAbsent || lastErrorMessage != null) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TripPublishStateCompanion toCompanion(bool nullToAbsent) {
+    return TripPublishStateCompanion(
+      tripLocalId: Value(tripLocalId),
+      publishState: Value(publishState),
+      publishJobId: publishJobId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publishJobId),
+      lastSavedSnapshotDigest: lastSavedSnapshotDigest == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSavedSnapshotDigest),
+      lastSavedAt: lastSavedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSavedAt),
+      lastPublishedSnapshotDigest:
+          lastPublishedSnapshotDigest == null && nullToAbsent
+              ? const Value.absent()
+              : Value(lastPublishedSnapshotDigest),
+      lastPublishedAt: lastPublishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPublishedAt),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      lastErrorMessage: lastErrorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorMessage),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TripPublishStateRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TripPublishStateRow(
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      publishState: serializer.fromJson<String>(json['publishState']),
+      publishJobId: serializer.fromJson<String?>(json['publishJobId']),
+      lastSavedSnapshotDigest:
+          serializer.fromJson<String?>(json['lastSavedSnapshotDigest']),
+      lastSavedAt: serializer.fromJson<DateTime?>(json['lastSavedAt']),
+      lastPublishedSnapshotDigest:
+          serializer.fromJson<String?>(json['lastPublishedSnapshotDigest']),
+      lastPublishedAt: serializer.fromJson<DateTime?>(json['lastPublishedAt']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      lastErrorMessage: serializer.fromJson<String?>(json['lastErrorMessage']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'publishState': serializer.toJson<String>(publishState),
+      'publishJobId': serializer.toJson<String?>(publishJobId),
+      'lastSavedSnapshotDigest':
+          serializer.toJson<String?>(lastSavedSnapshotDigest),
+      'lastSavedAt': serializer.toJson<DateTime?>(lastSavedAt),
+      'lastPublishedSnapshotDigest':
+          serializer.toJson<String?>(lastPublishedSnapshotDigest),
+      'lastPublishedAt': serializer.toJson<DateTime?>(lastPublishedAt),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'lastErrorMessage': serializer.toJson<String?>(lastErrorMessage),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TripPublishStateRow copyWith(
+          {String? tripLocalId,
+          String? publishState,
+          Value<String?> publishJobId = const Value.absent(),
+          Value<String?> lastSavedSnapshotDigest = const Value.absent(),
+          Value<DateTime?> lastSavedAt = const Value.absent(),
+          Value<String?> lastPublishedSnapshotDigest = const Value.absent(),
+          Value<DateTime?> lastPublishedAt = const Value.absent(),
+          Value<String?> lastErrorCode = const Value.absent(),
+          Value<String?> lastErrorMessage = const Value.absent(),
+          DateTime? updatedAt}) =>
+      TripPublishStateRow(
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        publishState: publishState ?? this.publishState,
+        publishJobId:
+            publishJobId.present ? publishJobId.value : this.publishJobId,
+        lastSavedSnapshotDigest: lastSavedSnapshotDigest.present
+            ? lastSavedSnapshotDigest.value
+            : this.lastSavedSnapshotDigest,
+        lastSavedAt: lastSavedAt.present ? lastSavedAt.value : this.lastSavedAt,
+        lastPublishedSnapshotDigest: lastPublishedSnapshotDigest.present
+            ? lastPublishedSnapshotDigest.value
+            : this.lastPublishedSnapshotDigest,
+        lastPublishedAt: lastPublishedAt.present
+            ? lastPublishedAt.value
+            : this.lastPublishedAt,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        lastErrorMessage: lastErrorMessage.present
+            ? lastErrorMessage.value
+            : this.lastErrorMessage,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TripPublishStateRow copyWithCompanion(TripPublishStateCompanion data) {
+    return TripPublishStateRow(
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      publishState: data.publishState.present
+          ? data.publishState.value
+          : this.publishState,
+      publishJobId: data.publishJobId.present
+          ? data.publishJobId.value
+          : this.publishJobId,
+      lastSavedSnapshotDigest: data.lastSavedSnapshotDigest.present
+          ? data.lastSavedSnapshotDigest.value
+          : this.lastSavedSnapshotDigest,
+      lastSavedAt:
+          data.lastSavedAt.present ? data.lastSavedAt.value : this.lastSavedAt,
+      lastPublishedSnapshotDigest: data.lastPublishedSnapshotDigest.present
+          ? data.lastPublishedSnapshotDigest.value
+          : this.lastPublishedSnapshotDigest,
+      lastPublishedAt: data.lastPublishedAt.present
+          ? data.lastPublishedAt.value
+          : this.lastPublishedAt,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      lastErrorMessage: data.lastErrorMessage.present
+          ? data.lastErrorMessage.value
+          : this.lastErrorMessage,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TripPublishStateRow(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('publishState: $publishState, ')
+          ..write('publishJobId: $publishJobId, ')
+          ..write('lastSavedSnapshotDigest: $lastSavedSnapshotDigest, ')
+          ..write('lastSavedAt: $lastSavedAt, ')
+          ..write('lastPublishedSnapshotDigest: $lastPublishedSnapshotDigest, ')
+          ..write('lastPublishedAt: $lastPublishedAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      tripLocalId,
+      publishState,
+      publishJobId,
+      lastSavedSnapshotDigest,
+      lastSavedAt,
+      lastPublishedSnapshotDigest,
+      lastPublishedAt,
+      lastErrorCode,
+      lastErrorMessage,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TripPublishStateRow &&
+          other.tripLocalId == this.tripLocalId &&
+          other.publishState == this.publishState &&
+          other.publishJobId == this.publishJobId &&
+          other.lastSavedSnapshotDigest == this.lastSavedSnapshotDigest &&
+          other.lastSavedAt == this.lastSavedAt &&
+          other.lastPublishedSnapshotDigest ==
+              this.lastPublishedSnapshotDigest &&
+          other.lastPublishedAt == this.lastPublishedAt &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.lastErrorMessage == this.lastErrorMessage &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TripPublishStateCompanion extends UpdateCompanion<TripPublishStateRow> {
+  final Value<String> tripLocalId;
+  final Value<String> publishState;
+  final Value<String?> publishJobId;
+  final Value<String?> lastSavedSnapshotDigest;
+  final Value<DateTime?> lastSavedAt;
+  final Value<String?> lastPublishedSnapshotDigest;
+  final Value<DateTime?> lastPublishedAt;
+  final Value<String?> lastErrorCode;
+  final Value<String?> lastErrorMessage;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TripPublishStateCompanion({
+    this.tripLocalId = const Value.absent(),
+    this.publishState = const Value.absent(),
+    this.publishJobId = const Value.absent(),
+    this.lastSavedSnapshotDigest = const Value.absent(),
+    this.lastSavedAt = const Value.absent(),
+    this.lastPublishedSnapshotDigest = const Value.absent(),
+    this.lastPublishedAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TripPublishStateCompanion.insert({
+    required String tripLocalId,
+    this.publishState = const Value.absent(),
+    this.publishJobId = const Value.absent(),
+    this.lastSavedSnapshotDigest = const Value.absent(),
+    this.lastSavedAt = const Value.absent(),
+    this.lastPublishedSnapshotDigest = const Value.absent(),
+    this.lastPublishedAt = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : tripLocalId = Value(tripLocalId),
+        updatedAt = Value(updatedAt);
+  static Insertable<TripPublishStateRow> custom({
+    Expression<String>? tripLocalId,
+    Expression<String>? publishState,
+    Expression<String>? publishJobId,
+    Expression<String>? lastSavedSnapshotDigest,
+    Expression<DateTime>? lastSavedAt,
+    Expression<String>? lastPublishedSnapshotDigest,
+    Expression<DateTime>? lastPublishedAt,
+    Expression<String>? lastErrorCode,
+    Expression<String>? lastErrorMessage,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (publishState != null) 'publish_state': publishState,
+      if (publishJobId != null) 'publish_job_id': publishJobId,
+      if (lastSavedSnapshotDigest != null)
+        'last_saved_snapshot_digest': lastSavedSnapshotDigest,
+      if (lastSavedAt != null) 'last_saved_at': lastSavedAt,
+      if (lastPublishedSnapshotDigest != null)
+        'last_published_snapshot_digest': lastPublishedSnapshotDigest,
+      if (lastPublishedAt != null) 'last_published_at': lastPublishedAt,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (lastErrorMessage != null) 'last_error_message': lastErrorMessage,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TripPublishStateCompanion copyWith(
+      {Value<String>? tripLocalId,
+      Value<String>? publishState,
+      Value<String?>? publishJobId,
+      Value<String?>? lastSavedSnapshotDigest,
+      Value<DateTime?>? lastSavedAt,
+      Value<String?>? lastPublishedSnapshotDigest,
+      Value<DateTime?>? lastPublishedAt,
+      Value<String?>? lastErrorCode,
+      Value<String?>? lastErrorMessage,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return TripPublishStateCompanion(
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      publishState: publishState ?? this.publishState,
+      publishJobId: publishJobId ?? this.publishJobId,
+      lastSavedSnapshotDigest:
+          lastSavedSnapshotDigest ?? this.lastSavedSnapshotDigest,
+      lastSavedAt: lastSavedAt ?? this.lastSavedAt,
+      lastPublishedSnapshotDigest:
+          lastPublishedSnapshotDigest ?? this.lastPublishedSnapshotDigest,
+      lastPublishedAt: lastPublishedAt ?? this.lastPublishedAt,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      lastErrorMessage: lastErrorMessage ?? this.lastErrorMessage,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (publishState.present) {
+      map['publish_state'] = Variable<String>(publishState.value);
+    }
+    if (publishJobId.present) {
+      map['publish_job_id'] = Variable<String>(publishJobId.value);
+    }
+    if (lastSavedSnapshotDigest.present) {
+      map['last_saved_snapshot_digest'] =
+          Variable<String>(lastSavedSnapshotDigest.value);
+    }
+    if (lastSavedAt.present) {
+      map['last_saved_at'] = Variable<DateTime>(lastSavedAt.value);
+    }
+    if (lastPublishedSnapshotDigest.present) {
+      map['last_published_snapshot_digest'] =
+          Variable<String>(lastPublishedSnapshotDigest.value);
+    }
+    if (lastPublishedAt.present) {
+      map['last_published_at'] = Variable<DateTime>(lastPublishedAt.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (lastErrorMessage.present) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TripPublishStateCompanion(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('publishState: $publishState, ')
+          ..write('publishJobId: $publishJobId, ')
+          ..write('lastSavedSnapshotDigest: $lastSavedSnapshotDigest, ')
+          ..write('lastSavedAt: $lastSavedAt, ')
+          ..write('lastPublishedSnapshotDigest: $lastPublishedSnapshotDigest, ')
+          ..write('lastPublishedAt: $lastPublishedAt, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TimelineProjectionLocalTable extends TimelineProjectionLocal
     with TableInfo<$TimelineProjectionLocalTable, TimelineProjectionLocalRow> {
   @override
@@ -21947,6 +22534,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SessionCommitMediaItemTable(this);
   late final $SessionCommitChunkTable sessionCommitChunk =
       $SessionCommitChunkTable(this);
+  late final $TripPublishStateTable tripPublishState =
+      $TripPublishStateTable(this);
   late final $TimelineProjectionLocalTable timelineProjectionLocal =
       $TimelineProjectionLocalTable(this);
   late final $RouteProjectionLocalTable routeProjectionLocal =
@@ -22078,6 +22667,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index sessionCommitChunkJobStateIdx = Index(
       'session_commit_chunk_job_state_idx',
       'CREATE INDEX session_commit_chunk_job_state_idx ON session_commit_chunk (job_id, chunk_state)');
+  late final Index tripPublishStateStateUpdatedIdx = Index(
+      'trip_publish_state_state_updated_idx',
+      'CREATE INDEX trip_publish_state_state_updated_idx ON trip_publish_state (publish_state, updated_at)');
   late final Index timelineProjectionLocalTripCapturedIdx = Index(
       'timeline_projection_local_trip_captured_idx',
       'CREATE INDEX timeline_projection_local_trip_captured_idx ON timeline_projection_local (trip_local_id, captured_at)');
@@ -22134,6 +22726,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       SessionCommitMediaItemDao(this as AppDatabase);
   late final SessionCommitChunkDao sessionCommitChunkDao =
       SessionCommitChunkDao(this as AppDatabase);
+  late final TripPublishStateDao tripPublishStateDao =
+      TripPublishStateDao(this as AppDatabase);
   late final TimelineProjectionLocalDao timelineProjectionLocalDao =
       TimelineProjectionLocalDao(this as AppDatabase);
   late final RouteProjectionLocalDao routeProjectionLocalDao =
@@ -22168,6 +22762,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         sessionCommitJob,
         sessionCommitMediaItem,
         sessionCommitChunk,
+        tripPublishState,
         timelineProjectionLocal,
         routeProjectionLocal,
         timelineCompileCursor,
@@ -22213,6 +22808,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         sessionCommitMediaItemJobStateIdx,
         sessionCommitMediaItemMediaIdx,
         sessionCommitChunkJobStateIdx,
+        tripPublishStateStateUpdatedIdx,
         timelineProjectionLocalTripCapturedIdx,
         timelineProjectionLocalTripBucketCapturedIdx,
         timelineProjectionLocalTripCapturedSessionIdx,
@@ -30679,6 +31275,266 @@ typedef $$SessionCommitChunkTableProcessedTableManager = ProcessedTableManager<
     ),
     SessionCommitChunkRow,
     PrefetchHooks Function()>;
+typedef $$TripPublishStateTableCreateCompanionBuilder
+    = TripPublishStateCompanion Function({
+  required String tripLocalId,
+  Value<String> publishState,
+  Value<String?> publishJobId,
+  Value<String?> lastSavedSnapshotDigest,
+  Value<DateTime?> lastSavedAt,
+  Value<String?> lastPublishedSnapshotDigest,
+  Value<DateTime?> lastPublishedAt,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$TripPublishStateTableUpdateCompanionBuilder
+    = TripPublishStateCompanion Function({
+  Value<String> tripLocalId,
+  Value<String> publishState,
+  Value<String?> publishJobId,
+  Value<String?> lastSavedSnapshotDigest,
+  Value<DateTime?> lastSavedAt,
+  Value<String?> lastPublishedSnapshotDigest,
+  Value<DateTime?> lastPublishedAt,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TripPublishStateTableFilterComposer
+    extends Composer<_$AppDatabase, $TripPublishStateTable> {
+  $$TripPublishStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get publishState => $composableBuilder(
+      column: $table.publishState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get publishJobId => $composableBuilder(
+      column: $table.publishJobId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastSavedSnapshotDigest => $composableBuilder(
+      column: $table.lastSavedSnapshotDigest,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastSavedAt => $composableBuilder(
+      column: $table.lastSavedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastPublishedSnapshotDigest => $composableBuilder(
+      column: $table.lastPublishedSnapshotDigest,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastPublishedAt => $composableBuilder(
+      column: $table.lastPublishedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TripPublishStateTableOrderingComposer
+    extends Composer<_$AppDatabase, $TripPublishStateTable> {
+  $$TripPublishStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get publishState => $composableBuilder(
+      column: $table.publishState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get publishJobId => $composableBuilder(
+      column: $table.publishJobId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastSavedSnapshotDigest => $composableBuilder(
+      column: $table.lastSavedSnapshotDigest,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastSavedAt => $composableBuilder(
+      column: $table.lastSavedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastPublishedSnapshotDigest => $composableBuilder(
+      column: $table.lastPublishedSnapshotDigest,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastPublishedAt => $composableBuilder(
+      column: $table.lastPublishedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TripPublishStateTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TripPublishStateTable> {
+  $$TripPublishStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get publishState => $composableBuilder(
+      column: $table.publishState, builder: (column) => column);
+
+  GeneratedColumn<String> get publishJobId => $composableBuilder(
+      column: $table.publishJobId, builder: (column) => column);
+
+  GeneratedColumn<String> get lastSavedSnapshotDigest => $composableBuilder(
+      column: $table.lastSavedSnapshotDigest, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSavedAt => $composableBuilder(
+      column: $table.lastSavedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastPublishedSnapshotDigest => $composableBuilder(
+      column: $table.lastPublishedSnapshotDigest, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPublishedAt => $composableBuilder(
+      column: $table.lastPublishedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TripPublishStateTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TripPublishStateTable,
+    TripPublishStateRow,
+    $$TripPublishStateTableFilterComposer,
+    $$TripPublishStateTableOrderingComposer,
+    $$TripPublishStateTableAnnotationComposer,
+    $$TripPublishStateTableCreateCompanionBuilder,
+    $$TripPublishStateTableUpdateCompanionBuilder,
+    (
+      TripPublishStateRow,
+      BaseReferences<_$AppDatabase, $TripPublishStateTable, TripPublishStateRow>
+    ),
+    TripPublishStateRow,
+    PrefetchHooks Function()> {
+  $$TripPublishStateTableTableManager(
+      _$AppDatabase db, $TripPublishStateTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TripPublishStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TripPublishStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TripPublishStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> tripLocalId = const Value.absent(),
+            Value<String> publishState = const Value.absent(),
+            Value<String?> publishJobId = const Value.absent(),
+            Value<String?> lastSavedSnapshotDigest = const Value.absent(),
+            Value<DateTime?> lastSavedAt = const Value.absent(),
+            Value<String?> lastPublishedSnapshotDigest = const Value.absent(),
+            Value<DateTime?> lastPublishedAt = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TripPublishStateCompanion(
+            tripLocalId: tripLocalId,
+            publishState: publishState,
+            publishJobId: publishJobId,
+            lastSavedSnapshotDigest: lastSavedSnapshotDigest,
+            lastSavedAt: lastSavedAt,
+            lastPublishedSnapshotDigest: lastPublishedSnapshotDigest,
+            lastPublishedAt: lastPublishedAt,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String tripLocalId,
+            Value<String> publishState = const Value.absent(),
+            Value<String?> publishJobId = const Value.absent(),
+            Value<String?> lastSavedSnapshotDigest = const Value.absent(),
+            Value<DateTime?> lastSavedAt = const Value.absent(),
+            Value<String?> lastPublishedSnapshotDigest = const Value.absent(),
+            Value<DateTime?> lastPublishedAt = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TripPublishStateCompanion.insert(
+            tripLocalId: tripLocalId,
+            publishState: publishState,
+            publishJobId: publishJobId,
+            lastSavedSnapshotDigest: lastSavedSnapshotDigest,
+            lastSavedAt: lastSavedAt,
+            lastPublishedSnapshotDigest: lastPublishedSnapshotDigest,
+            lastPublishedAt: lastPublishedAt,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TripPublishStateTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TripPublishStateTable,
+    TripPublishStateRow,
+    $$TripPublishStateTableFilterComposer,
+    $$TripPublishStateTableOrderingComposer,
+    $$TripPublishStateTableAnnotationComposer,
+    $$TripPublishStateTableCreateCompanionBuilder,
+    $$TripPublishStateTableUpdateCompanionBuilder,
+    (
+      TripPublishStateRow,
+      BaseReferences<_$AppDatabase, $TripPublishStateTable, TripPublishStateRow>
+    ),
+    TripPublishStateRow,
+    PrefetchHooks Function()>;
 typedef $$TimelineProjectionLocalTableCreateCompanionBuilder
     = TimelineProjectionLocalCompanion Function({
   required String entryId,
@@ -31819,6 +32675,8 @@ class $AppDatabaseManager {
           _db, _db.sessionCommitMediaItem);
   $$SessionCommitChunkTableTableManager get sessionCommitChunk =>
       $$SessionCommitChunkTableTableManager(_db, _db.sessionCommitChunk);
+  $$TripPublishStateTableTableManager get tripPublishState =>
+      $$TripPublishStateTableTableManager(_db, _db.tripPublishState);
   $$TimelineProjectionLocalTableTableManager get timelineProjectionLocal =>
       $$TimelineProjectionLocalTableTableManager(
           _db, _db.timelineProjectionLocal);

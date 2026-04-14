@@ -53,6 +53,9 @@ from app.models.trip_route_raw_point import TripRouteRawPoint
 from app.models.trip_commit_manifest import TripCommitManifest
 from app.models.trip_timeline_projection_v2 import TripTimelineProjectionV2
 from app.models.trip_route_projection_v2 import TripRouteProjectionV2
+from app.models.advisory_job import AdvisoryJob
+from app.models.trip_advisory import TripAdvisory
+from app.models.advisory_user_action import AdvisoryUserAction
 
 __all__ = [
     "User",
@@ -91,4 +94,7 @@ __all__ = [
     "TripCommitManifest",
     "TripTimelineProjectionV2",
     "TripRouteProjectionV2",
+    "AdvisoryJob",
+    "TripAdvisory",
+    "AdvisoryUserAction",
 ]

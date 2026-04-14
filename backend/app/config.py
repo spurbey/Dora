@@ -116,6 +116,21 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: Optional[str] = None
     FIREBASE_CREDENTIALS_JSON: Optional[str] = None
 
+    # Advisory worker (Phase P4)
+    ADVISORY_WORKER_POLL_SECONDS: float = 5.0
+    ADVISORY_WORKER_STALE_SECONDS: int = 900
+    ADVISORY_MIN_CONFIDENCE_PUSH: float = 0.7
+    ADVISORY_MAX_PER_HOUR: int = 3
+
+    # Advisory external services (optional — worker skips stages if missing)
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_MODEL: str = "openai/gpt-oss-120b:free"
+    BRIGHTDATA_WS_ENDPOINT: Optional[str] = None
+
+    # Upstash Redis (advisory session cache)
+    UPSTASH_REDIS_URL: Optional[str] = None
+    UPSTASH_REDIS_TOKEN: Optional[str] = None
+
     # V2 publish storage verification
     V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
 

@@ -4,7 +4,6 @@ Search API endpoints.
 Session 16: Public search interface with ranking and signal logging.
 """
 
-from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
@@ -20,13 +19,13 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 @router.get("/places", response_model=SearchResponse)
 async def search_places(
-    query: Annotated[str, Query(min_length=1, max_length=100, description="Search text")],
-    lat: Annotated[float, Query(ge=-90, le=90, description="Search center latitude")],
-    lng: Annotated[float, Query(ge=-180, le=180, description="Search center longitude")],
-    radius_km: Annotated[float, Query(ge=0.1, le=50.0, description="Search radius in km")] = 5.0,
-    limit: Annotated[int, Query(ge=1, le=50, description="Max results")] = 10,
-    debug: Annotated[bool, Query(description="Include score breakdown")] = False,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
+    background_tasks: BackgroundTasks,
+    query: str = Query(..., min_length=1, max_length=100, description="Search text"),
+    lat: float = Query(..., ge=-90, le=90, description="Search center latitude"),
+    lng: float = Query(..., ge=-180, le=180, description="Search center longitude"),
+    radius_km: float = Query(5.0, ge=0.1, le=50.0, description="Search radius in km"),
+    limit: int = Query(10, ge=1, le=50, description="Max results"),
+    debug: bool = Query(False, description="Include score breakdown"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

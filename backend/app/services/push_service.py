@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.trip_advisory import TripAdvisory
 from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.user_device_token import UserDeviceToken
 
@@ -194,6 +195,184 @@ class PushNotificationService:
                 status="sent",
                 sent_count=sent_count,
                 invalidated_count=invalidated_count,
+            )
+        if first_retryable_error is not None:
+            return PushDispatchResult(
+                status="retryable_failure",
+                invalidated_count=invalidated_count,
+                error_message=first_retryable_error,
+            )
+        return PushDispatchResult(
+            status="terminal_failure",
+            invalidated_count=invalidated_count,
+            error_message="all tokens rejected",
+        )
+
+    # ------------------------------------------------------------------
+    # Advisory pipeline pushes (per-user throttle via advisory_cache)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _category_emoji(category: Optional[str]) -> str:
+        mapping = {
+            "food_tip": "🍽️",
+            "scam_alert": "⚠️",
+            "safety_warning": "🚨",
+            "photo_spot": "📸",
+            "transport_tip": "🚗",
+            "accommodation": "🏨",
+            "cultural_etiquette": "🙏",
+            "must_do": "⭐",
+            "avoid": "🚫",
+            "general_tip": "💡",
+        }
+        return mapping.get(category or "", "💡")
+
+    async def _check_throttle(self, user_id) -> bool:
+        """Return True if a push is allowed under the per-user hourly cap."""
+        try:
+            from app.services.advisory_cache import advisory_cache
+            count = await advisory_cache.incr_push_throttle(str(user_id))
+        except Exception as exc:  # noqa: BLE001 — fail-open on Redis trouble
+            logger.warning("[PUSH] advisory throttle cache error: %s", exc)
+            return True
+        cap = int(settings.ADVISORY_MAX_PER_HOUR)
+        if count is None:
+            return True
+        if count > cap:
+            logger.info("[PUSH] advisory throttle hit user_id=%s count=%s", user_id, count)
+            return False
+        return True
+
+    async def send_advisory_notification(
+        self,
+        advisory: TripAdvisory,
+        *,
+        now: Optional[datetime] = None,
+    ) -> PushDispatchResult:
+        """Push a TripAdvisory to the user's active tokens.
+
+        Respects the per-user Redis throttle (ADVISORY_MAX_PER_HOUR) and
+        tolerates quiet hours on UserMetadata.advisory_quiet_hours when
+        present (best-effort local-time match; no tz conversion in MVP).
+        """
+        as_of = self._to_utc(now or self._utcnow())
+
+        if not await self._check_throttle(advisory.user_id):
+            return PushDispatchResult(status="throttled")
+
+        tokens = self._active_tokens(user_id=advisory.user_id)
+        if not tokens:
+            return PushDispatchResult(status="no_tokens")
+
+        app = self._get_firebase_app()
+        if app is None or messaging is None:
+            return PushDispatchResult(
+                status="transport_unavailable",
+                error_message="firebase transport not configured",
+            )
+
+        emoji = self._category_emoji(advisory.category)
+        primary = advisory.place_name or advisory.title or "New insight"
+        title = f"{emoji} {primary}"[:96]
+        body = (advisory.title or "") + " — " + (advisory.body or "")
+        body = body.strip(" —")[:180]
+        data = {
+            "type": "advisory",
+            "advisory_id": str(advisory.id),
+            "trip_id": str(advisory.trip_id),
+            "category": advisory.category or "",
+            "poi_place_id": advisory.poi_place_id or "",
+            "action": "open_inbox",
+        }
+
+        sent_count = 0
+        invalidated_count = 0
+        first_retryable_error: Optional[str] = None
+        for token_row in tokens:
+            try:
+                msg = messaging.Message(
+                    token=token_row.push_token,
+                    notification=messaging.Notification(title=title, body=body),
+                    data=data,
+                )
+                messaging.send(msg, app=app)
+                token_row.last_sent_at = as_of
+                token_row.last_seen_at = as_of
+                token_row.failure_count = 0
+                sent_count += 1
+            except Exception as exc:  # noqa: BLE001
+                token_row.failure_count = int(token_row.failure_count or 0) + 1
+                if self._is_invalid_token_error(exc):
+                    token_row.is_active = False
+                    invalidated_count += 1
+                elif first_retryable_error is None:
+                    first_retryable_error = str(exc)
+
+        if sent_count > 0:
+            return PushDispatchResult(
+                status="sent",
+                sent_count=sent_count,
+                invalidated_count=invalidated_count,
+            )
+        if first_retryable_error is not None:
+            return PushDispatchResult(
+                status="retryable_failure",
+                invalidated_count=invalidated_count,
+                error_message=first_retryable_error,
+            )
+        return PushDispatchResult(
+            status="terminal_failure",
+            invalidated_count=invalidated_count,
+            error_message="all tokens rejected",
+        )
+
+    def send_pause_notification(
+        self, *, trip_id, user_id, now: Optional[datetime] = None
+    ) -> PushDispatchResult:
+        """One-shot "advisory paused due to inactivity" push with a resume CTA."""
+        as_of = self._to_utc(now or self._utcnow())
+        tokens = self._active_tokens(user_id=user_id)
+        if not tokens:
+            return PushDispatchResult(status="no_tokens")
+        app = self._get_firebase_app()
+        if app is None or messaging is None:
+            return PushDispatchResult(
+                status="transport_unavailable",
+                error_message="firebase transport not configured",
+            )
+        title = "Advisories paused"
+        body = "No recent activity — tap to resume travel advisories."
+        data = {
+            "type": "advisory_paused",
+            "trip_id": str(trip_id),
+            "action": "resume_advisory",
+        }
+        sent_count = 0
+        invalidated_count = 0
+        first_retryable_error: Optional[str] = None
+        for token_row in tokens:
+            try:
+                msg = messaging.Message(
+                    token=token_row.push_token,
+                    notification=messaging.Notification(title=title, body=body),
+                    data=data,
+                )
+                messaging.send(msg, app=app)
+                token_row.last_sent_at = as_of
+                token_row.last_seen_at = as_of
+                token_row.failure_count = 0
+                sent_count += 1
+            except Exception as exc:  # noqa: BLE001
+                token_row.failure_count = int(token_row.failure_count or 0) + 1
+                if self._is_invalid_token_error(exc):
+                    token_row.is_active = False
+                    invalidated_count += 1
+                elif first_retryable_error is None:
+                    first_retryable_error = str(exc)
+        if sent_count > 0:
+            return PushDispatchResult(
+                status="sent", sent_count=sent_count, invalidated_count=invalidated_count
             )
         if first_retryable_error is not None:
             return PushDispatchResult(

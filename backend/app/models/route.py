@@ -7,6 +7,7 @@ Follows Phase A2 PRD specification.
 
 from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from geoalchemy2 import Geography
 from sqlalchemy.sql import func
 import uuid
 
@@ -90,6 +91,21 @@ class Route(Base):
         Text,
         nullable=True,
         comment="Google-encoded polyline (optional)"
+    )
+
+    # Advisory pipeline: SHA-256 of route_geojson; cheap change detection
+    # for reseed triggers.
+    geom_sig = Column(
+        String(64),
+        nullable=True,
+        comment="sha256(route_geojson) — used by advisory brain to detect route change",
+    )
+    # PostGIS geography projection of route_geojson, computed at insert/update.
+    # Avoids ST_GeomFromGeoJSON parse on every off-route check; GIST-indexed.
+    route_geom = Column(
+        Geography(geometry_type="LINESTRING", srid=4326),
+        nullable=True,
+        comment="PostGIS geography projection of route_geojson (maintained by service layer)",
     )
 
     # Route details
@@ -206,6 +222,7 @@ class Route(Base):
         Index("ix_routes_user_id", "user_id"),
         Index("ix_routes_from_place_id", "start_place_id"),
         Index("ix_routes_to_place_id", "end_place_id"),
+        Index("idx_routes_geom_gist", "route_geom", postgresql_using="gist"),
     )
 
     def __repr__(self):

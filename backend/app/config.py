@@ -131,6 +131,45 @@ class Settings(BaseSettings):
     UPSTASH_REDIS_URL: Optional[str] = None
     UPSTASH_REDIS_TOKEN: Optional[str] = None
 
+    # Advisory trip-brain + cycle engine (this slice)
+    ADVISORY_CYCLE_POLL_SECONDS: float = 30.0
+    ADVISORY_CYCLE_BATCH_SIZE: int = 50
+    ADVISORY_CYCLE_PROCESSING_TIMEOUT_SECONDS: int = 120
+    ADVISORY_RETRY_BACKOFF_SECONDS: int = 300
+    ADVISORY_RESEED_MIN_INTERVAL_SECONDS: int = 120
+    ADVISORY_NO_PICK_RETRY_BUDGET: int = 2
+
+    # Advisory feedback loop
+    ADVISORY_IGNORE_TTL_SECONDS: int = 3600
+    ADVISORY_IGNORE_PAUSE_THRESHOLD: int = 3
+
+    # Advisory sampling + geo
+    ADVISORY_SAMPLE_COUNT: int = 22
+    ADVISORY_CENTROID_WINDOW_SECONDS: int = 7200
+    ADVISORY_INTRA_CITY_DISTANCE_THRESHOLD_KM: float = 50.0
+    ADVISORY_LONG_ROAD_DISTANCE_THRESHOLD_KM: float = 300.0
+    ADVISORY_OFF_ROUTE_THRESHOLD_METERS: int = 5000
+
+    # Advisory caches (Redis TTLs)
+    ADVISORY_GEOCODE_CACHE_TTL_SECONDS: int = 604800  # 7d
+    ADVISORY_WEATHER_CACHE_TTL_SECONDS: int = 10800   # 3h
+    ADVISORY_REDDIT_SEED_CACHE_TTL_SECONDS: int = 259200  # 72h
+    ADVISORY_BRAIN_CACHE_TTL_SECONDS: int = 86400     # 24h
+    ADVISORY_MODE_CACHE_TTL_SECONDS: int = 86400      # 24h
+
+    # GMaps / BrightData cost governors
+    BRIGHTDATA_AUTH: Optional[str] = None
+    BRIGHTDATA_REVIEWS_PER_POI: int = 4
+    BRIGHTDATA_MAX_REVIEWS_PER_CYCLE: int = 15
+    BRIGHTDATA_MAX_CALLS_PER_TRIP: int = 50
+
+    # Brain array guardrails
+    MAX_ADVISED_POIS_PER_TRIP: int = 500
+    MAX_ADVISED_LOCALITIES_PER_TRIP: int = 200
+
+    # Debug endpoint gate
+    EXPOSE_ADVISORY_STATE_ENDPOINT: bool = False
+
     # V2 publish storage verification
     V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
 

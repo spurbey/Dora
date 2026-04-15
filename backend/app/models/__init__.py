@@ -56,6 +56,8 @@ from app.models.trip_route_projection_v2 import TripRouteProjectionV2
 from app.models.advisory_job import AdvisoryJob
 from app.models.trip_advisory import TripAdvisory
 from app.models.advisory_user_action import AdvisoryUserAction
+from app.models.trip_advisory_state import TripAdvisoryState
+from app.models.user_metadata import UserMetadata
 
 __all__ = [
     "User",
@@ -97,4 +99,6 @@ __all__ = [
     "AdvisoryJob",
     "TripAdvisory",
     "AdvisoryUserAction",
+    "TripAdvisoryState",
+    "UserMetadata",
 ]

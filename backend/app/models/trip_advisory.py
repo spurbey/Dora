@@ -80,6 +80,19 @@ class TripAdvisory(Base):
         comment="SHA-256 hash of (place_name, category, body[:100])",
     )
 
+    # GMaps POI linkage (populated when advisory is a ranker-selected POI pick).
+    poi_place_id = Column(
+        String(64),
+        nullable=True,
+        comment="GMaps place_id when this advisory is a POI pick; NULL otherwise",
+    )
+    # Forecast snapshot at delivery time (for audit + post-hoc re-ranking).
+    weather_snapshot = Column(
+        JSONB,
+        nullable=True,
+        comment="Open-Meteo forecast at delivery time",
+    )
+
     status = Column(
         String(32),
         nullable=False,

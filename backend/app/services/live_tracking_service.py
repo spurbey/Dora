@@ -468,6 +468,21 @@ class LiveTrackingService:
             trip.timezone = timezone_name
 
         self.db.flush()
+
+        # Advisory brain enrich — best-effort, must not break tracking start.
+        try:
+            import asyncio
+            from app.services.trip_brain_service import TripBrainService
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(
+                    TripBrainService(self.db).enrich_on_tracking_start(trip_id)
+                )
+            else:
+                TripBrainService(self.db).ensure_brain(trip_id, user_id)
+        except Exception:  # noqa: BLE001
+            pass
+
         return status.HTTP_200_OK, self._session_payload(session=session, trip=trip)
 
     def pause_tracking(

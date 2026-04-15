@@ -25,6 +25,7 @@ from app.models.advisory_job import AdvisoryJob
 from app.models.trip_advisory import TripAdvisory
 from app.models.trip import Trip
 from app.models.place import TripPlace
+from app.services.trip_brain_service import TripBrainService, TargetContext
 
 
 STAGE_ORDER = [
@@ -205,18 +206,123 @@ def _heartbeat(db: Session, job: AdvisoryJob) -> None:
     db.commit()
 
 
+# ─── Cycle-job helpers (location_trigger) ────────────────────────────────────
+
+
+def _is_cycle_job(job: AdvisoryJob) -> bool:
+    """True when this job was fired by the advisory_cycle_worker."""
+    return job.job_type == "location_trigger"
+
+
+def _target_from_plan(job: AdvisoryJob) -> Optional[TargetContext]:
+    """Reconstruct the TargetContext wired into scrape_plan by the cycle worker.
+
+    advisory_service.create_advisory_job wraps the trigger_payload as either:
+        - scrape_plan = {"trigger_payload": {...}}            (new job)
+        - scrape_plan keeps existing + coalesced_triggers[]   (coalesced job)
+
+    We accept either shape, preferring a direct "target" key (for future
+    compatibility) and falling back to trigger_payload / last coalesced.
+    """
+    plan = job.scrape_plan or {}
+    raw: Optional[dict] = None
+    if isinstance(plan.get("target"), dict):
+        raw = plan["target"]
+    elif isinstance(plan.get("trigger_payload"), dict):
+        raw = plan["trigger_payload"]
+    else:
+        coalesced = plan.get("coalesced_triggers") or []
+        if coalesced and isinstance(coalesced[-1], dict):
+            raw = coalesced[-1]
+    if not raw:
+        return None
+    try:
+        return TargetContext(
+            locality_key=raw.get("locality_key") or "",
+            locality=raw.get("locality"),
+            region=raw.get("region"),
+            country=raw.get("country"),
+            center_lat=float(raw.get("center_lat") or 0.0),
+            center_lng=float(raw.get("center_lng") or 0.0),
+            mode=raw.get("mode") or "route",
+            sample_idx=raw.get("sample_idx"),
+            trip_metadata=dict(raw.get("trip_metadata") or {}),
+            user_metadata=dict(raw.get("user_metadata") or {}),
+            recent_categories=dict(raw.get("recent_categories") or {}),
+            baseline_findings=dict(raw.get("baseline_findings") or {}),
+        )
+    except (TypeError, ValueError):
+        return None
+
+
 # ─── Stage handlers (stubs — wired in Step 8-9) ─────────────────────────────
 
 
 async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
-    """Segment route into cities/destinations. Build scrape plan from trip data."""
+    """Segment route into cities/destinations OR resolve a cycle target.
+
+    For pre_trip / on_demand jobs the pipeline scans TripPlaces as before.
+    For location_trigger jobs we bypass that and pull the target the cycle
+    worker wrote into scrape_plan.target — composing a Reddit query from
+    locality + activity_focus + dietary_restrictions, minus the categories
+    already over-represented in recent_categories.
+    """
     logger.info("[ADVISORY_STAGE] route_segmentation job_id=%s", job.id)
+    from app.services.scrapers.reddit_scraper import (
+        derive_search_query,
+        extract_keywords,
+    )
 
     trip = db.query(Trip).filter(Trip.id == job.trip_id).first()
     if not trip:
         raise TerminalJobError("trip_not_found", f"Trip {job.trip_id} not found")
 
-    # Gather destination names from trip places
+    plan = job.scrape_plan or {}
+
+    # Cycle job: narrow the scrape plan to the target locality only.
+    if _is_cycle_job(job):
+        target = _target_from_plan(job)
+        if target is None or not target.locality:
+            raise TerminalJobError(
+                "invalid_cycle_target",
+                "location_trigger job missing scrape_plan.target",
+            )
+        trip_meta = target.trip_metadata or {}
+        user_meta = target.user_metadata or {}
+        recent = target.recent_categories or {}
+
+        activity_focus = list(trip_meta.get("activity_focus") or [])
+        dietary = list(user_meta.get("dietary_restrictions") or [])
+        # Avoid re-querying categories the user has seen too often.
+        exclude = [cat for cat, count in recent.items() if count and int(count) >= 2]
+
+        question_parts = [
+            f"travel tips for {target.locality}",
+            " ".join(activity_focus[:3]) if activity_focus else "",
+            " ".join(dietary[:2]) if dietary else "",
+        ]
+        question = " ".join(p for p in question_parts if p).strip()
+        keywords = extract_keywords(question, [target.locality])
+        keywords = [k for k in keywords if k not in exclude]
+
+        plan.update(
+            {
+                "cities": [target.locality],
+                "question": question,
+                "keywords": keywords,
+                "search_query": derive_search_query(keywords),
+                "subreddits": ["IndiaTravel", "solotravel", "travel"],
+                "max_pages": 4,           # lighter per-cycle fetch
+                "max_depth": 1,
+                "exclude_categories": exclude,
+            }
+        )
+        job.scrape_plan = plan
+        flag_modified(job, "scrape_plan")
+        db.commit()
+        return
+
+    # Pre-trip / on-demand path — unchanged behaviour based on pinned places.
     places = (
         db.query(TripPlace)
         .filter(TripPlace.trip_id == job.trip_id)
@@ -228,33 +334,28 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
         name = p.name or ""
         if name and name not in city_names:
             city_names.append(name)
-
-    # Fallback: use trip name/description if no places
     if not city_names:
         city_names = [trip.name or "travel destination"]
 
-    # Build the question from context
     if job.job_type == "on_demand" and job.query_text:
         question = job.query_text
     else:
         question = f"travel tips for {', '.join(city_names[:5])}"
 
-    # Default subreddits
     subs = ["IndiaTravel", "solotravel", "travel"]
-
-    from app.services.scrapers.reddit_scraper import extract_keywords, derive_search_query
     keywords = extract_keywords(question, city_names)
 
-    plan = job.scrape_plan or {}
-    plan.update({
-        "cities": city_names,
-        "question": question,
-        "keywords": keywords,
-        "search_query": derive_search_query(keywords),
-        "subreddits": subs,
-        "max_pages": 8,
-        "max_depth": 2,
-    })
+    plan.update(
+        {
+            "cities": city_names,
+            "question": question,
+            "keywords": keywords,
+            "search_query": derive_search_query(keywords),
+            "subreddits": subs,
+            "max_pages": 8,
+            "max_depth": 2,
+        }
+    )
     job.scrape_plan = plan
     flag_modified(job, "scrape_plan")
     db.commit()
@@ -320,21 +421,115 @@ async def _stage_tripadvisor_scrape(db: Session, job: AdvisoryJob) -> None:
 
 
 async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
-    """Scrape Google Maps — skip if Bright Data not configured."""
+    """GMaps POI search + targeted review fetches.
+
+    Only runs for location_trigger (cycle) jobs with a resolved target.
+    Enforces BRIGHTDATA_MAX_CALLS_PER_TRIP atomically via the brain. On
+    missing config or cap breach we skip cleanly — Reddit-only advisories
+    still fire downstream.
+    """
+    result = job.result_summary or {}
+
     if not settings.BRIGHTDATA_WS_ENDPOINT:
-        logger.info("[ADVISORY_STAGE] gmaps_scrape job_id=%s (skipped — no BRIGHTDATA_WS_ENDPOINT)", job.id)
-        result = job.result_summary or {}
-        result["gmaps"] = {"status": "skipped_no_config", "insights": []}
+        logger.info(
+            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (no BRIGHTDATA_WS_ENDPOINT)",
+            job.id,
+        )
+        result["gmaps"] = {"status": "skipped_no_config", "pois": []}
         job.result_summary = result
+        flag_modified(job, "result_summary")
         db.commit()
         return
-    logger.info("[ADVISORY_STAGE] gmaps_scrape job_id=%s (stub)", job.id)
+
+    if not _is_cycle_job(job):
+        logger.info(
+            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (non-cycle job)",
+            job.id,
+        )
+        result["gmaps"] = {"status": "skipped_non_cycle", "pois": []}
+        job.result_summary = result
+        flag_modified(job, "result_summary")
+        db.commit()
+        return
+
+    target = _target_from_plan(job)
+    if target is None or not target.locality:
+        result["gmaps"] = {"status": "skipped_no_target", "pois": []}
+        job.result_summary = result
+        flag_modified(job, "result_summary")
+        db.commit()
+        return
+
+    brain_svc = TripBrainService(db)
+    trip_meta = target.trip_metadata or {}
+    activity_focus = list(trip_meta.get("activity_focus") or [])
+    intent = " ".join(activity_focus[:2]) if activity_focus else "things to do"
+    query = f"{intent} in {target.locality}"
+
+    # Budget: account for 1 search call + up to 4 review fetches.
+    new_count = brain_svc.try_increment_brightdata(job.trip_id, n=5)
+    if new_count is None:
+        logger.warning(
+            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (brightdata cap reached)",
+            job.id,
+        )
+        result["gmaps"] = {"status": "skipped_cap", "pois": []}
+        job.result_summary = result
+        flag_modified(job, "result_summary")
+        db.commit()
+        return
+
     _heartbeat(db, job)
-    result = job.result_summary or {}
-    result["gmaps"] = {"status": "stub", "insights": []}
+    from app.services.scrapers.gmaps_scraper import (
+        scrape_gmaps_reviews,
+        scrape_gmaps_search,
+    )
+    pois = await scrape_gmaps_search(query, location=None, max_pois=20)
+
+    # Weather snapshot for the target centroid at advisory time.
+    from app.services.weather_service import get_forecast
+    forecast = await get_forecast(target.center_lat, target.center_lng)
+    weather_snapshot = forecast.to_dict() if forecast else None
+
+    # Fetch top-few reviews for the highest-rated POIs only (cost cap).
+    reviews_limit = settings.BRIGHTDATA_MAX_REVIEWS_PER_CYCLE
+    per_poi = settings.BRIGHTDATA_REVIEWS_PER_POI
+    sorted_pois = sorted(
+        pois, key=lambda p: p.rating or 0.0, reverse=True
+    )
+    review_targets = [
+        p for p in sorted_pois if p.url.startswith("http")
+    ][: max(1, reviews_limit // max(per_poi, 1))]
+
+    reviews_by_poi: dict[str, list[dict]] = {}
+    review_calls_used = 0
+    for p in review_targets:
+        if review_calls_used + per_poi > reviews_limit:
+            break
+        try:
+            revs = await scrape_gmaps_reviews(p.url, limit=per_poi)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("gmaps review fetch failed for %s: %s", p.name, exc)
+            revs = []
+        review_calls_used += len(revs) if revs else per_poi
+        reviews_by_poi[p.place_id] = [r.to_dict() for r in revs]
+
+    result["gmaps"] = {
+        "status": "done",
+        "pois": [p.to_dict() for p in pois],
+        "reviews_by_poi": reviews_by_poi,
+        "query": query,
+    }
+    result["weather_snapshot"] = weather_snapshot
     job.result_summary = result
     flag_modified(job, "result_summary")
     db.commit()
+    logger.info(
+        "[ADVISORY_STAGE] gmaps_scrape done job_id=%s pois=%d reviews_on=%d",
+        job.id,
+        len(pois),
+        len(reviews_by_poi),
+    )
 
 
 async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
@@ -381,19 +576,89 @@ async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
 
 
 async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
-    """Assign confidence scores based on source count and context signals."""
+    """Score candidates for delivery.
+
+    Cycle jobs (location_trigger) use the advisory_ranker: hard-filter by
+    dedupe/weather/Reddit warnings → soft score → LLM final pick. Those
+    picks are persisted as `ranker_picks` in result_summary.
+
+    Pre-trip / on-demand jobs keep the simpler heuristic on Reddit-only
+    insights, producing `scored_insights` for legacy delivery behaviour.
+    """
     logger.info("[ADVISORY_STAGE] scoring job_id=%s", job.id)
-
     result = job.result_summary or {}
-    merged = result.get("merged_insights", [])
 
+    if _is_cycle_job(job):
+        target = _target_from_plan(job)
+        if target is None:
+            # Fallback: treat as failed terminal (mark_cycle_outcome wires this).
+            result["ranker_picks"] = []
+            job.result_summary = result
+            flag_modified(job, "result_summary")
+            db.commit()
+            return
+
+        gmaps_block = result.get("gmaps") or {}
+        pois = gmaps_block.get("pois") or []
+        reviews_by_poi = gmaps_block.get("reviews_by_poi") or {}
+        weather = result.get("weather_snapshot")
+        reddit_block = result.get("reddit") or {}
+        reddit_insights = reddit_block.get("insights") or []
+
+        # Pull the brain so we know what's already been advised this trip.
+        from app.models.trip_advisory_state import TripAdvisoryState
+        brain = (
+            db.query(TripAdvisoryState)
+            .filter(TripAdvisoryState.trip_id == job.trip_id)
+            .one_or_none()
+        )
+        advised_pois = set(brain.advised_poi_place_ids or []) if brain else set()
+
+        from app.services.advisory_ranker import rank_and_pick
+        picks = await rank_and_pick(
+            pois=pois,
+            locality=target.locality or "",
+            advised_poi_place_ids=advised_pois,
+            reddit_insights=reddit_insights,
+            weather=weather,
+            user_metadata=target.user_metadata or {},
+            trip_metadata=target.trip_metadata or {},
+            recent_categories=target.recent_categories or {},
+            reviews_by_poi=reviews_by_poi,
+        )
+
+        result["ranker_picks"] = [
+            {
+                "place_id": p.place_id,
+                "name": p.name,
+                "category": p.category,
+                "title": p.title,
+                "body": p.body,
+                "reason": p.reason,
+                "lat": p.lat,
+                "lng": p.lng,
+                "url": p.url,
+                "confidence": p.confidence,
+                "source": p.source,
+            }
+            for p in picks
+        ]
+        job.result_summary = result
+        flag_modified(job, "result_summary")
+        db.commit()
+        logger.info(
+            "[ADVISORY_STAGE] scoring (cycle) done. picks=%d", len(picks)
+        )
+        return
+
+    # Legacy path for pre_trip / on_demand.
+    merged = result.get("merged_insights", [])
     scored = []
     for item in merged:
         source_count = item.get("_source_count", 1)
         has_signal = bool(item.get("context_signal"))
         has_place = bool(item.get("place_name"))
 
-        # Simple scoring: base 0.4, +0.15 per extra source, +0.1 for signal, +0.1 for named place
         score = 0.4
         score += min((source_count - 1) * 0.15, 0.3)
         if has_signal:
@@ -401,11 +666,9 @@ async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
         if has_place:
             score += 0.1
         score = min(score, 1.0)
-
         item["_confidence_score"] = round(score, 2)
         scored.append(item)
 
-    # Filter out very low confidence
     scored = [s for s in scored if s["_confidence_score"] >= 0.3]
     scored.sort(key=lambda x: x["_confidence_score"], reverse=True)
 
@@ -417,15 +680,127 @@ async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
 
 
 async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
-    """Write TripAdvisory rows. Push high-confidence ones within hourly throttle."""
+    """Write TripAdvisory rows.
+
+    Cycle jobs persist one row per ranker pick, each with poi_place_id and
+    the weather snapshot captured during gmaps_scrape. Push dispatch goes
+    via send_advisory_notification under the Redis-backed per-user
+    throttle. Pre-trip / on-demand jobs keep their legacy behaviour.
+    """
     logger.info("[ADVISORY_STAGE] delivery job_id=%s", job.id)
+    import hashlib
     from sqlalchemy import func as sa_func
 
     result = job.result_summary or {}
-    scored = result.get("scored_insights", [])
     now = utcnow()
+    created_count = 0
+    pushed_count = 0
+    delivered_categories: list[str] = []
+    delivered_advisory_ids: list = []
+    delivered_poi_place_ids: list[str] = []
 
-    # Check push throttle
+    if _is_cycle_job(job):
+        picks = result.get("ranker_picks") or []
+        weather_snapshot = result.get("weather_snapshot")
+        target = _target_from_plan(job)
+        locality_name = target.locality if target else None
+
+        for p in picks:
+            body = p.get("body") or ""
+            title = p.get("title") or (p.get("name") or "")
+            raw = f"{p.get('place_id', '')}|{p.get('category','general_tip')}|{body[:100]}"
+            dedupe_key = hashlib.sha256(raw.encode()).hexdigest()
+
+            existing = (
+                db.query(TripAdvisory.id)
+                .filter(
+                    TripAdvisory.trip_id == job.trip_id,
+                    TripAdvisory.dedupe_key == dedupe_key,
+                )
+                .first()
+            )
+            if existing:
+                continue
+
+            confidence = float(p.get("confidence") or 0.5)
+            should_push = confidence >= settings.ADVISORY_MIN_CONFIDENCE_PUSH
+            # Push throttle is enforced inside send_advisory_notification
+            # (Redis INCR) once that service lands in Step 8. For now we
+            # mark delivered and let the push service decide; the status
+            # flip matches plan semantics.
+            advisory = TripAdvisory(
+                trip_id=job.trip_id,
+                user_id=job.user_id,
+                advisory_job_id=job.id,
+                category=p.get("category") or "general_tip",
+                source=p.get("source") or "combined",
+                place_name=p.get("name"),
+                place_lat=p.get("lat"),
+                place_lng=p.get("lng"),
+                title=title[:255] if title else (p.get("name") or locality_name or "Tip"),
+                body=body,
+                context_signal=p.get("reason"),
+                best_for=None,
+                confidence_score=confidence,
+                source_urls=[p.get("url")] if p.get("url") else None,
+                source_count=1,
+                dedupe_key=dedupe_key,
+                poi_place_id=p.get("place_id"),
+                weather_snapshot=weather_snapshot,
+                status="delivered" if should_push else "pending",
+                observed_at=now,
+                delivered_at=now if should_push else None,
+            )
+            db.add(advisory)
+            db.flush()
+            created_count += 1
+            delivered_advisory_ids.append(advisory.id)
+            if advisory.category:
+                delivered_categories.append(advisory.category)
+            if p.get("place_id"):
+                delivered_poi_place_ids.append(p["place_id"])
+            if should_push:
+                pushed_count += 1
+                # Fire push via advisory push path; redis throttle enforced inside.
+                try:
+                    from app.services.push_service import PushNotificationService
+                    push_result = await PushNotificationService(
+                        db
+                    ).send_advisory_notification(advisory)
+                    if push_result.status == "throttled":
+                        # Revert delivered → pending if we couldn't actually push.
+                        advisory.status = "pending"
+                        advisory.delivered_at = None
+                        pushed_count -= 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[ADVISORY_STAGE] push failed advisory_id=%s: %s",
+                        advisory.id,
+                        exc,
+                    )
+
+        db.commit()
+        logger.info(
+            "[ADVISORY_STAGE] delivery (cycle) done. created=%d push_eligible=%d",
+            created_count,
+            pushed_count,
+        )
+        # Stash delivery metadata for the terminus hook.
+        job.scrape_plan = {
+            **(job.scrape_plan or {}),
+            "_delivery": {
+                "advisory_ids": [str(aid) for aid in delivered_advisory_ids],
+                "poi_place_ids": delivered_poi_place_ids,
+                "categories": delivered_categories,
+                "count": created_count,
+            },
+        }
+        flag_modified(job, "scrape_plan")
+        db.commit()
+        return
+
+    # Legacy path — pre_trip / on_demand.
+    scored = result.get("scored_insights", [])
     one_hour_ago = now - timedelta(hours=1)
     push_count_this_hour = (
         db.query(sa_func.count(TripAdvisory.id))
@@ -437,15 +812,10 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         .scalar()
     ) or 0
 
-    created_count = 0
-    pushed_count = 0
-
     for item in scored:
         dedupe_key = item.get("_dedupe_key", "")
         if not dedupe_key:
             continue
-
-        # Skip if advisory with this dedupe_key already exists for this trip
         existing = (
             db.query(TripAdvisory.id)
             .filter(
@@ -456,18 +826,15 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         )
         if existing:
             continue
-
         confidence = item.get("_confidence_score", 0.5)
         should_push = (
             confidence >= settings.ADVISORY_MIN_CONFIDENCE_PUSH
             and (push_count_this_hour + pushed_count) < settings.ADVISORY_MAX_PER_HOUR
         )
-
         source_urls = []
         src_url = item.get("_source_url")
         if src_url:
             source_urls.append(src_url)
-
         advisory = TripAdvisory(
             trip_id=job.trip_id,
             user_id=job.user_id,
@@ -491,12 +858,13 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         created_count += 1
         if should_push:
             pushed_count += 1
-
     db.commit()
     logger.info(
         "[ADVISORY_STAGE] delivery done. created=%d pushed=%d (throttle: %d/%d this hour)",
-        created_count, pushed_count,
-        push_count_this_hour + pushed_count, settings.ADVISORY_MAX_PER_HOUR,
+        created_count,
+        pushed_count,
+        push_count_this_hour + pushed_count,
+        settings.ADVISORY_MAX_PER_HOUR,
     )
 
 
@@ -514,6 +882,48 @@ STAGE_HANDLERS = {
 # ─── Job execution ───────────────────────────────────────────────────────────
 
 
+async def _mark_cycle_terminus(
+    db: Session, job: AdvisoryJob, outcome: str
+) -> None:
+    """Notify the brain of a cycle-job terminus.
+
+    Outcome values map to TripBrainService.mark_cycle_outcome:
+        delivered | no_pick | failed
+    For non-cycle jobs this is a no-op. Errors in the brain update are
+    logged and swallowed — they must not cascade into the worker loop.
+    """
+    if not _is_cycle_job(job):
+        return
+
+    target = _target_from_plan(job)
+    delivery = (job.scrape_plan or {}).get("_delivery") or {}
+
+    try:
+        brain_svc = TripBrainService(db)
+        await brain_svc.mark_cycle_outcome(
+            job.trip_id,
+            outcome,
+            target=target,
+            advisory_ids=None,
+            poi_place_ids=delivery.get("poi_place_ids") or [],
+            categories_delivered=delivery.get("categories") or [],
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "[ADVISORY_WORKER] mark_cycle_outcome(%s) failed job_id=%s: %s",
+            outcome,
+            job.id,
+            exc,
+        )
+
+
+def _cycle_outcome_for_completed(job: AdvisoryJob) -> str:
+    """'delivered' if any advisories were created, else 'no_pick'."""
+    delivery = (job.scrape_plan or {}).get("_delivery") or {}
+    count = int(delivery.get("count") or 0)
+    return "delivered" if count > 0 else "no_pick"
+
+
 async def run_job_once(db: Session, job: AdvisoryJob) -> None:
     try:
         for i, stage_name in enumerate(STAGE_ORDER):
@@ -522,6 +932,7 @@ async def run_job_once(db: Session, job: AdvisoryJob) -> None:
                 _set_canceled(job)
                 db.commit()
                 logger.info("[ADVISORY_WORKER] canceled job_id=%s at stage=%s", job.id, stage_name)
+                await _mark_cycle_terminus(db, job, "failed")
                 return
 
             job.stage = stage_name
@@ -541,16 +952,23 @@ async def run_job_once(db: Session, job: AdvisoryJob) -> None:
         job.error_message = None
         db.commit()
         logger.info("[ADVISORY_WORKER] completed job_id=%s trip_id=%s", job.id, job.trip_id)
+        await _mark_cycle_terminus(db, job, _cycle_outcome_for_completed(job))
 
     except TerminalJobError as exc:
         _mark_terminal_blocked(db, job, exc.error_code, exc.error_message)
+        await _mark_cycle_terminus(db, job, "failed")
     except Exception as exc:
         db.refresh(job)
         if job.status == "cancel_requested":
             _set_canceled(job)
             db.commit()
+            await _mark_cycle_terminus(db, job, "failed")
         else:
             _mark_retry_or_fail(db, job, "advisory_crash", str(exc)[:500])
+            # Only mark terminus if we've exhausted retries (state == 'failed').
+            db.refresh(job)
+            if job.status == "failed":
+                await _mark_cycle_terminus(db, job, "failed")
 
 
 # ─── Worker entrypoint ───────────────────────────────────────────────────────

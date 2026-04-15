@@ -21,9 +21,30 @@ from app.schemas.advisory import (
     AdvisoryQueryRequest,
     AdvisoryStartRequest,
 )
+from app.config import settings
+from app.models.trip import Trip
+from app.models.trip_advisory_state import TripAdvisoryState
 from app.services.advisory_service import AdvisoryService
+from app.services.trip_brain_service import TripBrainService
+from fastapi import HTTPException
 
 router = APIRouter(tags=["Advisory"])
+
+
+def _owned_brain(db: Session, trip_id: UUID, user: User) -> TripAdvisoryState:
+    """Fetch the trip brain and verify the caller owns the trip."""
+    trip = db.query(Trip).filter(Trip.id == trip_id).one_or_none()
+    if trip is None or trip.user_id != user.id:
+        raise HTTPException(status_code=404, detail="trip_not_found")
+    brain = (
+        db.query(TripAdvisoryState)
+        .filter(TripAdvisoryState.trip_id == trip_id)
+        .one_or_none()
+    )
+    if brain is None:
+        # Self-heal rather than 404 — trip creation hook may have lost the seed.
+        brain = TripBrainService(db).ensure_brain(trip_id, trip.user_id)
+    return brain
 
 
 @router.post(
@@ -165,7 +186,7 @@ async def record_advisory_action(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Record a user engagement action (append-only)."""
+    """Record a user engagement action (append-only) and update the brain."""
     service = AdvisoryService(db)
     action = service.record_user_action(
         user_id=current_user.id,
@@ -173,8 +194,81 @@ async def record_advisory_action(
         action=request.action.value,
         action_metadata=request.action_metadata,
     )
+    # Feedback → brain (streak reset + implicit resume if inactivity-paused).
+    try:
+        TripBrainService(db).apply_feedback(advisory_id, action.action)
+    except Exception:  # noqa: BLE001 — brain update is best-effort
+        pass
     return AdvisoryActionResponse(
         id=action.id,
         action=action.action,
         created_at=action.created_at,
     )
+
+
+# ───────────────────────────── Brain control plane ─────────────────────────
+
+
+@router.post(
+    "/trips/{trip_id}/advisory/pause",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def pause_advisory(
+    trip_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Manually pause the advisory brain for this trip (reason='user').
+
+    Manual pauses are sticky: only an explicit resume call clears them;
+    incoming advisory actions won't auto-resume the pipeline.
+    """
+    _owned_brain(db, trip_id, current_user)
+    TripBrainService(db).pause(trip_id, reason="user")
+
+
+@router.post(
+    "/trips/{trip_id}/advisory/resume",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def resume_advisory(
+    trip_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Explicit user resume — clears manual pauses."""
+    _owned_brain(db, trip_id, current_user)
+    TripBrainService(db).resume(trip_id, explicit_user_action=True)
+
+
+@router.get("/trips/{trip_id}/advisory/state")
+async def get_advisory_state(
+    trip_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return sanitized brain state for debugging.
+
+    Gated: requires owner + settings.EXPOSE_ADVISORY_STATE_ENDPOINT.
+    """
+    if not settings.EXPOSE_ADVISORY_STATE_ENDPOINT:
+        raise HTTPException(status_code=404, detail="not_found")
+    brain = _owned_brain(db, trip_id, current_user)
+    return {
+        "trip_id": str(brain.trip_id),
+        "lifecycle_state": brain.lifecycle_state,
+        "trip_class": brain.trip_class,
+        "cadence_seconds": brain.cadence_seconds,
+        "mode": brain.mode,
+        "last_cycle_at": brain.last_cycle_at,
+        "next_eligible_at": brain.next_eligible_at,
+        "last_seed_at": brain.last_seed_at,
+        "last_seed_reason": brain.last_seed_reason,
+        "ignore_streak": brain.ignore_streak,
+        "advised_localities_count": len(brain.advised_locality_keys or []),
+        "advised_pois_count": len(brain.advised_poi_place_ids or []),
+        "pending_reseed_reasons": brain.pending_reseed_reasons or [],
+        "paused_reason": brain.paused_reason,
+        "paused_at": brain.paused_at,
+        "brightdata_call_count": brain.brightdata_call_count,
+    }

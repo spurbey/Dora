@@ -13,6 +13,20 @@ class _CaptureAdapter implements HttpClientAdapter {
       DateTime.utc(2026, 3, 23, 10, 0, 0).toIso8601String();
 
   Map<String, dynamic> _payloadForPath(String path) {
+    if (path.contains('/sessions:start') ||
+        (path.contains('/sessions/') && path.contains(':stop'))) {
+      return <String, dynamic>{
+        'session_server_id': 'session-server-1',
+        'trip_id': 'trip-1',
+        'client_session_id': 'session-1',
+        'status': 'sealed',
+        'started_at': _isoNow,
+        'ended_at': _isoNow,
+        'stop_server_pending': false,
+        'stop_client_event_id': 'stop-evt-1',
+        'seal_version': 1,
+      };
+    }
     if (path.contains('/tracking/start') ||
         path.contains('/tracking/pause') ||
         path.contains('/tracking/resume') ||
@@ -329,6 +343,54 @@ void main() {
       expect(secondPayload['note'], isNull);
       expect(secondPayload.containsKey('linked_trip_place_id'), isTrue);
       expect(secondPayload['linked_trip_place_id'], isNull);
+    });
+
+    test('uses /api/v2 session routes for V2 command lane', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000'));
+      final adapter = _CaptureAdapter();
+      dio.httpClientAdapter = adapter;
+      final api = DioLiveTrackingApi(dio);
+      final now = DateTime.utc(2026, 3, 23, 10);
+
+      final startPayload = await api.startTrackingV2(
+        tripId: 'trip-1',
+        idempotencyKey: 'idem-v2-start',
+        clientSessionId: 'session-1',
+        startedAt: now,
+        timezone: 'Asia/Kathmandu',
+      );
+      expect(startPayload['session_server_id'], 'session-server-1');
+
+      await api.stopTrackingV2(
+        tripId: 'trip-1',
+        idempotencyKey: 'idem-v2-stop',
+        clientSessionId: 'session-1',
+        sealVersion: 1,
+        stopClientEventId: 'stop-evt-1',
+        stoppedAt: now,
+        reason: 'user_stop',
+      );
+
+      expect(
+        adapter.captured.map((r) => r.path).toList(growable: false),
+        <String>[
+          '/api/v2/trips/trip-1/sessions:start',
+          '/api/v2/trips/trip-1/sessions/session-1:stop',
+        ],
+      );
+
+      final startRequest = adapter.captured.first;
+      expect(startRequest.headers['Idempotency-Key'], 'idem-v2-start');
+      final startBody = startRequest.data as Map<String, dynamic>;
+      expect(startBody['client_session_id'], 'session-1');
+      expect(startBody['timezone'], 'Asia/Kathmandu');
+
+      final stopRequest = adapter.captured.last;
+      expect(stopRequest.headers['Idempotency-Key'], 'idem-v2-stop');
+      final stopBody = stopRequest.data as Map<String, dynamic>;
+      expect(stopBody['seal_version'], 1);
+      expect(stopBody['stop_client_event_id'], 'stop-evt-1');
+      expect(stopBody['reason'], 'user_stop');
     });
   });
 }

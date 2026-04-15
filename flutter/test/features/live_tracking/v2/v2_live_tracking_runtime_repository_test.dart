@@ -87,11 +87,12 @@ class _FakeCommandApi implements V2CommandApi {
   Future<void> stop({
     required String remoteTripId,
     required String idempotencyKey,
-    required String clientEventId,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
     required DateTime stoppedAt,
-    String? remoteSessionId,
     String? reason,
   }) async {
-    stopClientEventIds.add(clientEventId);
+    stopClientEventIds.add(stopClientEventId);
   }
 }

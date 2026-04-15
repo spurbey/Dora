@@ -313,11 +313,10 @@ class LiveTrackingV2Service:
     def _require_v2_trip(self, *, trip_id: UUID, user_id: UUID) -> Trip:
         trip = self._get_owned_trip(trip_id=trip_id, user_id=user_id)
         if not trip.v2_backend_enabled:
-            self._error(
-                status.HTTP_409_CONFLICT,
-                "trip_not_v2_enabled",
-                "Trip is not enabled for the V2 backend lane.",
-            )
+            # V2-only rollout: auto-upgrade owned trips to the V2 backend lane.
+            trip.v2_backend_enabled = True
+            self.db.commit()
+            self.db.refresh(trip)
         return trip
 
     def _require_supported_schema(self, schema_version: int) -> None:

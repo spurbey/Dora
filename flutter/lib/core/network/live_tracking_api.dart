@@ -44,6 +44,25 @@ abstract class LiveTrackingApi {
     String? reason,
   });
 
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  });
+
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  });
+
   Future<Map<String, dynamic>> publishStartV2({
     required String tripId,
     required String idempotencyKey,
@@ -521,6 +540,51 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       xIdempotencyKey: idempotencyKey,
       authorization: await _authorizationHeader(),
       trackingStopRequest: request,
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/sessions:start'),
+      data: <String, dynamic>{
+        'client_session_id': clientSessionId,
+        'started_at': _toUtc(startedAt).toIso8601String(),
+        if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
+        'device_context': deviceContext ?? <String, dynamic>{},
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  }) async {
+    final response = await _dio.post<dynamic>(
+      _v2Path('/trips/$tripId/sessions/$clientSessionId:stop'),
+      data: <String, dynamic>{
+        'seal_version': sealVersion,
+        'stop_client_event_id': stopClientEventId,
+        'stopped_at': _toUtc(stoppedAt).toIso8601String(),
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+      options: _v2IdempotentOptions(idempotencyKey),
     );
     return _asJsonMap(response.data);
   }

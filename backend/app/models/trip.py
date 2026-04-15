@@ -110,7 +110,7 @@ class Trip(Base):
     v2_backend_enabled = Column(
         Boolean,
         nullable=False,
-        default=False,
+        default=True,
         comment="Whether strict V2 ingest/projection backend lane is enabled for this trip",
     )
     tracking_started_at = Column(

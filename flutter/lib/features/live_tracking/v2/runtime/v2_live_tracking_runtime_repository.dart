@@ -283,9 +283,10 @@ class V2LiveTrackingRuntimeRepository {
       await _commandApi.stop(
         remoteTripId: remoteTripId,
         idempotencyKey: idempotencyKey,
-        clientEventId: stopClientEventId,
+        clientSessionId: session.sessionId,
+        sealVersion: nextSealVersion,
+        stopClientEventId: stopClientEventId,
         stoppedAt: now,
-        remoteSessionId: _remoteSessionIdsByClientSessionId[session.sessionId],
       );
       stopAckAt = now;
     } catch (_) {

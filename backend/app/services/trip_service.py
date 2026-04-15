@@ -196,6 +196,7 @@ class TripService:
         # Create trip instance
         trip = Trip(
             user_id=user_id,
+            v2_backend_enabled=True,
             **trip_data.model_dump()
         )
 

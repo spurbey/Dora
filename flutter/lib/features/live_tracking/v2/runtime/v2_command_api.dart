@@ -23,9 +23,10 @@ abstract class V2CommandApi {
   Future<void> stop({
     required String remoteTripId,
     required String idempotencyKey,
-    required String clientEventId,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
     required DateTime stoppedAt,
-    String? remoteSessionId,
     String? reason,
   });
 }
@@ -46,7 +47,7 @@ class V2BridgeCommandApi implements V2CommandApi {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-    final payload = await _liveTrackingApi.startTracking(
+    final payload = await _liveTrackingApi.startTrackingV2(
       tripId: remoteTripId,
       idempotencyKey: idempotencyKey,
       clientSessionId: clientSessionId,
@@ -54,11 +55,13 @@ class V2BridgeCommandApi implements V2CommandApi {
       timezone: timezone,
       deviceContext: deviceContext,
     );
-    final remoteSessionId = payload['session_id']?.toString().trim() ?? '';
+    final remoteSessionId = payload['session_server_id']?.toString().trim() ??
+        payload['session_id']?.toString().trim() ??
+        '';
     if (remoteSessionId.isEmpty) {
       throw const V2CommandTransportException(
         code: 'missing_remote_session_id',
-        message: 'Start response missing session_id.',
+        message: 'Start response missing session_server_id.',
       );
     }
     final startedAtRaw = payload['started_at']?.toString();
@@ -75,17 +78,19 @@ class V2BridgeCommandApi implements V2CommandApi {
   Future<void> stop({
     required String remoteTripId,
     required String idempotencyKey,
-    required String clientEventId,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
     required DateTime stoppedAt,
-    String? remoteSessionId,
     String? reason,
   }) async {
-    await _liveTrackingApi.stopTracking(
+    await _liveTrackingApi.stopTrackingV2(
       tripId: remoteTripId,
       idempotencyKey: idempotencyKey,
-      clientEventId: clientEventId,
+      clientSessionId: clientSessionId,
+      sealVersion: sealVersion,
+      stopClientEventId: stopClientEventId,
       stoppedAt: stoppedAt,
-      sessionId: remoteSessionId,
       reason: reason,
     );
   }

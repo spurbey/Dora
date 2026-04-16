@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/config/live_system_v2_gate.dart';
+import 'package:dora/features/advisory/advisory_guard.dart';
+import 'package:dora/features/advisory/presentation/screens/advisory_debug_screen.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/map/models/app_marker.dart';
@@ -2401,6 +2403,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                   unawaited(_publishTripFromEditor());
                 },
               ),
+              if (advisoryEnabled())
+                ListTile(
+                  leading: const Icon(Icons.lightbulb_outline),
+                  title: const Text('Advisory Debug'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AdvisoryDebugScreen(
+                          tripId: widget.tripId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         );

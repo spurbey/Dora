@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dora/core/navigation/live_deep_link_route_decider.dart';
+import 'package:dora/features/advisory/advisory_guard.dart';
 
 typedef NotificationPayloadLoader = Future<Map<String, dynamic>?> Function();
 typedef NotificationPayloadTripResolver = Future<String?> Function(
@@ -68,6 +69,22 @@ class LiveTrackingDeepLinkBootstrap {
   }
 
   Future<void> _handlePayload(Map<String, dynamic> payload) async {
+    // Advisory notifications: branch on `type` first (domain discriminator),
+    // then use `action` for navigation intent within that domain.
+    final type = _normalizedString(payload['type']);
+    if (advisoryEnabled() && (type == 'advisory' || type == 'advisory_paused')) {
+      final tripIdentity = extractTripIdentity(payload);
+      if (tripIdentity == null) return;
+      final intentKey = _intentKey(payload, tripIdentity);
+      if (!_handledIntentKeys.add(intentKey)) return;
+      final localTripId = await _resolveLocalTripId(tripIdentity);
+      if (localTripId == null || localTripId.isEmpty) return;
+      // Route to advisory debug screen (will become advisory inbox in final UI).
+      _navigateToRoute('/trip/$localTripId/advisory');
+      return;
+    }
+
+    // Default: trip-based routing (checkin_candidate, tracking, etc.)
     final tripIdentity = extractTripIdentity(payload);
     if (tripIdentity == null) {
       return;

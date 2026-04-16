@@ -5,8 +5,6 @@ import 'package:uuid/uuid.dart';
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/entity_sync_receipt.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/domain/trip.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
@@ -625,87 +623,6 @@ class TripRepository {
     await tripsApi.deleteTripApiV1TripsTripIdDelete(
       tripId: remoteTripId,
       authorization: 'Bearer $token',
-    );
-  }
-
-  Future<EntitySyncReceipt> syncTripForTask(
-    String localTripId, {
-    required String operation,
-  }) async {
-    switch (operation) {
-      case 'create':
-        final remoteTripId = await ensureRemoteTripId(localTripId);
-        final remoteUpdatedAt =
-            await _tryFetchRemoteTripUpdatedAt(remoteTripId) ?? DateTime.now();
-        return EntitySyncReceipt(
-          entityType: SyncEntityTypes.trip,
-          localEntityId: localTripId,
-          remoteEntityId: remoteTripId,
-          serverUpdatedAt: remoteUpdatedAt,
-        );
-      case 'update':
-        return _syncRemoteTripUpdate(localTripId);
-      case 'delete':
-        throw const TripIdentityException(
-          'Trip delete requires remote trip id context.',
-        );
-      default:
-        throw TripIdentityException(
-          'Unsupported trip sync operation: $operation',
-        );
-    }
-  }
-
-  Future<EntitySyncReceipt> _syncRemoteTripUpdate(String localTripId) async {
-    final local = await getTrip(localTripId);
-    if (local == null) {
-      throw TripIdentityException(
-        'Cannot sync trip update: local trip not found ($localTripId)',
-      );
-    }
-
-    final remoteTripId = await ensureRemoteTripId(localTripId);
-    final tripsApi = _tripsApi;
-    if (tripsApi == null) {
-      throw const TripIdentityException(
-        'Cannot sync trip update: Trips API unavailable.',
-      );
-    }
-
-    final token = await _authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      throw const TripIdentityException(
-        'Cannot sync trip update: auth token unavailable.',
-        retryable: true,
-      );
-    }
-
-    final payload = openapi.TripUpdate((builder) {
-      builder
-        ..title = local.name
-        ..description = local.description
-        ..visibility = local.visibility;
-
-      final start = local.startDate;
-      if (start != null) {
-        builder.startDate = openapi.Date(start.year, start.month, start.day);
-      }
-      final end = local.endDate;
-      if (end != null) {
-        builder.endDate = openapi.Date(end.year, end.month, end.day);
-      }
-    });
-
-    final response = await tripsApi.updateTripApiV1TripsTripIdPatch(
-      tripId: remoteTripId,
-      authorization: 'Bearer $token',
-      tripUpdate: payload,
-    );
-    return EntitySyncReceipt(
-      entityType: SyncEntityTypes.trip,
-      localEntityId: localTripId,
-      remoteEntityId: remoteTripId,
-      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
     );
   }
 

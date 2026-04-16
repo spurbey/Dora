@@ -11,12 +11,10 @@ final liveTrackingEventResolverProvider = Provider<LiveTrackingEventResolver>((
 ) {
   final trackingEventDao = ref.watch(trackingEventDaoProvider);
   final placeDao = ref.watch(appDatabaseProvider).placeDao;
-  final syncTaskDao = ref.watch(syncTaskDaoProvider);
   final geocodingService = ref.watch(geocodingServiceProvider);
   return LiveTrackingEventResolver(
     trackingEventDao: trackingEventDao,
     placeDao: placeDao,
-    syncTaskDao: syncTaskDao,
     geocodingService: geocodingService,
   );
 });
@@ -25,12 +23,10 @@ final liveTrackingEventRepositoryProvider =
     Provider<LiveTrackingEventRepository>((ref) {
   final trackingEventDao = ref.watch(trackingEventDaoProvider);
   final trackingEventMediaDao = ref.watch(trackingEventMediaDaoProvider);
-  final syncTaskDao = ref.watch(syncTaskDaoProvider);
   final resolver = ref.watch(liveTrackingEventResolverProvider);
   return LiveTrackingEventRepository(
     trackingEventDao: trackingEventDao,
     trackingEventMediaDao: trackingEventMediaDao,
-    syncTaskDao: syncTaskDao,
     resolver: resolver,
   );
 });

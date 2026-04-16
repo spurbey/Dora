@@ -7,11 +7,9 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/network/live_tracking_api.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 
 enum LiveTrackingRuntimeState {
@@ -95,7 +93,6 @@ class LiveTrackingRuntimeRepository {
     AppDatabase db, {
     TrackingSessionDao? trackingSessionDao,
     TrackingPointBatchDao? trackingPointBatchDao,
-    SyncTaskDao? syncTaskDao,
     LiveTrackingApi? liveTrackingApi,
     Future<String> Function(String localTripId)? resolveRemoteTripId,
     Future<void> Function(String localTripId, {String? expectedServerTripId})?
@@ -107,7 +104,6 @@ class LiveTrackingRuntimeRepository {
         _trackingSessionDao = trackingSessionDao ?? TrackingSessionDao(db),
         _trackingPointBatchDao =
             trackingPointBatchDao ?? TrackingPointBatchDao(db),
-        _syncTaskDao = syncTaskDao ?? SyncTaskDao(db),
         _liveTrackingApi = liveTrackingApi,
         _resolveRemoteTripId = resolveRemoteTripId,
         _clearRemoteTripId = clearRemoteTripId,
@@ -118,7 +114,6 @@ class LiveTrackingRuntimeRepository {
   final AppDatabase _db;
   final TrackingSessionDao _trackingSessionDao;
   final TrackingPointBatchDao _trackingPointBatchDao;
-  final SyncTaskDao _syncTaskDao;
   final LiveTrackingApi? _liveTrackingApi;
   final Future<String> Function(String localTripId)? _resolveRemoteTripId;
   final Future<void> Function(String localTripId,
@@ -143,10 +138,7 @@ class LiveTrackingRuntimeRepository {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
-      tripId: tripId,
-    );
-    final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     final now = _now().toUtc();
@@ -194,10 +186,7 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> pauseSession({
     required String tripId,
   }) async {
-    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
-      tripId: tripId,
-    );
-    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     if (session == null) {
@@ -236,10 +225,7 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> resumeSession({
     required String tripId,
   }) async {
-    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
-      tripId: tripId,
-    );
-    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     if (session == null) {
@@ -282,10 +268,7 @@ class LiveTrackingRuntimeRepository {
   Future<TrackingSessionRow?> stopSession({
     required String tripId,
   }) async {
-    await _syncTaskDao.completeLegacyTrackingLifecycleTasksForTrip(
-      tripId: tripId,
-    );
-    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     if (session == null) {
@@ -405,14 +388,6 @@ class LiveTrackingRuntimeRepository {
         targetBatchId = batchId;
       }
 
-      await _syncTaskDao.upsertQueuedTask(
-        id: _uuid.v4(),
-        entityType: SyncEntityTypes.trackingPointBatch,
-        entityId: targetBatchId,
-        operation: 'upload',
-        dependsOnEntityType: SyncEntityTypes.trackingSession,
-        dependsOnEntityId: session.id,
-      );
       await _trackingSessionDao.markLastPointAt(
         sessionId: session.id,
         lastPointAt: recordedAt,
@@ -503,13 +478,6 @@ class LiveTrackingRuntimeRepository {
         ),
       );
     }
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trip,
-      entityId: localTripId,
-      operation: 'create',
-    );
-    await _syncTaskDao.requeueIdentityBlockedTasks(tripId: localTripId);
   }
 
   bool _isTripNotFound(DioException error) {

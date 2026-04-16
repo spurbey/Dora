@@ -6,11 +6,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_media_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/live_capture/data/live_tracking_event_resolver.dart';
 import 'package:dora/features/live_capture/domain/resolved_place_decision.dart';
 
@@ -106,20 +104,17 @@ class LiveTrackingEventRepository {
   LiveTrackingEventRepository({
     required TrackingEventDao trackingEventDao,
     required TrackingEventMediaDao trackingEventMediaDao,
-    required SyncTaskDao syncTaskDao,
     required LiveTrackingEventResolver resolver,
     DateTime Function()? now,
     Uuid? uuid,
   })  : _trackingEventDao = trackingEventDao,
         _trackingEventMediaDao = trackingEventMediaDao,
-        _syncTaskDao = syncTaskDao,
         _resolver = resolver,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
   final TrackingEventDao _trackingEventDao;
   final TrackingEventMediaDao _trackingEventMediaDao;
-  final SyncTaskDao _syncTaskDao;
   final LiveTrackingEventResolver _resolver;
   final DateTime Function() _now;
   final Uuid _uuid;
@@ -162,12 +157,6 @@ class LiveTrackingEventRepository {
         createdAt: now,
         updatedAt: now,
       ),
-    );
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trackingEvent,
-      entityId: eventId,
-      operation: 'upload',
     );
     unawaited(
       _resolver
@@ -219,12 +208,6 @@ class LiveTrackingEventRepository {
         updatedAt: now,
       ),
     );
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trackingEvent,
-      entityId: eventId,
-      operation: 'upload',
-    );
 
     final mediaId = _uuid.v4();
     final effectiveMimeType = mimeType?.trim().isNotEmpty == true
@@ -262,14 +245,6 @@ class LiveTrackingEventRepository {
         createdAt: now,
         updatedAt: now,
       ),
-    );
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.trackingEventMedia,
-      entityId: mediaId,
-      operation: 'upload',
-      dependsOnEntityType: SyncEntityTypes.trackingEvent,
-      dependsOnEntityId: eventId,
     );
 
     // Local resolver pass is immediate for UX and does not wait on network fallback.

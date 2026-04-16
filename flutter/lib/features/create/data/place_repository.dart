@@ -4,10 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/entity_sync_receipt.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
@@ -23,15 +20,13 @@ class PlaceRepository {
   })  : _searchApi = searchApi,
         _placesApi = placesApi,
         _authService = authService,
-        _tripRepository = tripRepository,
-        _syncTaskDao = SyncTaskDao(_db);
+        _tripRepository = tripRepository;
 
   final AppDatabase _db;
   final TripRepository _tripRepository;
   final openapi.SearchApi? _searchApi;
   final openapi.PlacesApi? _placesApi;
   final AuthService? _authService;
-  final SyncTaskDao _syncTaskDao;
   static final Map<String, Future<String>> _ensureRemotePlaceIdInFlight = {};
 
   Future<List<Place>> getPlaces(String tripId) async {
@@ -52,11 +47,6 @@ class PlaceRepository {
     );
     await _db.placeDao.insertPlace(_toCompanion(updated));
     await _updatePlaceCount(updated.tripId);
-    await _enqueuePlaceSyncTask(
-      placeId: updated.id,
-      tripId: updated.tripId,
-      operation: 'create',
-    );
     return updated;
   }
 
@@ -73,14 +63,6 @@ class PlaceRepository {
     );
     await _db.placeDao.updatePlace(_toCompanion(updated));
     await _updatePlaceCount(updated.tripId);
-    await _enqueuePlaceSyncTask(
-      placeId: updated.id,
-      tripId: updated.tripId,
-      operation:
-          (updated.serverPlaceId == null || updated.serverPlaceId!.isEmpty)
-              ? 'create'
-              : 'update',
-    );
   }
 
   Future<void> deletePlace(String id) async {
@@ -90,12 +72,6 @@ class PlaceRepository {
     }
     await _db.placeDao.deletePlace(id);
     await _updatePlaceCount(existing.tripId);
-    await _enqueuePlaceSyncTask(
-      placeId: id,
-      tripId: existing.tripId,
-      operation: 'delete',
-      remoteEntityId: existing.serverPlaceId,
-    );
   }
 
   Future<void> savePlaces(List<Place> places) async {
@@ -124,15 +100,6 @@ class PlaceRepository {
     }).toList();
     await _db.placeDao.insertPlaces(companions);
     await _updatePlaceCount(places.first.tripId);
-    for (final place in places) {
-      await _enqueuePlaceSyncTask(
-        placeId: place.id,
-        tripId: place.tripId,
-        operation: (place.serverPlaceId == null || place.serverPlaceId!.isEmpty)
-            ? 'create'
-            : 'update',
-      );
-    }
   }
 
   Place createFromSearchResult({
@@ -566,23 +533,6 @@ class PlaceRepository {
     );
   }
 
-  Future<void> _enqueuePlaceSyncTask({
-    required String placeId,
-    required String tripId,
-    required String operation,
-    String? remoteEntityId,
-  }) async {
-    await _syncTaskDao.upsertQueuedTask(
-      id: const Uuid().v4(),
-      entityType: SyncEntityTypes.place,
-      entityId: placeId,
-      operation: operation,
-      remoteEntityId: remoteEntityId,
-      dependsOnEntityType: SyncEntityTypes.trip,
-      dependsOnEntityId: tripId,
-    );
-  }
-
   String _mapPlaceCreateFailure(
     DioException error, {
     required String localTripId,
@@ -727,94 +677,6 @@ class PlaceRepository {
     await placesApi.deletePlaceApiV1PlacesPlaceIdDelete(
       placeId: remotePlaceId,
       authorization: 'Bearer $token',
-    );
-  }
-
-  Future<EntitySyncReceipt> syncPlaceForTask(
-    String localPlaceId, {
-    required String operation,
-  }) async {
-    switch (operation) {
-      case 'create':
-        final remotePlaceId = await ensureRemotePlaceId(localPlaceId);
-        final remoteUpdatedAt =
-            await _tryFetchRemotePlaceUpdatedAt(remotePlaceId) ??
-                DateTime.now();
-        return EntitySyncReceipt(
-          entityType: SyncEntityTypes.place,
-          localEntityId: localPlaceId,
-          remoteEntityId: remotePlaceId,
-          serverUpdatedAt: remoteUpdatedAt,
-        );
-      case 'update':
-        return _syncRemotePlaceUpdate(localPlaceId);
-      case 'delete':
-        throw PlaceIdentityException(
-          'Place delete requires remote place id context.',
-        );
-      default:
-        throw PlaceIdentityException(
-          'Unsupported place sync operation: $operation',
-        );
-    }
-  }
-
-  Future<EntitySyncReceipt> _syncRemotePlaceUpdate(String localPlaceId) async {
-    final local = await getPlace(localPlaceId);
-    if (local == null) {
-      throw PlaceIdentityException(
-        'Cannot sync place update: local place not found ($localPlaceId)',
-      );
-    }
-
-    final remotePlaceId = await ensureRemotePlaceId(localPlaceId);
-    final placesApi = _placesApi;
-    final authService = _authService;
-    if (placesApi == null || authService == null) {
-      throw PlaceIdentityException(
-        'Cannot sync place update: Places API/auth service unavailable.',
-      );
-    }
-
-    final token = await authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      throw PlaceIdentityException(
-        'Cannot sync place update: auth token unavailable.',
-        retryable: true,
-      );
-    }
-
-    final payload = openapi.PlaceUpdate((builder) {
-      builder
-        ..name = local.name
-        ..lat = local.coordinates.latitude
-        ..lng = local.coordinates.longitude
-        ..orderInTrip = local.orderIndex;
-
-      final placeType = local.placeType;
-      if (placeType != null && placeType.isNotEmpty) {
-        builder.placeType = placeType;
-      }
-      final notes = local.notes;
-      if (notes != null && notes.isNotEmpty) {
-        builder.userNotes = notes;
-      }
-      final rating = local.rating;
-      if (rating != null) {
-        builder.userRating = rating;
-      }
-    });
-
-    final response = await placesApi.updatePlaceApiV1PlacesPlaceIdPatch(
-      placeId: remotePlaceId,
-      authorization: 'Bearer $token',
-      placeUpdate: payload,
-    );
-    return EntitySyncReceipt(
-      entityType: SyncEntityTypes.place,
-      localEntityId: localPlaceId,
-      remoteEntityId: remotePlaceId,
-      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
     );
   }
 

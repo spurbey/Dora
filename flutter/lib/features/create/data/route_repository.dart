@@ -9,10 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/directions/app_directions_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/entity_sync_receipt.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/arc_generator.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
@@ -31,8 +28,7 @@ class RouteRepository {
         _authService = authService,
         _routesApi = routesApi,
         _tripRepository = tripRepository,
-        _placeRepository = placeRepository,
-        _syncTaskDao = SyncTaskDao(_db);
+        _placeRepository = placeRepository;
 
   final AppDatabase _db;
   final AppDirectionsService? _directionsService;
@@ -40,7 +36,6 @@ class RouteRepository {
   final openapi.RoutesApi? _routesApi;
   final TripRepository? _tripRepository;
   final PlaceRepository? _placeRepository;
-  final SyncTaskDao _syncTaskDao;
   static final Map<String, Future<String>> _ensureRemoteRouteIdInFlight = {};
 
   Future<List<Route>> getRoutes(String tripId) async {
@@ -60,14 +55,6 @@ class RouteRepository {
       syncStatus: 'pending',
     );
     await _db.routeDao.insertRoute(_toCompanion(updated));
-    await _enqueueRouteSyncTask(
-      routeId: updated.id,
-      tripId: updated.tripId,
-      operation:
-          (updated.serverRouteId == null || updated.serverRouteId!.isEmpty)
-              ? 'create'
-              : 'update',
-    );
     return updated;
   }
 
@@ -85,14 +72,6 @@ class RouteRepository {
       syncStatus: 'pending',
     );
     await _db.routeDao.updateRoute(_toCompanion(updated));
-    await _enqueueRouteSyncTask(
-      routeId: updated.id,
-      tripId: updated.tripId,
-      operation:
-          (updated.serverRouteId == null || updated.serverRouteId!.isEmpty)
-              ? 'create'
-              : 'update',
-    );
   }
 
   Future<void> deleteRoute(String id) async {
@@ -101,12 +80,6 @@ class RouteRepository {
       return;
     }
     await _db.routeDao.deleteRoute(id);
-    await _enqueueRouteSyncTask(
-      routeId: id,
-      tripId: existing.tripId,
-      operation: 'delete',
-      remoteEntityId: existing.serverRouteId,
-    );
   }
 
   Future<void> saveRoutes(List<Route> routes) async {
@@ -133,15 +106,6 @@ class RouteRepository {
     }).toList();
     final companions = normalizedRoutes.map(_toCompanion).toList();
     await _db.routeDao.insertRoutes(companions);
-    for (final route in normalizedRoutes) {
-      await _enqueueRouteSyncTask(
-        routeId: route.id,
-        tripId: route.tripId,
-        operation: (route.serverRouteId == null || route.serverRouteId!.isEmpty)
-            ? 'create'
-            : 'update',
-      );
-    }
   }
 
   Route generateRoute({
@@ -391,35 +355,6 @@ class RouteRepository {
     );
   }
 
-  Future<EntitySyncReceipt> syncRouteForTask(
-    String localRouteId, {
-    required String operation,
-  }) async {
-    switch (operation) {
-      case 'create':
-        final remoteRouteId = await ensureRemoteRouteId(localRouteId);
-        final remoteUpdatedAt =
-            await _tryFetchRemoteRouteUpdatedAt(remoteRouteId) ??
-                DateTime.now();
-        return EntitySyncReceipt(
-          entityType: SyncEntityTypes.route,
-          localEntityId: localRouteId,
-          remoteEntityId: remoteRouteId,
-          serverUpdatedAt: remoteUpdatedAt,
-        );
-      case 'update':
-        return _syncRemoteRouteUpdate(localRouteId);
-      case 'delete':
-        throw const RouteIdentityException(
-          'Route delete requires remote route id context.',
-        );
-      default:
-        throw RouteIdentityException(
-          'Unsupported route sync operation: $operation',
-        );
-    }
-  }
-
   Future<String> ensureRemoteRouteId(String localRouteId) async {
     final inFlight = _ensureRemoteRouteIdInFlight[localRouteId];
     if (inFlight != null) {
@@ -560,60 +495,6 @@ class RouteRepository {
     return remoteRouteId;
   }
 
-  Future<EntitySyncReceipt> _syncRemoteRouteUpdate(String localRouteId) async {
-    final local = await getRoute(localRouteId);
-    if (local == null) {
-      throw RouteIdentityException(
-        'Cannot sync route update: local route not found ($localRouteId)',
-      );
-    }
-
-    final remoteRouteId = await ensureRemoteRouteId(localRouteId);
-    final routesApi = _routesApi;
-    final authService = _authService;
-    if (routesApi == null || authService == null) {
-      throw const RouteIdentityException(
-        'Cannot sync route update: Routes API/auth service unavailable.',
-      );
-    }
-
-    final token = await authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      throw const RouteIdentityException(
-        'Cannot sync route update: auth token unavailable.',
-        retryable: true,
-      );
-    }
-
-    final payload = openapi.RouteUpdate((builder) {
-      final name = local.name;
-      if (name != null && name.isNotEmpty) {
-        builder.name = name;
-      }
-      final description = local.description;
-      if (description != null && description.isNotEmpty) {
-        builder.description = description;
-      }
-      builder
-        ..orderInTrip = local.orderIndex
-        ..routeGeojson = MapBuilder<String, JsonObject?>(
-            (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
-                (k, v) => MapEntry(k, v != null ? JsonObject(v) : null)));
-    });
-
-    final response = await routesApi.updateRouteApiV1RoutesRouteIdPatch(
-      routeId: remoteRouteId,
-      authorization: 'Bearer $token',
-      routeUpdate: payload,
-    );
-    return EntitySyncReceipt(
-      entityType: SyncEntityTypes.route,
-      localEntityId: localRouteId,
-      remoteEntityId: remoteRouteId,
-      serverUpdatedAt: response.data?.updatedAt ?? DateTime.now(),
-    );
-  }
-
   Future<DateTime?> _tryFetchRemoteRouteUpdatedAt(String remoteRouteId) async {
     final routesApi = _routesApi;
     final authService = _authService;
@@ -657,15 +538,6 @@ class RouteRepository {
       return existingRemotePlaceId;
     }
 
-    final placeTask = await _syncTaskDao.getTaskByEntity(
-      entityType: SyncEntityTypes.place,
-      entityId: localPlaceId,
-    );
-    _throwIfPlaceDependencyNotReady(
-      task: placeTask,
-      localPlaceId: localPlaceId,
-    );
-
     try {
       return await placeRepository.ensureRemotePlaceId(localPlaceId);
     } on PlaceIdentityException catch (error) {
@@ -674,39 +546,6 @@ class RouteRepository {
         retryable: error.retryable,
       );
     }
-  }
-
-  void _throwIfPlaceDependencyNotReady({
-    required SyncTaskRow? task,
-    required String localPlaceId,
-  }) {
-    if (task == null || task.status == 'completed') {
-      return;
-    }
-
-    final status = task.status;
-    final reason = task.errorMessage;
-    if (status == 'blocked') {
-      throw RouteIdentityException(
-        'Route sync blocked: place dependency is blocked '
-        '(placeId=$localPlaceId). '
-        '${reason ?? 'Resolve place sync issue and retry.'}',
-      );
-    }
-
-    if (status == 'queued' || status == 'in_progress' || status == 'failed') {
-      throw RouteIdentityException(
-        'Route sync deferred: place dependency is not ready yet '
-        '(status=$status, placeId=$localPlaceId).',
-        retryable: true,
-      );
-    }
-
-    throw RouteIdentityException(
-      'Route sync blocked: place dependency is in unsupported sync state '
-      '(status=$status, placeId=$localPlaceId). '
-      '${reason ?? ''}',
-    );
   }
 
   Object _resolveRouteGeoJson(Route route) {
@@ -753,102 +592,6 @@ class RouteRepository {
         : openapi.RouteCreateRouteCategoryEnum.ground;
   }
 
-  Future<void> _enqueueRouteSyncTask({
-    required String routeId,
-    required String tripId,
-    required String operation,
-    String? remoteEntityId,
-  }) async {
-    final dependency = await _resolveRouteSyncDependency(
-      routeId: routeId,
-      tripId: tripId,
-      operation: operation,
-    );
-
-    await _syncTaskDao.upsertQueuedTask(
-      id: const Uuid().v4(),
-      entityType: SyncEntityTypes.route,
-      entityId: routeId,
-      operation: operation,
-      remoteEntityId: remoteEntityId,
-      dependsOnEntityType: dependency.entityType,
-      dependsOnEntityId: dependency.entityId,
-    );
-  }
-
-  Future<_SyncTaskDependency> _resolveRouteSyncDependency({
-    required String routeId,
-    required String tripId,
-    required String operation,
-  }) async {
-    if (operation == 'delete') {
-      return _SyncTaskDependency(
-        entityType: SyncEntityTypes.trip,
-        entityId: tripId,
-      );
-    }
-
-    final tripTask = await _syncTaskDao.getTaskByEntity(
-      entityType: SyncEntityTypes.trip,
-      entityId: tripId,
-    );
-    if (_isDependencyPending(tripTask)) {
-      return _SyncTaskDependency(
-        entityType: SyncEntityTypes.trip,
-        entityId: tripId,
-      );
-    }
-
-    final route = await _db.routeDao.getRouteById(routeId);
-    if (route == null) {
-      return _SyncTaskDependency(
-        entityType: SyncEntityTypes.trip,
-        entityId: tripId,
-      );
-    }
-
-    final placeIds = <String>[
-      if (route.startPlaceId != null && route.startPlaceId!.isNotEmpty)
-        route.startPlaceId!,
-      if (route.endPlaceId != null && route.endPlaceId!.isNotEmpty)
-        route.endPlaceId!,
-    ];
-
-    for (final placeId in placeIds) {
-      final placeTask = await _syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.place,
-        entityId: placeId,
-      );
-      if (_isDependencyPending(placeTask)) {
-        return _SyncTaskDependency(
-          entityType: SyncEntityTypes.place,
-          entityId: placeId,
-        );
-      }
-
-      final place = await _db.placeDao.getPlaceById(placeId);
-      final serverPlaceId = place?.serverPlaceId;
-      if (serverPlaceId == null || serverPlaceId.trim().isEmpty) {
-        return _SyncTaskDependency(
-          entityType: SyncEntityTypes.place,
-          entityId: placeId,
-        );
-      }
-    }
-
-    return _SyncTaskDependency(
-      entityType: SyncEntityTypes.trip,
-      entityId: tripId,
-    );
-  }
-
-  bool _isDependencyPending(SyncTaskRow? task) {
-    if (task == null) {
-      return false;
-    }
-    return task.status != 'completed';
-  }
-
   static double _haversineKm(AppLatLng start, AppLatLng end) {
     const earthRadius = 6371.0;
     final dLat = _degToRad(end.latitude - start.latitude);
@@ -889,12 +632,3 @@ class RouteIdentityException implements Exception {
   String toString() => message;
 }
 
-class _SyncTaskDependency {
-  const _SyncTaskDependency({
-    this.entityType,
-    this.entityId,
-  });
-
-  final String? entityType;
-  final String? entityId;
-}

@@ -7,30 +7,25 @@ import 'package:uuid/uuid.dart';
 import 'package:dora/core/map/geocoding/app_geocoding_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/daos/place_dao.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_event_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/live_capture/domain/resolved_place_decision.dart';
 
 class LiveTrackingEventResolver {
   LiveTrackingEventResolver({
     required TrackingEventDao trackingEventDao,
     required PlaceDao placeDao,
-    required SyncTaskDao syncTaskDao,
     required AppGeocodingService geocodingService,
     DateTime Function()? now,
     Uuid? uuid,
   })  : _trackingEventDao = trackingEventDao,
         _placeDao = placeDao,
-        _syncTaskDao = syncTaskDao,
         _geocodingService = geocodingService,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
   final TrackingEventDao _trackingEventDao;
   final PlaceDao _placeDao;
-  final SyncTaskDao _syncTaskDao;
   final AppGeocodingService _geocodingService;
   final DateTime Function() _now;
   final Uuid _uuid;
@@ -473,14 +468,6 @@ class LiveTrackingEventResolver {
         syncStatus: 'pending',
         serverPlaceId: const Value(null),
       ),
-    );
-    await _syncTaskDao.upsertQueuedTask(
-      id: _uuid.v4(),
-      entityType: SyncEntityTypes.place,
-      entityId: placeId,
-      operation: 'create',
-      dependsOnEntityType: SyncEntityTypes.trip,
-      dependsOnEntityId: tripId,
     );
     return placeId;
   }

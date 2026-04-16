@@ -23,14 +23,12 @@ final liveTrackingRuntimeRepositoryProvider =
   final db = ref.watch(appDatabaseProvider);
   final trackingSessionDao = ref.watch(trackingSessionDaoProvider);
   final trackingPointBatchDao = ref.watch(trackingPointBatchDaoProvider);
-  final syncTaskDao = ref.watch(syncTaskDaoProvider);
   final liveTrackingApi = ref.watch(liveTrackingApiProvider);
   final tripRepository = ref.watch(tripRepositoryProvider);
   return LiveTrackingRuntimeRepository(
     db,
     trackingSessionDao: trackingSessionDao,
     trackingPointBatchDao: trackingPointBatchDao,
-    syncTaskDao: syncTaskDao,
     liveTrackingApi: liveTrackingApi,
     resolveRemoteTripId: (tripId) =>
         tripRepository.ensureRemoteTripId(tripId, allowCreate: false),

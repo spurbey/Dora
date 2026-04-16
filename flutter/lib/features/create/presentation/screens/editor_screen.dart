@@ -26,15 +26,11 @@ import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/domain/compiled_projection.dart';
 import 'package:dora/features/create/data/compiled_projection_repository.dart';
-import 'package:dora/features/create/data/live_tracking_candidate_repository.dart';
 import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
-import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_candidate_provider.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_moment_provider.dart';
 import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
@@ -187,15 +183,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             : null;
         final trackingRuntimeAsync =
             ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-        final candidateInboxAsync = useV2ReviewLane
-            ? null
-            : ref.watch(liveTrackingCandidateInboxProvider(widget.tripId));
+        // V1 candidate inbox removed — V2 uses local resolver inbox.
+        const candidateInboxAsync = AsyncValue<List<Never>>.data([]);
         final v2InboxAsync = useV2ReviewLane
             ? ref.watch(v2UnresolvedInboxProvider(widget.tripId))
             : null;
-        final momentListAsync = _showLegacyTrackingWidgets
-            ? ref.watch(liveTrackingMomentsProvider(widget.tripId))
-            : null;
+        // V1 moment strip removed — moments captured via V2 event journal.
+        const AsyncValue<List<Never>>? momentListAsync = null;
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -508,12 +502,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   }
 
   Future<void> _retrySyncNow() async {
-    final entityWorker = ref.read(entitySyncWorkerProvider);
     final mediaWorker = ref.read(uploadQueueWorkerProvider);
-    await Future.wait([
-      entityWorker.startIfIdle(),
-      mediaWorker.startIfIdle(),
-    ]);
+    await mediaWorker.startIfIdle();
     if (!mounted) {
       return;
     }
@@ -815,21 +805,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           onConfirm: (candidateId) => unawaited(
             _runCandidateDecision(
               candidateId: candidateId,
-              action: LiveTrackingCandidateDecisionAction.confirm,
               successMessage: 'Check-in confirmed.',
             ),
           ),
           onReject: (candidateId) => unawaited(
             _runCandidateDecision(
               candidateId: candidateId,
-              action: LiveTrackingCandidateDecisionAction.reject,
               successMessage: 'Suggestion dismissed.',
             ),
           ),
           onSnooze: (candidateId) => unawaited(
             _runCandidateDecision(
               candidateId: candidateId,
-              action: LiveTrackingCandidateDecisionAction.snooze,
               successMessage: 'Suggestion snoozed for 1 hour.',
             ),
           ),
@@ -962,7 +949,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
 
   Future<void> _runCandidateDecision({
     required String candidateId,
-    required LiveTrackingCandidateDecisionAction action,
     required String successMessage,
   }) async {
     if (!mounted || _candidateActionsInFlight.contains(candidateId)) {
@@ -972,12 +958,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       _candidateActionsInFlight.add(candidateId);
     });
     try {
-      final repository = ref.read(liveTrackingCandidateRepositoryProvider);
-      await repository.queueDecision(
-        tripId: widget.tripId,
-        candidateId: candidateId,
-        action: action,
-      );
+      // V1 candidate queue removed — V2 uses local resolver inbox.
       if (!mounted) {
         return;
       }
@@ -1162,12 +1143,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       _momentCreateInFlight = true;
     });
     try {
-      final repository = ref.read(liveTrackingMomentRepositoryProvider);
-      await repository.createMomentNow(
-        tripId: widget.tripId,
-        latitude: capturePosition?.latitude,
-        longitude: capturePosition?.longitude,
-      );
+      // V1 moment creation removed — moments captured via V2 event journal.
       if (!mounted) {
         return;
       }
@@ -1228,18 +1204,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       _momentActionsInFlight.add(moment.id);
     });
     try {
-      final repository = ref.read(liveTrackingMomentRepositoryProvider);
-      final queued = await repository.queueMomentUpdate(
-        tripId: widget.tripId,
-        momentId: moment.id,
-        note: editResult.note,
-        linkedTripPlaceId: editResult.linkedTripPlaceId,
-        includeNote: didClearNote,
-        includeLinkedTripPlaceId: didClearLinkedPlace,
-      );
-      if (!queued) {
-        return;
-      }
+      // V1 moment update removed — moments managed via V2 event journal.
+      return;
       if (!mounted) {
         return;
       }

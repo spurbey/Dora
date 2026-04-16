@@ -59,6 +59,25 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Transaction helper
+# ---------------------------------------------------------------------------
+
+
+def _safe_tx(db: Session):
+    """Return a context manager for a DB write block.
+
+    If the session already has an active transaction (e.g. test harness wraps
+    each test in a connection-level transaction), use a SAVEPOINT via
+    ``begin_nested()``. Otherwise open a fresh transaction via ``begin()``.
+    This avoids ``InvalidRequestError: a transaction is already begun`` in
+    tests while still providing proper commit semantics in production.
+    """
+    if db.in_transaction():
+        return db.begin_nested()
+    return db.begin()
+
+
+# ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
 
@@ -270,7 +289,7 @@ class TripBrainService:
 
         self.ensure_brain(trip_id, trip.user_id)
 
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """
@@ -319,7 +338,7 @@ class TripBrainService:
         brain = self.ensure_brain(trip_id, trip.user_id)
         cadence = int(brain.cadence_seconds or settings.ADVISORY_CYCLE_POLL_SECONDS)
 
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """
@@ -363,7 +382,7 @@ class TripBrainService:
         if brain.last_seed_at:
             elapsed = (_now_utc() - brain.last_seed_at).total_seconds()
             if elapsed < settings.ADVISORY_RESEED_MIN_INTERVAL_SECONDS:
-                with self.db.begin():
+                with _safe_tx(self.db):
                     # Append reasons with dedupe guard.
                     self.db.execute(
                         text(
@@ -454,7 +473,7 @@ class TripBrainService:
         user_meta_snap = _user_metadata_snapshot(um)
         reason = "route_changed" if "route_changed" in reasons else reasons[0]
 
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """
@@ -734,7 +753,7 @@ class TripBrainService:
         brain = self.ensure_brain(trip_id, advisory.user_id)
         is_explicit = action_type != "implicit_ignore"
 
-        with self.db.begin():
+        with _safe_tx(self.db):
             if is_explicit:
                 # Reset streak; implicit-resume if paused due to inactivity.
                 self.db.execute(
@@ -1016,7 +1035,7 @@ class TripBrainService:
     def pause(self, trip_id: UUID, *, reason: str) -> TripAdvisoryState:
         if reason not in {"inactivity", "user", "error", "trip_ended"}:
             raise ValueError(f"invalid pause reason: {reason}")
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """
@@ -1056,7 +1075,7 @@ class TripBrainService:
         if brain.paused_reason == "user" and not explicit_user_action:
             return brain
 
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """
@@ -1079,7 +1098,7 @@ class TripBrainService:
         )
 
     def complete(self, trip_id: UUID) -> TripAdvisoryState:
-        with self.db.begin():
+        with _safe_tx(self.db):
             self.db.execute(
                 text(
                     """

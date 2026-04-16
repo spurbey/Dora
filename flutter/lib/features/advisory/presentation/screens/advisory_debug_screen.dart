@@ -131,10 +131,17 @@ class _AdvisoryDebugScreenState extends ConsumerState<AdvisoryDebugScreen> {
     );
   }
 
+  /// Resolve the server trip ID from the local Drift ID.
+  /// Uses the cached provider so it only hits the network once per session.
+  Future<String> _serverTripId() async {
+    return ref.read(serverTripIdProvider(widget.tripId).future);
+  }
+
   Future<void> _startPreTrip() async {
     try {
+      final serverId = await _serverTripId();
       final repo = ref.read(advisoryRepositoryProvider);
-      await repo.startAdvisory(widget.tripId);
+      await repo.startAdvisory(serverId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pre-trip advisory job queued')),
@@ -152,7 +159,8 @@ class _AdvisoryDebugScreenState extends ConsumerState<AdvisoryDebugScreen> {
 
   Future<void> _pause() async {
     try {
-      await ref.read(advisoryRepositoryProvider).pauseAdvisory(widget.tripId);
+      final serverId = await _serverTripId();
+      await ref.read(advisoryRepositoryProvider).pauseAdvisory(serverId);
       _refreshAll();
     } catch (e) {
       if (mounted) {
@@ -165,7 +173,8 @@ class _AdvisoryDebugScreenState extends ConsumerState<AdvisoryDebugScreen> {
 
   Future<void> _resume() async {
     try {
-      await ref.read(advisoryRepositoryProvider).resumeAdvisory(widget.tripId);
+      final serverId = await _serverTripId();
+      await ref.read(advisoryRepositoryProvider).resumeAdvisory(serverId);
       _refreshAll();
     } catch (e) {
       if (mounted) {

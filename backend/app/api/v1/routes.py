@@ -7,9 +7,13 @@ Implements 10 endpoints:
 - 1 generate endpoint (Mapbox integration)
 """
 
+import asyncio
+import hashlib
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -31,10 +35,69 @@ from app.schemas.waypoint import (
 from app.schemas.route_metadata import (
     RouteMetadataCreate, RouteMetadataUpdate, RouteMetadataResponse
 )
+from app.database import SessionLocal
 from app.services.route_service import RouteService
+from app.services.trip_brain_service import TripBrainService
 
 
 router = APIRouter(tags=["Routes"])
+logger = logging.getLogger(__name__)
+
+
+def _route_geom_sig(route_geojson: dict | None) -> str | None:
+    if not route_geojson:
+        return None
+    normalized = json.dumps(route_geojson, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _refresh_route_geometry(db: Session, route_id: UUID) -> None:
+    """Best-effort route_geom projection update; skip if PostGIS unavailable."""
+    try:
+        db.execute(
+            text(
+                """
+                UPDATE routes
+                SET route_geom = ST_GeomFromGeoJSON(route_geojson::text)::geography
+                WHERE id = :route_id
+                  AND route_geojson IS NOT NULL
+                """
+            ),
+            {"route_id": str(route_id)},
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning(
+            "[ROUTES] route_geom refresh skipped route_id=%s: %s",
+            route_id,
+            exc,
+        )
+
+
+def _best_effort_route_reseed(db: Session, trip_id: UUID) -> None:
+    """Non-blocking advisory reseed hook for route changes."""
+    async def _run() -> None:
+        local_db = SessionLocal()
+        try:
+            await TripBrainService(local_db).reseed(
+                trip_id, reasons=["route_changed"]
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "[ROUTES] route_changed reseed hook failed trip_id=%s: %s",
+                trip_id,
+                exc,
+            )
+        finally:
+            local_db.close()
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_run())
+    except RuntimeError:
+        # No running loop in current context. Keep hook best-effort.
+        pass
 
 
 # ============================================================================
@@ -106,8 +169,11 @@ async def create_route(
         user_id=current_user.id,
         **route_data.model_dump()
     )
+    route.geom_sig = _route_geom_sig(route.route_geojson)
     db.add(route)
     db.commit()
+    _refresh_route_geometry(db, route.id)
+    _best_effort_route_reseed(db, trip_id)
     db.refresh(route)
 
     return RouteResponse.model_validate(route)
@@ -179,10 +245,19 @@ async def update_route(
             )
 
     # Update only provided fields
+    old_sig = route.geom_sig
+    route_geojson_changed = "route_geojson" in update_data
     for field, value in update_data.items():
         setattr(route, field, value)
 
+    if route_geojson_changed:
+        route.geom_sig = _route_geom_sig(route.route_geojson)
+
     db.commit()
+    if route_geojson_changed:
+        _refresh_route_geometry(db, route.id)
+    if route_geojson_changed and route.geom_sig != old_sig:
+        _best_effort_route_reseed(db, route.trip_id)
     db.refresh(route)
 
     return RouteResponse.model_validate(route)
@@ -201,8 +276,10 @@ async def delete_route(
     if route.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't own this route")
 
+    trip_id = route.trip_id
     db.delete(route)
     db.commit()
+    _best_effort_route_reseed(db, trip_id)
 
 
 # ============================================================================

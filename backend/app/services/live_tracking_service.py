@@ -4,8 +4,10 @@ Service layer for live-tracking Phase 2 APIs.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -20,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.database import SessionLocal
 from app.models.api_idempotency_record import ApiIdempotencyRecord
 from app.models.place import TripPlace
 from app.models.trip import Trip
@@ -36,6 +39,7 @@ from app.models.user_device_token import UserDeviceToken
 from app.services.storage_service import StorageConfigurationError, StorageService
 from app.services.trip_projection_compiler import TripProjectionCompilerService
 from app.utils.geo import haversine_distance
+from app.services.advisory_cache import advisory_cache
 
 
 IDEMPOTENCY_TTL_HOURS = 72
@@ -51,6 +55,7 @@ TRACKING_MEDIA_UPLOAD_ALLOWED_MIME_TYPES = {
     "video/quicktime",
     "video/webm",
 }
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -606,6 +611,7 @@ class LiveTrackingService:
         duplicates = 0
         latest_recorded: Optional[datetime] = session.last_point_at
         earliest_accepted_recorded: Optional[datetime] = None
+        latest_accepted_point: Optional[dict[str, float]] = None
 
         for item in points:
             point_id = item["point_id"]
@@ -632,6 +638,10 @@ class LiveTrackingService:
                         provider=item.get("provider"),
                     )
                 )
+                latest_accepted_point = {
+                    "latitude": float(item["latitude"]),
+                    "longitude": float(item["longitude"]),
+                }
                 if earliest_accepted_recorded is None or recorded_at < earliest_accepted_recorded:
                     earliest_accepted_recorded = recorded_at
             if latest_recorded is None or recorded_at > latest_recorded:
@@ -647,6 +657,31 @@ class LiveTrackingService:
                 user_id=user_id,
                 reason="points_batch_ingested",
             )
+            # Advisory centroid hook (best-effort, non-blocking):
+            # read mode from Redis and push latest point only for radius mode.
+            if latest_accepted_point is not None:
+                try:
+                    loop = asyncio.get_running_loop()
+
+                    async def _push() -> None:
+                        mode = await advisory_cache.get_mode(str(trip_id))
+                        if mode == "radius":
+                            await advisory_cache.push_centroid_point(
+                                str(trip_id),
+                                latest_accepted_point["latitude"],
+                                latest_accepted_point["longitude"],
+                            )
+
+                    loop.create_task(_push())
+                except RuntimeError:
+                    # No running loop in this context - skip on hot path.
+                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "advisory centroid hook failed trip_id=%s: %s",
+                        trip_id,
+                        exc,
+                    )
         self.db.flush()
 
         return status.HTTP_202_ACCEPTED, {
@@ -1691,6 +1726,40 @@ class LiveTrackingService:
                 trip.tracking_ended_at = self._to_utc(committed_at)
 
         self.db.flush()
+        # Advisory lifecycle hook - best effort, non-blocking.
+        async def _run_complete() -> None:
+            from app.services.trip_brain_service import TripBrainService
+
+            local_db = SessionLocal()
+            try:
+                TripBrainService(local_db).complete(trip_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "advisory complete hook failed trip_id=%s: %s",
+                    trip_id,
+                    exc,
+                )
+            finally:
+                local_db.close()
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_run_complete())
+        except RuntimeError:
+            # No running loop; fallback to synchronous best-effort.
+            local_db = SessionLocal()
+            try:
+                from app.services.trip_brain_service import TripBrainService
+
+                TripBrainService(local_db).complete(trip_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "advisory complete hook failed trip_id=%s: %s",
+                    trip_id,
+                    exc,
+                )
+            finally:
+                local_db.close()
         return status.HTTP_200_OK, {
             "trip_id": trip.id,
             "status": trip.status,

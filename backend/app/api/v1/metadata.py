@@ -15,6 +15,9 @@ Endpoints:
     - DELETE /places/{place_id}/metadata: Delete place metadata
 """
 
+import asyncio
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -28,9 +31,36 @@ from app.models.trip_metadata import TripMetadata
 from app.models.place_metadata import PlaceMetadata
 from app.schemas.trip_metadata import TripMetadataCreate, TripMetadataUpdate, TripMetadataResponse
 from app.schemas.place_metadata import PlaceMetadataCreate, PlaceMetadataUpdate, PlaceMetadataResponse
+from app.database import SessionLocal
+from app.services.trip_brain_service import TripBrainService
 
 
 router = APIRouter(tags=["Metadata"])
+logger = logging.getLogger(__name__)
+
+
+def _best_effort_metadata_reseed(db: Session, trip_id: UUID) -> None:
+    async def _run() -> None:
+        local_db = SessionLocal()
+        try:
+            await TripBrainService(local_db).reseed(
+                trip_id, reasons=["metadata_changed"]
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "[METADATA] metadata_changed reseed hook failed trip_id=%s: %s",
+                trip_id,
+                exc,
+            )
+        finally:
+            local_db.close()
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_run())
+    except RuntimeError:
+        # Sync context; keep hook best-effort/non-blocking.
+        pass
 
 
 # ============================================================================
@@ -98,6 +128,7 @@ async def create_trip_metadata(
     )
     db.add(metadata)
     db.commit()
+    _best_effort_metadata_reseed(db, trip_id)
     db.refresh(metadata)
 
     return TripMetadataResponse.model_validate(metadata)
@@ -205,6 +236,7 @@ async def update_trip_metadata(
         setattr(metadata, field, value)
 
     db.commit()
+    _best_effort_metadata_reseed(db, trip_id)
     db.refresh(metadata)
 
     return TripMetadataResponse.model_validate(metadata)
@@ -256,6 +288,7 @@ async def delete_trip_metadata(
 
     db.delete(metadata)
     db.commit()
+    _best_effort_metadata_reseed(db, trip_id)
 
 
 # ============================================================================

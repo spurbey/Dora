@@ -836,33 +836,35 @@ class TripBrainService:
         brain = self.ensure_brain(trip_id, trip.user_id)
         cadence = int(brain.cadence_seconds or 3600)
         locality_key = target.locality_key if target else None
+        tx_ctx = self.db.begin_nested if self.db.in_transaction() else self.db.begin
 
         if outcome == "delivered":
             if not locality_key:
                 raise ValueError("delivered outcome requires target.locality_key")
             new_pois = [p for p in (poi_place_ids or []) if p]
             # recent_categories bumping — atomically.
-            with self.db.begin():
+            with tx_ctx():
                 self.db.execute(
                     text(
                         """
                         UPDATE trip_advisory_state
                         SET
                             advised_locality_keys = CASE
-                                WHEN NOT (:key = ANY(advised_locality_keys))
-                                 AND COALESCE(array_length(advised_locality_keys, 1), 0)
+                                WHEN NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
+                                 AND COALESCE(array_length(COALESCE(advised_locality_keys, '{}'::text[]), 1), 0)
                                       < :max_localities
-                                THEN array_append(advised_locality_keys, :key)
-                                ELSE advised_locality_keys
+                                THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
+                                ELSE COALESCE(advised_locality_keys, '{}'::text[])
                             END,
                             advised_poi_place_ids = (
                                 SELECT ARRAY(
                                     SELECT DISTINCT unnest(
-                                        advised_poi_place_ids || CAST(:new_pois AS text[])
+                                        COALESCE(advised_poi_place_ids, '{}'::text[])
+                                        || CAST(:new_pois AS text[])
                                     )
                                 )
                             ),
-                            no_pick_attempts = no_pick_attempts - :key,
+                            no_pick_attempts = COALESCE(no_pick_attempts, '{}'::jsonb) - :key,
                             recent_categories = CAST(:new_recent AS jsonb),
                             last_cycle_at = now(),
                             next_eligible_at = now()
@@ -890,28 +892,38 @@ class TripBrainService:
             if not locality_key:
                 raise ValueError("no_pick outcome requires target.locality_key")
             budget = settings.ADVISORY_NO_PICK_RETRY_BUDGET
-            with self.db.begin():
+            with tx_ctx():
+                current_attempt = self.db.execute(
+                    text(
+                        """
+                        SELECT COALESCE(
+                            (COALESCE(no_pick_attempts, '{}'::jsonb)->>:key)::int,
+                            0
+                        ) AS attempts
+                        FROM trip_advisory_state
+                        WHERE trip_id = :trip_id
+                        FOR UPDATE
+                        """
+                    ),
+                    {"trip_id": str(trip_id), "key": locality_key},
+                ).scalar_one()
+                next_attempt = int(current_attempt) + 1
                 self.db.execute(
                     text(
                         """
                         UPDATE trip_advisory_state
                         SET
                             no_pick_attempts = jsonb_set(
-                                no_pick_attempts,
+                                COALESCE(no_pick_attempts, '{}'::jsonb),
                                 ARRAY[:key],
-                                to_jsonb(
-                                    COALESCE(
-                                        (no_pick_attempts->>:key)::int, 0
-                                    ) + 1
-                                )
+                                to_jsonb(:next_attempt),
+                                true
                             ),
                             advised_locality_keys = CASE
-                                WHEN COALESCE(
-                                        (no_pick_attempts->>:key)::int, 0
-                                    ) + 1 >= :budget
-                                 AND NOT (:key = ANY(advised_locality_keys))
-                                THEN array_append(advised_locality_keys, :key)
-                                ELSE advised_locality_keys
+                                WHEN :next_attempt >= :budget
+                                 AND NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
+                                THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
+                                ELSE COALESCE(advised_locality_keys, '{}'::text[])
                             END,
                             last_cycle_at = now(),
                             next_eligible_at = now()
@@ -923,13 +935,14 @@ class TripBrainService:
                     {
                         "trip_id": str(trip_id),
                         "key": locality_key,
+                        "next_attempt": next_attempt,
                         "budget": budget,
                         "cadence": cadence,
                     },
                 )
 
         else:  # failed | no_target | off_route — retry backoff, no memory flip
-            with self.db.begin():
+            with tx_ctx():
                 self.db.execute(
                     text(
                         """

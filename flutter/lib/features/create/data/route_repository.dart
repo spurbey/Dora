@@ -518,7 +518,7 @@ class RouteRepository {
         ..routeCategory = _mapRouteCategory(local.routeCategory)
         ..routeGeojson = MapBuilder<String, JsonObject?>(
             (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
-                (k, v) => MapEntry(k, v is Map ? JsonObject(v) : null)))
+                (k, v) => MapEntry(k, v != null ? JsonObject(v) : null)))
         ..orderInTrip = local.orderIndex;
 
       final name = local.name;
@@ -598,7 +598,7 @@ class RouteRepository {
         ..orderInTrip = local.orderIndex
         ..routeGeojson = MapBuilder<String, JsonObject?>(
             (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
-                (k, v) => MapEntry(k, v is Map ? JsonObject(v) : null)));
+                (k, v) => MapEntry(k, v != null ? JsonObject(v) : null)));
     });
 
     final response = await routesApi.updateRouteApiV1RoutesRouteIdPatch(

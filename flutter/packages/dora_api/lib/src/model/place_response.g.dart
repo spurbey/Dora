@@ -30,9 +30,9 @@ class _$PlaceResponse extends PlaceResponse {
   @override
   final BuiltList<MediaResponse>? photos;
   @override
-  final BuiltList<JsonObject>? videos;
+  final BuiltList<BuiltMap<String, JsonObject?>>? videos;
   @override
-  final JsonObject? externalData;
+  final BuiltMap<String, JsonObject?>? externalData;
   @override
   final int? orderInTrip;
   @override
@@ -185,14 +185,16 @@ class PlaceResponseBuilder
       _$this._photos ??= ListBuilder<MediaResponse>();
   set photos(ListBuilder<MediaResponse>? photos) => _$this._photos = photos;
 
-  ListBuilder<JsonObject>? _videos;
-  ListBuilder<JsonObject> get videos =>
-      _$this._videos ??= ListBuilder<JsonObject>();
-  set videos(ListBuilder<JsonObject>? videos) => _$this._videos = videos;
+  ListBuilder<BuiltMap<String, JsonObject?>>? _videos;
+  ListBuilder<BuiltMap<String, JsonObject?>> get videos =>
+      _$this._videos ??= ListBuilder<BuiltMap<String, JsonObject?>>();
+  set videos(ListBuilder<BuiltMap<String, JsonObject?>>? videos) =>
+      _$this._videos = videos;
 
-  JsonObject? _externalData;
-  JsonObject? get externalData => _$this._externalData;
-  set externalData(JsonObject? externalData) =>
+  MapBuilder<String, JsonObject?>? _externalData;
+  MapBuilder<String, JsonObject?> get externalData =>
+      _$this._externalData ??= MapBuilder<String, JsonObject?>();
+  set externalData(MapBuilder<String, JsonObject?>? externalData) =>
       _$this._externalData = externalData;
 
   int? _orderInTrip;
@@ -226,7 +228,7 @@ class PlaceResponseBuilder
       _visitDate = $v.visitDate;
       _photos = $v.photos?.toBuilder();
       _videos = $v.videos?.toBuilder();
-      _externalData = $v.externalData;
+      _externalData = $v.externalData?.toBuilder();
       _orderInTrip = $v.orderInTrip;
       _createdAt = $v.createdAt;
       _updatedAt = $v.updatedAt;
@@ -271,7 +273,7 @@ class PlaceResponseBuilder
             visitDate: visitDate,
             photos: _photos?.build(),
             videos: _videos?.build(),
-            externalData: externalData,
+            externalData: _externalData?.build(),
             orderInTrip: orderInTrip,
             createdAt: BuiltValueNullFieldError.checkNotNull(
                 createdAt, r'PlaceResponse', 'createdAt'),
@@ -285,6 +287,8 @@ class PlaceResponseBuilder
         _photos?.build();
         _$failedField = 'videos';
         _videos?.build();
+        _$failedField = 'externalData';
+        _externalData?.build();
       } catch (e) {
         throw BuiltValueNestedFieldError(
             r'PlaceResponse', _$failedField, e.toString());

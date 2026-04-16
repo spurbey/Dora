@@ -84,7 +84,7 @@ abstract class CheckinCandidateResponse implements Built<CheckinCandidateRespons
   DateTime? get cooldownUntil;
 
   @BuiltValueField(wireName: r'payload')
-  JsonObject? get payload;
+  BuiltMap<String, JsonObject?>? get payload;
 
   @BuiltValueField(wireName: r'created_at')
   DateTime get createdAt;
@@ -219,7 +219,7 @@ class _$CheckinCandidateResponseSerializer implements PrimitiveSerializer<Checki
       yield r'payload';
       yield serializers.serialize(
         object.payload,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     yield r'created_at';
@@ -380,9 +380,9 @@ class _$CheckinCandidateResponseSerializer implements PrimitiveSerializer<Checki
         case r'payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.payload = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.payload.replace(valueDes);
           break;
         case r'created_at':
           final valueDes = serializers.deserialize(

@@ -22,7 +22,7 @@ class _$CompiledRouteSegment extends CompiledRouteSegment {
   @override
   final int simplifiedPointCount;
   @override
-  final JsonObject? geometry;
+  final BuiltMap<String, JsonObject?>? geometry;
 
   factory _$CompiledRouteSegment(
           [void Function(CompiledRouteSegmentBuilder)? updates]) =>
@@ -125,9 +125,11 @@ class CompiledRouteSegmentBuilder
   set simplifiedPointCount(int? simplifiedPointCount) =>
       _$this._simplifiedPointCount = simplifiedPointCount;
 
-  JsonObject? _geometry;
-  JsonObject? get geometry => _$this._geometry;
-  set geometry(JsonObject? geometry) => _$this._geometry = geometry;
+  MapBuilder<String, JsonObject?>? _geometry;
+  MapBuilder<String, JsonObject?> get geometry =>
+      _$this._geometry ??= MapBuilder<String, JsonObject?>();
+  set geometry(MapBuilder<String, JsonObject?>? geometry) =>
+      _$this._geometry = geometry;
 
   CompiledRouteSegmentBuilder() {
     CompiledRouteSegment._defaults(this);
@@ -143,7 +145,7 @@ class CompiledRouteSegmentBuilder
       _distanceM = $v.distanceM;
       _rawPointCount = $v.rawPointCount;
       _simplifiedPointCount = $v.simplifiedPointCount;
-      _geometry = $v.geometry;
+      _geometry = $v.geometry?.toBuilder();
       _$v = null;
     }
     return this;
@@ -163,25 +165,38 @@ class CompiledRouteSegmentBuilder
   CompiledRouteSegment build() => _build();
 
   _$CompiledRouteSegment _build() {
-    final _$result = _$v ??
-        _$CompiledRouteSegment._(
-          segmentId: BuiltValueNullFieldError.checkNotNull(
-              segmentId, r'CompiledRouteSegment', 'segmentId'),
-          sessionId: sessionId,
-          startedAt: BuiltValueNullFieldError.checkNotNull(
-              startedAt, r'CompiledRouteSegment', 'startedAt'),
-          endedAt: BuiltValueNullFieldError.checkNotNull(
-              endedAt, r'CompiledRouteSegment', 'endedAt'),
-          distanceM: BuiltValueNullFieldError.checkNotNull(
-              distanceM, r'CompiledRouteSegment', 'distanceM'),
-          rawPointCount: BuiltValueNullFieldError.checkNotNull(
-              rawPointCount, r'CompiledRouteSegment', 'rawPointCount'),
-          simplifiedPointCount: BuiltValueNullFieldError.checkNotNull(
-              simplifiedPointCount,
-              r'CompiledRouteSegment',
-              'simplifiedPointCount'),
-          geometry: geometry,
-        );
+    _$CompiledRouteSegment _$result;
+    try {
+      _$result = _$v ??
+          _$CompiledRouteSegment._(
+            segmentId: BuiltValueNullFieldError.checkNotNull(
+                segmentId, r'CompiledRouteSegment', 'segmentId'),
+            sessionId: sessionId,
+            startedAt: BuiltValueNullFieldError.checkNotNull(
+                startedAt, r'CompiledRouteSegment', 'startedAt'),
+            endedAt: BuiltValueNullFieldError.checkNotNull(
+                endedAt, r'CompiledRouteSegment', 'endedAt'),
+            distanceM: BuiltValueNullFieldError.checkNotNull(
+                distanceM, r'CompiledRouteSegment', 'distanceM'),
+            rawPointCount: BuiltValueNullFieldError.checkNotNull(
+                rawPointCount, r'CompiledRouteSegment', 'rawPointCount'),
+            simplifiedPointCount: BuiltValueNullFieldError.checkNotNull(
+                simplifiedPointCount,
+                r'CompiledRouteSegment',
+                'simplifiedPointCount'),
+            geometry: _geometry?.build(),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'geometry';
+        _geometry?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'CompiledRouteSegment', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

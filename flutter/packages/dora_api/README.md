@@ -47,14 +47,15 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:dora_api/dora_api.dart';
 
 
-final api = DoraApi().getAuthenticationApi();
+final api = DoraApi().getAdvisoryApi();
+final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
 final String authorization = authorization_example; // String | Bearer token from Supabase Auth
 
 try {
-    final response = await api.getCurrentUserInfoApiV1AuthMeGet(authorization);
+    final response = await api.getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet(tripId, authorization);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling AuthenticationApi->getCurrentUserInfoApiV1AuthMeGet: $e\n");
+    print("Exception when calling AdvisoryApi->getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet: $e\n");
 }
 
 ```
@@ -65,6 +66,14 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet**](doc/AdvisoryApi.md#getadvisorystateapiv1tripstripidadvisorystateget) | **GET** /api/v1/trips/{trip_id}/advisory/state | Get Advisory State
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**listAdvisoryInsightsApiV1TripsTripIdAdvisoryInsightsGet**](doc/AdvisoryApi.md#listadvisoryinsightsapiv1tripstripidadvisoryinsightsget) | **GET** /api/v1/trips/{trip_id}/advisory/insights | List Advisory Insights
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**listAdvisoryJobsApiV1TripsTripIdAdvisoryJobsGet**](doc/AdvisoryApi.md#listadvisoryjobsapiv1tripstripidadvisoryjobsget) | **GET** /api/v1/trips/{trip_id}/advisory/jobs | List Advisory Jobs
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**pauseAdvisoryApiV1TripsTripIdAdvisoryPausePost**](doc/AdvisoryApi.md#pauseadvisoryapiv1tripstripidadvisorypausepost) | **POST** /api/v1/trips/{trip_id}/advisory/pause | Pause Advisory
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**queryAdvisoryApiV1TripsTripIdAdvisoryQueryPost**](doc/AdvisoryApi.md#queryadvisoryapiv1tripstripidadvisoryquerypost) | **POST** /api/v1/trips/{trip_id}/advisory/query | Query Advisory
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**recordAdvisoryActionApiV1AdvisoryAdvisoryIdActionPost**](doc/AdvisoryApi.md#recordadvisoryactionapiv1advisoryadvisoryidactionpost) | **POST** /api/v1/advisory/{advisory_id}/action | Record Advisory Action
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost**](doc/AdvisoryApi.md#resumeadvisoryapiv1tripstripidadvisoryresumepost) | **POST** /api/v1/trips/{trip_id}/advisory/resume | Resume Advisory
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**startAdvisoryApiV1TripsTripIdAdvisoryStartPost**](doc/AdvisoryApi.md#startadvisoryapiv1tripstripidadvisorystartpost) | **POST** /api/v1/trips/{trip_id}/advisory/start | Start Advisory
 [*AuthenticationApi*](doc/AuthenticationApi.md) | [**getCurrentUserInfoApiV1AuthMeGet**](doc/AuthenticationApi.md#getcurrentuserinfoapiv1authmeget) | **GET** /api/v1/auth/me | Get Current User Info
 [*CompiledProjectionApi*](doc/CompiledProjectionApi.md) | [**getCompiledProjectionApiV1TripsTripIdCompiledProjectionGet**](doc/CompiledProjectionApi.md#getcompiledprojectionapiv1tripstripidcompiledprojectionget) | **GET** /api/v1/trips/{trip_id}/compiled/projection | Get Compiled Projection
 [*CompiledProjectionApi*](doc/CompiledProjectionApi.md) | [**rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost**](doc/CompiledProjectionApi.md#rebindcompiledprojectionitemapiv1tripstripidcompiledrebindpost) | **POST** /api/v1/trips/{trip_id}/compiled/rebind | Rebind Compiled Projection Item
@@ -99,6 +108,14 @@ Class | Method | HTTP request | Description
 [*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**stopTrackingApiV1TripsTripIdTrackingStopPost**](doc/LiveTrackingApi.md#stoptrackingapiv1tripstripidtrackingstoppost) | **POST** /api/v1/trips/{trip_id}/tracking/stop | Stop Tracking
 [*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**updateTripMomentApiV1MomentsMomentIdPatch**](doc/LiveTrackingApi.md#updatetripmomentapiv1momentsmomentidpatch) | **PATCH** /api/v1/moments/{moment_id} | Update Trip Moment
 [*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**uploadTrackingMediaBinaryApiV1TripsTripIdTrackingMediaUploadPost**](doc/LiveTrackingApi.md#uploadtrackingmediabinaryapiv1tripstripidtrackingmediauploadpost) | **POST** /api/v1/trips/{trip_id}/tracking/media:upload | Upload Tracking Media Binary
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**getV2RouteApiV2TripsTripIdRouteGet**](doc/LiveTrackingV2Api.md#getv2routeapiv2tripstripidrouteget) | **GET** /api/v2/trips/{trip_id}/route | Get V2 Route
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**getV2TimelineApiV2TripsTripIdTimelineGet**](doc/LiveTrackingV2Api.md#getv2timelineapiv2tripstripidtimelineget) | **GET** /api/v2/trips/{trip_id}/timeline | Get V2 Timeline
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**publishCommitApiV2TripsTripIdPublishCommitPost**](doc/LiveTrackingV2Api.md#publishcommitapiv2tripstripidpublishcommitpost) | **POST** /api/v2/trips/{trip_id}/publish:commit | Publish Commit
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**publishMediaCompleteApiV2TripsTripIdPublishMediaCompletePost**](doc/LiveTrackingV2Api.md#publishmediacompleteapiv2tripstripidpublishmediacompletepost) | **POST** /api/v2/trips/{trip_id}/publish:media-complete | Publish Media Complete
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**publishPayloadChunkApiV2TripsTripIdPublishPayloadChunkPost**](doc/LiveTrackingV2Api.md#publishpayloadchunkapiv2tripstripidpublishpayloadchunkpost) | **POST** /api/v2/trips/{trip_id}/publish:payload-chunk | Publish Payload Chunk
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**publishStartApiV2TripsTripIdPublishStartPost**](doc/LiveTrackingV2Api.md#publishstartapiv2tripstripidpublishstartpost) | **POST** /api/v2/trips/{trip_id}/publish:start | Publish Start
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**startV2SessionApiV2TripsTripIdSessionsStartPost**](doc/LiveTrackingV2Api.md#startv2sessionapiv2tripstripidsessionsstartpost) | **POST** /api/v2/trips/{trip_id}/sessions:start | Start V2 Session
+[*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**stopV2SessionApiV2TripsTripIdSessionsClientSessionIdStopPost**](doc/LiveTrackingV2Api.md#stopv2sessionapiv2tripstripidsessionsclientsessionidstoppost) | **POST** /api/v2/trips/{trip_id}/sessions/{client_session_id}:stop | Stop V2 Session
 [*MediaApi*](doc/MediaApi.md) | [**deleteMediaApiV1MediaMediaIdDelete**](doc/MediaApi.md#deletemediaapiv1mediamediaiddelete) | **DELETE** /api/v1/media/{media_id} | Delete Media
 [*MediaApi*](doc/MediaApi.md) | [**getMediaApiV1MediaMediaIdGet**](doc/MediaApi.md#getmediaapiv1mediamediaidget) | **GET** /api/v1/media/{media_id} | Get Media
 [*MediaApi*](doc/MediaApi.md) | [**uploadMediaApiV1MediaUploadPost**](doc/MediaApi.md#uploadmediaapiv1mediauploadpost) | **POST** /api/v1/media/upload | Upload Media
@@ -146,6 +163,20 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AdvisoryActionRequest](doc/AdvisoryActionRequest.md)
+ - [AdvisoryActionResponse](doc/AdvisoryActionResponse.md)
+ - [AdvisoryCategory](doc/AdvisoryCategory.md)
+ - [AdvisoryDeliveryStatus](doc/AdvisoryDeliveryStatus.md)
+ - [AdvisoryInsightListResponse](doc/AdvisoryInsightListResponse.md)
+ - [AdvisoryInsightResponse](doc/AdvisoryInsightResponse.md)
+ - [AdvisoryJobListResponse](doc/AdvisoryJobListResponse.md)
+ - [AdvisoryJobResponse](doc/AdvisoryJobResponse.md)
+ - [AdvisoryJobStage](doc/AdvisoryJobStage.md)
+ - [AdvisoryJobStatus](doc/AdvisoryJobStatus.md)
+ - [AdvisoryJobType](doc/AdvisoryJobType.md)
+ - [AdvisoryQueryRequest](doc/AdvisoryQueryRequest.md)
+ - [AdvisorySource](doc/AdvisorySource.md)
+ - [AdvisoryStartRequest](doc/AdvisoryStartRequest.md)
  - [AppSchemasAuthUserResponse](doc/AppSchemasAuthUserResponse.md)
  - [AppSchemasUserUserResponse](doc/AppSchemasUserUserResponse.md)
  - [AutoFinalizeCommitRequest](doc/AutoFinalizeCommitRequest.md)
@@ -245,9 +276,30 @@ Class | Method | HTTP request | Description
  - [TripMetadataUpdate](doc/TripMetadataUpdate.md)
  - [TripResponse](doc/TripResponse.md)
  - [TripUpdate](doc/TripUpdate.md)
+ - [UserActionType](doc/UserActionType.md)
  - [UserProfileResponse](doc/UserProfileResponse.md)
  - [UserStats](doc/UserStats.md)
  - [UserUpdate](doc/UserUpdate.md)
+ - [V2MediaManifestItem](doc/V2MediaManifestItem.md)
+ - [V2PublishCommitRequest](doc/V2PublishCommitRequest.md)
+ - [V2PublishCommitResponse](doc/V2PublishCommitResponse.md)
+ - [V2PublishMediaCompleteRequest](doc/V2PublishMediaCompleteRequest.md)
+ - [V2PublishMediaCompleteResponse](doc/V2PublishMediaCompleteResponse.md)
+ - [V2PublishPayloadChunkRequest](doc/V2PublishPayloadChunkRequest.md)
+ - [V2PublishPayloadChunkResponse](doc/V2PublishPayloadChunkResponse.md)
+ - [V2PublishStartRequest](doc/V2PublishStartRequest.md)
+ - [V2PublishStartResponse](doc/V2PublishStartResponse.md)
+ - [V2PublishSummary](doc/V2PublishSummary.md)
+ - [V2RoutePointResponse](doc/V2RoutePointResponse.md)
+ - [V2RouteResponse](doc/V2RouteResponse.md)
+ - [V2RouteSegmentResponse](doc/V2RouteSegmentResponse.md)
+ - [V2SessionResponse](doc/V2SessionResponse.md)
+ - [V2SessionStartRequest](doc/V2SessionStartRequest.md)
+ - [V2SessionStopRequest](doc/V2SessionStopRequest.md)
+ - [V2TimelineEntryResponse](doc/V2TimelineEntryResponse.md)
+ - [V2TimelineResponse](doc/V2TimelineResponse.md)
+ - [V2UploadTarget](doc/V2UploadTarget.md)
+ - [V2UploadedMediaRef](doc/V2UploadedMediaRef.md)
  - [ValidationError](doc/ValidationError.md)
  - [WaypointCreate](doc/WaypointCreate.md)
  - [WaypointListResponse](doc/WaypointListResponse.md)

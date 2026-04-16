@@ -13,8 +13,8 @@ Name | Type | Description | Notes
 **capturedAt** | [**JsonObject**](.md) |  | 
 **sessionId** | **String** |  | [optional] 
 **note** | **String** |  | [optional] 
-**location** | [**JsonObject**](.md) |  | [optional] 
-**payload** | [**JsonObject**](.md) |  | [optional] 
+**location** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
+**payload** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

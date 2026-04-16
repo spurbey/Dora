@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -68,7 +69,7 @@ abstract class CompiledTimelineEntry implements Built<CompiledTimelineEntry, Com
   String? get subtitle;
 
   @BuiltValueField(wireName: r'payload')
-  JsonObject? get payload;
+  BuiltMap<String, JsonObject?>? get payload;
 
   CompiledTimelineEntry._();
 
@@ -172,7 +173,7 @@ class _$CompiledTimelineEntrySerializer implements PrimitiveSerializer<CompiledT
       yield r'payload';
       yield serializers.serialize(
         object.payload,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -297,9 +298,9 @@ class _$CompiledTimelineEntrySerializer implements PrimitiveSerializer<CompiledT
         case r'payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.payload = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.payload.replace(valueDes);
           break;
         default:
           unhandled.add(key);

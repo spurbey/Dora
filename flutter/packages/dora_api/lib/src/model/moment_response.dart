@@ -66,13 +66,13 @@ abstract class MomentResponse implements Built<MomentResponse, MomentResponseBui
   String? get note;
 
   @BuiltValueField(wireName: r'media_refs')
-  BuiltList<JsonObject>? get mediaRefs;
+  BuiltList<BuiltMap<String, JsonObject?>>? get mediaRefs;
 
   @BuiltValueField(wireName: r'extra_payload')
-  JsonObject? get extraPayload;
+  BuiltMap<String, JsonObject?>? get extraPayload;
 
   @BuiltValueField(wireName: r'locked_fields')
-  JsonObject? get lockedFields;
+  BuiltMap<String, JsonObject?>? get lockedFields;
 
   @BuiltValueField(wireName: r'created_at')
   DateTime get createdAt;
@@ -174,21 +174,21 @@ class _$MomentResponseSerializer implements PrimitiveSerializer<MomentResponse> 
       yield r'media_refs';
       yield serializers.serialize(
         object.mediaRefs,
-        specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
+        specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
       );
     }
     if (object.extraPayload != null) {
       yield r'extra_payload';
       yield serializers.serialize(
         object.extraPayload,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     if (object.lockedFields != null) {
       yield r'locked_fields';
       yield serializers.serialize(
         object.lockedFields,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     yield r'created_at';
@@ -310,23 +310,23 @@ class _$MomentResponseSerializer implements PrimitiveSerializer<MomentResponse> 
         case r'media_refs':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
-          ) as BuiltList<JsonObject>;
+            specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
+          ) as BuiltList<BuiltMap<String, JsonObject?>>;
           result.mediaRefs.replace(valueDes);
           break;
         case r'extra_payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.extraPayload = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.extraPayload.replace(valueDes);
           break;
         case r'locked_fields':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.lockedFields = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.lockedFields.replace(valueDes);
           break;
         case r'created_at':
           final valueDes = serializers.deserialize(

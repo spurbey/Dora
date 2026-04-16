@@ -18,9 +18,9 @@ class _$TrackingEventInput extends TrackingEventInput {
   @override
   final String? note;
   @override
-  final JsonObject? location;
+  final BuiltMap<String, JsonObject?>? location;
   @override
-  final JsonObject? payload;
+  final BuiltMap<String, JsonObject?>? payload;
 
   factory _$TrackingEventInput(
           [void Function(TrackingEventInputBuilder)? updates]) =>
@@ -110,13 +110,17 @@ class TrackingEventInputBuilder
   String? get note => _$this._note;
   set note(String? note) => _$this._note = note;
 
-  JsonObject? _location;
-  JsonObject? get location => _$this._location;
-  set location(JsonObject? location) => _$this._location = location;
+  MapBuilder<String, JsonObject?>? _location;
+  MapBuilder<String, JsonObject?> get location =>
+      _$this._location ??= MapBuilder<String, JsonObject?>();
+  set location(MapBuilder<String, JsonObject?>? location) =>
+      _$this._location = location;
 
-  JsonObject? _payload;
-  JsonObject? get payload => _$this._payload;
-  set payload(JsonObject? payload) => _$this._payload = payload;
+  MapBuilder<String, JsonObject?>? _payload;
+  MapBuilder<String, JsonObject?> get payload =>
+      _$this._payload ??= MapBuilder<String, JsonObject?>();
+  set payload(MapBuilder<String, JsonObject?>? payload) =>
+      _$this._payload = payload;
 
   TrackingEventInputBuilder() {
     TrackingEventInput._defaults(this);
@@ -130,8 +134,8 @@ class TrackingEventInputBuilder
       _capturedAt = $v.capturedAt;
       _sessionId = $v.sessionId;
       _note = $v.note;
-      _location = $v.location;
-      _payload = $v.payload;
+      _location = $v.location?.toBuilder();
+      _payload = $v.payload?.toBuilder();
       _$v = null;
     }
     return this;
@@ -151,18 +155,33 @@ class TrackingEventInputBuilder
   TrackingEventInput build() => _build();
 
   _$TrackingEventInput _build() {
-    final _$result = _$v ??
-        _$TrackingEventInput._(
-          clientEventId: BuiltValueNullFieldError.checkNotNull(
-              clientEventId, r'TrackingEventInput', 'clientEventId'),
-          eventType: BuiltValueNullFieldError.checkNotNull(
-              eventType, r'TrackingEventInput', 'eventType'),
-          capturedAt: capturedAt,
-          sessionId: sessionId,
-          note: note,
-          location: location,
-          payload: payload,
-        );
+    _$TrackingEventInput _$result;
+    try {
+      _$result = _$v ??
+          _$TrackingEventInput._(
+            clientEventId: BuiltValueNullFieldError.checkNotNull(
+                clientEventId, r'TrackingEventInput', 'clientEventId'),
+            eventType: BuiltValueNullFieldError.checkNotNull(
+                eventType, r'TrackingEventInput', 'eventType'),
+            capturedAt: capturedAt,
+            sessionId: sessionId,
+            note: note,
+            location: _location?.build(),
+            payload: _payload?.build(),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'location';
+        _location?.build();
+        _$failedField = 'payload';
+        _payload?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'TrackingEventInput', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

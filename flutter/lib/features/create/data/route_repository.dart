@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -278,7 +279,7 @@ class RouteRepository {
 
       for (final remote in remoteRoutes) {
         final localId = const Uuid().v4();
-        final coordinates = _extractCoordinatesFromGeojson(remote.routeGeojson);
+        final coordinates = _extractCoordinatesFromGeojsonMap(remote.routeGeojson.asMap());
         final localStartPlaceId = remote.startPlaceId != null
             ? remotePlaceToLocalId[remote.startPlaceId]
             : null;
@@ -288,7 +289,7 @@ class RouteRepository {
 
         String? geojsonStr;
         try {
-          geojsonStr = jsonEncode(remote.routeGeojson.value);
+          geojsonStr = jsonEncode(remote.routeGeojson.asMap());
         } catch (_) {}
 
         routes.add(Route(
@@ -321,11 +322,10 @@ class RouteRepository {
     }
   }
 
-  List<AppLatLng> _extractCoordinatesFromGeojson(JsonObject geojson) {
+  List<AppLatLng> _extractCoordinatesFromGeojsonMap(Map<String, dynamic> geojsonMap) {
     try {
-      final raw = geojson.value;
-      final map = raw is Map ? raw : null;
-      final type = map?['type'];
+      final map = geojsonMap;
+      final type = map['type'];
       final coordinates = map?['coordinates'];
 
       if (type == 'LineString' && coordinates is List) {
@@ -516,7 +516,9 @@ class RouteRepository {
       builder
         ..transportMode = _mapTransportMode(local.transportMode)
         ..routeCategory = _mapRouteCategory(local.routeCategory)
-        ..routeGeojson = JsonObject(_resolveRouteGeoJson(local))
+        ..routeGeojson = MapBuilder<String, JsonObject?>(
+            (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
+                (k, v) => MapEntry(k, v is Map ? JsonObject(v) : null)))
         ..orderInTrip = local.orderIndex;
 
       final name = local.name;
@@ -594,7 +596,9 @@ class RouteRepository {
       }
       builder
         ..orderInTrip = local.orderIndex
-        ..routeGeojson = JsonObject(_resolveRouteGeoJson(local));
+        ..routeGeojson = MapBuilder<String, JsonObject?>(
+            (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
+                (k, v) => MapEntry(k, v is Map ? JsonObject(v) : null)));
     });
 
     final response = await routesApi.updateRouteApiV1RoutesRouteIdPatch(

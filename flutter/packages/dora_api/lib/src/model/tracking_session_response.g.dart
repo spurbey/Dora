@@ -201,7 +201,7 @@ class _$TrackingSessionResponse extends TrackingSessionResponse {
   @override
   final String? timezone;
   @override
-  final JsonObject? deviceContext;
+  final BuiltMap<String, JsonObject?>? deviceContext;
   @override
   final TrackingSessionResponseTripStatusEnum tripStatus;
   @override
@@ -368,9 +368,10 @@ class TrackingSessionResponseBuilder
   String? get timezone => _$this._timezone;
   set timezone(String? timezone) => _$this._timezone = timezone;
 
-  JsonObject? _deviceContext;
-  JsonObject? get deviceContext => _$this._deviceContext;
-  set deviceContext(JsonObject? deviceContext) =>
+  MapBuilder<String, JsonObject?>? _deviceContext;
+  MapBuilder<String, JsonObject?> get deviceContext =>
+      _$this._deviceContext ??= MapBuilder<String, JsonObject?>();
+  set deviceContext(MapBuilder<String, JsonObject?>? deviceContext) =>
       _$this._deviceContext = deviceContext;
 
   TrackingSessionResponseTripStatusEnum? _tripStatus;
@@ -412,7 +413,7 @@ class TrackingSessionResponseBuilder
       _abandonedAt = $v.abandonedAt;
       _lastPointAt = $v.lastPointAt;
       _timezone = $v.timezone;
-      _deviceContext = $v.deviceContext;
+      _deviceContext = $v.deviceContext?.toBuilder();
       _tripStatus = $v.tripStatus;
       _trackingEnabled = $v.trackingEnabled;
       _trackingStartedAt = $v.trackingStartedAt;
@@ -436,34 +437,47 @@ class TrackingSessionResponseBuilder
   TrackingSessionResponse build() => _build();
 
   _$TrackingSessionResponse _build() {
-    final _$result = _$v ??
-        _$TrackingSessionResponse._(
-          sessionId: BuiltValueNullFieldError.checkNotNull(
-              sessionId, r'TrackingSessionResponse', 'sessionId'),
-          tripId: BuiltValueNullFieldError.checkNotNull(
-              tripId, r'TrackingSessionResponse', 'tripId'),
-          userId: BuiltValueNullFieldError.checkNotNull(
-              userId, r'TrackingSessionResponse', 'userId'),
-          state: BuiltValueNullFieldError.checkNotNull(
-              state, r'TrackingSessionResponse', 'state'),
-          clientSessionId: BuiltValueNullFieldError.checkNotNull(
-              clientSessionId, r'TrackingSessionResponse', 'clientSessionId'),
-          startedAt: BuiltValueNullFieldError.checkNotNull(
-              startedAt, r'TrackingSessionResponse', 'startedAt'),
-          pausedAt: pausedAt,
-          resumedAt: resumedAt,
-          endedAt: endedAt,
-          abandonedAt: abandonedAt,
-          lastPointAt: lastPointAt,
-          timezone: timezone,
-          deviceContext: deviceContext,
-          tripStatus: BuiltValueNullFieldError.checkNotNull(
-              tripStatus, r'TrackingSessionResponse', 'tripStatus'),
-          trackingEnabled: BuiltValueNullFieldError.checkNotNull(
-              trackingEnabled, r'TrackingSessionResponse', 'trackingEnabled'),
-          trackingStartedAt: trackingStartedAt,
-          trackingEndedAt: trackingEndedAt,
-        );
+    _$TrackingSessionResponse _$result;
+    try {
+      _$result = _$v ??
+          _$TrackingSessionResponse._(
+            sessionId: BuiltValueNullFieldError.checkNotNull(
+                sessionId, r'TrackingSessionResponse', 'sessionId'),
+            tripId: BuiltValueNullFieldError.checkNotNull(
+                tripId, r'TrackingSessionResponse', 'tripId'),
+            userId: BuiltValueNullFieldError.checkNotNull(
+                userId, r'TrackingSessionResponse', 'userId'),
+            state: BuiltValueNullFieldError.checkNotNull(
+                state, r'TrackingSessionResponse', 'state'),
+            clientSessionId: BuiltValueNullFieldError.checkNotNull(
+                clientSessionId, r'TrackingSessionResponse', 'clientSessionId'),
+            startedAt: BuiltValueNullFieldError.checkNotNull(
+                startedAt, r'TrackingSessionResponse', 'startedAt'),
+            pausedAt: pausedAt,
+            resumedAt: resumedAt,
+            endedAt: endedAt,
+            abandonedAt: abandonedAt,
+            lastPointAt: lastPointAt,
+            timezone: timezone,
+            deviceContext: _deviceContext?.build(),
+            tripStatus: BuiltValueNullFieldError.checkNotNull(
+                tripStatus, r'TrackingSessionResponse', 'tripStatus'),
+            trackingEnabled: BuiltValueNullFieldError.checkNotNull(
+                trackingEnabled, r'TrackingSessionResponse', 'trackingEnabled'),
+            trackingStartedAt: trackingStartedAt,
+            trackingEndedAt: trackingEndedAt,
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'deviceContext';
+        _deviceContext?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'TrackingSessionResponse', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

@@ -135,7 +135,7 @@ class _$TrackingMediaInput extends TrackingMediaInput {
   @override
   final String? tripPlaceId;
   @override
-  final JsonObject? location;
+  final BuiltMap<String, JsonObject?>? location;
   @override
   final String uploadRef;
   @override
@@ -143,7 +143,7 @@ class _$TrackingMediaInput extends TrackingMediaInput {
   @override
   final int? fileSizeBytes;
   @override
-  final JsonObject? payload;
+  final BuiltMap<String, JsonObject?>? payload;
 
   factory _$TrackingMediaInput(
           [void Function(TrackingMediaInputBuilder)? updates]) =>
@@ -256,9 +256,11 @@ class TrackingMediaInputBuilder
   String? get tripPlaceId => _$this._tripPlaceId;
   set tripPlaceId(String? tripPlaceId) => _$this._tripPlaceId = tripPlaceId;
 
-  JsonObject? _location;
-  JsonObject? get location => _$this._location;
-  set location(JsonObject? location) => _$this._location = location;
+  MapBuilder<String, JsonObject?>? _location;
+  MapBuilder<String, JsonObject?> get location =>
+      _$this._location ??= MapBuilder<String, JsonObject?>();
+  set location(MapBuilder<String, JsonObject?>? location) =>
+      _$this._location = location;
 
   String? _uploadRef;
   String? get uploadRef => _$this._uploadRef;
@@ -273,9 +275,11 @@ class TrackingMediaInputBuilder
   set fileSizeBytes(int? fileSizeBytes) =>
       _$this._fileSizeBytes = fileSizeBytes;
 
-  JsonObject? _payload;
-  JsonObject? get payload => _$this._payload;
-  set payload(JsonObject? payload) => _$this._payload = payload;
+  MapBuilder<String, JsonObject?>? _payload;
+  MapBuilder<String, JsonObject?> get payload =>
+      _$this._payload ??= MapBuilder<String, JsonObject?>();
+  set payload(MapBuilder<String, JsonObject?>? payload) =>
+      _$this._payload = payload;
 
   TrackingMediaInputBuilder() {
     TrackingMediaInput._defaults(this);
@@ -290,11 +294,11 @@ class TrackingMediaInputBuilder
       _bindMode = $v.bindMode;
       _capturedAt = $v.capturedAt;
       _tripPlaceId = $v.tripPlaceId;
-      _location = $v.location;
+      _location = $v.location?.toBuilder();
       _uploadRef = $v.uploadRef;
       _mimeType = $v.mimeType;
       _fileSizeBytes = $v.fileSizeBytes;
-      _payload = $v.payload;
+      _payload = $v.payload?.toBuilder();
       _$v = null;
     }
     return this;
@@ -314,25 +318,41 @@ class TrackingMediaInputBuilder
   TrackingMediaInput build() => _build();
 
   _$TrackingMediaInput _build() {
-    final _$result = _$v ??
-        _$TrackingMediaInput._(
-          clientMediaId: BuiltValueNullFieldError.checkNotNull(
-              clientMediaId, r'TrackingMediaInput', 'clientMediaId'),
-          clientEventId: BuiltValueNullFieldError.checkNotNull(
-              clientEventId, r'TrackingMediaInput', 'clientEventId'),
-          mediaType: BuiltValueNullFieldError.checkNotNull(
-              mediaType, r'TrackingMediaInput', 'mediaType'),
-          bindMode: BuiltValueNullFieldError.checkNotNull(
-              bindMode, r'TrackingMediaInput', 'bindMode'),
-          capturedAt: capturedAt,
-          tripPlaceId: tripPlaceId,
-          location: location,
-          uploadRef: BuiltValueNullFieldError.checkNotNull(
-              uploadRef, r'TrackingMediaInput', 'uploadRef'),
-          mimeType: mimeType,
-          fileSizeBytes: fileSizeBytes,
-          payload: payload,
-        );
+    _$TrackingMediaInput _$result;
+    try {
+      _$result = _$v ??
+          _$TrackingMediaInput._(
+            clientMediaId: BuiltValueNullFieldError.checkNotNull(
+                clientMediaId, r'TrackingMediaInput', 'clientMediaId'),
+            clientEventId: BuiltValueNullFieldError.checkNotNull(
+                clientEventId, r'TrackingMediaInput', 'clientEventId'),
+            mediaType: BuiltValueNullFieldError.checkNotNull(
+                mediaType, r'TrackingMediaInput', 'mediaType'),
+            bindMode: BuiltValueNullFieldError.checkNotNull(
+                bindMode, r'TrackingMediaInput', 'bindMode'),
+            capturedAt: capturedAt,
+            tripPlaceId: tripPlaceId,
+            location: _location?.build(),
+            uploadRef: BuiltValueNullFieldError.checkNotNull(
+                uploadRef, r'TrackingMediaInput', 'uploadRef'),
+            mimeType: mimeType,
+            fileSizeBytes: fileSizeBytes,
+            payload: _payload?.build(),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'location';
+        _location?.build();
+
+        _$failedField = 'payload';
+        _payload?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'TrackingMediaInput', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

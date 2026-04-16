@@ -70,7 +70,7 @@ abstract class TrackingSessionResponse implements Built<TrackingSessionResponse,
   String? get timezone;
 
   @BuiltValueField(wireName: r'device_context')
-  JsonObject? get deviceContext;
+  BuiltMap<String, JsonObject?>? get deviceContext;
 
   @BuiltValueField(wireName: r'trip_status')
   TrackingSessionResponseTripStatusEnum get tripStatus;
@@ -184,7 +184,7 @@ class _$TrackingSessionResponseSerializer implements PrimitiveSerializer<Trackin
       yield r'device_context';
       yield serializers.serialize(
         object.deviceContext,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     yield r'trip_status';
@@ -327,9 +327,9 @@ class _$TrackingSessionResponseSerializer implements PrimitiveSerializer<Trackin
         case r'device_context':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.deviceContext = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.deviceContext.replace(valueDes);
           break;
         case r'trip_status':
           final valueDes = serializers.deserialize(

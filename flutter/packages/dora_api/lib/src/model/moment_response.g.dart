@@ -91,11 +91,11 @@ class _$MomentResponse extends MomentResponse {
   @override
   final String? note;
   @override
-  final BuiltList<JsonObject>? mediaRefs;
+  final BuiltList<BuiltMap<String, JsonObject?>>? mediaRefs;
   @override
-  final JsonObject? extraPayload;
+  final BuiltMap<String, JsonObject?>? extraPayload;
   @override
-  final JsonObject? lockedFields;
+  final BuiltMap<String, JsonObject?>? lockedFields;
   @override
   final DateTime createdAt;
   @override
@@ -246,20 +246,22 @@ class MomentResponseBuilder
   String? get note => _$this._note;
   set note(String? note) => _$this._note = note;
 
-  ListBuilder<JsonObject>? _mediaRefs;
-  ListBuilder<JsonObject> get mediaRefs =>
-      _$this._mediaRefs ??= ListBuilder<JsonObject>();
-  set mediaRefs(ListBuilder<JsonObject>? mediaRefs) =>
+  ListBuilder<BuiltMap<String, JsonObject?>>? _mediaRefs;
+  ListBuilder<BuiltMap<String, JsonObject?>> get mediaRefs =>
+      _$this._mediaRefs ??= ListBuilder<BuiltMap<String, JsonObject?>>();
+  set mediaRefs(ListBuilder<BuiltMap<String, JsonObject?>>? mediaRefs) =>
       _$this._mediaRefs = mediaRefs;
 
-  JsonObject? _extraPayload;
-  JsonObject? get extraPayload => _$this._extraPayload;
-  set extraPayload(JsonObject? extraPayload) =>
+  MapBuilder<String, JsonObject?>? _extraPayload;
+  MapBuilder<String, JsonObject?> get extraPayload =>
+      _$this._extraPayload ??= MapBuilder<String, JsonObject?>();
+  set extraPayload(MapBuilder<String, JsonObject?>? extraPayload) =>
       _$this._extraPayload = extraPayload;
 
-  JsonObject? _lockedFields;
-  JsonObject? get lockedFields => _$this._lockedFields;
-  set lockedFields(JsonObject? lockedFields) =>
+  MapBuilder<String, JsonObject?>? _lockedFields;
+  MapBuilder<String, JsonObject?> get lockedFields =>
+      _$this._lockedFields ??= MapBuilder<String, JsonObject?>();
+  set lockedFields(MapBuilder<String, JsonObject?>? lockedFields) =>
       _$this._lockedFields = lockedFields;
 
   DateTime? _createdAt;
@@ -289,8 +291,8 @@ class MomentResponseBuilder
       _longitude = $v.longitude;
       _note = $v.note;
       _mediaRefs = $v.mediaRefs?.toBuilder();
-      _extraPayload = $v.extraPayload;
-      _lockedFields = $v.lockedFields;
+      _extraPayload = $v.extraPayload?.toBuilder();
+      _lockedFields = $v.lockedFields?.toBuilder();
       _createdAt = $v.createdAt;
       _updatedAt = $v.updatedAt;
       _$v = null;
@@ -333,8 +335,8 @@ class MomentResponseBuilder
             longitude: longitude,
             note: note,
             mediaRefs: _mediaRefs?.build(),
-            extraPayload: extraPayload,
-            lockedFields: lockedFields,
+            extraPayload: _extraPayload?.build(),
+            lockedFields: _lockedFields?.build(),
             createdAt: BuiltValueNullFieldError.checkNotNull(
                 createdAt, r'MomentResponse', 'createdAt'),
             updatedAt: BuiltValueNullFieldError.checkNotNull(
@@ -345,6 +347,10 @@ class MomentResponseBuilder
       try {
         _$failedField = 'mediaRefs';
         _mediaRefs?.build();
+        _$failedField = 'extraPayload';
+        _extraPayload?.build();
+        _$failedField = 'lockedFields';
+        _lockedFields?.build();
       } catch (e) {
         throw BuiltValueNestedFieldError(
             r'MomentResponse', _$failedField, e.toString());

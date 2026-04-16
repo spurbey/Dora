@@ -14,6 +14,20 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:dora_api/src/date_serializer.dart';
 import 'package:dora_api/src/model/date.dart';
 
+import 'package:dora_api/src/model/advisory_action_request.dart';
+import 'package:dora_api/src/model/advisory_action_response.dart';
+import 'package:dora_api/src/model/advisory_category.dart';
+import 'package:dora_api/src/model/advisory_delivery_status.dart';
+import 'package:dora_api/src/model/advisory_insight_list_response.dart';
+import 'package:dora_api/src/model/advisory_insight_response.dart';
+import 'package:dora_api/src/model/advisory_job_list_response.dart';
+import 'package:dora_api/src/model/advisory_job_response.dart';
+import 'package:dora_api/src/model/advisory_job_stage.dart';
+import 'package:dora_api/src/model/advisory_job_status.dart';
+import 'package:dora_api/src/model/advisory_job_type.dart';
+import 'package:dora_api/src/model/advisory_query_request.dart';
+import 'package:dora_api/src/model/advisory_source.dart';
+import 'package:dora_api/src/model/advisory_start_request.dart';
 import 'package:dora_api/src/model/app_schemas_auth_user_response.dart';
 import 'package:dora_api/src/model/app_schemas_user_user_response.dart';
 import 'package:dora_api/src/model/auto_finalize_commit_request.dart';
@@ -113,9 +127,30 @@ import 'package:dora_api/src/model/trip_metadata_response.dart';
 import 'package:dora_api/src/model/trip_metadata_update.dart';
 import 'package:dora_api/src/model/trip_response.dart';
 import 'package:dora_api/src/model/trip_update.dart';
+import 'package:dora_api/src/model/user_action_type.dart';
 import 'package:dora_api/src/model/user_profile_response.dart';
 import 'package:dora_api/src/model/user_stats.dart';
 import 'package:dora_api/src/model/user_update.dart';
+import 'package:dora_api/src/model/v2_media_manifest_item.dart';
+import 'package:dora_api/src/model/v2_publish_commit_request.dart';
+import 'package:dora_api/src/model/v2_publish_commit_response.dart';
+import 'package:dora_api/src/model/v2_publish_media_complete_request.dart';
+import 'package:dora_api/src/model/v2_publish_media_complete_response.dart';
+import 'package:dora_api/src/model/v2_publish_payload_chunk_request.dart';
+import 'package:dora_api/src/model/v2_publish_payload_chunk_response.dart';
+import 'package:dora_api/src/model/v2_publish_start_request.dart';
+import 'package:dora_api/src/model/v2_publish_start_response.dart';
+import 'package:dora_api/src/model/v2_publish_summary.dart';
+import 'package:dora_api/src/model/v2_route_point_response.dart';
+import 'package:dora_api/src/model/v2_route_response.dart';
+import 'package:dora_api/src/model/v2_route_segment_response.dart';
+import 'package:dora_api/src/model/v2_session_response.dart';
+import 'package:dora_api/src/model/v2_session_start_request.dart';
+import 'package:dora_api/src/model/v2_session_stop_request.dart';
+import 'package:dora_api/src/model/v2_timeline_entry_response.dart';
+import 'package:dora_api/src/model/v2_timeline_response.dart';
+import 'package:dora_api/src/model/v2_upload_target.dart';
+import 'package:dora_api/src/model/v2_uploaded_media_ref.dart';
 import 'package:dora_api/src/model/validation_error.dart';
 import 'package:dora_api/src/model/waypoint_create.dart';
 import 'package:dora_api/src/model/waypoint_list_response.dart';
@@ -125,6 +160,20 @@ import 'package:dora_api/src/model/waypoint_update.dart';
 part 'serializers.g.dart';
 
 @SerializersFor([
+  AdvisoryActionRequest,
+  AdvisoryActionResponse,
+  AdvisoryCategory,
+  AdvisoryDeliveryStatus,
+  AdvisoryInsightListResponse,
+  AdvisoryInsightResponse,
+  AdvisoryJobListResponse,
+  AdvisoryJobResponse,
+  AdvisoryJobStage,
+  AdvisoryJobStatus,
+  AdvisoryJobType,
+  AdvisoryQueryRequest,
+  AdvisorySource,
+  AdvisoryStartRequest,
   AppSchemasAuthUserResponse,
   AppSchemasUserUserResponse,
   AutoFinalizeCommitRequest,
@@ -224,9 +273,30 @@ part 'serializers.g.dart';
   TripMetadataUpdate,
   TripResponse,
   TripUpdate,
+  UserActionType,
   UserProfileResponse,
   UserStats,
   UserUpdate,
+  V2MediaManifestItem,
+  V2PublishCommitRequest,
+  V2PublishCommitResponse,
+  V2PublishMediaCompleteRequest,
+  V2PublishMediaCompleteResponse,
+  V2PublishPayloadChunkRequest,
+  V2PublishPayloadChunkResponse,
+  V2PublishStartRequest,
+  V2PublishStartResponse,
+  V2PublishSummary,
+  V2RoutePointResponse,
+  V2RouteResponse,
+  V2RouteSegmentResponse,
+  V2SessionResponse,
+  V2SessionStartRequest,
+  V2SessionStopRequest,
+  V2TimelineEntryResponse,
+  V2TimelineResponse,
+  V2UploadTarget,
+  V2UploadedMediaRef,
   ValidationError,
   WaypointCreate,
   WaypointListResponse,
@@ -234,6 +304,10 @@ part 'serializers.g.dart';
   WaypointUpdate,
 ])
 Serializers serializers = (_$serializers.toBuilder()
+      ..addBuilderFactory(
+        const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        () => MapBuilder<String, JsonObject>(),
+      )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())
       ..add(const DateSerializer())

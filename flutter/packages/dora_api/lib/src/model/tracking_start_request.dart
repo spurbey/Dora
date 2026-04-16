@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -28,7 +29,7 @@ abstract class TrackingStartRequest implements Built<TrackingStartRequest, Track
   String? get timezone;
 
   @BuiltValueField(wireName: r'device_context')
-  JsonObject? get deviceContext;
+  BuiltMap<String, JsonObject?>? get deviceContext;
 
   TrackingStartRequest._();
 
@@ -74,7 +75,7 @@ class _$TrackingStartRequestSerializer implements PrimitiveSerializer<TrackingSt
       yield r'device_context';
       yield serializers.serialize(
         object.deviceContext,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -125,9 +126,9 @@ class _$TrackingStartRequestSerializer implements PrimitiveSerializer<TrackingSt
         case r'device_context':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.deviceContext = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.deviceContext.replace(valueDes);
           break;
         default:
           unhandled.add(key);

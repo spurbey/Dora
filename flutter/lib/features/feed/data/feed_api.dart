@@ -286,12 +286,12 @@ class FeedApi {
   }
 
   List<TripLatLng> _extractRouteCoordinates(RouteResponse route) {
-    final raw = route.routeGeojson.value;
-    final map = raw is Map ? raw : null;
-    final type = map?['type'];
-    final coordinates = map?['coordinates'];
+    final raw = route.routeGeojson.asMap();
+    final typeVal = raw['type']?.value;
+    final coordsVal = raw['coordinates']?.value;
+    final coordinates = coordsVal is List ? coordsVal : null;
 
-    if (type == 'LineString' && coordinates is List) {
+    if (typeVal == 'LineString' && coordinates != null) {
       final parsed = <TripLatLng>[];
       for (final point in coordinates) {
         if (point is! List || point.length < 2) {

@@ -36,6 +36,11 @@ class FeatureFlags {
     'ENABLE_V2_LIVE_EDITOR_UI_CONTRACT',
     defaultValue: 'auto',
   );
+  static const String _enableAdvisoryPipelineOverride =
+      String.fromEnvironment(
+    'ADVISORY_PIPELINE',
+    defaultValue: 'auto',
+  );
 
   static Future<void> initialize() async {
     await _remoteConfig.setConfigSettings(
@@ -55,6 +60,7 @@ class FeatureFlags {
       'enable_v2_trip_publish_worker': false,
       'enable_v2_backend_ingest': false,
       'enable_v2_live_editor_ui_contract': false,
+      'enable_advisory_pipeline': false,
     });
 
     try {
@@ -127,6 +133,13 @@ class FeatureFlags {
     if (override != null) return override;
     if (!_initialized) return false;
     return _remoteConfig.getBool('enable_v2_live_editor_ui_contract');
+  }
+
+  static bool get enableAdvisoryPipeline {
+    final override = _parseOverride(_enableAdvisoryPipelineOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_advisory_pipeline');
   }
 
   static bool? _parseOverride(String value) {

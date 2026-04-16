@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | **String** |  | [optional] 
 **description** | **String** |  | [optional] 
-**routeGeojson** | [**JsonObject**](.md) |  | [optional] 
+**routeGeojson** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 **orderInTrip** | **int** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

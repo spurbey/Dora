@@ -34,7 +34,7 @@ class _$CompiledTimelineEntry extends CompiledTimelineEntry {
   @override
   final String? subtitle;
   @override
-  final JsonObject? payload;
+  final BuiltMap<String, JsonObject?>? payload;
 
   factory _$CompiledTimelineEntry(
           [void Function(CompiledTimelineEntryBuilder)? updates]) =>
@@ -184,9 +184,11 @@ class CompiledTimelineEntryBuilder
   String? get subtitle => _$this._subtitle;
   set subtitle(String? subtitle) => _$this._subtitle = subtitle;
 
-  JsonObject? _payload;
-  JsonObject? get payload => _$this._payload;
-  set payload(JsonObject? payload) => _$this._payload = payload;
+  MapBuilder<String, JsonObject?>? _payload;
+  MapBuilder<String, JsonObject?> get payload =>
+      _$this._payload ??= MapBuilder<String, JsonObject?>();
+  set payload(MapBuilder<String, JsonObject?>? payload) =>
+      _$this._payload = payload;
 
   CompiledTimelineEntryBuilder() {
     CompiledTimelineEntry._defaults(this);
@@ -208,7 +210,7 @@ class CompiledTimelineEntryBuilder
       _reasonCode = $v.reasonCode;
       _title = $v.title;
       _subtitle = $v.subtitle;
-      _payload = $v.payload;
+      _payload = $v.payload?.toBuilder();
       _$v = null;
     }
     return this;
@@ -228,31 +230,44 @@ class CompiledTimelineEntryBuilder
   CompiledTimelineEntry build() => _build();
 
   _$CompiledTimelineEntry _build() {
-    final _$result = _$v ??
-        _$CompiledTimelineEntry._(
-          entryId: BuiltValueNullFieldError.checkNotNull(
-              entryId, r'CompiledTimelineEntry', 'entryId'),
-          sourceKind: BuiltValueNullFieldError.checkNotNull(
-              sourceKind, r'CompiledTimelineEntry', 'sourceKind'),
-          sourceId: BuiltValueNullFieldError.checkNotNull(
-              sourceId, r'CompiledTimelineEntry', 'sourceId'),
-          eventType: BuiltValueNullFieldError.checkNotNull(
-              eventType, r'CompiledTimelineEntry', 'eventType'),
-          capturedAt: BuiltValueNullFieldError.checkNotNull(
-              capturedAt, r'CompiledTimelineEntry', 'capturedAt'),
-          bucketType: BuiltValueNullFieldError.checkNotNull(
-              bucketType, r'CompiledTimelineEntry', 'bucketType'),
-          placeId: placeId,
-          placeName: placeName,
-          bindSource: BuiltValueNullFieldError.checkNotNull(
-              bindSource, r'CompiledTimelineEntry', 'bindSource'),
-          bindConfidence: bindConfidence,
-          reasonCode: reasonCode,
-          title: BuiltValueNullFieldError.checkNotNull(
-              title, r'CompiledTimelineEntry', 'title'),
-          subtitle: subtitle,
-          payload: payload,
-        );
+    _$CompiledTimelineEntry _$result;
+    try {
+      _$result = _$v ??
+          _$CompiledTimelineEntry._(
+            entryId: BuiltValueNullFieldError.checkNotNull(
+                entryId, r'CompiledTimelineEntry', 'entryId'),
+            sourceKind: BuiltValueNullFieldError.checkNotNull(
+                sourceKind, r'CompiledTimelineEntry', 'sourceKind'),
+            sourceId: BuiltValueNullFieldError.checkNotNull(
+                sourceId, r'CompiledTimelineEntry', 'sourceId'),
+            eventType: BuiltValueNullFieldError.checkNotNull(
+                eventType, r'CompiledTimelineEntry', 'eventType'),
+            capturedAt: BuiltValueNullFieldError.checkNotNull(
+                capturedAt, r'CompiledTimelineEntry', 'capturedAt'),
+            bucketType: BuiltValueNullFieldError.checkNotNull(
+                bucketType, r'CompiledTimelineEntry', 'bucketType'),
+            placeId: placeId,
+            placeName: placeName,
+            bindSource: BuiltValueNullFieldError.checkNotNull(
+                bindSource, r'CompiledTimelineEntry', 'bindSource'),
+            bindConfidence: bindConfidence,
+            reasonCode: reasonCode,
+            title: BuiltValueNullFieldError.checkNotNull(
+                title, r'CompiledTimelineEntry', 'title'),
+            subtitle: subtitle,
+            payload: _payload?.build(),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'payload';
+        _payload?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'CompiledTimelineEntry', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

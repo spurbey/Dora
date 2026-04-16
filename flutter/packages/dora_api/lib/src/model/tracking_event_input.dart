@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -37,10 +38,10 @@ abstract class TrackingEventInput implements Built<TrackingEventInput, TrackingE
   String? get note;
 
   @BuiltValueField(wireName: r'location')
-  JsonObject? get location;
+  BuiltMap<String, JsonObject?>? get location;
 
   @BuiltValueField(wireName: r'payload')
-  JsonObject? get payload;
+  BuiltMap<String, JsonObject?>? get payload;
 
   TrackingEventInput._();
 
@@ -98,14 +99,14 @@ class _$TrackingEventInputSerializer implements PrimitiveSerializer<TrackingEven
       yield r'location';
       yield serializers.serialize(
         object.location,
-        specifiedType: const FullType.nullable(JsonObject),
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     if (object.payload != null) {
       yield r'payload';
       yield serializers.serialize(
         object.payload,
-        specifiedType: const FullType.nullable(JsonObject),
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -172,18 +173,18 @@ class _$TrackingEventInputSerializer implements PrimitiveSerializer<TrackingEven
         case r'location':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(JsonObject),
-          ) as JsonObject?;
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
           if (valueDes == null) continue;
-          result.location = valueDes;
+          result.location.replace(valueDes);
           break;
         case r'payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(JsonObject),
-          ) as JsonObject?;
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
           if (valueDes == null) continue;
-          result.payload = valueDes;
+          result.payload.replace(valueDes);
           break;
         default:
           unhandled.add(key);

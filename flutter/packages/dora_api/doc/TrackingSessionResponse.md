@@ -20,7 +20,7 @@ Name | Type | Description | Notes
 **abandonedAt** | [**DateTime**](DateTime.md) |  | [optional] 
 **lastPointAt** | [**DateTime**](DateTime.md) |  | [optional] 
 **timezone** | **String** |  | [optional] 
-**deviceContext** | [**JsonObject**](.md) |  | [optional] 
+**deviceContext** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 **tripStatus** | **String** |  | 
 **trackingEnabled** | **bool** |  | 
 **trackingStartedAt** | [**DateTime**](DateTime.md) |  | [optional] 

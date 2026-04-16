@@ -64,7 +64,7 @@ abstract class RouteResponse implements Built<RouteResponse, RouteResponseBuilde
   String get userId;
 
   @BuiltValueField(wireName: r'route_geojson')
-  JsonObject get routeGeojson;
+  BuiltMap<String, JsonObject?> get routeGeojson;
 
   @BuiltValueField(wireName: r'polyline_encoded')
   String? get polylineEncoded;
@@ -168,7 +168,7 @@ class _$RouteResponseSerializer implements PrimitiveSerializer<RouteResponse> {
     yield r'route_geojson';
     yield serializers.serialize(
       object.routeGeojson,
-      specifiedType: const FullType(JsonObject),
+      specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
     );
     if (object.polylineEncoded != null) {
       yield r'polyline_encoded';
@@ -301,9 +301,9 @@ class _$RouteResponseSerializer implements PrimitiveSerializer<RouteResponse> {
         case r'route_geojson':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.routeGeojson = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.routeGeojson.replace(valueDes);
           break;
         case r'polyline_encoded':
           final valueDes = serializers.deserialize(

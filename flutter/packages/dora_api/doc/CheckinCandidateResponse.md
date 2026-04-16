@@ -24,7 +24,7 @@ Name | Type | Description | Notes
 **rejectedReason** | **String** |  | [optional] 
 **snoozedUntil** | [**DateTime**](DateTime.md) |  | [optional] 
 **cooldownUntil** | [**DateTime**](DateTime.md) |  | [optional] 
-**payload** | [**JsonObject**](.md) |  | [optional] 
+**payload** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **updatedAt** | [**DateTime**](DateTime.md) |  | 
 

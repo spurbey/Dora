@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -44,7 +45,7 @@ abstract class CompiledRouteSegment implements Built<CompiledRouteSegment, Compi
   int get simplifiedPointCount;
 
   @BuiltValueField(wireName: r'geometry')
-  JsonObject? get geometry;
+  BuiltMap<String, JsonObject?>? get geometry;
 
   CompiledRouteSegment._();
 
@@ -110,7 +111,7 @@ class _$CompiledRouteSegmentSerializer implements PrimitiveSerializer<CompiledRo
       yield r'geometry';
       yield serializers.serialize(
         object.geometry,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -189,9 +190,9 @@ class _$CompiledRouteSegmentSerializer implements PrimitiveSerializer<CompiledRo
         case r'geometry':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.geometry = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.geometry.replace(valueDes);
           break;
         default:
           unhandled.add(key);

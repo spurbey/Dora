@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 **distanceM** | **num** |  | 
 **rawPointCount** | **int** |  | 
 **simplifiedPointCount** | **int** |  | 
-**geometry** | [**JsonObject**](.md) |  | [optional] 
+**geometry** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

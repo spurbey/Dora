@@ -124,7 +124,7 @@ class _$CheckinCandidateResponse extends CheckinCandidateResponse {
   @override
   final DateTime? cooldownUntil;
   @override
-  final JsonObject? payload;
+  final BuiltMap<String, JsonObject?>? payload;
   @override
   final DateTime createdAt;
   @override
@@ -318,9 +318,11 @@ class CheckinCandidateResponseBuilder
   set cooldownUntil(DateTime? cooldownUntil) =>
       _$this._cooldownUntil = cooldownUntil;
 
-  JsonObject? _payload;
-  JsonObject? get payload => _$this._payload;
-  set payload(JsonObject? payload) => _$this._payload = payload;
+  MapBuilder<String, JsonObject?>? _payload;
+  MapBuilder<String, JsonObject?> get payload =>
+      _$this._payload ??= MapBuilder<String, JsonObject?>();
+  set payload(MapBuilder<String, JsonObject?>? payload) =>
+      _$this._payload = payload;
 
   DateTime? _createdAt;
   DateTime? get createdAt => _$this._createdAt;
@@ -353,7 +355,7 @@ class CheckinCandidateResponseBuilder
       _rejectedReason = $v.rejectedReason;
       _snoozedUntil = $v.snoozedUntil;
       _cooldownUntil = $v.cooldownUntil;
-      _payload = $v.payload;
+      _payload = $v.payload?.toBuilder();
       _createdAt = $v.createdAt;
       _updatedAt = $v.updatedAt;
       _$v = null;
@@ -375,36 +377,49 @@ class CheckinCandidateResponseBuilder
   CheckinCandidateResponse build() => _build();
 
   _$CheckinCandidateResponse _build() {
-    final _$result = _$v ??
-        _$CheckinCandidateResponse._(
-          id: BuiltValueNullFieldError.checkNotNull(
-              id, r'CheckinCandidateResponse', 'id'),
-          tripId: BuiltValueNullFieldError.checkNotNull(
-              tripId, r'CheckinCandidateResponse', 'tripId'),
-          userId: BuiltValueNullFieldError.checkNotNull(
-              userId, r'CheckinCandidateResponse', 'userId'),
-          sessionId: sessionId,
-          fingerprint: BuiltValueNullFieldError.checkNotNull(
-              fingerprint, r'CheckinCandidateResponse', 'fingerprint'),
-          status: BuiltValueNullFieldError.checkNotNull(
-              status, r'CheckinCandidateResponse', 'status'),
-          confidence: BuiltValueNullFieldError.checkNotNull(
-              confidence, r'CheckinCandidateResponse', 'confidence'),
-          suggestedName: suggestedName,
-          suggestedLatitude: suggestedLatitude,
-          suggestedLongitude: suggestedLongitude,
-          startedAt: startedAt,
-          endedAt: endedAt,
-          confirmedTripPlaceId: confirmedTripPlaceId,
-          rejectedReason: rejectedReason,
-          snoozedUntil: snoozedUntil,
-          cooldownUntil: cooldownUntil,
-          payload: payload,
-          createdAt: BuiltValueNullFieldError.checkNotNull(
-              createdAt, r'CheckinCandidateResponse', 'createdAt'),
-          updatedAt: BuiltValueNullFieldError.checkNotNull(
-              updatedAt, r'CheckinCandidateResponse', 'updatedAt'),
-        );
+    _$CheckinCandidateResponse _$result;
+    try {
+      _$result = _$v ??
+          _$CheckinCandidateResponse._(
+            id: BuiltValueNullFieldError.checkNotNull(
+                id, r'CheckinCandidateResponse', 'id'),
+            tripId: BuiltValueNullFieldError.checkNotNull(
+                tripId, r'CheckinCandidateResponse', 'tripId'),
+            userId: BuiltValueNullFieldError.checkNotNull(
+                userId, r'CheckinCandidateResponse', 'userId'),
+            sessionId: sessionId,
+            fingerprint: BuiltValueNullFieldError.checkNotNull(
+                fingerprint, r'CheckinCandidateResponse', 'fingerprint'),
+            status: BuiltValueNullFieldError.checkNotNull(
+                status, r'CheckinCandidateResponse', 'status'),
+            confidence: BuiltValueNullFieldError.checkNotNull(
+                confidence, r'CheckinCandidateResponse', 'confidence'),
+            suggestedName: suggestedName,
+            suggestedLatitude: suggestedLatitude,
+            suggestedLongitude: suggestedLongitude,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            confirmedTripPlaceId: confirmedTripPlaceId,
+            rejectedReason: rejectedReason,
+            snoozedUntil: snoozedUntil,
+            cooldownUntil: cooldownUntil,
+            payload: _payload?.build(),
+            createdAt: BuiltValueNullFieldError.checkNotNull(
+                createdAt, r'CheckinCandidateResponse', 'createdAt'),
+            updatedAt: BuiltValueNullFieldError.checkNotNull(
+                updatedAt, r'CheckinCandidateResponse', 'updatedAt'),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'payload';
+        _payload?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'CheckinCandidateResponse', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

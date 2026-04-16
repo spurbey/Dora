@@ -12,9 +12,9 @@ Name | Type | Description | Notes
 **capturedAt** | [**DateTime**](DateTime.md) |  | [optional] 
 **note** | **String** |  | [optional] 
 **location** | [**MomentLocation**](MomentLocation.md) |  | [optional] 
-**mediaRefs** | [**BuiltList&lt;JsonObject&gt;**](JsonObject.md) |  | [optional] 
+**mediaRefs** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional] 
 **linkedTripPlaceId** | **String** |  | [optional] 
-**extraPayload** | [**JsonObject**](.md) |  | [optional] 
+**extraPayload** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

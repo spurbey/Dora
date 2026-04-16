@@ -19,9 +19,9 @@ Name | Type | Description | Notes
 **latitude** | **num** |  | [optional] 
 **longitude** | **num** |  | [optional] 
 **note** | **String** |  | [optional] 
-**mediaRefs** | [**BuiltList&lt;JsonObject&gt;**](JsonObject.md) |  | [optional] 
-**extraPayload** | [**JsonObject**](.md) |  | [optional] 
-**lockedFields** | [**JsonObject**](.md) |  | [optional] 
+**mediaRefs** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional] 
+**extraPayload** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
+**lockedFields** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **updatedAt** | [**DateTime**](DateTime.md) |  | 
 

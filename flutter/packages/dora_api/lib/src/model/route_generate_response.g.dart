@@ -8,7 +8,7 @@ part of 'route_generate_response.dart';
 
 class _$RouteGenerateResponse extends RouteGenerateResponse {
   @override
-  final JsonObject routeGeojson;
+  final BuiltMap<String, JsonObject?> routeGeojson;
   @override
   final num distanceKm;
   @override
@@ -71,9 +71,10 @@ class RouteGenerateResponseBuilder
     implements Builder<RouteGenerateResponse, RouteGenerateResponseBuilder> {
   _$RouteGenerateResponse? _$v;
 
-  JsonObject? _routeGeojson;
-  JsonObject? get routeGeojson => _$this._routeGeojson;
-  set routeGeojson(JsonObject? routeGeojson) =>
+  MapBuilder<String, JsonObject?>? _routeGeojson;
+  MapBuilder<String, JsonObject?> get routeGeojson =>
+      _$this._routeGeojson ??= MapBuilder<String, JsonObject?>();
+  set routeGeojson(MapBuilder<String, JsonObject?>? routeGeojson) =>
       _$this._routeGeojson = routeGeojson;
 
   num? _distanceKm;
@@ -96,7 +97,7 @@ class RouteGenerateResponseBuilder
   RouteGenerateResponseBuilder get _$this {
     final $v = _$v;
     if ($v != null) {
-      _routeGeojson = $v.routeGeojson;
+      _routeGeojson = $v.routeGeojson.toBuilder();
       _distanceKm = $v.distanceKm;
       _durationMins = $v.durationMins;
       _polylineEncoded = $v.polylineEncoded;
@@ -119,16 +120,28 @@ class RouteGenerateResponseBuilder
   RouteGenerateResponse build() => _build();
 
   _$RouteGenerateResponse _build() {
-    final _$result = _$v ??
-        _$RouteGenerateResponse._(
-          routeGeojson: BuiltValueNullFieldError.checkNotNull(
-              routeGeojson, r'RouteGenerateResponse', 'routeGeojson'),
-          distanceKm: BuiltValueNullFieldError.checkNotNull(
-              distanceKm, r'RouteGenerateResponse', 'distanceKm'),
-          durationMins: BuiltValueNullFieldError.checkNotNull(
-              durationMins, r'RouteGenerateResponse', 'durationMins'),
-          polylineEncoded: polylineEncoded,
-        );
+    _$RouteGenerateResponse _$result;
+    try {
+      _$result = _$v ??
+          _$RouteGenerateResponse._(
+            routeGeojson: routeGeojson.build(),
+            distanceKm: BuiltValueNullFieldError.checkNotNull(
+                distanceKm, r'RouteGenerateResponse', 'distanceKm'),
+            durationMins: BuiltValueNullFieldError.checkNotNull(
+                durationMins, r'RouteGenerateResponse', 'durationMins'),
+            polylineEncoded: polylineEncoded,
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'routeGeojson';
+        routeGeojson.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'RouteGenerateResponse', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

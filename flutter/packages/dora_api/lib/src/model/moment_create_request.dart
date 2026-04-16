@@ -36,13 +36,13 @@ abstract class MomentCreateRequest implements Built<MomentCreateRequest, MomentC
   MomentLocation? get location;
 
   @BuiltValueField(wireName: r'media_refs')
-  BuiltList<JsonObject>? get mediaRefs;
+  BuiltList<BuiltMap<String, JsonObject?>>? get mediaRefs;
 
   @BuiltValueField(wireName: r'linked_trip_place_id')
   String? get linkedTripPlaceId;
 
   @BuiltValueField(wireName: r'extra_payload')
-  JsonObject? get extraPayload;
+  BuiltMap<String, JsonObject?>? get extraPayload;
 
   MomentCreateRequest._();
 
@@ -95,7 +95,7 @@ class _$MomentCreateRequestSerializer implements PrimitiveSerializer<MomentCreat
       yield r'media_refs';
       yield serializers.serialize(
         object.mediaRefs,
-        specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
+        specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
       );
     }
     if (object.linkedTripPlaceId != null) {
@@ -109,7 +109,7 @@ class _$MomentCreateRequestSerializer implements PrimitiveSerializer<MomentCreat
       yield r'extra_payload';
       yield serializers.serialize(
         object.extraPayload,
-        specifiedType: const FullType(JsonObject),
+        specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -168,8 +168,8 @@ class _$MomentCreateRequestSerializer implements PrimitiveSerializer<MomentCreat
         case r'media_refs':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
-          ) as BuiltList<JsonObject>;
+            specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
+          ) as BuiltList<BuiltMap<String, JsonObject?>>;
           result.mediaRefs.replace(valueDes);
           break;
         case r'linked_trip_place_id':
@@ -183,9 +183,9 @@ class _$MomentCreateRequestSerializer implements PrimitiveSerializer<MomentCreat
         case r'extra_payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(JsonObject),
-          ) as JsonObject;
-          result.extraPayload = valueDes;
+            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>;
+          result.extraPayload.replace(valueDes);
           break;
         default:
           unhandled.add(key);

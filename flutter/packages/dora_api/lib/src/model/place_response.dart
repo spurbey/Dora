@@ -67,10 +67,10 @@ abstract class PlaceResponse implements Built<PlaceResponse, PlaceResponseBuilde
   BuiltList<MediaResponse>? get photos;
 
   @BuiltValueField(wireName: r'videos')
-  BuiltList<JsonObject>? get videos;
+  BuiltList<BuiltMap<String, JsonObject?>>? get videos;
 
   @BuiltValueField(wireName: r'external_data')
-  JsonObject? get externalData;
+  BuiltMap<String, JsonObject?>? get externalData;
 
   @BuiltValueField(wireName: r'order_in_trip')
   int? get orderInTrip;
@@ -175,14 +175,14 @@ class _$PlaceResponseSerializer implements PrimitiveSerializer<PlaceResponse> {
       yield r'videos';
       yield serializers.serialize(
         object.videos,
-        specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
+        specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
       );
     }
     if (object.externalData != null) {
       yield r'external_data';
       yield serializers.serialize(
         object.externalData,
-        specifiedType: const FullType.nullable(JsonObject),
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     if (object.orderInTrip != null) {
@@ -309,17 +309,17 @@ class _$PlaceResponseSerializer implements PrimitiveSerializer<PlaceResponse> {
         case r'videos':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltList, [FullType(JsonObject)]),
-          ) as BuiltList<JsonObject>;
+            specifiedType: const FullType(BuiltList, [FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)])]),
+          ) as BuiltList<BuiltMap<String, JsonObject?>>;
           result.videos.replace(valueDes);
           break;
         case r'external_data':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(JsonObject),
-          ) as JsonObject?;
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
           if (valueDes == null) continue;
-          result.externalData = valueDes;
+          result.externalData.replace(valueDes);
           break;
         case r'order_in_trip':
           final valueDes = serializers.deserialize(

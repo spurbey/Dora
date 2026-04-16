@@ -14,7 +14,7 @@ class _$TrackingStartRequest extends TrackingStartRequest {
   @override
   final String? timezone;
   @override
-  final JsonObject? deviceContext;
+  final BuiltMap<String, JsonObject?>? deviceContext;
 
   factory _$TrackingStartRequest(
           [void Function(TrackingStartRequestBuilder)? updates]) =>
@@ -84,9 +84,10 @@ class TrackingStartRequestBuilder
   String? get timezone => _$this._timezone;
   set timezone(String? timezone) => _$this._timezone = timezone;
 
-  JsonObject? _deviceContext;
-  JsonObject? get deviceContext => _$this._deviceContext;
-  set deviceContext(JsonObject? deviceContext) =>
+  MapBuilder<String, JsonObject?>? _deviceContext;
+  MapBuilder<String, JsonObject?> get deviceContext =>
+      _$this._deviceContext ??= MapBuilder<String, JsonObject?>();
+  set deviceContext(MapBuilder<String, JsonObject?>? deviceContext) =>
       _$this._deviceContext = deviceContext;
 
   TrackingStartRequestBuilder() {
@@ -99,7 +100,7 @@ class TrackingStartRequestBuilder
       _clientSessionId = $v.clientSessionId;
       _startedAt = $v.startedAt;
       _timezone = $v.timezone;
-      _deviceContext = $v.deviceContext;
+      _deviceContext = $v.deviceContext?.toBuilder();
       _$v = null;
     }
     return this;
@@ -119,15 +120,28 @@ class TrackingStartRequestBuilder
   TrackingStartRequest build() => _build();
 
   _$TrackingStartRequest _build() {
-    final _$result = _$v ??
-        _$TrackingStartRequest._(
-          clientSessionId: BuiltValueNullFieldError.checkNotNull(
-              clientSessionId, r'TrackingStartRequest', 'clientSessionId'),
-          startedAt: BuiltValueNullFieldError.checkNotNull(
-              startedAt, r'TrackingStartRequest', 'startedAt'),
-          timezone: timezone,
-          deviceContext: deviceContext,
-        );
+    _$TrackingStartRequest _$result;
+    try {
+      _$result = _$v ??
+          _$TrackingStartRequest._(
+            clientSessionId: BuiltValueNullFieldError.checkNotNull(
+                clientSessionId, r'TrackingStartRequest', 'clientSessionId'),
+            startedAt: BuiltValueNullFieldError.checkNotNull(
+                startedAt, r'TrackingStartRequest', 'startedAt'),
+            timezone: timezone,
+            deviceContext: _deviceContext?.build(),
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'deviceContext';
+        _deviceContext?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'TrackingStartRequest', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

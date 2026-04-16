@@ -47,7 +47,7 @@ abstract class TrackingMediaInput implements Built<TrackingMediaInput, TrackingM
   String? get tripPlaceId;
 
   @BuiltValueField(wireName: r'location')
-  JsonObject? get location;
+  BuiltMap<String, JsonObject?>? get location;
 
   @BuiltValueField(wireName: r'upload_ref')
   String get uploadRef;
@@ -59,7 +59,7 @@ abstract class TrackingMediaInput implements Built<TrackingMediaInput, TrackingM
   int? get fileSizeBytes;
 
   @BuiltValueField(wireName: r'payload')
-  JsonObject? get payload;
+  BuiltMap<String, JsonObject?>? get payload;
 
   TrackingMediaInput._();
 
@@ -120,7 +120,7 @@ class _$TrackingMediaInputSerializer implements PrimitiveSerializer<TrackingMedi
       yield r'location';
       yield serializers.serialize(
         object.location,
-        specifiedType: const FullType.nullable(JsonObject),
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
     yield r'upload_ref';
@@ -146,7 +146,7 @@ class _$TrackingMediaInputSerializer implements PrimitiveSerializer<TrackingMedi
       yield r'payload';
       yield serializers.serialize(
         object.payload,
-        specifiedType: const FullType.nullable(JsonObject),
+        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
       );
     }
   }
@@ -219,10 +219,10 @@ class _$TrackingMediaInputSerializer implements PrimitiveSerializer<TrackingMedi
         case r'location':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(JsonObject),
-          ) as JsonObject?;
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
           if (valueDes == null) continue;
-          result.location = valueDes;
+          result.location.replace(valueDes);
           break;
         case r'upload_ref':
           final valueDes = serializers.deserialize(
@@ -250,10 +250,10 @@ class _$TrackingMediaInputSerializer implements PrimitiveSerializer<TrackingMedi
         case r'payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(JsonObject),
-          ) as JsonObject?;
+            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+          ) as BuiltMap<String, JsonObject?>?;
           if (valueDes == null) continue;
-          result.payload = valueDes;
+          result.payload.replace(valueDes);
           break;
         default:
           unhandled.add(key);

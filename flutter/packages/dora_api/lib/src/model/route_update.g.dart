@@ -12,7 +12,7 @@ class _$RouteUpdate extends RouteUpdate {
   @override
   final String? description;
   @override
-  final JsonObject? routeGeojson;
+  final BuiltMap<String, JsonObject?>? routeGeojson;
   @override
   final int? orderInTrip;
 
@@ -72,9 +72,10 @@ class RouteUpdateBuilder implements Builder<RouteUpdate, RouteUpdateBuilder> {
   String? get description => _$this._description;
   set description(String? description) => _$this._description = description;
 
-  JsonObject? _routeGeojson;
-  JsonObject? get routeGeojson => _$this._routeGeojson;
-  set routeGeojson(JsonObject? routeGeojson) =>
+  MapBuilder<String, JsonObject?>? _routeGeojson;
+  MapBuilder<String, JsonObject?> get routeGeojson =>
+      _$this._routeGeojson ??= MapBuilder<String, JsonObject?>();
+  set routeGeojson(MapBuilder<String, JsonObject?>? routeGeojson) =>
       _$this._routeGeojson = routeGeojson;
 
   int? _orderInTrip;
@@ -90,7 +91,7 @@ class RouteUpdateBuilder implements Builder<RouteUpdate, RouteUpdateBuilder> {
     if ($v != null) {
       _name = $v.name;
       _description = $v.description;
-      _routeGeojson = $v.routeGeojson;
+      _routeGeojson = $v.routeGeojson?.toBuilder();
       _orderInTrip = $v.orderInTrip;
       _$v = null;
     }
@@ -111,13 +112,26 @@ class RouteUpdateBuilder implements Builder<RouteUpdate, RouteUpdateBuilder> {
   RouteUpdate build() => _build();
 
   _$RouteUpdate _build() {
-    final _$result = _$v ??
-        _$RouteUpdate._(
-          name: name,
-          description: description,
-          routeGeojson: routeGeojson,
-          orderInTrip: orderInTrip,
-        );
+    _$RouteUpdate _$result;
+    try {
+      _$result = _$v ??
+          _$RouteUpdate._(
+            name: name,
+            description: description,
+            routeGeojson: _routeGeojson?.build(),
+            orderInTrip: orderInTrip,
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'routeGeojson';
+        _routeGeojson?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'RouteUpdate', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

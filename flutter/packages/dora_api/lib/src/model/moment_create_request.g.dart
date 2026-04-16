@@ -16,11 +16,11 @@ class _$MomentCreateRequest extends MomentCreateRequest {
   @override
   final MomentLocation? location;
   @override
-  final BuiltList<JsonObject>? mediaRefs;
+  final BuiltList<BuiltMap<String, JsonObject?>>? mediaRefs;
   @override
   final String? linkedTripPlaceId;
   @override
-  final JsonObject? extraPayload;
+  final BuiltMap<String, JsonObject?>? extraPayload;
 
   factory _$MomentCreateRequest(
           [void Function(MomentCreateRequestBuilder)? updates]) =>
@@ -107,10 +107,10 @@ class MomentCreateRequestBuilder
       _$this._location ??= MomentLocationBuilder();
   set location(MomentLocationBuilder? location) => _$this._location = location;
 
-  ListBuilder<JsonObject>? _mediaRefs;
-  ListBuilder<JsonObject> get mediaRefs =>
-      _$this._mediaRefs ??= ListBuilder<JsonObject>();
-  set mediaRefs(ListBuilder<JsonObject>? mediaRefs) =>
+  ListBuilder<BuiltMap<String, JsonObject?>>? _mediaRefs;
+  ListBuilder<BuiltMap<String, JsonObject?>> get mediaRefs =>
+      _$this._mediaRefs ??= ListBuilder<BuiltMap<String, JsonObject?>>();
+  set mediaRefs(ListBuilder<BuiltMap<String, JsonObject?>>? mediaRefs) =>
       _$this._mediaRefs = mediaRefs;
 
   String? _linkedTripPlaceId;
@@ -118,9 +118,10 @@ class MomentCreateRequestBuilder
   set linkedTripPlaceId(String? linkedTripPlaceId) =>
       _$this._linkedTripPlaceId = linkedTripPlaceId;
 
-  JsonObject? _extraPayload;
-  JsonObject? get extraPayload => _$this._extraPayload;
-  set extraPayload(JsonObject? extraPayload) =>
+  MapBuilder<String, JsonObject?>? _extraPayload;
+  MapBuilder<String, JsonObject?> get extraPayload =>
+      _$this._extraPayload ??= MapBuilder<String, JsonObject?>();
+  set extraPayload(MapBuilder<String, JsonObject?>? extraPayload) =>
       _$this._extraPayload = extraPayload;
 
   MomentCreateRequestBuilder() {
@@ -136,7 +137,7 @@ class MomentCreateRequestBuilder
       _location = $v.location?.toBuilder();
       _mediaRefs = $v.mediaRefs?.toBuilder();
       _linkedTripPlaceId = $v.linkedTripPlaceId;
-      _extraPayload = $v.extraPayload;
+      _extraPayload = $v.extraPayload?.toBuilder();
       _$v = null;
     }
     return this;
@@ -168,7 +169,7 @@ class MomentCreateRequestBuilder
             location: _location?.build(),
             mediaRefs: _mediaRefs?.build(),
             linkedTripPlaceId: linkedTripPlaceId,
-            extraPayload: extraPayload,
+            extraPayload: _extraPayload?.build(),
           );
     } catch (_) {
       late String _$failedField;
@@ -177,6 +178,9 @@ class MomentCreateRequestBuilder
         _location?.build();
         _$failedField = 'mediaRefs';
         _mediaRefs?.build();
+
+        _$failedField = 'extraPayload';
+        _extraPayload?.build();
       } catch (e) {
         throw BuiltValueNestedFieldError(
             r'MomentCreateRequest', _$failedField, e.toString());

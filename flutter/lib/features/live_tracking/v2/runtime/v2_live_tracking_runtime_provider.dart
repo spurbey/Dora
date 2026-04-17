@@ -8,12 +8,12 @@ import 'package:dora/core/map/models/app_marker.dart';
 import 'package:dora/core/map/models/app_route.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart'
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show
         LiveTrackingRuntimeSnapshot,
         LiveTrackingRuntimeState,
         TrackingPointSample;
-import 'package:dora/features/create/presentation/live_tracking_map_overlay.dart';
+import 'package:dora/core/live_tracking/live_tracking_map_overlay_model.dart';
 import 'package:dora/features/create/presentation/live_tracking_path_filter.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_capture_coordinator.dart';

@@ -174,7 +174,7 @@ class TripsRepository {
     try {
       final currentSnapshotDigest = await _currentSnapshotDigest(id);
       final publishState = await _db.tripPublishStateDao.getState(id);
-      final publishedDigest = publishState?.lastPublishedSnapshotDigest;
+      final publishedDigest = publishState?.lastSavedSnapshotDigest;
 
       if (visibility == 'public' &&
           (currentSnapshotDigest == null ||

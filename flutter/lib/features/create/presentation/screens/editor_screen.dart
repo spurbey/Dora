@@ -26,21 +26,17 @@ import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
 import 'package:dora/features/create/domain/compiled_projection.dart';
 import 'package:dora/features/create/data/compiled_projection_repository.dart';
-import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
+import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
 import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
-import 'package:dora/features/create/presentation/widgets/live_tracking_candidate_inbox_strip.dart';
-import 'package:dora/features/create/presentation/widgets/live_tracking_moment_strip.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
-import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/captured_storyline_panel.dart';
@@ -76,15 +72,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   bool _didAutoCenterOnDevice = false;
   AppMarker? _mediaFocusMarker;
   String? _mediaFocusPlaceId;
-  bool _trackingActionInFlight = false;
-  String? _trackingActionLabel;
-  final Set<String> _candidateActionsInFlight = <String>{};
-  bool _momentCreateInFlight = false;
-  final Set<String> _momentActionsInFlight = <String>{};
   final Set<String> _v2ReviewActionsInFlight = <String>{};
   bool _didTriggerV2EditorOpenRecovery = false;
-  static const _noLinkedMomentPlaceValue = '__no_linked_place__';
-  final bool _showLegacyTrackingWidgets = false;
   static const _defaultEditorCenter = AppLatLng(
     latitude: 20.5937,
     longitude: 78.9629,
@@ -158,38 +147,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       ),
       data: (editor) {
         final mapState = ref.watch(mapStateProvider(widget.tripId));
-        final syncStatusAsync = useV2ReviewLane
-            ? const AsyncValue<EditorSyncStatus>.data(
-                EditorSyncStatus(
-                  kind: EditorSyncStatusKind.localSaved,
-                  label: 'Saved locally',
-                  snapshot: EditorSyncSnapshot(
-                    blockedItems: 0,
-                    failedItems: 0,
-                    activeItems: 0,
-                    unsyncedRows: 0,
-                  ),
-                ),
-              )
-            : ref.watch(editorSyncStatusProvider(widget.tripId));
-        final compiledProjectionAsync = useV2ReviewLane
-            ? null
-            : ref.watch(compiledProjectionViewProvider(widget.tripId));
-        final v2TimelineGroupsAsync = useV2ReviewLane
-            ? ref.watch(v2TimelineGroupsProvider(widget.tripId))
-            : null;
-        final v2RouteProjectionAsync = useV2ReviewLane
-            ? ref.watch(v2RouteProjectionProvider(widget.tripId))
-            : null;
+        const syncStatusAsync = AsyncValue<EditorSyncStatus>.data(
+          EditorSyncStatus(
+            kind: EditorSyncStatusKind.localSaved,
+            label: 'Saved locally',
+            snapshot: EditorSyncSnapshot(
+              blockedItems: 0,
+              failedItems: 0,
+              activeItems: 0,
+              unsyncedRows: 0,
+            ),
+          ),
+        );
+        const AsyncValue<CompiledProjectionView>? compiledProjectionAsync = null;
+        final v2TimelineGroupsAsync =
+            ref.watch(v2TimelineGroupsProvider(widget.tripId));
+        final v2RouteProjectionAsync =
+            ref.watch(v2RouteProjectionProvider(widget.tripId));
         final trackingRuntimeAsync =
-            ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-        // V1 candidate inbox removed — V2 uses local resolver inbox.
-        const candidateInboxAsync = AsyncValue<List<Never>>.data([]);
-        final v2InboxAsync = useV2ReviewLane
-            ? ref.watch(v2UnresolvedInboxProvider(widget.tripId))
-            : null;
-        // V1 moment strip removed — moments captured via V2 event journal.
-        const AsyncValue<List<Never>>? momentListAsync = null;
+            ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId));
+        final v2InboxAsync =
+            ref.watch(v2UnresolvedInboxProvider(widget.tripId));
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -211,41 +189,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
         ];
         final routes = [...mapState.routes];
-        if (useV2ReviewLane) {
-          final routeSegments = v2RouteProjectionAsync?.valueOrNull ??
-              const <V2RouteProjectionSegment>[];
-          for (final segment in routeSegments) {
-            if (segment.geometry.length < 2) {
-              continue;
-            }
-            routes.add(
-              AppRoute(
-                id: '_v2_compiled_${segment.segmentKey}',
-                coordinates: segment.geometry,
-                color: AppColors.accent.withValues(alpha: 0.58),
-                width: 3,
-                dashed: false,
-              ),
-            );
+        final routeSegments = v2RouteProjectionAsync?.valueOrNull ??
+            const <V2RouteProjectionSegment>[];
+        for (final segment in routeSegments) {
+          if (segment.geometry.length < 2) {
+            continue;
           }
-        } else {
-          final compiledView = compiledProjectionAsync?.valueOrNull;
-          if (compiledView != null) {
-            for (final segment in compiledView.routeSegments) {
-              if (segment.coordinates.length < 2) {
-                continue;
-              }
-              routes.add(
-                AppRoute(
-                  id: '_compiled_${segment.segmentId}',
-                  coordinates: segment.coordinates,
-                  color: AppColors.accent.withValues(alpha: 0.58),
-                  width: 3,
-                  dashed: false,
-                ),
-              );
-            }
-          }
+          routes.add(
+            AppRoute(
+              id: '_v2_compiled_${segment.segmentKey}',
+              coordinates: segment.geometry,
+              color: AppColors.accent.withValues(alpha: 0.58),
+              width: 3,
+              dashed: false,
+            ),
+          );
         }
 
         final selectedName = _getSelectedItemName(editor);
@@ -290,21 +248,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                     trackingRuntimeAsync: trackingRuntimeAsync,
                     syncStatusAsync: syncStatusAsync,
                   ),
-                  useV2ReviewLane
-                      ? _buildV2UnresolvedReviewInbox(
-                          editor: editor,
-                          inboxAsync: v2InboxAsync!,
-                        )
-                      : _buildLiveTrackingCandidateInbox(candidateInboxAsync!),
-                  if (_showLegacyTrackingWidgets) ...[
-                    _buildLiveTrackingControlStrip(trackingRuntimeAsync),
-                    _buildLiveTrackingMomentStrip(
-                      momentListAsync: momentListAsync!,
-                      trackingRuntimeAsync: trackingRuntimeAsync,
-                      capturePosition: null,
-                      tripPlaces: editor.places,
-                    ),
-                  ],
+                  _buildV2UnresolvedReviewInbox(
+                    editor: editor,
+                    inboxAsync: v2InboxAsync,
+                  ),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
@@ -723,110 +670,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     );
   }
 
-  Widget _buildLiveTrackingControlStrip(
-    AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
-  ) {
-    final hasRuntimeSnapshot = trackingRuntimeAsync.hasValue;
-    final snapshot = trackingRuntimeAsync.valueOrNull;
-    final runtimeState =
-        hasRuntimeSnapshot ? snapshot!.state : LiveTrackingRuntimeState.planned;
-    final subtitle = trackingRuntimeAsync.when(
-      data: _liveTrackingSubtitle,
-      loading: () => 'Checking tracking state...',
-      error: (_, __) => 'Tracking state unavailable. Retry once sync recovers.',
-    );
-
-    return LiveTrackingControlStrip(
-      runtimeState: runtimeState,
-      isBusy: _trackingActionInFlight,
-      controlsEnabled: hasRuntimeSnapshot,
-      busyLabel: _trackingActionLabel,
-      subtitle: subtitle,
-      onStart: () => unawaited(
-        _runLiveTrackingAction(
-          busyLabel: 'Starting...',
-          successMessage: 'Live tracking started.',
-          action: (coordinator) async {
-            await coordinator.startTracking(tripId: widget.tripId);
-            return true;
-          },
-        ),
-      ),
-      onPause: () => unawaited(
-        _runLiveTrackingAction(
-          busyLabel: 'Pausing...',
-          successMessage: 'Live tracking paused.',
-          noOpMessage: 'No active tracking session to pause.',
-          action: (coordinator) async {
-            final paused =
-                await coordinator.pauseTracking(tripId: widget.tripId);
-            return paused != null;
-          },
-        ),
-      ),
-      onResume: () => unawaited(
-        _runLiveTrackingAction(
-          busyLabel: 'Resuming...',
-          successMessage: 'Live tracking resumed.',
-          noOpMessage: 'No paused tracking session to resume.',
-          action: (coordinator) async {
-            final resumed =
-                await coordinator.resumeTracking(tripId: widget.tripId);
-            return resumed != null;
-          },
-        ),
-      ),
-      onStop: () => unawaited(
-        _runLiveTrackingAction(
-          busyLabel: 'Stopping...',
-          successMessage: 'Live tracking stopped.',
-          noOpMessage: 'No active or paused session to stop.',
-          action: (coordinator) async {
-            final stopped =
-                await coordinator.stopTracking(tripId: widget.tripId);
-            return stopped != null;
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveTrackingCandidateInbox(
-    AsyncValue<List<TrackingCandidateRow>> candidateInboxAsync,
-  ) {
-    return candidateInboxAsync.when(
-      data: (candidates) {
-        if (candidates.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return LiveTrackingCandidateInboxStrip(
-          candidates: candidates,
-          inFlightCandidateIds: _candidateActionsInFlight,
-          onConfirm: (candidateId) => unawaited(
-            _runCandidateDecision(
-              candidateId: candidateId,
-              successMessage: 'Check-in confirmed.',
-            ),
-          ),
-          onReject: (candidateId) => unawaited(
-            _runCandidateDecision(
-              candidateId: candidateId,
-              successMessage: 'Suggestion dismissed.',
-            ),
-          ),
-          onSnooze: (candidateId) => unawaited(
-            _runCandidateDecision(
-              candidateId: candidateId,
-              successMessage: 'Suggestion snoozed for 1 hour.',
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
   Widget _buildV2UnresolvedReviewInbox({
     required EditorState editor,
     required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
@@ -880,46 +723,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     );
   }
 
-  Widget _buildLiveTrackingMomentStrip({
-    required AsyncValue<List<TrackingMomentRow>> momentListAsync,
-    required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
-    required AppLatLng? capturePosition,
-    required List<Place> tripPlaces,
-  }) {
-    final runtimeState = trackingRuntimeAsync.valueOrNull?.state ??
-        LiveTrackingRuntimeState.planned;
-    final canCapture = runtimeState == LiveTrackingRuntimeState.active ||
-        runtimeState == LiveTrackingRuntimeState.paused;
-
-    return momentListAsync.when(
-      data: (moments) {
-        return LiveTrackingMomentStrip(
-          moments: moments,
-          inFlightMomentIds: _momentActionsInFlight,
-          canCapture: canCapture,
-          captureInFlight: _momentCreateInFlight,
-          onCaptureNow: () => unawaited(
-            _captureMomentNow(capturePosition: capturePosition),
-          ),
-          onEditMoment: (moment) => unawaited(
-            _editMoment(moment: moment, tripPlaces: tripPlaces),
-          ),
-        );
-      },
-      loading: () => LiveTrackingMomentStrip(
-        moments: const <TrackingMomentRow>[],
-        inFlightMomentIds: _momentActionsInFlight,
-        canCapture: canCapture,
-        captureInFlight: _momentCreateInFlight,
-        onCaptureNow: () => unawaited(
-          _captureMomentNow(capturePosition: capturePosition),
-        ),
-        onEditMoment: (_) {},
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
   String _liveTrackingSubtitle(LiveTrackingRuntimeSnapshot snapshot) {
     final lastPoint = snapshot.lastPointAt;
     switch (snapshot.state) {
@@ -945,46 +748,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
-  }
-
-  Future<void> _runCandidateDecision({
-    required String candidateId,
-    required String successMessage,
-  }) async {
-    if (!mounted || _candidateActionsInFlight.contains(candidateId)) {
-      return;
-    }
-    setState(() {
-      _candidateActionsInFlight.add(candidateId);
-    });
-    try {
-      // V1 candidate queue removed — V2 uses local resolver inbox.
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(successMessage),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to queue check-in action. Try again.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _candidateActionsInFlight.remove(candidateId);
-        });
-      }
-    }
   }
 
   bool _isV2ReviewLaneEnabled() {
@@ -1131,171 +894,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           placeId: selectedPlace.id,
           placeName: selectedPlace.name,
         );
-  }
-
-  Future<void> _captureMomentNow({
-    required AppLatLng? capturePosition,
-  }) async {
-    if (!mounted || _momentCreateInFlight) {
-      return;
-    }
-    setState(() {
-      _momentCreateInFlight = true;
-    });
-    // V1 moment creation removed — moments captured via V2 event journal.
-    if (mounted) {
-      setState(() {
-        _momentCreateInFlight = false;
-      });
-    }
-  }
-
-  Future<void> _editMoment({
-    required TrackingMomentRow moment,
-    required List<Place> tripPlaces,
-  }) async {
-    if (!mounted || _momentActionsInFlight.contains(moment.id)) {
-      return;
-    }
-
-    final editResult = await _promptForMomentEdit(
-      initialNote: moment.note,
-      initialLinkedTripPlaceId: moment.linkedTripPlaceId,
-      tripPlaces: tripPlaces,
-    );
-    if (editResult == null) {
-      return;
-    }
-
-    final unchangedNote = (moment.note ?? '').trim() == editResult.note.trim();
-    final unchangedLinkedPlace =
-        moment.linkedTripPlaceId == editResult.linkedTripPlaceId;
-    if (unchangedNote && unchangedLinkedPlace) {
-      return;
-    }
-    // V1 moment update removed — moments managed via V2 event journal.
-  }
-
-  Future<_MomentEditResult?> _promptForMomentEdit({
-    required String? initialNote,
-    required String? initialLinkedTripPlaceId,
-    required List<Place> tripPlaces,
-  }) async {
-    final placeOptions = [...tripPlaces]
-      ..sort((left, right) => left.orderIndex.compareTo(right.orderIndex));
-    final dropdownOptions = placeOptions
-        .map((place) => (
-              id: place.id,
-              label: place.placeType == 'city'
-                  ? '${place.name} (City)'
-                  : place.name,
-            ))
-        .toList();
-    if (initialLinkedTripPlaceId != null &&
-        dropdownOptions.every((item) => item.id != initialLinkedTripPlaceId)) {
-      final truncatedId = initialLinkedTripPlaceId.length <= 6
-          ? initialLinkedTripPlaceId
-          : initialLinkedTripPlaceId.substring(0, 6);
-      dropdownOptions.insert(
-        0,
-        (
-          id: initialLinkedTripPlaceId,
-          label: 'Previously linked place ($truncatedId)',
-        ),
-      );
-    }
-
-    return showDialog<_MomentEditResult>(
-      context: context,
-      builder: (_) => _MomentEditDialog(
-        initialNote: initialNote,
-        initialLinkedTripPlaceId: initialLinkedTripPlaceId,
-        dropdownOptions: dropdownOptions,
-        noLinkedPlaceValue: _noLinkedMomentPlaceValue,
-      ),
-    );
-  }
-
-  Future<void> _runLiveTrackingAction({
-    required String busyLabel,
-    required String successMessage,
-    String? noOpMessage,
-    required Future<bool> Function(LiveTrackingCaptureCoordinator coordinator)
-        action,
-  }) async {
-    if (_trackingActionInFlight || !mounted) {
-      return;
-    }
-    setState(() {
-      _trackingActionInFlight = true;
-      _trackingActionLabel = busyLabel;
-    });
-    try {
-      final coordinator = ref.read(liveTrackingCaptureCoordinatorProvider);
-      final didApply = await action(coordinator);
-      if (!mounted) {
-        return;
-      }
-      final feedback = didApply
-          ? successMessage
-          : (noOpMessage ?? 'No tracking state change was required.');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(feedback),
-        duration: const Duration(seconds: 2),
-      ));
-    } on LiveTrackingCaptureException catch (error) {
-      await _handleLiveTrackingCaptureException(error);
-    } catch (_) {
-      _showLocationMessage('Live tracking action failed. Try again.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _trackingActionInFlight = false;
-          _trackingActionLabel = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _handleLiveTrackingCaptureException(
-    LiveTrackingCaptureException error,
-  ) async {
-    if (!mounted) {
-      return;
-    }
-    switch (error.code) {
-      case 'location_service_disabled':
-        await _promptToEnableLocationServices();
-        return;
-      case 'location_permission_denied_forever':
-        await _promptToOpenAppSettings();
-        return;
-      case 'location_permission_denied':
-        _showLocationMessage('Location permission denied.');
-        return;
-      case 'tracking_trip_identity_missing':
-      case 'tracking_trip_identity_stale':
-        _showTrackingSyncRecoveryMessage(error.message);
-        return;
-      default:
-        _showLocationMessage(error.message);
-        return;
-    }
-  }
-
-  void _showTrackingSyncRecoveryMessage(String message) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Retry sync',
-          onPressed: () => unawaited(_retrySyncNow()),
-        ),
-      ),
-    );
   }
 
   Future<void> _resolveDeviceCenter() async {
@@ -2583,116 +2181,6 @@ class _EditorSyncCallout {
   final Color tint;
   final String? actionLabel;
   final VoidCallback? onAction;
-}
-
-class _MomentEditDialog extends StatefulWidget {
-  const _MomentEditDialog({
-    required this.initialNote,
-    required this.initialLinkedTripPlaceId,
-    required this.dropdownOptions,
-    required this.noLinkedPlaceValue,
-  });
-
-  final String? initialNote;
-  final String? initialLinkedTripPlaceId;
-  final List<({String id, String label})> dropdownOptions;
-  final String noLinkedPlaceValue;
-
-  @override
-  State<_MomentEditDialog> createState() => _MomentEditDialogState();
-}
-
-class _MomentEditDialogState extends State<_MomentEditDialog> {
-  late final TextEditingController _noteController;
-  late String _selectedLinkedPlaceId;
-
-  @override
-  void initState() {
-    super.initState();
-    _noteController = TextEditingController(text: widget.initialNote ?? '');
-    _selectedLinkedPlaceId =
-        widget.initialLinkedTripPlaceId ?? widget.noLinkedPlaceValue;
-  }
-
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Edit Moment'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _noteController,
-            autofocus: true,
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Add a short memory note',
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedLinkedPlaceId,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Linked place',
-            ),
-            items: [
-              DropdownMenuItem<String>(
-                value: widget.noLinkedPlaceValue,
-                child: const Text('No linked place'),
-              ),
-              ...widget.dropdownOptions.map(
-                (item) => DropdownMenuItem<String>(
-                  value: item.id,
-                  child: Text(item.label),
-                ),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedLinkedPlaceId = value ?? widget.noLinkedPlaceValue;
-              });
-            },
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            _MomentEditResult(
-              note: _noteController.text,
-              linkedTripPlaceId:
-                  _selectedLinkedPlaceId == widget.noLinkedPlaceValue
-                      ? null
-                      : _selectedLinkedPlaceId,
-            ),
-          ),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-class _MomentEditResult {
-  const _MomentEditResult({
-    required this.note,
-    required this.linkedTripPlaceId,
-  });
-
-  final String note;
-  final String? linkedTripPlaceId;
 }
 
 class _AssignPlaceHintOption {

@@ -19,18 +19,20 @@ final liveHubActiveSessionProvider =
     return Stream<LiveHubActiveSession?>.value(null);
   }
   final db = ref.watch(appDatabaseProvider);
+  // V2: query session_journal instead of V1 tracking_sessions.
   final query = db.customSelect(
     '''
-    SELECT s.trip_id, s.state, s.local_updated_at, t.name
-    FROM tracking_sessions s
-    INNER JOIN trips t ON t.id = s.trip_id
+    SELECT s.trip_local_id AS trip_id, s.control_state AS state,
+           s.updated_at AS local_updated_at, t.name
+    FROM session_journal s
+    INNER JOIN trips t ON t.id = s.trip_local_id
     WHERE t.user_id = ?
-      AND s.state IN ('active', 'paused')
-    ORDER BY s.local_updated_at DESC
+      AND s.control_state IN ('active', 'paused')
+    ORDER BY s.updated_at DESC
     LIMIT 1
     ''',
     variables: [Variable<String>(userId)],
-    readsFrom: {db.trackingSessions, db.trips},
+    readsFrom: {db.sessionJournal, db.trips},
   );
   return query.watchSingleOrNull().map((row) {
     if (row == null) {

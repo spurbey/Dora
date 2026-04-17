@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart'
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show
         LiveTrackingRuntimeSnapshot,
         LiveTrackingRuntimeState,

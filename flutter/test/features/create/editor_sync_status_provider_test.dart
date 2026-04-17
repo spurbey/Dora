@@ -112,17 +112,9 @@ void main() {
         createdAt: now,
       ),
     );
-    await db.into(db.trackingSessions).insert(
-          TrackingSessionsCompanion.insert(
-            id: 'tracking-session-1',
-            tripId: 'trip-tracking-1',
-            clientSessionId: 'client-session-1',
-            state: const Value('planned'),
-            localUpdatedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+    // V1 tracking_sessions table removed from Drift. Insert a blocked
+    // sync task directly — the editorSyncStatusProvider queries
+    // sync_tasks, not the tracking_sessions table itself.
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-1',
@@ -241,18 +233,8 @@ void main() {
         createdAt: now,
       ),
     );
-    await db.into(db.trackingSessions).insert(
-          TrackingSessionsCompanion.insert(
-            id: 'tracking-session-live-scope-1',
-            tripId: 'trip-live-scope-2',
-            clientSessionId: 'client-session-live-scope-1',
-            state: const Value('active'),
-            syncStatus: const Value('pending'),
-            localUpdatedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+    // V1 tracking_sessions table removed from Drift. Insert a blocked
+    // sync task directly — the provider queries sync_tasks.
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-blocked-1',
@@ -306,18 +288,9 @@ void main() {
         createdAt: now,
       ),
     );
-    await db.into(db.trackingSessions).insert(
-          TrackingSessionsCompanion.insert(
-            id: 'tracking-session-live-scope-3',
-            tripId: 'trip-live-scope-3',
-            clientSessionId: 'client-session-live-scope-3',
-            state: const Value('active'),
-            syncStatus: const Value('pending'),
-            localUpdatedAt: now,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+    // V1 tracking_sessions table removed from Drift. Insert a blocked
+    // sync task directly with http_409 error code — the provider should
+    // ignore this policy block.
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-blocked-409',

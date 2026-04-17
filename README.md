@@ -127,10 +127,25 @@ flutter run --dart-define-from-file=.env
 - Flutter release builds: `.github/workflows/flutter-build.yml`
 - Railway deploy (api + worker + renderer): `.github/workflows/deploy-railway.yml`
 
+## Production Documentation Hub
+
+- Backend API reference (endpoint scenarios, parameters, response/error contracts):
+  - `docs/apis/backend-api.md`
+- Database schema reference (current model-backed table inventory):
+  - `docs/schemas/database.md`
+- Alembic migration history and runbook:
+  - `docs/schemas/migrations.md`
+- DB schema governance and drift reconciliation:
+  - `docs/db-schema-contract.md`
+  - `docs/db-source-of-truth-matrix.md`
+
 ## Primary References
 
 - Backend deep guide: `backend/README.md`
 - Flutter deep guide: `flutter/README.md`
 - Export renderer API contract: `video-renderer/docs/renderer-api-contract.md`
 - Export infra notes: `infra/remotion/README.md`
+- Backend API reference: `docs/apis/backend-api.md`
+- DB schema reference: `docs/schemas/database.md`
+- Migration history: `docs/schemas/migrations.md`
 - Security backlog (deferred): `docs/security-deferred.md`

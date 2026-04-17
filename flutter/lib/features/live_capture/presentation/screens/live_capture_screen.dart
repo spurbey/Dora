@@ -22,17 +22,11 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/create/data/compiled_projection_repository.dart';
-import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart';
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
 import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
-import 'package:dora/features/create/presentation/providers/entity_sync_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
-import 'package:dora/features/create/presentation/providers/live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
-import 'package:dora/features/create/presentation/providers/tracking_sync_provider.dart';
-import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
-import 'package:dora/features/live_capture/presentation/providers/live_tracking_event_provider.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_action_dock.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
@@ -195,55 +189,19 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
-    final gateEnabled = !usePreview &&
-        ref.read(liveSystemV2RolloutGateProvider).evaluate(
-          tripId: widget.tripId,
-          surface: LiveSystemV2Surface.live,
-          requiredSubsystems: const {
-            LiveSystemV2Subsystem.localJournal,
-          },
-        ).enabled;
-    final v2CompilerEnabled = !usePreview &&
-        ref.read(liveSystemV2RolloutGateProvider).evaluate(
-          tripId: widget.tripId,
-          surface: LiveSystemV2Surface.live,
-          requiredSubsystems: const {
-            LiveSystemV2Subsystem.localJournal,
-            LiveSystemV2Subsystem.localCompiler,
-          },
-        ).enabled;
-    final v2HasActiveSession = usePreview
-        ? false
-        : (ref.watch(v2HasActiveSessionProvider(widget.tripId)).valueOrNull ??
-            false);
-    final useV2Lane = !usePreview && (gateEnabled || v2HasActiveSession);
+    final v2CompilerEnabled = !usePreview;
+    final useV2Lane = !usePreview;
     _useV2Lane = useV2Lane;
     if (!usePreview) {
-      if (useV2Lane) {
-        ref.watch(v2CaptureBootstrapProvider);
-      } else {
-        ref.watch(liveTrackingCaptureBootstrapProvider);
-        ref.watch(trackingSyncBootstrapProvider);
-      }
+      ref.watch(v2CaptureBootstrapProvider);
     }
     final runtimeAsync = usePreview
         ? null
-        : useV2Lane
-            ? ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId))
-            : ref.watch(liveTrackingRuntimeSnapshotProvider(widget.tripId));
-    final syncStatusAsync = usePreview
-        ? null
-        : useV2Lane
-            ? null
-            : ref.watch(liveTrackingSyncStatusProvider(widget.tripId));
+        : ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId));
+    final AsyncValue<EditorSyncStatus>? syncStatusAsync = null;
     final mapOverlay = usePreview
         ? null
-        : useV2Lane
-            ? ref.watch(v2LiveTrackingMapOverlayProvider(widget.tripId))
-            : ref.watch(liveTrackingMapOverlayProvider(widget.tripId));
-    final v1EventsAsync = usePreview || useV2Lane
-        ? null
-        : ref.watch(liveTrackingEventsProvider(widget.tripId));
+        : ref.watch(v2LiveTrackingMapOverlayProvider(widget.tripId));
     final v2EventsAsync = usePreview || !useV2Lane
         ? null
         : ref.watch(v2LiveCaptureEventsProvider(widget.tripId));
@@ -259,21 +217,14 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
             (widget.tripId.length > 8
                 ? 'Trip ${widget.tripId.substring(0, 8)}'
                 : 'Trip ${widget.tripId}');
-    final unresolvedSummary = usePreview
-        ? const LiveTrackingUnresolvedSummary(
-            reviewRequiredCount: 0,
-            onRouteCount: 0,
-            latestReviewRequired: null,
-            reviewHints: <LiveTrackingPlaceHint>[],
-          )
-        : useV2Lane
-            ? const LiveTrackingUnresolvedSummary(
-                reviewRequiredCount: 0,
-                onRouteCount: 0,
-                latestReviewRequired: null,
-                reviewHints: <LiveTrackingPlaceHint>[],
-              )
-            : ref.watch(liveTrackingUnresolvedSummaryProvider(widget.tripId));
+    // V1 unresolved summary provider removed — V2 uses inbox-based review.
+    // Always return an empty summary; V2 inbox items are used instead.
+    const unresolvedSummary = LiveTrackingUnresolvedSummary(
+      reviewRequiredCount: 0,
+      onRouteCount: 0,
+      latestReviewRequired: null,
+      reviewHints: <LiveTrackingPlaceHint>[],
+    );
 
     final runtimeState =
         usePreview ? _previewRuntimeState : runtimeAsync?.valueOrNull?.state;
@@ -400,46 +351,29 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                     bottom: AppSpacing.md + 86,
                     child: usePreview
                         ? const _RecentEventsPlaceholder()
-                        : useV2Lane
-                            ? (v2CompilerEnabled
-                                ? v2RecentProjectionAsync!.when(
-                                    data: (entries) =>
-                                        LiveCaptureRecentEventsStrip(
-                                      events:
-                                          _mapV2ProjectionRecentEvents(entries),
-                                      loading: false,
-                                    ),
-                                    loading: () =>
-                                        const LiveCaptureRecentEventsStrip(
-                                      events: <LiveCaptureRecentEventItem>[],
-                                      loading: true,
-                                    ),
-                                    error: (_, __) =>
-                                        const LiveCaptureRecentEventsStrip(
-                                      events: <LiveCaptureRecentEventItem>[],
-                                      loading: false,
-                                    ),
-                                  )
-                                : v2EventsAsync!.when(
-                                    data: (events) =>
-                                        LiveCaptureRecentEventsStrip(
-                                      events: _mapV2RecentEvents(events),
-                                      loading: false,
-                                    ),
-                                    loading: () =>
-                                        const LiveCaptureRecentEventsStrip(
-                                      events: <LiveCaptureRecentEventItem>[],
-                                      loading: true,
-                                    ),
-                                    error: (_, __) =>
-                                        const LiveCaptureRecentEventsStrip(
-                                      events: <LiveCaptureRecentEventItem>[],
-                                      loading: false,
-                                    ),
-                                  ))
-                            : v1EventsAsync!.when(
-                                data: (events) => LiveCaptureRecentEventsStrip(
-                                  events: _mapV1RecentEvents(events),
+                        : v2CompilerEnabled
+                            ? v2RecentProjectionAsync!.when(
+                                data: (entries) =>
+                                    LiveCaptureRecentEventsStrip(
+                                  events:
+                                      _mapV2ProjectionRecentEvents(entries),
+                                  loading: false,
+                                ),
+                                loading: () =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: true,
+                                ),
+                                error: (_, __) =>
+                                    const LiveCaptureRecentEventsStrip(
+                                  events: <LiveCaptureRecentEventItem>[],
+                                  loading: false,
+                                ),
+                              )
+                            : v2EventsAsync!.when(
+                                data: (events) =>
+                                    LiveCaptureRecentEventsStrip(
+                                  events: _mapV2RecentEvents(events),
                                   loading: false,
                                 ),
                                 loading: () =>
@@ -522,16 +456,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 busyLabel: 'Starting...',
                                 successMessage: 'Live tracking started.',
                                 action: () async {
-                                  if (_isV2LaneEnabled()) {
-                                    await ref
-                                        .read(v2CaptureCoordinatorProvider)
-                                        .startTracking(tripId: widget.tripId);
-                                  } else {
-                                    await ref
-                                        .read(
-                                            liveTrackingCaptureCoordinatorProvider)
-                                        .startTracking(tripId: widget.tripId);
-                                  }
+                                  await ref
+                                      .read(v2CaptureCoordinatorProvider)
+                                      .startTracking(tripId: widget.tripId);
                                   return true;
                                 },
                               ),
@@ -543,14 +470,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 noOpMessage:
                                     'No active tracking session to pause.',
                                 action: () async {
-                                  final paused = _isV2LaneEnabled()
-                                      ? await ref
-                                          .read(v2CaptureCoordinatorProvider)
-                                          .pauseTracking(tripId: widget.tripId)
-                                      : await ref
-                                          .read(
-                                              liveTrackingCaptureCoordinatorProvider)
-                                          .pauseTracking(tripId: widget.tripId);
+                                  final paused = await ref
+                                      .read(v2CaptureCoordinatorProvider)
+                                      .pauseTracking(tripId: widget.tripId);
                                   return paused != null;
                                 },
                               ),
@@ -562,15 +484,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 noOpMessage:
                                     'No paused tracking session to resume.',
                                 action: () async {
-                                  final resumed = _isV2LaneEnabled()
-                                      ? await ref
-                                          .read(v2CaptureCoordinatorProvider)
-                                          .resumeTracking(tripId: widget.tripId)
-                                      : await ref
-                                          .read(
-                                              liveTrackingCaptureCoordinatorProvider)
-                                          .resumeTracking(
-                                              tripId: widget.tripId);
+                                  final resumed = await ref
+                                      .read(v2CaptureCoordinatorProvider)
+                                      .resumeTracking(tripId: widget.tripId);
                                   return resumed != null;
                                 },
                               ),
@@ -582,14 +498,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 noOpMessage:
                                     'No active or paused session to stop.',
                                 action: () async {
-                                  final stopped = _isV2LaneEnabled()
-                                      ? await ref
-                                          .read(v2CaptureCoordinatorProvider)
-                                          .stopTracking(tripId: widget.tripId)
-                                      : await ref
-                                          .read(
-                                              liveTrackingCaptureCoordinatorProvider)
-                                          .stopTracking(tripId: widget.tripId);
+                                  final stopped = await ref
+                                      .read(v2CaptureCoordinatorProvider)
+                                      .stopTracking(tripId: widget.tripId);
                                   return stopped != null;
                                 },
                               ),
@@ -703,22 +614,6 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     return _useV2Lane;
   }
 
-  List<LiveCaptureRecentEventItem> _mapV1RecentEvents(
-    List<TrackingEventRow> events,
-  ) {
-    return events
-        .map(
-          (event) => LiveCaptureRecentEventItem(
-            id: event.id,
-            eventType: event.eventType,
-            note: event.note,
-            capturedAt: event.createdAt,
-            syncLabel: event.syncStatus,
-          ),
-        )
-        .toList(growable: false);
-  }
-
   List<LiveCaptureRecentEventItem> _mapV2RecentEvents(
     List<EventJournalRow> events,
   ) {
@@ -814,296 +709,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
 
   Future<void> _showDebugDiagnostics() async {
     if (!mounted) return;
-    final db = ref.read(appDatabaseProvider);
-    final tripId = widget.tripId;
-
-    // 1. Trip identity
-    final tripRow = await db.customSelect(
-      'SELECT id, server_trip_id, sync_status, name FROM trips WHERE id = ? LIMIT 1',
-      variables: [Variable<String>(tripId)],
-      readsFrom: {db.trips},
-    ).getSingleOrNull();
-    final serverTripId = tripRow?.read<String?>('server_trip_id');
-    final tripSyncStatus = tripRow?.read<String?>('sync_status');
-
-    // 2. Session identity
-    final sessionRow = await db.customSelect(
-      '''SELECT id, remote_session_id, state, started_at
-         FROM tracking_sessions
-         WHERE trip_id = ?
-         ORDER BY created_at DESC LIMIT 1''',
-      variables: [Variable<String>(tripId)],
-      readsFrom: {db.trackingSessions},
-    ).getSingleOrNull();
-    final sessionId = sessionRow?.read<String?>('id');
-    final remoteSessionId = sessionRow?.read<String?>('remote_session_id');
-    final sessionState = sessionRow?.read<String?>('state');
-
-    // 3. Sync tasks by entity type and status
-    final taskRows = await db.customSelect(
-      '''SELECT entity_type, status, COUNT(*) as cnt
-         FROM sync_tasks
-         WHERE entity_id IN (
-           SELECT id FROM tracking_events WHERE trip_id = ?
-           UNION ALL
-           SELECT id FROM tracking_event_media WHERE trip_id = ?
-           UNION ALL
-           SELECT id FROM tracking_point_batches WHERE trip_id = ?
-           UNION ALL
-           SELECT id FROM tracking_sessions WHERE trip_id = ?
-           UNION ALL
-           SELECT ? WHERE 1=1
-         )
-         GROUP BY entity_type, status
-         ORDER BY entity_type, status''',
-      variables: [
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-      ],
-      readsFrom: {db.syncTasks},
-    ).get();
-
-    // 4. Last 3 errors
-    final errorRows = await db.customSelect(
-      '''SELECT entity_type, entity_id, status, error_code, error_message, updated_at
-         FROM sync_tasks
-         WHERE error_message IS NOT NULL
-           AND entity_id IN (
-             SELECT id FROM tracking_events WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_event_media WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_point_batches WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_sessions WHERE trip_id = ?
-           )
-         ORDER BY updated_at DESC
-         LIMIT 3''',
-      variables: [
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-      ],
-      readsFrom: {db.syncTasks},
-    ).get();
-
-    // 5. Event sync status distribution
-    final eventStats = await db.customSelect(
-      '''SELECT sync_status, COUNT(*) as cnt
-         FROM tracking_events
-         WHERE trip_id = ?
-         GROUP BY sync_status''',
-      variables: [Variable<String>(tripId)],
-      readsFrom: {db.trackingEvents},
-    ).get();
-
-    // 6. Media sync status distribution
-    final mediaStats = await db.customSelect(
-      '''SELECT upload_status, sync_status, COUNT(*) as cnt
-         FROM tracking_event_media
-         WHERE trip_id = ?
-         GROUP BY upload_status, sync_status''',
-      variables: [Variable<String>(tripId)],
-      readsFrom: {db.trackingEventMedia},
-    ).get();
-
-    // 7. Point batch stats
-    final pointStats = await db.customSelect(
-      '''SELECT status, COUNT(*) as cnt, SUM(point_count) as total_points
-         FROM tracking_point_batches
-         WHERE trip_id = ?
-         GROUP BY status''',
-      variables: [Variable<String>(tripId)],
-      readsFrom: {db.trackingPointBatches},
-    ).get();
-    var droppedBatchCount = 0;
-    var droppedPointCount = 0;
-    for (final row in pointStats) {
-      final status = row.read<String>('status');
-      if (status != 'dropped_stale_session') {
-        continue;
-      }
-      droppedBatchCount += row.read<int>('cnt');
-      droppedPointCount += row.read<int?>('total_points') ?? 0;
-    }
-
-    // 8. Global active session count (invariant guardrail)
-    final activeSessionCountRow = await db.customSelect(
-      "SELECT COUNT(*) AS cnt FROM tracking_sessions WHERE state = 'active'",
-      readsFrom: {db.trackingSessions},
-    ).getSingle();
-    final activeSessionCount = activeSessionCountRow.read<int>('cnt');
-
-    // 9. Approx request-rate proxy: sync-task updates in last 60s for this trip.
-    final recentWindowStart = DateTime.now().toUtc().subtract(
-          const Duration(minutes: 1),
-        );
-    final recentTaskActivityRow = await db.customSelect(
-      '''SELECT COUNT(*) AS cnt
-         FROM sync_tasks
-         WHERE updated_at >= ?
-           AND entity_id IN (
-             SELECT id FROM tracking_events WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_event_media WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_point_batches WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_sessions WHERE trip_id = ?
-           )''',
-      variables: [
-        Variable<DateTime>(recentWindowStart),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-      ],
-      readsFrom: {
-        db.syncTasks,
-        db.trackingEvents,
-        db.trackingEventMedia,
-        db.trackingPointBatches,
-        db.trackingSessions,
-      },
-    ).getSingle();
-    final recentTaskActivity = recentTaskActivityRow.read<int>('cnt');
-
-    // 10. Retry code distribution for failed/blocked tasks.
-    final retryCodeRows = await db.customSelect(
-      '''SELECT COALESCE(error_code, 'unknown') AS code, COUNT(*) AS cnt
-         FROM sync_tasks
-         WHERE status IN ('failed', 'blocked')
-           AND entity_id IN (
-             SELECT id FROM tracking_events WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_event_media WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_point_batches WHERE trip_id = ?
-             UNION ALL
-             SELECT id FROM tracking_sessions WHERE trip_id = ?
-           )
-         GROUP BY COALESCE(error_code, 'unknown')
-         ORDER BY cnt DESC
-         LIMIT 8''',
-      variables: [
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-        Variable<String>(tripId),
-      ],
-      readsFrom: {
-        db.syncTasks,
-        db.trackingEvents,
-        db.trackingEventMedia,
-        db.trackingPointBatches,
-        db.trackingSessions,
-      },
-    ).get();
-
-    if (!mounted) return;
-
-    // Build display
-    final buf = StringBuffer();
-    buf.writeln('── Trip Identity ──');
-    buf.writeln('localTripId: $tripId');
-    buf.writeln('serverTripId: ${serverTripId ?? "NULL ⚠️"}');
-    buf.writeln('tripSyncStatus: $tripSyncStatus');
-    buf.writeln('');
-    buf.writeln('── Session ──');
-    buf.writeln('sessionId: ${sessionId ?? "none"}');
-    buf.writeln('remoteSessionId: ${remoteSessionId ?? "NULL ⚠️"}');
-    buf.writeln('state: $sessionState');
-    buf.writeln('');
-    buf.writeln('== Guardrails ==');
-    buf.writeln('activeSessionsGlobal: $activeSessionCount');
-    buf.writeln('tripTaskUpdatesLast60s: $recentTaskActivity');
-    buf.writeln(
-      'droppedStaleBatches: $droppedBatchCount ($droppedPointCount points)',
-    );
-    if (retryCodeRows.isEmpty) {
-      buf.writeln('retryCodes: (none)');
-    } else {
-      buf.writeln('retryCodes:');
-      for (final row in retryCodeRows) {
-        final code = row.read<String>('code');
-        final cnt = row.read<int>('cnt');
-        buf.writeln('  $code: $cnt');
-      }
-    }
-    buf.writeln('');
-    buf.writeln('── Sync Tasks ──');
-    for (final row in taskRows) {
-      final type = row.read<String>('entity_type');
-      final status = row.read<String>('status');
-      final cnt = row.read<int>('cnt');
-      buf.writeln('  $type | $status: $cnt');
-    }
-    if (taskRows.isEmpty) buf.writeln('  (no tasks)');
-    buf.writeln('');
-    buf.writeln('── Events ──');
-    for (final row in eventStats) {
-      final status = row.read<String>('sync_status');
-      final cnt = row.read<int>('cnt');
-      buf.writeln('  $status: $cnt');
-    }
-    if (eventStats.isEmpty) buf.writeln('  (no events)');
-    buf.writeln('');
-    buf.writeln('── Media ──');
-    for (final row in mediaStats) {
-      final upload = row.read<String>('upload_status');
-      final sync = row.read<String>('sync_status');
-      final cnt = row.read<int>('cnt');
-      buf.writeln('  upload=$upload sync=$sync: $cnt');
-    }
-    if (mediaStats.isEmpty) buf.writeln('  (no media)');
-    buf.writeln('');
-    buf.writeln('── Point Batches ──');
-    for (final row in pointStats) {
-      final status = row.read<String>('status');
-      final cnt = row.read<int>('cnt');
-      final pts = row.read<int?>('total_points') ?? 0;
-      buf.writeln('  $status: $cnt batches ($pts points)');
-    }
-    if (pointStats.isEmpty) buf.writeln('  (no batches)');
-    buf.writeln('');
-    buf.writeln('── Last Errors ──');
-    for (final row in errorRows) {
-      final type = row.read<String>('entity_type');
-      final code = row.read<String?>('error_code') ?? '';
-      final msg = row.read<String?>('error_message') ?? '';
-      buf.writeln('  [$type] $code');
-      buf.writeln(
-          '    ${msg.length > 120 ? '${msg.substring(0, 120)}...' : msg}');
-    }
-    if (errorRows.isEmpty) buf.writeln('  (none)');
-
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sync Diagnostics', style: TextStyle(fontSize: 14)),
-        content: SingleChildScrollView(
-          child: SelectableText(
-            buf.toString(),
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 11,
-              height: 1.4,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+    // V1 sync diagnostics removed — V2 uses journal-based diagnostics.
+    _showMessage('Debug diagnostics: V2 active, no V1 sync state.');
   }
 
   Future<void> _runLiveTrackingAction({
@@ -1161,14 +768,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Retrying...';
     });
     try {
-      final entityWorker = ref.read(entitySyncWorkerProvider);
-      final trackingWorker = ref.read(trackingSyncWorkerProvider);
       final mediaWorker = ref.read(uploadQueueWorkerProvider);
-      await Future.wait([
-        entityWorker.startIfIdle(),
-        trackingWorker.startIfIdle(),
-        mediaWorker.startIfIdle(),
-      ]);
+      await mediaWorker.startIfIdle();
       if (!mounted) {
         return;
       }
@@ -1187,14 +788,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   }
 
   void _triggerResolverReconcile() {
-    if (!mounted || widget.previewState != null || _isV2LaneEnabled()) {
-      return;
-    }
-    unawaited(
-      ref
-          .read(liveTrackingEventRepositoryProvider)
-          .reconcileUnresolved(widget.tripId, limit: 20),
-    );
+    // V1 reconciliation removed — V2 resolver handles this.
   }
 
   void _triggerV2Recovery({
@@ -1234,44 +828,32 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Saving...';
     });
     try {
-      if (_isV2LaneEnabled()) {
-        if (position == null) {
-          _showMessage('Location required to capture this event.');
-          return;
-        }
-        final v2EventId = await ref
-            .read(v2LiveCaptureJournalRepositoryProvider)
-            .createEventNow(
-          tripId: widget.tripId,
-          eventType: eventType,
-          note: note,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          payload: <String, dynamic>{'note': note},
-        );
-        unawaited(
-          ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
-                tripId: widget.tripId,
-                eventId: v2EventId,
-              ),
-        );
-      } else {
-        final repository = ref.read(liveTrackingEventRepositoryProvider);
-        await repository.createEventNow(
-          tripId: widget.tripId,
-          eventType: eventType,
-          note: note,
-          latitude: position?.latitude,
-          longitude: position?.longitude,
-        );
+      if (position == null) {
+        _showMessage('Location required to capture this event.');
+        return;
       }
+      final v2EventId = await ref
+          .read(v2LiveCaptureJournalRepositoryProvider)
+          .createEventNow(
+        tripId: widget.tripId,
+        eventType: eventType,
+        note: note,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        payload: <String, dynamic>{'note': note},
+      );
+      unawaited(
+        ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
+              tripId: widget.tripId,
+              eventId: v2EventId,
+            ),
+      );
       if (!mounted) {
         return;
       }
       onSuccess?.call();
-      _showMessage(_isV2LaneEnabled()
-          ? 'Captured locally. Review in editor if a place needs confirmation.'
-          : successMessage);
+      _showMessage(
+          'Captured locally. Review in editor if a place needs confirmation.');
     } catch (_) {
       _showMessage('Failed to capture item. Try again.');
     } finally {
@@ -1357,72 +939,40 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
     });
     try {
-      final isV2Lane = _isV2LaneEnabled();
       String eventId;
       String? decisionState;
-      if (isV2Lane) {
-        final result = await ref
-            .read(v2LiveCaptureJournalRepositoryProvider)
-            .createMediaCaptureNow(
-          tripId: widget.tripId,
-          eventType: eventType,
-          localPath: picked.path,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          mimeType: picked.mimeType,
-          payload: <String, dynamic>{
-            'file_name': picked.name,
-            'capture_source': fromCamera ? 'camera' : 'gallery',
-          },
-        );
-        eventId = result.eventId;
-        decisionState = result.resolverState;
-      } else {
-        final result = await ref
-            .read(liveTrackingEventRepositoryProvider)
-            .createMediaCaptureNow(
-          tripId: widget.tripId,
-          eventType: eventType,
-          localPath: picked.path,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          mimeType: picked.mimeType,
-          payload: <String, dynamic>{
-            'file_name': picked.name,
-            'capture_source': fromCamera ? 'camera' : 'gallery',
-          },
-        );
-        eventId = result.eventId;
-        decisionState = result.decision.state;
-      }
+      final result = await ref
+          .read(v2LiveCaptureJournalRepositoryProvider)
+          .createMediaCaptureNow(
+        tripId: widget.tripId,
+        eventType: eventType,
+        localPath: picked.path,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        mimeType: picked.mimeType,
+        payload: <String, dynamic>{
+          'file_name': picked.name,
+          'capture_source': fromCamera ? 'camera' : 'gallery',
+        },
+      );
+      eventId = result.eventId;
+      decisionState = result.resolverState;
       if (!mounted) {
         return;
       }
       _dismissedReviewPromptEventIds.remove(eventId);
-      if (isV2Lane) {
-        unawaited(
-          ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
-                tripId: widget.tripId,
-                eventId: eventId,
-              ),
-        );
-      }
+      unawaited(
+        ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
+              tripId: widget.tripId,
+              eventId: eventId,
+            ),
+      );
       if (eventType == LiveTrackingEventType.photo) {
         _emitEffect(TransientEffectType.photoCaptured);
       }
-      if (isV2Lane) {
-        _showMessage(
-          'Captured locally. Review in editor if place confirmation is needed.',
-        );
-      } else {
-        if (decisionState == 'resolved') {
-          _showMessage('Captured and auto-bound to nearby place.');
-        } else if (decisionState == 'review_required') {
-          _showMessage('Captured. Review probable places when ready.');
-        } else {
-          _showMessage('Captured and saved on route.');
-        }
-      }
+      _showMessage(
+        'Captured locally. Review in editor if place confirmation is needed.',
+      );
     } catch (_) {
       _showMessage('Failed to capture media. Try again.');
     } finally {
@@ -1447,53 +997,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Confirming place...';
     });
     try {
-      final repository = ref.read(liveTrackingEventRepositoryProvider);
-      final result = await repository.confirmPlaceForReviewEvent(
-        eventId: eventId,
-        hint: hint,
-      );
-      if (result == null) {
-        _showMessage('Could not confirm place for this capture.');
-        return;
-      }
-      if (result.syncedRouteMediaRemoteIds.isNotEmpty) {
-        final projectionRepository =
-            ref.read(compiledProjectionRepositoryProvider);
-        var rebindFailures = 0;
-        final failureMessages = <String>{};
-        for (final remoteMediaId in result.syncedRouteMediaRemoteIds) {
-          try {
-            final snapshot = await projectionRepository.rebind(
-              tripId: widget.tripId,
-              sourceKind: 'tracking_event_media',
-              sourceMediaId: remoteMediaId,
-              action: CompiledRebindAction.bind,
-              tripPlaceId: result.placeId,
-            );
-            if (snapshot == null) {
-              rebindFailures++;
-              failureMessages.add('media not ready for server rebind');
-            }
-          } catch (error) {
-            rebindFailures++;
-            failureMessages.add(error.toString());
-          }
-        }
-        if (rebindFailures > 0 && mounted) {
-          final detail = failureMessages.isEmpty
-              ? '$rebindFailures media rebind(s) pending sync.'
-              : '$rebindFailures media rebind(s) pending sync. '
-                  '${failureMessages.first}';
-          _showMessage(
-            'Place confirmed locally. $detail',
-          );
-          _dismissedReviewPromptEventIds.add(eventId);
-          return;
-        }
-      }
-      ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
-      _dismissedReviewPromptEventIds.add(eventId);
-      _showMessage('Capture attached to place.');
+      // V1 place confirmation removed — V2 resolver handles place binding.
+      _showMessage('Place confirmation handled in editor review.');
     } catch (_) {
       _showMessage('Failed to confirm place. Try again.');
     } finally {
@@ -1515,9 +1020,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       _actionLabel = 'Keeping on route...';
     });
     try {
-      await ref
-          .read(liveTrackingEventRepositoryProvider)
-          .keepReviewEventOnRoute(eventId);
+      // V1 route-keep removed — V2 resolver handles this.
       _dismissedReviewPromptEventIds.add(eventId);
       _showMessage('Capture kept on route.');
     } catch (_) {

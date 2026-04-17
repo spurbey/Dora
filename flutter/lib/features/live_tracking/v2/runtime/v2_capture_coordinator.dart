@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:dora/core/location/location_permission.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/create/data/live_tracking_capture_coordinator.dart'
-    show LiveTrackingCaptureException;
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart'
-    show TrackingPointSample;
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
+    show LiveTrackingCaptureException, TrackingPointSample;
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_repository.dart';
 
 typedef V2EnsureLocationAccess = Future<LocationAccessState> Function({

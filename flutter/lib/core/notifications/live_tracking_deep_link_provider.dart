@@ -16,7 +16,7 @@ final liveTrackingDeepLinkBootstrapProvider = Provider<void>((ref) {
 
   final db = ref.watch(appDatabaseProvider);
   final router = ref.watch(appRouterProvider);
-  final trackingSessionDao = ref.watch(trackingSessionDaoProvider);
+  final sessionJournalDao = ref.watch(v2SessionJournalDaoProvider);
 
   final bootstrap = LiveTrackingDeepLinkBootstrap(
     openedPayloads: FirebaseMessaging.onMessageOpenedApp
@@ -66,9 +66,10 @@ final liveTrackingDeepLinkBootstrapProvider = Provider<void>((ref) {
       return remoteTrip?.read<String>('id');
     },
     resolveSessionState: (localTripId) async {
+      // V2: use session_journal instead of V1 tracking_sessions.
       final activeSession =
-          await trackingSessionDao.getActiveOrPausedSessionForTrip(localTripId);
-      return activeSession?.state;
+          await sessionJournalDao.getActiveOrPausedSessionForTrip(localTripId);
+      return activeSession?.controlState;
     },
     navigateToRoute: (route) {
       final current = router.routeInformationProvider.value.uri.path;

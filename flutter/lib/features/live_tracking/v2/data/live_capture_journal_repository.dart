@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/features/live_capture/data/live_tracking_event_repository.dart'
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show LiveTrackingEventType;
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';

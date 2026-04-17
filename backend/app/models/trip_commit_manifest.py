@@ -35,7 +35,7 @@ class TripCommitManifest(Base):
     client_session_id = Column(String(128), nullable=False)
     client_job_id = Column(String(128), nullable=False)
     session_commit_token = Column(String(128), nullable=False, unique=True)
-    idempotency_key = Column(String(128), nullable=False)
+    idempotency_key = Column(String(256), nullable=False)
     operation_kind = Column(String(32), nullable=False)
     status = Column(String(32), nullable=False)
     phase = Column(String(32), nullable=False)

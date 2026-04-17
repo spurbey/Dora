@@ -220,12 +220,6 @@ final editorSyncStatusProvider =
       db.trips,
       db.places,
       db.routes,
-      db.trackingSessions,
-      db.trackingPointBatches,
-      db.trackingMoments,
-      db.trackingCandidates,
-      db.trackingEvents,
-      db.trackingEventMedia,
     },
   );
 
@@ -423,12 +417,6 @@ final liveTrackingSyncStatusProvider =
     readsFrom: {
       db.syncTasks,
       db.trips,
-      db.trackingSessions,
-      db.trackingPointBatches,
-      db.trackingMoments,
-      db.trackingCandidates,
-      db.trackingEvents,
-      db.trackingEventMedia,
     },
   );
 

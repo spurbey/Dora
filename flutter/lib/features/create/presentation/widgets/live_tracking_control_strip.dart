@@ -4,7 +4,7 @@ import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
 
 class LiveTrackingControlStrip extends StatelessWidget {
   const LiveTrackingControlStrip({

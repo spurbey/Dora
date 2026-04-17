@@ -1,5 +1,5 @@
 """
-Push notification service for live-tracking candidate prompts.
+Push notification service for advisory and device token management.
 
 Uses Firebase Admin SDK when configured and available.
 Falls back to a deterministic "transport_unavailable" status otherwise.
@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.trip_advisory import TripAdvisory
-from app.models.trip_checkin_candidate import TripCheckinCandidate
 from app.models.user_device_token import UserDeviceToken
 
 try:  # pragma: no cover - import optionality is environment-dependent
@@ -134,79 +133,6 @@ class PushNotificationService:
             if self._to_utc(seen_at) >= cutoff:
                 return True
         return False
-
-    def send_candidate_notification(
-        self,
-        *,
-        candidate: TripCheckinCandidate,
-        now: Optional[datetime] = None,
-    ) -> PushDispatchResult:
-        as_of = self._to_utc(now or self._utcnow())
-        tokens = self._active_tokens(user_id=candidate.user_id)
-        if not tokens:
-            return PushDispatchResult(status="no_tokens")
-        if self._has_recent_activity(tokens=tokens, as_of=as_of):
-            return PushDispatchResult(status="suppressed_foreground")
-
-        app = self._get_firebase_app()
-        if app is None or messaging is None:
-            return PushDispatchResult(
-                status="transport_unavailable",
-                error_message="firebase transport not configured",
-            )
-
-        title = "Confirm your stop"
-        body = candidate.suggested_name or "We detected a possible check-in."
-        data = {
-            "type": "checkin_candidate",
-            "candidate_id": str(candidate.id),
-            "trip_id": str(candidate.trip_id),
-        }
-
-        sent_count = 0
-        invalidated_count = 0
-        first_retryable_error: Optional[str] = None
-
-        for token_row in tokens:
-            try:
-                msg = messaging.Message(
-                    token=token_row.push_token,
-                    notification=messaging.Notification(
-                        title=title,
-                        body=body,
-                    ),
-                    data=data,
-                )
-                messaging.send(msg, app=app)
-                token_row.last_sent_at = as_of
-                token_row.last_seen_at = as_of
-                token_row.failure_count = 0
-                sent_count += 1
-            except Exception as exc:
-                token_row.failure_count = int(token_row.failure_count or 0) + 1
-                if self._is_invalid_token_error(exc):
-                    token_row.is_active = False
-                    invalidated_count += 1
-                elif first_retryable_error is None:
-                    first_retryable_error = str(exc)
-
-        if sent_count > 0:
-            return PushDispatchResult(
-                status="sent",
-                sent_count=sent_count,
-                invalidated_count=invalidated_count,
-            )
-        if first_retryable_error is not None:
-            return PushDispatchResult(
-                status="retryable_failure",
-                invalidated_count=invalidated_count,
-                error_message=first_retryable_error,
-            )
-        return PushDispatchResult(
-            status="terminal_failure",
-            invalidated_count=invalidated_count,
-            error_message="all tokens rejected",
-        )
 
     # ------------------------------------------------------------------
     # Advisory pipeline pushes (per-user throttle via advisory_cache)

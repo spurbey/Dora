@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
+import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
 import 'package:dora/features/create/presentation/widgets/live_tracking_control_strip.dart';
 
 void main() {

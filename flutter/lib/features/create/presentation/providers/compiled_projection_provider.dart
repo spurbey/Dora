@@ -39,54 +39,8 @@ final compiledProjectionRepositoryProvider =
 
 final compiledProjectionRefreshSignalProvider =
     Provider.autoDispose.family<Stream<int>, String>((ref, tripId) {
-  final db = ref.watch(appDatabaseProvider);
-  final query = db.customSelect(
-    '''
-    SELECT MAX(t.updated_at) AS refresh_tick
-    FROM sync_tasks AS t
-    WHERE t.status = 'completed'
-      AND (
-        (t.entity_type = 'tracking_event' AND t.entity_id IN (
-          SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
-        ))
-        OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
-          SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
-        ))
-        OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
-          SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
-        ))
-        OR (
-          t.entity_type = 'tracking_session'
-          AND t.operation IN ('start', 'stop')
-          AND t.entity_id IN (
-            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
-          )
-        )
-      )
-    ''',
-    variables: [
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-    ],
-    readsFrom: {
-      db.syncTasks,
-      db.trackingEvents,
-      db.trackingEventMedia,
-      db.trackingCandidates,
-      db.trackingSessions,
-    },
-  );
-
-  return query
-      .watchSingle()
-      .map((row) => _coerceRefreshTickMillis(row.data['refresh_tick']))
-      .where((tick) => tick > 0)
-      .distinct()
-      .transform(
-        const _TrailingDebounceStreamTransformer<int>(Duration(seconds: 2)),
-      );
+  // V1 refresh signal removed — V2 uses local timeline compiler.
+  return const Stream<int>.empty();
 });
 
 /// Fetches compiled projection with one shared fetch path:
@@ -163,48 +117,21 @@ final compiledProjectionRemoteProvider =
   return controller.stream;
 });
 
-final _trackingEventsForTripProvider =
-    StreamProvider.autoDispose.family<List<TrackingEventRow>, String>((
-  ref,
-  tripId,
-) {
-  final trackingEventDao = ref.watch(trackingEventDaoProvider);
-  return trackingEventDao.watchEventsForTrip(tripId);
-});
-
 final compiledProjectionViewProvider =
     Provider.autoDispose.family<AsyncValue<CompiledProjectionView>, String>((
   ref,
   tripId,
 ) {
   final remote = ref.watch(compiledProjectionRemoteProvider(tripId));
-  final localEvents = ref.watch(_trackingEventsForTripProvider(tripId)).value ??
-      const <TrackingEventRow>[];
 
   return remote.when(
     data: (snapshot) => AsyncValue.data(
       CompiledProjectionView.merge(
         remote: snapshot,
-        localEvents: localEvents,
+        localEvents: const [],
       ),
     ),
-    loading: () {
-      final fallback = CompiledProjectionView.merge(
-        remote: const CompiledProjectionSnapshot(
-          tripId: '',
-          compilerVersion: 1,
-          stale: false,
-          timelineEntries: <CompiledTimelineEntry>[],
-          timelineGroups: <CompiledTimelineDayGroup>[],
-          routeSegments: <CompiledRouteSegment>[],
-        ),
-        localEvents: localEvents,
-        remoteUnavailable: false,
-      );
-      return localEvents.isEmpty
-          ? const AsyncValue.loading()
-          : AsyncValue.data(fallback);
-    },
+    loading: () => const AsyncValue.loading(),
     error: (error, stackTrace) => AsyncValue.data(
       CompiledProjectionView.merge(
         remote: const CompiledProjectionSnapshot(
@@ -215,7 +142,7 @@ final compiledProjectionViewProvider =
           timelineGroups: <CompiledTimelineDayGroup>[],
           routeSegments: <CompiledRouteSegment>[],
         ),
-        localEvents: localEvents,
+        localEvents: const [],
         remoteUnavailable: true,
       ),
     ),
@@ -243,71 +170,19 @@ class CompiledProjectionView {
 
   factory CompiledProjectionView.merge({
     required CompiledProjectionSnapshot remote,
-    required List<TrackingEventRow> localEvents,
+    List<dynamic> localEvents = const [],
     bool remoteUnavailable = false,
   }) {
-    final remoteEntries =
-        List<CompiledTimelineEntry>.from(remote.timelineEntries);
-    final remoteSourceIds = remoteEntries
-        .where((entry) => entry.sourceKind == 'tracking_event')
-        .map((entry) => entry.sourceId)
-        .where((sourceId) => sourceId.isNotEmpty)
-        .toSet();
-    final remoteClientEventIds = remoteEntries
-        .map((entry) => entry.clientEventId?.trim())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet();
+    final entries =
+        List<CompiledTimelineEntry>.from(remote.timelineEntries)
+          ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
 
-    final overlayEntries = <CompiledTimelineEntry>[];
-    for (final row in localEvents) {
-      if (!_isStorylineEventType(row.eventType)) {
-        continue;
-      }
-      final clientEventId = _normalizedClientEventId(row);
-      if ((clientEventId != null &&
-              remoteClientEventIds.contains(clientEventId)) ||
-          remoteSourceIds.contains(row.id)) {
-        continue;
-      }
-      overlayEntries.add(
-        CompiledTimelineEntry(
-          entryId: 'local_tracking_event:${row.id}',
-          sourceKind: 'tracking_event_local',
-          sourceId: row.id,
-          eventType: row.eventType,
-          capturedAt: row.createdAt.toUtc(),
-          bucketType:
-              (row.resolvedPlaceId != null && row.resolvedPlaceId!.isNotEmpty)
-                  ? 'place'
-                  : 'on_route',
-          placeId: row.resolvedPlaceId,
-          placeName: null,
-          bindSource: 'none',
-          bindConfidence: row.bindConfidence,
-          reasonCode: row.resolverReasonCode,
-          title: _titleForLocalRow(row),
-          subtitle: _isSynced(row.syncStatus)
-              ? _subtitleForSyncedLocalRow(row)
-              : _subtitleForLocalRow(row),
-          payload: _payloadForLocalRow(row),
-          clientEventId: clientEventId,
-          isLocalPending: !_isSynced(row.syncStatus),
-        ),
-      );
-    }
-
-    final merged = <CompiledTimelineEntry>[
-      ...remoteEntries,
-      ...overlayEntries,
-    ]..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
-
-    final grouped = _groupEntriesByDay(merged);
+    final grouped = _groupEntriesByDay(entries);
     return CompiledProjectionView(
       tripId: remote.tripId,
       stale: remote.stale,
       remoteUnavailable: remoteUnavailable,
-      entries: merged,
+      entries: entries,
       dayGroups: grouped,
       routeSegments: remote.routeSegments,
     );
@@ -346,73 +221,6 @@ List<CompiledProjectionDayGroup> _groupEntriesByDay(
         ),
       )
       .toList(growable: false);
-}
-
-bool _isStorylineEventType(String eventType) =>
-    eventType == 'note' ||
-    eventType == 'warn' ||
-    eventType == 'tag' ||
-    eventType == 'photo' ||
-    eventType == 'media';
-
-bool _isSynced(String syncStatus) => syncStatus.toLowerCase() == 'synced';
-
-String? _normalizedClientEventId(TrackingEventRow row) {
-  final value = row.clientEventId?.trim();
-  if (value == null || value.isEmpty) {
-    return row.id;
-  }
-  return value;
-}
-
-String _titleForLocalRow(TrackingEventRow row) {
-  final note = row.note?.trim();
-  if (note != null && note.isNotEmpty) {
-    return note;
-  }
-  switch (row.eventType) {
-    case 'warn':
-      return 'Warning captured';
-    case 'tag':
-      return 'Tag captured';
-    default:
-      return 'Note captured';
-  }
-}
-
-String _subtitleForLocalRow(TrackingEventRow row) {
-  final status = row.syncStatus.trim().isEmpty ? 'pending' : row.syncStatus;
-  return 'Pending sync ($status)';
-}
-
-String _subtitleForSyncedLocalRow(TrackingEventRow row) {
-  final resolverState = row.resolverState.trim();
-  if (resolverState == 'resolved') return 'Synced';
-  if (resolverState == 'review_required') {
-    return 'Synced - needs place confirmation';
-  }
-  return 'Synced - on route';
-}
-
-Map<String, dynamic> _payloadForLocalRow(TrackingEventRow row) {
-  final payload = _decodeJsonMap(row.payloadJson);
-  final clientEventId = row.clientEventId?.trim();
-  if (clientEventId != null && clientEventId.isNotEmpty) {
-    payload.putIfAbsent('client_event_id', () => clientEventId);
-  }
-  final resolverState = row.resolverState.trim();
-  if (resolverState.isNotEmpty) {
-    payload['resolver_state'] = resolverState;
-  }
-  final hintJson = row.resolutionHintJson?.trim() ?? '';
-  if (hintJson.isNotEmpty) {
-    payload['resolution_hint_json'] = hintJson;
-    final parsedHints = _decodeJsonList(hintJson);
-    if (parsedHints != null) {
-      payload.putIfAbsent('resolver_hints', () => parsedHints);
-    }
-  }
-  return payload;
 }
 
 Map<String, dynamic> _decodeJsonMap(String raw) {

@@ -11,9 +11,7 @@ import 'package:dora/core/media/app_media_uploader.dart';
 import 'package:dora/core/media/image_compressor.dart';
 import 'package:dora/core/media/models/queued_media_task.dart';
 import 'package:dora/core/media/thumbnail_generator.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/place_repository.dart';
 
 class UploadQueueWorker {
@@ -29,7 +27,6 @@ class UploadQueueWorker {
         _uploader = uploader,
         _imageCompressor = imageCompressor,
         _thumbnailGenerator = thumbnailGenerator,
-        _syncTaskDao = SyncTaskDao(database),
         _maxConcurrency = maxConcurrency;
 
   final AppDatabase _database;
@@ -37,7 +34,6 @@ class UploadQueueWorker {
   final AppMediaUploader _uploader;
   final ImageCompressor _imageCompressor;
   final ThumbnailGenerator _thumbnailGenerator;
-  final SyncTaskDao _syncTaskDao;
   final int _maxConcurrency;
 
   static const int _maxRetryAttempts = 3;
@@ -348,67 +344,11 @@ class UploadQueueWorker {
   Future<void> _ensureEntityDependenciesReady(QueuedMediaTask task) async {
     final place = await _placeRepository.getPlace(task.placeId);
     final remotePlaceId = place?.serverPlaceId;
-    if (remotePlaceId != null && remotePlaceId.isNotEmpty) {
-      // Already bound to a backend place id; media upload can proceed even if
-      // unrelated entity sync tasks are still pending.
-      return;
-    }
-
-    final tripTask = await _syncTaskDao.getTaskByEntity(
-      entityType: SyncEntityTypes.trip,
-      entityId: task.tripId,
-    );
-    _throwIfDependencyNotReady(
-      task: tripTask,
-      dependencyLabel: 'trip',
-      dependencyEntityId: task.tripId,
-    );
-
-    final placeTask = await _syncTaskDao.getTaskByEntity(
-      entityType: SyncEntityTypes.place,
-      entityId: task.placeId,
-    );
-    _throwIfDependencyNotReady(
-      task: placeTask,
-      dependencyLabel: 'place',
-      dependencyEntityId: task.placeId,
-    );
-  }
-
-  void _throwIfDependencyNotReady({
-    required SyncTaskRow? task,
-    required String dependencyLabel,
-    required String dependencyEntityId,
-  }) {
-    if (task == null || task.status == 'completed') {
-      return;
-    }
-
-    final reason = task.errorMessage;
-    final status = task.status;
-    if (status == 'blocked') {
-      throw PlaceIdentityException(
-        'Upload blocked: $dependencyLabel dependency is blocked '
-        '(entityId=$dependencyEntityId). ${reason ?? 'Resolve dependency and retry.'}',
-      );
-    }
-
-    if (status == 'queued' ||
-        status == 'in_progress' ||
-        status == 'failed' ||
-        status == 'pending' ||
-        status == 'deferred') {
+    if (remotePlaceId == null || remotePlaceId.isEmpty) {
       throw _DependencyDeferredException(
-        'Waiting for $dependencyLabel sync (status=$status, entityId=$dependencyEntityId).',
+        'Waiting for place sync (entityId=${task.placeId}).',
       );
     }
-
-    // Be forward/backward compatible with unexpected statuses.
-    // Treat unknown states as temporary so uploads can self-recover.
-    throw _DependencyDeferredException(
-      'Waiting for $dependencyLabel sync '
-      '(status=$status, entityId=$dependencyEntityId).',
-    );
   }
 
   Duration _backoffForRetry(int retryCount) {

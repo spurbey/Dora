@@ -47,6 +47,15 @@ class _FakeGeocodingService implements AppGeocodingService {
     if (results.isEmpty) return null;
     return results.first;
   }
+
+  @override
+  Future<List<GeocodingResult>> searchNearbyPoi(
+    AppLatLng center, {
+    int radiusMeters = 150,
+    int limit = 5,
+  }) async {
+    return [];
+  }
 }
 
 class _FakeEditorController extends EditorController {

@@ -79,11 +79,49 @@ Reference: [Execution Plan V2](./execution-plan-v2.md)
 
 ## Phase 8: Legacy Path Deactivation
 
-- [ ] V1 entity sync lanes disabled for V2 cohorts.
+- [x] V1 entity sync lanes disabled for V2 cohorts.
 - [ ] V1 projection refresh churn disabled for V2 cohorts.
 - [ ] V2 telemetry confirms no flood behavior.
 
 ## Phase 9: Legacy Deletion + Hardening
+
+**Status: Partially complete (2026-04-17)**
+
+### Completed (commits `7eb383d`, `fcf1022`, `fba465a`, `e20d805`)
+
+Backend deletions:
+- [x] `backend/app/api/v1/live_tracking.py` — V1 tracking endpoints removed
+- [x] `backend/app/services/live_tracking_service.py` — V1 service removed
+- [x] `backend/app/workers/live_tracking_worker.py` — V1 worker removed
+- [x] `backend/app/schemas/live_tracking.py` — V1 schemas removed
+- [x] V1 models removed: `trip_tracking_session.py`, `trip_tracking_notification.py`, `trip_tracking_notification_event.py`, `trip_moment.py`, `trip_checkin_candidate.py`, `trip_auto_entity_tombstone.py`
+- [x] V1 backend tests removed: `test_live_tracking_endpoints.py`, `test_live_tracking_worker.py`
+
+Flutter deletions:
+- [x] V1 Drift tables removed: `tracking_sessions`, `tracking_point_batches`, `tracking_events`, `tracking_event_media`, `tracking_moments`, `tracking_candidates`
+- [x] V1 DAOs removed: `sync_task_dao.dart`, `tracking_session_dao.dart`, `tracking_point_batch_dao.dart`, `tracking_event_dao.dart`, `tracking_event_media_dao.dart`, `tracking_moment_dao.dart`, `tracking_candidate_dao.dart`
+- [x] V1 sync workers removed: `tracking_sync_worker.dart`, `entity_sync_worker.dart`, `tracking_sync_bootstrap.dart`, `entity_sync_bootstrap.dart`
+- [x] V1 providers removed: `live_tracking_runtime_provider.dart`, `tracking_sync_provider.dart`, `entity_sync_provider.dart`, `live_tracking_candidate_provider.dart`, `live_tracking_moment_provider.dart`
+- [x] V1 repositories removed: `live_tracking_runtime_repository.dart`, `live_tracking_candidate_repository.dart`, `live_tracking_moment_repository.dart`, `live_tracking_capture_coordinator.dart`, `live_tracking_event_repository.dart`, `live_tracking_event_resolver.dart`
+- [x] V1 widgets removed: `live_tracking_map_overlay.dart`, `live_tracking_candidate_inbox_strip.dart`, `live_tracking_moment_strip.dart`
+- [x] V1 tests removed: All `live_tracking_*_test.dart` files in `test/features/create/` and `test/features/live_capture/`
+- [x] Drift database regenerated without V1 tables
+
+### NOT YET DONE (blockers for "single V2 system")
+
+1. **`editor_sync_status_provider.dart`** — SQL still queries deleted V1 tables (`tracking_sessions`, `tracking_point_batches`, `tracking_moments`, `tracking_candidates`, `tracking_events`, `tracking_event_media`). **Will crash at runtime.**
+
+2. **`sync_tasks` table** — Still in Drift schema (`drift_database.dart:61`) and still used by `export_repository.dart:436`. Orphaned V1 infrastructure.
+
+3. **`lib/core/live_tracking/`** — Untracked directory imported by tracked code. Clean checkout will fail.
+
+4. **`live_tracking_api.dart`** — V1 API methods still exist (lines ~453-538+), calling deleted `/api/v1/tracking/*` endpoints.
+
+5. **V1/V2 gate logic** — `liveSystemV2RolloutGateProvider` still evaluates in editor. Should be removed or hardcoded to V2.
+
+6. **Backend V1 compiled_projection** — Endpoint at `/api/v1/compiled/projection` still served but unused by V2.
+
+7. **Backend tests** — `test_advisory_lifecycle_hooks.py` and `test_compiled_projection_endpoints.py` may reference deleted V1 modules.
 
 - [ ] Legacy modules removed after soak/pass gates.
 - [ ] Docs/runbooks/alerts finalized.

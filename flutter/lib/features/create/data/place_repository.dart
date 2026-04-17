@@ -679,29 +679,6 @@ class PlaceRepository {
       authorization: 'Bearer $token',
     );
   }
-
-  Future<DateTime?> _tryFetchRemotePlaceUpdatedAt(String remotePlaceId) async {
-    final placesApi = _placesApi;
-    final authService = _authService;
-    if (placesApi == null || authService == null) {
-      return null;
-    }
-
-    final token = await authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      return null;
-    }
-
-    try {
-      final response = await placesApi.getPlaceApiV1PlacesPlaceIdGet(
-        placeId: remotePlaceId,
-        authorization: 'Bearer $token',
-      );
-      return response.data?.updatedAt;
-    } catch (_) {
-      return null;
-    }
-  }
 }
 
 class PlaceIdentityException implements Exception {

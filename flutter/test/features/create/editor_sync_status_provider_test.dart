@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 
 void main() {
@@ -127,7 +126,7 @@ void main() {
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-1',
-            entityType: SyncEntityTypes.trackingSession,
+            entityType: 'tracking_session',
             entityId: 'tracking-session-1',
             operation: 'start',
             status: const Value('blocked'),
@@ -158,7 +157,7 @@ void main() {
         .read(editorSyncStatusProvider('trip-tracking-1').future);
     expect(status.kind, EditorSyncStatusKind.blocked);
     expect(status.snapshot.firstBlockedTaskEntityType,
-        SyncEntityTypes.trackingSession);
+        'tracking_session');
     expect(status.snapshot.firstBlockedTaskEntityId, 'tracking-session-1');
   });
 
@@ -193,7 +192,7 @@ void main() {
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-place-blocked-1',
-            entityType: SyncEntityTypes.place,
+            entityType: 'place',
             entityId: 'place-live-scope-1',
             operation: 'update',
             status: const Value('blocked'),
@@ -257,7 +256,7 @@ void main() {
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-blocked-1',
-            entityType: SyncEntityTypes.trackingSession,
+            entityType: 'tracking_session',
             entityId: 'tracking-session-live-scope-1',
             operation: 'start',
             status: const Value('blocked'),
@@ -288,7 +287,7 @@ void main() {
         .read(liveTrackingSyncStatusProvider('trip-live-scope-2').future);
     expect(liveStatus.kind, EditorSyncStatusKind.blocked);
     expect(liveStatus.snapshot.firstBlockedTaskEntityType,
-        SyncEntityTypes.trackingSession);
+        'tracking_session');
   });
 
   test('liveTrackingSyncStatusProvider ignores start 409 policy blocks',
@@ -322,7 +321,7 @@ void main() {
     await db.into(db.syncTasks).insert(
           SyncTasksCompanion.insert(
             id: 'task-tracking-session-blocked-409',
-            entityType: SyncEntityTypes.trackingSession,
+            entityType: 'tracking_session',
             entityId: 'tracking-session-live-scope-3',
             operation: 'start',
             status: const Value('blocked'),

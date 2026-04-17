@@ -626,28 +626,6 @@ class TripRepository {
     );
   }
 
-  Future<DateTime?> _tryFetchRemoteTripUpdatedAt(String remoteTripId) async {
-    final tripsApi = _tripsApi;
-    if (tripsApi == null) {
-      return null;
-    }
-
-    final token = await _authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      return null;
-    }
-
-    try {
-      final response = await tripsApi.getTripApiV1TripsTripIdGet(
-        tripId: remoteTripId,
-        authorization: 'Bearer $token',
-      );
-      return response.data?.updatedAt;
-    } catch (_) {
-      return null;
-    }
-  }
-
   String _mapTripCreateFailure(DioException error) {
     final statusCode = error.response?.statusCode;
     if (statusCode == 401) {

@@ -138,7 +138,7 @@ class LiveTrackingRuntimeRepository {
     String? timezone,
     Map<String, dynamic>? deviceContext,
   }) async {
-final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+    final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     final now = _now().toUtc();
@@ -186,7 +186,7 @@ final existing = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
   Future<TrackingSessionRow?> pauseSession({
     required String tripId,
   }) async {
-final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     if (session == null) {
@@ -225,7 +225,7 @@ final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
   Future<TrackingSessionRow?> resumeSession({
     required String tripId,
   }) async {
-final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
+    final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       tripId,
     );
     if (session == null) {
@@ -324,7 +324,6 @@ final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
       }
 
       final now = _now().toUtc();
-      late final String targetBatchId;
       if (mutableBatch != null &&
           _canAppendToBatch(batch: mutableBatch, recordedAt: recordedAt)) {
         final points = _decodePointList(mutableBatch.pointsJson)
@@ -358,7 +357,6 @@ final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
             updatedAt: now,
           ),
         );
-        targetBatchId = mutableBatch.id;
       } else {
         final batchId = _uuid.v4();
         await _trackingPointBatchDao.upsertBatch(
@@ -385,7 +383,6 @@ final session = await _trackingSessionDao.getActiveOrPausedSessionForTrip(
             updatedAt: now,
           ),
         );
-        targetBatchId = batchId;
       }
 
       await _trackingSessionDao.markLastPointAt(

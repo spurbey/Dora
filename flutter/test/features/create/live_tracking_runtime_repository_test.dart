@@ -6,11 +6,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/network/live_tracking_api.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/daos/tracking_point_batch_dao.dart';
 import 'package:dora/core/storage/daos/tracking_session_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
-import 'package:dora/core/sync/live_tracking_sync_primitives.dart';
 import 'package:dora/features/create/data/live_tracking_runtime_repository.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 
@@ -109,6 +107,82 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> uploadPointsBatch({
     required String tripId,
     required String idempotencyKey,
@@ -158,6 +232,16 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   Future<Map<String, dynamic>> rebindCompiledProjection({
     required String tripId,
     required String sourceEventId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
     required String action,
     String? tripPlaceId,
   }) {
@@ -264,7 +348,6 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
 void main() {
   group('LiveTrackingRuntimeRepository', () {
     late AppDatabase database;
-    late SyncTaskDao syncTaskDao;
     late TrackingSessionDao sessionDao;
     late TrackingPointBatchDao batchDao;
     late _FakeClock clock;
@@ -273,14 +356,12 @@ void main() {
 
     setUp(() {
       database = AppDatabase(NativeDatabase.memory());
-      syncTaskDao = SyncTaskDao(database);
       sessionDao = TrackingSessionDao(database);
       batchDao = TrackingPointBatchDao(database);
       clock = _FakeClock(DateTime.utc(2026, 3, 23, 12, 0));
       liveTrackingApi = _FakeLiveTrackingApi();
       repository = LiveTrackingRuntimeRepository(
         database,
-        syncTaskDao: syncTaskDao,
         trackingSessionDao: sessionDao,
         trackingPointBatchDao: batchDao,
         liveTrackingApi: liveTrackingApi,
@@ -312,12 +393,6 @@ void main() {
       expect(session.deviceContextJson, contains('"platform":"android"'));
       expect(session.remoteSessionId, 'remote-remote-trip-trip-1');
 
-      final sessionTask = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: session.id,
-      );
-      expect(sessionTask, isNull);
-
       final repeated = await repository.startSession(
         tripId: 'trip-1',
       );
@@ -331,7 +406,6 @@ void main() {
         () async {
       final failingRepository = LiveTrackingRuntimeRepository(
         database,
-        syncTaskDao: syncTaskDao,
         trackingSessionDao: sessionDao,
         trackingPointBatchDao: batchDao,
         liveTrackingApi: liveTrackingApi,
@@ -351,12 +425,6 @@ void main() {
               .having((e) => e.code, 'code', 'tracking_trip_identity_missing'),
         ),
       );
-
-      final trackingSessionTask = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: 'trip-missing-identity',
-      );
-      expect(trackingSessionTask, isNull);
     });
 
     test('start session repairs stale trip identity on command 404', () async {
@@ -391,7 +459,6 @@ void main() {
 
       final staleRepository = LiveTrackingRuntimeRepository(
         database,
-        syncTaskDao: syncTaskDao,
         trackingSessionDao: sessionDao,
         trackingPointBatchDao: batchDao,
         liveTrackingApi: liveTrackingApi,
@@ -415,14 +482,6 @@ void main() {
       expect(clearCalled, isTrue);
       expect(clearLocalTripId, 'trip-404');
       expect(clearExpectedRemoteTripId, 'remote-trip-trip-404');
-
-      final tripTask = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trip,
-        entityId: 'trip-404',
-      );
-      expect(tripTask, isNotNull);
-      expect(tripTask!.operation, 'create');
-      expect(tripTask.status, 'queued');
     });
 
     test('start session hydrates existing active session missing remote id',
@@ -446,11 +505,6 @@ void main() {
       final existing = await repository.startSession(tripId: 'trip-1');
       expect(existing.id, 'session-existing-1');
 
-      final task = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: 'session-existing-1',
-      );
-      expect(task, isNull);
       final refreshed = await sessionDao.getSessionById('session-existing-1');
       expect(refreshed, isNotNull);
       expect(refreshed!.remoteSessionId, 'remote-remote-trip-trip-1');
@@ -467,33 +521,18 @@ void main() {
       expect(paused, isNotNull);
       expect(paused!.state, 'paused');
       expect(paused.pausedAt, isNotNull);
-      var task = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: started.id,
-      );
-      expect(task, isNull);
 
       clock.advance(const Duration(seconds: 10));
       final resumed = await repository.resumeSession(tripId: 'trip-2');
       expect(resumed, isNotNull);
       expect(resumed!.state, 'active');
       expect(resumed.resumedAt, isNotNull);
-      task = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: started.id,
-      );
-      expect(task, isNull);
 
       clock.advance(const Duration(seconds: 10));
       final stopped = await repository.stopSession(tripId: 'trip-2');
       expect(stopped, isNotNull);
       expect(stopped!.state, 'ended');
       expect(stopped.endedAt, isNotNull);
-      task = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingSession,
-        entityId: started.id,
-      );
-      expect(task, isNull);
 
       final snapshot = await repository.getRuntimeSnapshot('trip-2');
       expect(snapshot.state, LiveTrackingRuntimeState.ended);
@@ -519,15 +558,6 @@ void main() {
       var batches = await batchDao.getBatchesForSession(session.id);
       expect(batches.length, 1);
       expect(batches.first.pointCount, 1);
-      final firstBatchTask = await syncTaskDao.getTaskByEntity(
-        entityType: SyncEntityTypes.trackingPointBatch,
-        entityId: batches.first.id,
-      );
-      expect(firstBatchTask, isNotNull);
-      expect(firstBatchTask!.operation, 'upload');
-      expect(
-          firstBatchTask.dependsOnEntityType, SyncEntityTypes.trackingSession);
-      expect(firstBatchTask.dependsOnEntityId, session.id);
 
       clock.advance(const Duration(seconds: 2));
       final droppedNearDuplicate = await repository.ingestPoint(

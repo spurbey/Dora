@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
-import 'package:dora/core/storage/daos/sync_task_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
 
@@ -50,7 +49,6 @@ void main() {
   group('TripRepository.setEditorViewport', () {
     late AppDatabase database;
     late TripRepository repository;
-    late SyncTaskDao syncTaskDao;
 
     setUp(() async {
       database = AppDatabase(NativeDatabase.memory());
@@ -58,7 +56,6 @@ void main() {
         database,
         const _FakeAuthService(),
       );
-      syncTaskDao = SyncTaskDao(database);
 
       final now = DateTime.utc(2026, 2, 25);
       await database.tripDao.insertTrip(
@@ -83,10 +80,7 @@ void main() {
       await database.close();
     });
 
-    test('persists viewport locally without enqueueing sync tasks', () async {
-      final beforeTasks = await syncTaskDao.getActiveTasks(limit: 20);
-      expect(beforeTasks, isEmpty);
-
+    test('persists viewport locally', () async {
       await repository.setEditorViewport(
         tripId: 'trip-vp-1',
         centerPoint: const AppLatLng(latitude: 28.6139, longitude: 77.2090),
@@ -97,9 +91,6 @@ void main() {
       expect(trip, isNotNull);
       expect(trip!.centerPoint, const AppLatLng(latitude: 28.6139, longitude: 77.2090));
       expect(trip.zoom, 13.5);
-
-      final afterTasks = await syncTaskDao.getActiveTasks(limit: 20);
-      expect(afterTasks, isEmpty);
     });
   });
 }

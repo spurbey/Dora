@@ -495,29 +495,6 @@ class RouteRepository {
     return remoteRouteId;
   }
 
-  Future<DateTime?> _tryFetchRemoteRouteUpdatedAt(String remoteRouteId) async {
-    final routesApi = _routesApi;
-    final authService = _authService;
-    if (routesApi == null || authService == null) {
-      return null;
-    }
-
-    final token = await authService.getAccessToken();
-    if (token == null || token.isEmpty) {
-      return null;
-    }
-
-    try {
-      final response = await routesApi.getRouteApiV1RoutesRouteIdGet(
-        routeId: remoteRouteId,
-        authorization: 'Bearer $token',
-      );
-      return response.data?.updatedAt;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<String?> _resolveRemotePlaceId({
     required String? localPlaceId,
     required PlaceRepository placeRepository,

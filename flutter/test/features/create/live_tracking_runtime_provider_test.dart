@@ -687,6 +687,92 @@ class _PollingLiveTrackingApi implements LiveTrackingApi {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _FlakyLiveTrackingApi implements LiveTrackingApi {
@@ -902,6 +988,92 @@ class _FlakyLiveTrackingApi implements LiveTrackingApi {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
@@ -1114,6 +1286,92 @@ class _NoisyPathLiveTrackingApi implements LiveTrackingApi {
     required String clientEventId,
     required String pushToken,
     DateTime? deactivatedAt,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> startTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required DateTime startedAt,
+    String? timezone,
+    Map<String, dynamic>? deviceContext,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> stopTrackingV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientSessionId,
+    required int sealVersion,
+    required String stopClientEventId,
+    required DateTime stoppedAt,
+    String? reason,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishStartV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String clientJobId,
+    required int schemaVersion,
+    required Map<String, dynamic> publishSummary,
+    required List<Map<String, dynamic>> mediaManifest,
+    required String mediaManifestDigest,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishMediaCompleteV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required List<Map<String, dynamic>> uploadedMedia,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishPayloadChunkV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+    required int chunkIndex,
+    required int totalChunks,
+    required String chunkContentHash,
+    required String chunkJson,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> publishCommitV2({
+    required String tripId,
+    required String idempotencyKey,
+    required String publishToken,
+    required String clientJobId,
+    required int schemaVersion,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
+    required String tripId,
+    required String sourceMediaId,
+    required String action,
+    String? tripPlaceId,
   }) {
     throw UnimplementedError();
   }

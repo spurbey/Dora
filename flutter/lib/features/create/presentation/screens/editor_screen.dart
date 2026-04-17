@@ -1142,33 +1142,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     setState(() {
       _momentCreateInFlight = true;
     });
-    try {
-      // V1 moment creation removed — moments captured via V2 event journal.
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Moment captured. You can edit it anytime.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to capture moment. Try again.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _momentCreateInFlight = false;
-        });
-      }
+    // V1 moment creation removed — moments captured via V2 event journal.
+    if (mounted) {
+      setState(() {
+        _momentCreateInFlight = false;
+      });
     }
   }
 
@@ -1195,43 +1173,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     if (unchangedNote && unchangedLinkedPlace) {
       return;
     }
-    final didClearNote = _normalizeMomentNote(editResult.note) == null &&
-        _normalizeMomentNote(moment.note) != null;
-    final didClearLinkedPlace = editResult.linkedTripPlaceId == null &&
-        (moment.linkedTripPlaceId?.isNotEmpty ?? false);
-
-    setState(() {
-      _momentActionsInFlight.add(moment.id);
-    });
-    try {
-      // V1 moment update removed — moments managed via V2 event journal.
-      return;
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Moment update queued.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to queue moment update. Try again.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _momentActionsInFlight.remove(moment.id);
-        });
-      }
-    }
+    // V1 moment update removed — moments managed via V2 event journal.
   }
 
   Future<_MomentEditResult?> _promptForMomentEdit({
@@ -1272,17 +1214,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         noLinkedPlaceValue: _noLinkedMomentPlaceValue,
       ),
     );
-  }
-
-  String? _normalizeMomentNote(String? note) {
-    if (note == null) {
-      return null;
-    }
-    final trimmed = note.trim();
-    if (trimmed.isEmpty) {
-      return null;
-    }
-    return trimmed;
   }
 
   Future<void> _runLiveTrackingAction({

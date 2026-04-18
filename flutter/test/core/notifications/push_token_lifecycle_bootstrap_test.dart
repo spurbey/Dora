@@ -69,18 +69,6 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
-  Future<Map<String, dynamic>> startTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientSessionId,
-    required DateTime startedAt,
-    String? timezone,
-    Map<String, dynamic>? deviceContext,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<Map<String, dynamic>> startTrackingV2({
     required String tripId,
     required String idempotencyKey,
@@ -157,62 +145,6 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
-  Future<Map<String, dynamic>> pauseTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime pausedAt,
-    String? sessionId,
-    String? reason,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> resumeTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime resumedAt,
-    String? sessionId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> stopTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime stoppedAt,
-    String? sessionId,
-    String? reason,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> uploadPointsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required String sessionId,
-    required String clientBatchId,
-    required DateTime sentAt,
-    required List<Map<String, dynamic>> points,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> uploadEventsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required List<Map<String, dynamic>> events,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<Map<String, dynamic>> uploadTrackingMediaBinary({
     required String tripId,
     required String filePath,
@@ -230,104 +162,6 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
     throw UnimplementedError();
   }
 
-  @override
-  Future<Map<String, dynamic>> fetchCompiledProjection({
-    required String tripId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> rebindCompiledProjection({
-    required String tripId,
-    required String sourceEventId,
-    required String action,
-    String? tripPlaceId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
-    required String tripId,
-    required String sourceMediaId,
-    required String action,
-    String? tripPlaceId,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> fetchTrackingPath({
-    required String tripId,
-    String? sessionId,
-    int limit = 5000,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> confirmCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime confirmedAt,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> rejectCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime rejectedAt,
-    String? reason,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> snoozeCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime snoozedUntil,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> createMoment({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime capturedAt,
-    String? note,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    Map<String, dynamic>? extraPayload,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> updateMoment({
-    required String momentId,
-    required String idempotencyKey,
-    required String clientEventId,
-    DateTime? capturedAt,
-    String? note,
-    bool includeNote = false,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    bool includeLinkedTripPlaceId = false,
-    Map<String, dynamic>? extraPayload,
-  }) {
-    throw UnimplementedError();
-  }
 }
 
 class _FakePushTokenClient implements PushTokenClient {

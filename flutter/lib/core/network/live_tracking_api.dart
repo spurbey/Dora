@@ -83,31 +83,6 @@ abstract class LiveTrackingApi {
     required List<Map<String, dynamic>> media,
   });
 
-  Future<Map<String, dynamic>> fetchCompiledProjection({
-    required String tripId,
-  });
-
-  Future<Map<String, dynamic>> rebindCompiledProjection({
-    required String tripId,
-    required String sourceEventId,
-    required String action,
-    String? tripPlaceId,
-  });
-
-  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
-    required String tripId,
-    required String sourceMediaId,
-    required String action,
-    String? tripPlaceId,
-  }) {
-    return rebindCompiledProjection(
-      tripId: tripId,
-      sourceEventId: sourceMediaId,
-      action: action,
-      tripPlaceId: tripPlaceId,
-    );
-  }
-
   // ─── Push Notifications ─────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> registerDeviceToken({
@@ -134,24 +109,18 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     this._dio, {
     AuthTokenProvider? authTokenProvider,
     openapi.LiveTrackingApi? liveTrackingApi,
-    openapi.CompiledProjectionApi? compiledProjectionApi,
   })  : _authTokenProvider = authTokenProvider,
         _liveTrackingApi = liveTrackingApi ??
-            openapi.LiveTrackingApi(_dio, openapi.standardSerializers),
-        _compiledProjectionApi = compiledProjectionApi ??
-            openapi.CompiledProjectionApi(_dio, openapi.standardSerializers);
+            openapi.LiveTrackingApi(_dio, openapi.standardSerializers);
 
   final Dio _dio;
   final AuthTokenProvider? _authTokenProvider;
   final openapi.LiveTrackingApi _liveTrackingApi;
-  final openapi.CompiledProjectionApi _compiledProjectionApi;
 
-  static const String _apiV1Prefix = '/api/v1';
   static const String _apiV2Prefix = '/api/v2';
 
   static DateTime _toUtc(DateTime value) => value.toUtc();
 
-  static String _v1Path(String path) => '$_apiV1Prefix$path';
   static String _v2Path(String path) => '$_apiV2Prefix$path';
 
   static Map<String, dynamic> _asJsonMap(dynamic data) {
@@ -314,14 +283,6 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     }
 
     return '';
-  }
-
-  Options _idempotentOptions(String key) {
-    return Options(
-      headers: <String, dynamic>{
-        'X-Idempotency-Key': key,
-      },
-    );
   }
 
   Options _v2IdempotentOptions(String key) {
@@ -514,72 +475,6 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       xIdempotencyKey: idempotencyKey,
       authorization: await _authorizationHeader(),
       trackingMediaBatchRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> fetchCompiledProjection({
-    required String tripId,
-  }) async {
-    final response = await _compiledProjectionApi
-        .getCompiledProjectionApiV1TripsTripIdCompiledProjectionGet(
-      tripId: tripId,
-      authorization: await _authorizationHeader(),
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> rebindCompiledProjection({
-    required String tripId,
-    required String sourceEventId,
-    required String action,
-    String? tripPlaceId,
-  }) async {
-    final request = _deserialize<openapi.CompiledRebindRequest>(
-      <String, dynamic>{
-        'source_kind': 'tracking_event',
-        'source_event_id': sourceEventId,
-        'action': action,
-        if (tripPlaceId != null && tripPlaceId.isNotEmpty)
-          'trip_place_id': tripPlaceId,
-      },
-      const FullType(openapi.CompiledRebindRequest),
-    );
-
-    final response = await _compiledProjectionApi
-        .rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost(
-      tripId: tripId,
-      authorization: await _authorizationHeader(),
-      compiledRebindRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> rebindCompiledProjectionMedia({
-    required String tripId,
-    required String sourceMediaId,
-    required String action,
-    String? tripPlaceId,
-  }) async {
-    final request = _deserialize<openapi.CompiledRebindRequest>(
-      <String, dynamic>{
-        'source_kind': 'tracking_event_media',
-        'source_media_id': sourceMediaId,
-        'action': action,
-        if (tripPlaceId != null && tripPlaceId.isNotEmpty)
-          'trip_place_id': tripPlaceId,
-      },
-      const FullType(openapi.CompiledRebindRequest),
-    );
-
-    final response = await _compiledProjectionApi
-        .rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost(
-      tripId: tripId,
-      authorization: await _authorizationHeader(),
-      compiledRebindRequest: request,
     );
     return _asJsonMap(response.data);
   }

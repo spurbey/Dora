@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -24,9 +23,6 @@ import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
-import 'package:dora/features/create/domain/compiled_projection.dart';
-import 'package:dora/features/create/data/compiled_projection_repository.dart';
-import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
@@ -39,7 +35,6 @@ import 'package:dora/features/create/presentation/widgets/city_detail_form.dart'
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
 import 'package:dora/features/create/presentation/widgets/place_detail_form.dart';
-import 'package:dora/features/create/presentation/widgets/captured_storyline_panel.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/place_picker_sheet.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/route_control_strip.dart';
 import 'package:dora/features/create/presentation/widgets/route_studio/route_creation_strip.dart';
@@ -164,7 +159,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             ),
           ),
         );
-        const AsyncValue<CompiledProjectionView>? compiledProjectionAsync = null;
         final v2TimelineGroupsAsync =
             ref.watch(v2TimelineGroupsProvider(widget.tripId));
         final v2RouteProjectionAsync =
@@ -194,7 +188,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
         ];
         final routes = [...mapState.routes];
-        final routeSegments = v2RouteProjectionAsync?.valueOrNull ??
+        final routeSegments = v2RouteProjectionAsync.valueOrNull ??
             const <V2RouteProjectionSegment>[];
         for (final segment in routeSegments) {
           if (segment.geometry.length < 2) {
@@ -270,7 +264,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                             selectedIcon,
                             pendingMediaCount,
                             selectedPlaceId,
-                            compiledProjectionAsync,
                             useV2ReviewLane,
                             v2TimelineGroupsAsync,
                           )
@@ -285,7 +278,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                             selectedIcon,
                             pendingMediaCount,
                             selectedPlaceId,
-                            compiledProjectionAsync,
                             useV2ReviewLane,
                             v2TimelineGroupsAsync,
                           ),
@@ -297,7 +289,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                 ? _buildMobileFab(
                     editor,
                     controller,
-                    compiledProjectionAsync,
                     useV2ReviewLane,
                     v2TimelineGroupsAsync,
                   )
@@ -313,7 +304,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   Widget _buildMobileFab(
     EditorState editor,
     EditorController controller,
-    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
     bool useV2Projection,
     AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
@@ -321,7 +311,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       onPressed: () => _showTimelineSheet(
         editor,
         controller,
-        compiledProjectionAsync,
         useV2Projection,
         v2TimelineGroupsAsync,
       ),
@@ -1211,285 +1200,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   }
 
   Widget? _buildCapturedStorylinePanel({
-    required EditorState editor,
     required bool useV2Projection,
-    required AsyncValue<CompiledProjectionView>? projectionAsync,
     required AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   }) {
-    if (useV2Projection) {
-      if (v2TimelineGroupsAsync == null) {
-        return null;
-      }
-      return v2TimelineGroupsAsync.when(
-        data: (groups) {
-          if (groups.isEmpty) {
-            return null;
-          }
-          return V2CapturedStorylinePanel(groups: groups);
-        },
-        loading: () => null,
-        error: (_, __) => null,
-      );
-    }
-    if (projectionAsync == null) {
+    if (!useV2Projection || v2TimelineGroupsAsync == null) {
       return null;
     }
-    return projectionAsync.when(
-      data: (view) {
-        if (!view.hasEntries && !view.remoteUnavailable) {
+    return v2TimelineGroupsAsync.when(
+      data: (groups) {
+        if (groups.isEmpty) {
           return null;
         }
-        return CapturedStorylinePanel(
-          view: view,
-          resolvePlaceName: (placeId) {
-            for (final place in editor.places) {
-              if (place.id == placeId || place.serverPlaceId == placeId) {
-                return place.name;
-              }
-            }
-            return null;
-          },
-          onAssignPlace: (entry) => unawaited(
-            _assignPlaceToCompiledEntry(
-              entry: entry,
-              editor: editor,
-            ),
-          ),
-        );
+        return V2CapturedStorylinePanel(groups: groups);
       },
       loading: () => null,
       error: (_, __) => null,
     );
-  }
-
-  Future<void> _assignPlaceToCompiledEntry({
-    required CompiledTimelineEntry entry,
-    required EditorState editor,
-  }) async {
-    if (!mounted) {
-      return;
-    }
-    final supportedSourceKind = entry.sourceKind == 'tracking_event' ||
-        entry.sourceKind == 'tracking_event_media';
-    if (entry.isLocalPending || !supportedSourceKind) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wait for sync, then assign this capture to a place.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    final assignablePlaces =
-        editor.places.where((place) => place.placeType != 'city').toList();
-    final hintOptions = _resolveAssignPlaceHintOptions(
-      entry: entry,
-      assignablePlaces: assignablePlaces,
-    );
-    if (assignablePlaces.isEmpty &&
-        hintOptions.every((hint) => hint.placeId == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No assignable places available yet. Add a destination, then assign.',
-          ),
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    final selectedPlaceId = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: ListView(
-            children: [
-              if (hintOptions.isNotEmpty) ...[
-                const ListTile(
-                  dense: true,
-                  title: Text(
-                    'Probable places',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                for (final hint in hintOptions)
-                  ListTile(
-                    leading: const Icon(Icons.auto_awesome_outlined),
-                    title: Text(hint.label),
-                    subtitle: Text(
-                      hint.placeId == null
-                          ? 'Suggestion only. Add this place first if needed.'
-                          : '${(hint.confidence * 100).round()}% confidence',
-                    ),
-                    enabled: hint.placeId != null,
-                    onTap: hint.placeId == null
-                        ? null
-                        : () => Navigator.of(sheetContext).pop(hint.placeId),
-                  ),
-              ],
-              if (assignablePlaces.isNotEmpty) ...[
-                const ListTile(
-                  dense: true,
-                  title: Text(
-                    'Trip places',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                for (final place in assignablePlaces)
-                  ListTile(
-                    leading: const Icon(Icons.place_outlined),
-                    title: Text(place.name),
-                    subtitle: place.address?.trim().isNotEmpty == true
-                        ? Text(place.address!.trim())
-                        : null,
-                    onTap: () => Navigator.of(sheetContext).pop(place.id),
-                  ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-
-    if (selectedPlaceId == null || selectedPlaceId.isEmpty || !mounted) {
-      return;
-    }
-
-    try {
-      final repository = ref.read(compiledProjectionRepositoryProvider);
-      final result = await repository.rebind(
-        tripId: widget.tripId,
-        sourceKind: entry.sourceKind,
-        sourceEventId:
-            entry.sourceKind == 'tracking_event' ? entry.sourceId : null,
-        sourceMediaId:
-            entry.sourceKind == 'tracking_event_media' ? entry.sourceId : null,
-        action: CompiledRebindAction.bind,
-        tripPlaceId: selectedPlaceId,
-      );
-      if (result == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Syncing in progress. Try again shortly.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        return;
-      }
-      ref.invalidate(compiledProjectionRemoteProvider(widget.tripId));
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Capture assigned to place.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to assign place. Try again.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  List<_AssignPlaceHintOption> _resolveAssignPlaceHintOptions({
-    required CompiledTimelineEntry entry,
-    required List<Place> assignablePlaces,
-  }) {
-    final rawHints = _readResolverHintsFromPayload(entry.payload);
-    if (rawHints.isEmpty) {
-      return const <_AssignPlaceHintOption>[];
-    }
-
-    String? resolveLocalPlaceId(String rawId) {
-      final trimmed = rawId.trim();
-      if (trimmed.isEmpty) {
-        return null;
-      }
-      for (final place in assignablePlaces) {
-        if (place.id == trimmed || place.serverPlaceId == trimmed) {
-          return place.id;
-        }
-      }
-      return null;
-    }
-
-    final options = <_AssignPlaceHintOption>[];
-    final seen = <String>{};
-    for (final hint in rawHints) {
-      final name = hint['name']?.toString().trim();
-      if (name == null || name.isEmpty) {
-        continue;
-      }
-      final rawPlaceId = hint['place_id']?.toString();
-      final placeId =
-          rawPlaceId == null ? null : resolveLocalPlaceId(rawPlaceId);
-      final confidence = _toDouble(hint['confidence']) ?? 0;
-      final key = '${placeId ?? 'none'}:${name.toLowerCase()}';
-      if (!seen.add(key)) {
-        continue;
-      }
-      options.add(
-        _AssignPlaceHintOption(
-          label: name,
-          confidence: confidence,
-          placeId: placeId,
-        ),
-      );
-      if (options.length >= 3) {
-        break;
-      }
-    }
-    return options;
-  }
-
-  List<Map<String, dynamic>> _readResolverHintsFromPayload(
-    Map<String, dynamic> payload,
-  ) {
-    final directList = payload['resolver_hints'] ?? payload['resolution_hints'];
-    if (directList is List) {
-      return directList
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList(growable: false);
-    }
-
-    final rawJson =
-        payload['resolution_hint_json'] ?? payload['resolver_hint_json'];
-    if (rawJson is String && rawJson.trim().isNotEmpty) {
-      try {
-        final decoded = jsonDecode(rawJson);
-        if (decoded is List) {
-          return decoded
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList(growable: false);
-        }
-      } catch (_) {
-        return const <Map<String, dynamic>>[];
-      }
-    }
-    return const <Map<String, dynamic>>[];
-  }
-
-  double? _toDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String) {
-      return double.tryParse(value);
-    }
-    return null;
   }
 
   Widget _buildWideLayout(
@@ -1503,7 +1229,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
-    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
     bool useV2Projection,
     AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
@@ -1542,9 +1267,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
               controller.startDrawingRoute();
             },
             capturedStorylinePanel: _buildCapturedStorylinePanel(
-              editor: editor,
               useV2Projection: useV2Projection,
-              projectionAsync: compiledProjectionAsync,
               v2TimelineGroupsAsync: v2TimelineGroupsAsync,
             ),
           ),
@@ -1631,7 +1354,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     IconData? selectedIcon,
     int pendingMediaCount,
     String? selectedPlaceId,
-    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
     bool useV2Projection,
     AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
@@ -1709,7 +1431,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   void _showTimelineSheet(
     EditorState editor,
     EditorController controller,
-    AsyncValue<CompiledProjectionView>? compiledProjectionAsync,
     bool useV2Projection,
     AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
   ) {
@@ -1773,9 +1494,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                   controller.startDrawingRoute();
                 },
                 capturedStorylinePanel: _buildCapturedStorylinePanel(
-                  editor: editor,
                   useV2Projection: useV2Projection,
-                  projectionAsync: compiledProjectionAsync,
                   v2TimelineGroupsAsync: v2TimelineGroupsAsync,
                 ),
               ),
@@ -2164,16 +1883,4 @@ class _EditorSyncCallout {
   final Color tint;
   final String? actionLabel;
   final VoidCallback? onAction;
-}
-
-class _AssignPlaceHintOption {
-  const _AssignPlaceHintOption({
-    required this.label,
-    required this.confidence,
-    required this.placeId,
-  });
-
-  final String label;
-  final double confidence;
-  final String? placeId;
 }

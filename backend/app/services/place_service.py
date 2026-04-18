@@ -18,7 +18,6 @@ from uuid import UUID
 from app.models.place import TripPlace
 from app.models.trip import Trip
 from app.schemas.place import PlaceCreate, PlaceUpdate, PlaceListResponse, PlaceResponse
-from app.services.trip_projection_compiler import TripProjectionCompilerService
 
 
 class PlaceService:
@@ -211,11 +210,6 @@ class PlaceService:
 
         self.db.add(place)
         self.db.flush()
-        TripProjectionCompilerService(self.db).mark_dirty(
-            trip_id=place.trip_id,
-            user_id=user_id,
-            reason="place_created",
-        )
         self.db.commit()
         self.db.refresh(place)
 
@@ -398,11 +392,6 @@ class PlaceService:
         for field, value in update_data.items():
             setattr(place, field, value)
 
-        TripProjectionCompilerService(self.db).mark_dirty(
-            trip_id=place.trip_id,
-            user_id=user_id,
-            reason="place_updated",
-        )
         self.db.commit()
         self.db.refresh(place)
 
@@ -445,13 +434,7 @@ class PlaceService:
         self._check_trip_ownership(place.trip_id, user_id)
 
         # Delete
-        trip_id = place.trip_id
         self.db.delete(place)
-        TripProjectionCompilerService(self.db).mark_dirty(
-            trip_id=trip_id,
-            user_id=user_id,
-            reason="place_deleted",
-        )
         self.db.commit()
 
     def get_places_near_location(

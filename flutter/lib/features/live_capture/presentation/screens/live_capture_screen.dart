@@ -9,7 +9,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
@@ -21,9 +20,7 @@ import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
-import 'package:dora/features/create/data/compiled_projection_repository.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
-import 'package:dora/features/create/presentation/providers/compiled_projection_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
@@ -942,8 +939,6 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
     });
     try {
-      String eventId;
-      String? decisionState;
       final result = await ref
           .read(v2LiveCaptureJournalRepositoryProvider)
           .createMediaCaptureNow(
@@ -958,8 +953,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           'capture_source': fromCamera ? 'camera' : 'gallery',
         },
       );
-      eventId = result.eventId;
-      decisionState = result.resolverState;
+      final eventId = result.eventId;
       if (!mounted) {
         return;
       }

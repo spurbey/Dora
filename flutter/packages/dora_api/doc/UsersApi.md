@@ -13,7 +13,9 @@ Method | HTTP request | Description
 [**getCurrentUserCompleteProfileApiV1UsersMeProfileGet**](UsersApi.md#getcurrentusercompleteprofileapiv1usersmeprofileget) | **GET** /api/v1/users/me/profile | Get Current User Complete Profile
 [**getCurrentUserProfileApiV1UsersMeGet**](UsersApi.md#getcurrentuserprofileapiv1usersmeget) | **GET** /api/v1/users/me | Get Current User Profile
 [**getCurrentUserStatsApiV1UsersMeStatsGet**](UsersApi.md#getcurrentuserstatsapiv1usersmestatsget) | **GET** /api/v1/users/me/stats | Get Current User Stats
+[**getUserMetadataApiV1UsersMeMetadataGet**](UsersApi.md#getusermetadataapiv1usersmemetadataget) | **GET** /api/v1/users/me/metadata | Get User Metadata
 [**updateCurrentUserProfileApiV1UsersMePatch**](UsersApi.md#updatecurrentuserprofileapiv1usersmepatch) | **PATCH** /api/v1/users/me | Update Current User Profile
+[**upsertUserMetadataApiV1UsersMeMetadataPut**](UsersApi.md#upsertusermetadataapiv1usersmemetadataput) | **PUT** /api/v1/users/me/metadata | Upsert User Metadata
 
 
 # **deleteCurrentUserAccountApiV1UsersMeDelete**
@@ -187,6 +189,47 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **getUserMetadataApiV1UsersMeMetadataGet**
+> UserMetadataResponse getUserMetadataApiV1UsersMeMetadataGet(authorization)
+
+Get User Metadata
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getUsersApi();
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+
+try {
+    final response = api.getUserMetadataApiV1UsersMeMetadataGet(authorization);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling UsersApi->getUserMetadataApiV1UsersMeMetadataGet: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+
+### Return type
+
+[**UserMetadataResponse**](UserMetadataResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **updateCurrentUserProfileApiV1UsersMePatch**
 > AppSchemasUserUserResponse updateCurrentUserProfileApiV1UsersMePatch(authorization, userUpdate)
 
@@ -220,6 +263,49 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**AppSchemasUserUserResponse**](AppSchemasUserUserResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsertUserMetadataApiV1UsersMeMetadataPut**
+> UserMetadataResponse upsertUserMetadataApiV1UsersMeMetadataPut(authorization, userMetadataUpdate)
+
+Upsert User Metadata
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getUsersApi();
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final UserMetadataUpdate userMetadataUpdate = ; // UserMetadataUpdate | 
+
+try {
+    final response = api.upsertUserMetadataApiV1UsersMeMetadataPut(authorization, userMetadataUpdate);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling UsersApi->upsertUserMetadataApiV1UsersMeMetadataPut: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+ **userMetadataUpdate** | [**UserMetadataUpdate**](UserMetadataUpdate.md)|  | 
+
+### Return type
+
+[**UserMetadataResponse**](UserMetadataResponse.md)
 
 ### Authorization
 

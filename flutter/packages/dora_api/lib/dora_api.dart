@@ -93,6 +93,8 @@ export 'package:dora_api/src/model/trip_metadata_update.dart';
 export 'package:dora_api/src/model/trip_response.dart';
 export 'package:dora_api/src/model/trip_update.dart';
 export 'package:dora_api/src/model/user_action_type.dart';
+export 'package:dora_api/src/model/user_metadata_response.dart';
+export 'package:dora_api/src/model/user_metadata_update.dart';
 export 'package:dora_api/src/model/user_profile_response.dart';
 export 'package:dora_api/src/model/user_stats.dart';
 export 'package:dora_api/src/model/user_update.dart';

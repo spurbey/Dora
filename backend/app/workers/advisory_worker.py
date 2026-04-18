@@ -335,7 +335,7 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
         if name and name not in city_names:
             city_names.append(name)
     if not city_names:
-        city_names = [trip.name or "travel destination"]
+        city_names = [trip.title or "travel destination"]
 
     if job.job_type == "on_demand" and job.query_text:
         question = job.query_text

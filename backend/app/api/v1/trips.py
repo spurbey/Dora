@@ -20,6 +20,7 @@ from app.models.user import User
 from app.models.trip import Trip
 from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripListResponse
 from app.services.trip_service import TripService
+from app.utils.async_tasks import spawn_best_effort
 
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
@@ -80,23 +81,12 @@ async def create_trip(
     """
     service = TripService(db)
     trip = service.create_trip(current_user.id, trip_data)
-    # Advisory brain seed — best-effort, never raises into trip creation.
-    try:
-        import asyncio
+
+    async def _seed(db_session, tid):
         from app.services.trip_brain_service import TripBrainService
-        asyncio.get_event_loop().create_task(
-            TripBrainService(db).seed_on_trip_creation(trip.id)
-        )
-    except RuntimeError:
-        # No running loop (sync context); schedule a sync seed via ensure_brain
-        # only — the cycle worker / tracking-start hook will enrich later.
-        from app.services.trip_brain_service import TripBrainService
-        try:
-            TripBrainService(db).ensure_brain(trip.id, trip.user_id)
-        except Exception:  # noqa: BLE001
-            pass
-    except Exception:  # noqa: BLE001
-        pass
+        await TripBrainService(db_session).seed_on_trip_creation(tid)
+    spawn_best_effort(_seed, trip.id, label="brain_seed")
+
     return TripResponse.model_validate(trip)
 
 

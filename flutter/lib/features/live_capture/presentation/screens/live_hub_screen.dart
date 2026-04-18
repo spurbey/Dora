@@ -10,6 +10,10 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
+import 'package:dora/core/network/api_providers.dart';
+import 'package:dora/features/create/data/trip_repository.dart';
+import 'package:dora/features/create/presentation/providers/editor_provider.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 final liveHubActiveSessionProvider =
     StreamProvider.autoDispose<LiveHubActiveSession?>((ref) {
@@ -19,7 +23,6 @@ final liveHubActiveSessionProvider =
     return Stream<LiveHubActiveSession?>.value(null);
   }
   final db = ref.watch(appDatabaseProvider);
-  // V2: query session_journal instead of V1 tracking_sessions.
   final query = db.customSelect(
     '''
     SELECT s.trip_local_id AS trip_id, s.control_state AS state,
@@ -47,329 +50,495 @@ final liveHubActiveSessionProvider =
   });
 });
 
-final liveHubRecentTripsProvider =
-    StreamProvider.autoDispose<List<LiveHubTripItem>>((ref) {
-  final authService = ref.watch(authServiceProvider);
-  final userId = authService.currentUser?.id;
-  if (userId == null || userId.isEmpty) {
-    return Stream<List<LiveHubTripItem>>.value(const <LiveHubTripItem>[]);
-  }
-
-  final db = ref.watch(appDatabaseProvider);
-  final query = db.customSelect(
-    '''
-    SELECT id, name, sync_status, local_updated_at
-    FROM trips
-    WHERE user_id = ?
-    ORDER BY local_updated_at DESC
-    LIMIT 20
-    ''',
-    variables: [Variable<String>(userId)],
-    readsFrom: {db.trips},
-  );
-  return query.watch().map((rows) {
-    return rows
-        .map(
-          (row) => LiveHubTripItem(
-            id: row.read<String>('id'),
-            name: row.read<String>('name'),
-            syncStatus: row.read<String>('sync_status'),
-            localUpdatedAt: row.read<DateTime>('local_updated_at'),
-          ),
-        )
-        .toList(growable: false);
-  });
-});
-
-class LiveHubScreen extends ConsumerWidget {
+class LiveHubScreen extends ConsumerStatefulWidget {
   const LiveHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LiveHubScreen> createState() => _LiveHubScreenState();
+}
+
+class _LiveHubScreenState extends ConsumerState<LiveHubScreen> {
+  bool _redirected = false;
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<LiveHubActiveSession?>>(
+      liveHubActiveSessionProvider,
+      (_, next) {
+        if (_redirected) return;
+        next.whenData((session) {
+          if (session != null && mounted) {
+            _redirected = true;
+            context.go(Routes.liveCapturePath(session.tripId));
+          }
+        });
+      },
+    );
+
     final activeSessionAsync = ref.watch(liveHubActiveSessionProvider);
-    final tripsAsync = ref.watch(liveHubRecentTripsProvider);
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(liveHubActiveSessionProvider);
-            ref.invalidate(liveHubRecentTripsProvider);
-            await Future<void>.delayed(const Duration(milliseconds: 120));
+        child: activeSessionAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => Center(
+            child: Text(
+              'Unable to check live session state.',
+              style: AppTypography.body.copyWith(color: AppColors.error),
+            ),
+          ),
+          data: (session) {
+            if (session != null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return const _LiveTripCreationView();
           },
-          child: ListView(
-            padding: AppSpacing.allMd,
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveTripCreationView extends ConsumerStatefulWidget {
+  const _LiveTripCreationView();
+
+  @override
+  ConsumerState<_LiveTripCreationView> createState() =>
+      _LiveTripCreationViewState();
+}
+
+class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  List<String> _activityFocus = [];
+  List<String> _travelStyle = [];
+  String? _budgetCategory;
+  bool _submitting = false;
+
+  static const _activityOptions = [
+    'Hiking',
+    'Food',
+    'Photography',
+    'Nightlife',
+    'Beaches',
+    'Cultural',
+    'Adventure',
+    'Relaxation',
+  ];
+
+  static const _styleOptions = [
+    'Adventure',
+    'Luxury',
+    'Budget',
+    'Cultural',
+    'Relaxed',
+  ];
+
+  static const _budgetOptions = ['budget', 'mid-range', 'luxury'];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  bool get _canSubmit =>
+      _nameController.text.trim().isNotEmpty &&
+      _activityFocus.isNotEmpty &&
+      !_submitting;
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_activityFocus.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one activity focus')),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final repository = ref.read(tripRepositoryProvider);
+      final trip = await repository.createTrip(
+        name: _nameController.text.trim(),
+        activityFocus: _activityFocus.map((s) => s.toLowerCase()).toList(),
+        travelStyle: _travelStyle.isNotEmpty
+            ? _travelStyle.map((s) => s.toLowerCase()).toList()
+            : null,
+        budgetCategory: _budgetCategory,
+      );
+
+      if (!mounted) return;
+
+      await _maybeCollectUserMetadata();
+
+      if (!mounted) return;
+      context.go(Routes.liveCapturePath(trip.id));
+    } on TripIdentityException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), duration: const Duration(seconds: 4)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not create trip: $e'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _maybeCollectUserMetadata() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final token = await authService.getAccessToken();
+      if (token == null || token.isEmpty) return;
+      final auth = 'Bearer $token';
+
+      final usersApi = ref.read(usersApiProvider);
+      final resp = await usersApi.getUserMetadataApiV1UsersMeMetadataGet(
+        authorization: auth,
+      );
+      final meta = resp.data;
+      if (meta == null) return;
+
+      final isEmpty = (meta.dietaryRestrictions?.isEmpty ?? true) &&
+          (meta.preferredTravelStyle?.isEmpty ?? true) &&
+          (meta.dislikes?.isEmpty ?? true) &&
+          meta.budgetRange == null;
+
+      if (!isEmpty || !mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _UserPreferencesSheet(
+          onSubmit: (dietary, dislikes, style) async {
+            try {
+              final payload = openapi.UserMetadataUpdate((b) {
+                if (dietary.isNotEmpty) b.dietaryRestrictions.replace(dietary);
+                if (dislikes.isNotEmpty) b.dislikes.replace(dislikes);
+                if (style.isNotEmpty) b.preferredTravelStyle.replace(style);
+              });
+              await usersApi.upsertUserMetadataApiV1UsersMeMetadataPut(
+                authorization: auth,
+                userMetadataUpdate: payload,
+              );
+            } catch (_) {}
+          },
+        ),
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: AppSpacing.allMd,
+      children: [
+        const SizedBox(height: AppSpacing.lg),
+        const Icon(
+          Icons.explore_outlined,
+          size: 48,
+          color: AppColors.accent,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Start your journey',
+          style: AppTypography.h1,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Create a live trip and Dora will guide you along the way.',
+          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Live', style: AppTypography.h1),
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Trip name',
+                  hintText: 'e.g., Summer in Japan',
+                  border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Trip name is required' : null,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('What are you into?', style: AppTypography.h3),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Start or resume live capture for any trip.',
-                style:
-                    AppTypography.body.copyWith(color: AppColors.textSecondary),
+                'Select at least one activity focus',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              activeSessionAsync.when(
-                loading: () => const _LiveHubCardSkeleton(),
-                error: (_, __) => const _LiveHubCardError(),
-                data: (session) => _LiveHubPrimaryCard(session: session),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              const Text('Recent trips', style: AppTypography.h3),
               const SizedBox(height: AppSpacing.sm),
-              tripsAsync.when(
-                loading: () => const _LiveHubTripListSkeleton(),
-                error: (_, __) => const _LiveHubTripListError(),
-                data: (trips) {
-                  if (trips.isEmpty) {
-                    return _LiveHubEmptyTrips(
-                      onCreateTrip: () => context.go(Routes.create),
-                    );
-                  }
-                  return Column(
-                    children: trips
-                        .map(
-                          (trip) => Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: AppSpacing.sm),
-                            child: _LiveHubTripTile(
-                              trip: trip,
-                              onTap: () =>
-                                  context.go(Routes.liveCapturePath(trip.id)),
-                            ),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: _activityOptions.map((option) {
+                  final selected = _activityFocus.contains(option);
+                  return FilterChip(
+                    label: Text(option),
+                    selected: selected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _activityFocus.add(option);
+                        } else {
+                          _activityFocus.remove(option);
+                        }
+                      });
+                    },
+                    selectedColor: AppColors.accentSoft,
+                    checkmarkColor: AppColors.accent,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Travel style', style: AppTypography.h3),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Optional',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: _styleOptions.map((option) {
+                  final selected = _travelStyle.contains(option);
+                  return FilterChip(
+                    label: Text(option),
+                    selected: selected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _travelStyle.add(option);
+                        } else {
+                          _travelStyle.remove(option);
+                        }
+                      });
+                    },
+                    selectedColor: AppColors.accentSoft,
+                    checkmarkColor: AppColors.accent,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Budget', style: AppTypography.h3),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Optional',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: _budgetOptions.map((option) {
+                  final selected = _budgetCategory == option;
+                  return ChoiceChip(
+                    label: Text(option[0].toUpperCase() + option.substring(1)),
+                    selected: selected,
+                    onSelected: (val) {
+                      setState(() {
+                        _budgetCategory = val ? option : null;
+                      });
+                    },
+                    selectedColor: AppColors.accentSoft,
+                    checkmarkColor: AppColors.accent,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _canSubmit ? _submit : null,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
-                        .toList(growable: false),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LiveHubPrimaryCard extends StatelessWidget {
-  const _LiveHubPrimaryCard({required this.session});
-
-  final LiveHubActiveSession? session;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasSession = session != null;
-    final isPaused = session?.state == 'paused';
-    final title = hasSession
-        ? (isPaused ? 'Paused session ready' : 'Live session in progress')
-        : 'Start a live trip';
-    final subtitle = hasSession
-        ? '${session!.tripName} is ${isPaused ? 'paused' : 'active'}.'
-        : 'Pick a trip and begin runtime capture.';
-    final actionLabel = hasSession ? 'Resume Live' : 'Start Live';
-
-    return Container(
-      key: const ValueKey('liveHubPrimaryCard'),
-      padding: AppSpacing.allMd,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.borderLg,
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            subtitle,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const ValueKey('liveHubPrimaryAction'),
-              onPressed: hasSession
-                  ? () => context.go(Routes.liveCapturePath(session!.tripId))
-                  : null,
-              icon: Icon(
-                  hasSession ? Icons.play_arrow : Icons.location_searching),
-              label: Text(actionLabel),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveHubTripTile extends StatelessWidget {
-  const _LiveHubTripTile({
-    required this.trip,
-    required this.onTap,
-  });
-
-  final LiveHubTripItem trip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final syncStatusLabel =
-        trip.syncStatus == 'synced' ? 'Ready' : 'Sync required';
-    final syncStatusColor =
-        trip.syncStatus == 'synced' ? AppColors.success : AppColors.warning;
-    return Material(
-      color: AppColors.card,
-      borderRadius: AppRadius.borderMd,
-      child: InkWell(
-        key: ValueKey('liveHubTripTile-${trip.id}'),
-        borderRadius: AppRadius.borderMd,
-        onTap: onTap,
-        child: Padding(
-          padding: AppSpacing.allMd,
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(trip.name, style: AppTypography.body),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      syncStatusLabel,
-                      style: AppTypography.caption.copyWith(
-                        color: syncStatusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                      : const Icon(Icons.play_arrow),
+                  label: Text(_submitting ? 'Creating...' : 'Start Live Trip'),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              FilledButton.tonal(
-                onPressed: onTap,
-                child: const Text('Open Live'),
-              ),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _LiveHubEmptyTrips extends StatelessWidget {
-  const _LiveHubEmptyTrips({required this.onCreateTrip});
+class _UserPreferencesSheet extends StatefulWidget {
+  const _UserPreferencesSheet({required this.onSubmit});
 
-  final VoidCallback onCreateTrip;
+  final Future<void> Function(
+    List<String> dietary,
+    List<String> dislikes,
+    List<String> style,
+  ) onSubmit;
+
+  @override
+  State<_UserPreferencesSheet> createState() => _UserPreferencesSheetState();
+}
+
+class _UserPreferencesSheetState extends State<_UserPreferencesSheet> {
+  final _selectedDietary = <String>[];
+  final _selectedStyle = <String>[];
+  final _dislikesController = TextEditingController();
+  bool _saving = false;
+
+  static const _dietaryOptions = [
+    'Vegetarian',
+    'Vegan',
+    'Halal',
+    'Kosher',
+    'Gluten-free',
+  ];
+
+  static const _styleOptions = [
+    'Adventure',
+    'Luxury',
+    'Budget',
+    'Cultural',
+    'Relaxed',
+  ];
+
+  @override
+  void dispose() {
+    _dislikesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('liveHubEmptyTrips'),
-      padding: AppSpacing.allLg,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.borderLg,
-        border: Border.all(color: AppColors.divider),
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.md,
+        right: AppSpacing.md,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('No trips yet', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Quick preferences', style: AppTypography.h2),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Skip'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            'Create a trip first, then you can start a live session.',
+            'Help Dora personalize your trip advisories.',
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: onCreateTrip,
-            child: const Text('Create trip'),
+          Text('Dietary restrictions', style: AppTypography.h3),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: _dietaryOptions.map((opt) {
+              final selected = _selectedDietary.contains(opt);
+              return FilterChip(
+                label: Text(opt),
+                selected: selected,
+                onSelected: (val) {
+                  setState(() {
+                    val ? _selectedDietary.add(opt) : _selectedDietary.remove(opt);
+                  });
+                },
+                selectedColor: AppColors.accentSoft,
+                checkmarkColor: AppColors.accent,
+              );
+            }).toList(),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveHubCardSkeleton extends StatelessWidget {
-  const _LiveHubCardSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 164,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.borderLg,
-        border: Border.all(color: AppColors.divider),
-      ),
-    );
-  }
-}
-
-class _LiveHubTripListSkeleton extends StatelessWidget {
-  const _LiveHubTripListSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        3,
-        (index) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Container(
-            height: 84,
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: AppRadius.borderMd,
-              border: Border.all(color: AppColors.divider),
+          const SizedBox(height: AppSpacing.md),
+          Text('Travel style preference', style: AppTypography.h3),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: _styleOptions.map((opt) {
+              final selected = _selectedStyle.contains(opt);
+              return FilterChip(
+                label: Text(opt),
+                selected: selected,
+                onSelected: (val) {
+                  setState(() {
+                    val ? _selectedStyle.add(opt) : _selectedStyle.remove(opt);
+                  });
+                },
+                selectedColor: AppColors.accentSoft,
+                checkmarkColor: AppColors.accent,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _dislikesController,
+            decoration: InputDecoration(
+              labelText: 'Things you dislike',
+              hintText: 'e.g., crowded places, seafood',
+              border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LiveHubCardError extends StatelessWidget {
-  const _LiveHubCardError();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('liveHubPrimaryError'),
-      padding: AppSpacing.allMd,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.borderLg,
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        'Unable to load live session state. Pull to refresh.',
-        style: AppTypography.body.copyWith(color: AppColors.error),
-      ),
-    );
-  }
-}
-
-class _LiveHubTripListError extends StatelessWidget {
-  const _LiveHubTripListError();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('liveHubTripsError'),
-      padding: AppSpacing.allMd,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: AppRadius.borderMd,
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        'Unable to load trips right now.',
-        style: AppTypography.body.copyWith(color: AppColors.error),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      setState(() => _saving = true);
+                      final dislikes = _dislikesController.text
+                          .split(',')
+                          .map((s) => s.trim().toLowerCase())
+                          .where((s) => s.isNotEmpty)
+                          .toList();
+                      await widget.onSubmit(
+                        _selectedDietary.map((s) => s.toLowerCase()).toList(),
+                        dislikes,
+                        _selectedStyle.map((s) => s.toLowerCase()).toList(),
+                      );
+                      if (mounted) Navigator.of(context).pop();
+                    },
+              child: Text(_saving ? 'Saving...' : 'Save preferences'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
       ),
     );
   }
@@ -387,18 +556,4 @@ class LiveHubActiveSession {
   final String tripName;
   final String state;
   final DateTime updatedAt;
-}
-
-class LiveHubTripItem {
-  const LiveHubTripItem({
-    required this.id,
-    required this.name,
-    required this.syncStatus,
-    required this.localUpdatedAt,
-  });
-
-  final String id;
-  final String name;
-  final String syncStatus;
-  final DateTime localUpdatedAt;
 }

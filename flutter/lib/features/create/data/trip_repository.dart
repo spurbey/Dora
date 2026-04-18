@@ -100,18 +100,23 @@ class TripRepository {
     DateTime? endDate,
     List<String> tags = const [],
     String visibility = 'private',
+    List<String>? activityFocus,
+    List<String>? travelStyle,
+    String? budgetCategory,
   }) async {
     final userId = _authService.currentUser?.id ?? 'mock-user';
     final now = DateTime.now();
     final localId = const Uuid().v4();
 
-    // Server-first: create on backend before local persistence.
     final serverTripId = await _createTripOnServer(
       name: name,
       description: description,
       startDate: startDate,
       endDate: endDate,
       visibility: visibility,
+      activityFocus: activityFocus,
+      travelStyle: travelStyle,
+      budgetCategory: budgetCategory,
     );
 
     final trip = Trip(
@@ -207,6 +212,9 @@ class TripRepository {
     DateTime? startDate,
     DateTime? endDate,
     String visibility = 'private',
+    List<String>? activityFocus,
+    List<String>? travelStyle,
+    String? budgetCategory,
   }) async {
     final tripsApi = _tripsApi;
     if (tripsApi == null) {
@@ -227,7 +235,8 @@ class TripRepository {
       builder
         ..title = name
         ..description = description
-        ..visibility = visibility;
+        ..visibility = visibility
+        ..budgetCategory = budgetCategory;
       if (startDate != null) {
         builder.startDate =
             openapi.Date(startDate.year, startDate.month, startDate.day);
@@ -235,6 +244,12 @@ class TripRepository {
       if (endDate != null) {
         builder.endDate =
             openapi.Date(endDate.year, endDate.month, endDate.day);
+      }
+      if (activityFocus != null && activityFocus.isNotEmpty) {
+        builder.activityFocus.replace(activityFocus);
+      }
+      if (travelStyle != null && travelStyle.isNotEmpty) {
+        builder.travelStyle.replace(travelStyle);
       }
     });
 

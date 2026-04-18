@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/navigation/routes.dart';
+import 'package:dora/features/create/presentation/screens/pre_create_screen.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -51,7 +52,10 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go(Routes.create),
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const PreCreateScreen(mode: TripCreateMode.normal),
+                    fullscreenDialog: true,
+                  )),
         icon: const Icon(Icons.add),
         label: const Text('Create New Trip'),
         backgroundColor: AppColors.accent,
@@ -143,7 +147,10 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> {
                 message:
                     'Create your first travelogue and start sharing your adventures',
                 actionLabel: 'Create Your First Trip',
-                onAction: () => context.go(Routes.create),
+                onAction: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const PreCreateScreen(mode: TripCreateMode.normal),
+                    fullscreenDialog: true,
+                  )),
               ),
             )
           else

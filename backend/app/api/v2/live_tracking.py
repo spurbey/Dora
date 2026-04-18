@@ -2,6 +2,7 @@
 Strict V2 ingest and projection endpoints.
 """
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
@@ -10,6 +11,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.utils.async_tasks import spawn_best_effort
+
+logger = logging.getLogger(__name__)
 from app.schemas.live_tracking_v2 import (
     V2PublishCommitRequest,
     V2PublishCommitResponse,
@@ -71,6 +75,13 @@ async def start_v2_session(
     )
     response.status_code = result.status_code
     _set_replay_header(response, result.replayed)
+
+    if not result.replayed:
+        async def _enrich(db_session, tid):
+            from app.services.trip_brain_service import TripBrainService
+            await TripBrainService(db_session).enrich_on_tracking_start(tid)
+        spawn_best_effort(_enrich, trip_id, label="advisory_enrich")
+
     return result.body
 
 

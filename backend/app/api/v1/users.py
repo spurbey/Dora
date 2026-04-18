@@ -5,9 +5,12 @@ Endpoints:
     - GET /users/me: Get current user profile
     - PATCH /users/me: Update current user profile
     - GET /users/me/stats: Get detailed user statistics
+    - GET /users/me/metadata: Get user metadata (advisory preferences)
+    - PUT /users/me/metadata: Upsert user metadata
     - DELETE /users/me: Permanently delete current user account
 """
 
+import logging
 from uuid import UUID
 
 import httpx
@@ -17,9 +20,15 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.models.user_metadata import UserMetadata
+from app.models.trip_advisory_state import TripAdvisoryState
 from app.config import settings
 from app.schemas.user import UserResponse, UserUpdate, UserStats, UserProfileResponse
+from app.schemas.user_metadata import UserMetadataResponse, UserMetadataUpdate
 from app.services.user_service import UserService
+from app.utils.async_tasks import spawn_best_effort
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -239,6 +248,55 @@ async def get_current_user_complete_profile(
         user=UserResponse.model_validate(current_user),
         stats=stats
     )
+
+
+@router.get("/me/metadata", response_model=UserMetadataResponse)
+async def get_user_metadata(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.query(UserMetadata).filter(UserMetadata.user_id == current_user.id).one_or_none()
+    if row is None:
+        row = UserMetadata(user_id=current_user.id)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return UserMetadataResponse.model_validate(row)
+
+
+@router.put("/me/metadata", response_model=UserMetadataResponse)
+async def upsert_user_metadata(
+    payload: UserMetadataUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.query(UserMetadata).filter(UserMetadata.user_id == current_user.id).one_or_none()
+    if row is None:
+        row = UserMetadata(user_id=current_user.id)
+        db.add(row)
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(row, field, value)
+
+    db.commit()
+    db.refresh(row)
+
+    active_trip_ids = (
+        db.query(TripAdvisoryState.trip_id)
+        .filter(
+            TripAdvisoryState.user_id == current_user.id,
+            TripAdvisoryState.lifecycle_state == "active",
+        )
+        .all()
+    )
+    for (tid,) in active_trip_ids:
+        async def _reseed(db_session, trip_id):
+            from app.services.trip_brain_service import TripBrainService
+            await TripBrainService(db_session).reseed(trip_id, reasons=["user_metadata_changed"])
+        spawn_best_effort(_reseed, tid, label=f"user_metadata_reseed_{tid}")
+
+    return UserMetadataResponse.model_validate(row)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

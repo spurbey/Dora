@@ -83,6 +83,8 @@ import 'package:dora_api/src/model/trip_metadata_update.dart';
 import 'package:dora_api/src/model/trip_response.dart';
 import 'package:dora_api/src/model/trip_update.dart';
 import 'package:dora_api/src/model/user_action_type.dart';
+import 'package:dora_api/src/model/user_metadata_response.dart';
+import 'package:dora_api/src/model/user_metadata_update.dart';
 import 'package:dora_api/src/model/user_profile_response.dart';
 import 'package:dora_api/src/model/user_stats.dart';
 import 'package:dora_api/src/model/user_update.dart';
@@ -184,6 +186,8 @@ part 'serializers.g.dart';
   TripResponse,
   TripUpdate,
   UserActionType,
+  UserMetadataResponse,
+  UserMetadataUpdate,
   UserProfileResponse,
   UserStats,
   UserUpdate,

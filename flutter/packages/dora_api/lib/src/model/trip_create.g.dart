@@ -19,6 +19,12 @@ class _$TripCreate extends TripCreate {
   final String? coverPhotoUrl;
   @override
   final String? visibility;
+  @override
+  final BuiltList<String>? activityFocus;
+  @override
+  final BuiltList<String>? travelStyle;
+  @override
+  final String? budgetCategory;
 
   factory _$TripCreate([void Function(TripCreateBuilder)? updates]) =>
       (TripCreateBuilder()..update(updates))._build();
@@ -29,7 +35,10 @@ class _$TripCreate extends TripCreate {
       this.startDate,
       this.endDate,
       this.coverPhotoUrl,
-      this.visibility})
+      this.visibility,
+      this.activityFocus,
+      this.travelStyle,
+      this.budgetCategory})
       : super._();
   @override
   TripCreate rebuild(void Function(TripCreateBuilder) updates) =>
@@ -47,7 +56,10 @@ class _$TripCreate extends TripCreate {
         startDate == other.startDate &&
         endDate == other.endDate &&
         coverPhotoUrl == other.coverPhotoUrl &&
-        visibility == other.visibility;
+        visibility == other.visibility &&
+        activityFocus == other.activityFocus &&
+        travelStyle == other.travelStyle &&
+        budgetCategory == other.budgetCategory;
   }
 
   @override
@@ -59,6 +71,9 @@ class _$TripCreate extends TripCreate {
     _$hash = $jc(_$hash, endDate.hashCode);
     _$hash = $jc(_$hash, coverPhotoUrl.hashCode);
     _$hash = $jc(_$hash, visibility.hashCode);
+    _$hash = $jc(_$hash, activityFocus.hashCode);
+    _$hash = $jc(_$hash, travelStyle.hashCode);
+    _$hash = $jc(_$hash, budgetCategory.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -71,7 +86,10 @@ class _$TripCreate extends TripCreate {
           ..add('startDate', startDate)
           ..add('endDate', endDate)
           ..add('coverPhotoUrl', coverPhotoUrl)
-          ..add('visibility', visibility))
+          ..add('visibility', visibility)
+          ..add('activityFocus', activityFocus)
+          ..add('travelStyle', travelStyle)
+          ..add('budgetCategory', budgetCategory))
         .toString();
   }
 }
@@ -104,6 +122,23 @@ class TripCreateBuilder implements Builder<TripCreate, TripCreateBuilder> {
   String? get visibility => _$this._visibility;
   set visibility(String? visibility) => _$this._visibility = visibility;
 
+  ListBuilder<String>? _activityFocus;
+  ListBuilder<String> get activityFocus =>
+      _$this._activityFocus ??= ListBuilder<String>();
+  set activityFocus(ListBuilder<String>? activityFocus) =>
+      _$this._activityFocus = activityFocus;
+
+  ListBuilder<String>? _travelStyle;
+  ListBuilder<String> get travelStyle =>
+      _$this._travelStyle ??= ListBuilder<String>();
+  set travelStyle(ListBuilder<String>? travelStyle) =>
+      _$this._travelStyle = travelStyle;
+
+  String? _budgetCategory;
+  String? get budgetCategory => _$this._budgetCategory;
+  set budgetCategory(String? budgetCategory) =>
+      _$this._budgetCategory = budgetCategory;
+
   TripCreateBuilder() {
     TripCreate._defaults(this);
   }
@@ -117,6 +152,9 @@ class TripCreateBuilder implements Builder<TripCreate, TripCreateBuilder> {
       _endDate = $v.endDate;
       _coverPhotoUrl = $v.coverPhotoUrl;
       _visibility = $v.visibility;
+      _activityFocus = $v.activityFocus?.toBuilder();
+      _travelStyle = $v.travelStyle?.toBuilder();
+      _budgetCategory = $v.budgetCategory;
       _$v = null;
     }
     return this;
@@ -136,16 +174,34 @@ class TripCreateBuilder implements Builder<TripCreate, TripCreateBuilder> {
   TripCreate build() => _build();
 
   _$TripCreate _build() {
-    final _$result = _$v ??
-        _$TripCreate._(
-          title: BuiltValueNullFieldError.checkNotNull(
-              title, r'TripCreate', 'title'),
-          description: description,
-          startDate: startDate,
-          endDate: endDate,
-          coverPhotoUrl: coverPhotoUrl,
-          visibility: visibility,
-        );
+    _$TripCreate _$result;
+    try {
+      _$result = _$v ??
+          _$TripCreate._(
+            title: BuiltValueNullFieldError.checkNotNull(
+                title, r'TripCreate', 'title'),
+            description: description,
+            startDate: startDate,
+            endDate: endDate,
+            coverPhotoUrl: coverPhotoUrl,
+            visibility: visibility,
+            activityFocus: _activityFocus?.build(),
+            travelStyle: _travelStyle?.build(),
+            budgetCategory: budgetCategory,
+          );
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'activityFocus';
+        _activityFocus?.build();
+        _$failedField = 'travelStyle';
+        _travelStyle?.build();
+      } catch (e) {
+        throw BuiltValueNestedFieldError(
+            r'TripCreate', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

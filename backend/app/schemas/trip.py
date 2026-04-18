@@ -87,7 +87,17 @@ class TripCreate(TripBase):
         - Free tier users: max 6 trips (enforced in service layer)
         - Premium users: unlimited trips
     """
-    pass
+    activity_focus: Optional[list[str]] = None
+    travel_style: Optional[list[str]] = None
+    budget_category: Optional[str] = None
+
+    @validator('budget_category')
+    def validate_budget_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            allowed = ["budget", "mid-range", "luxury"]
+            if v not in allowed:
+                raise ValueError(f'budget_category must be one of: {", ".join(allowed)}')
+        return v
 
 
 class TripUpdate(BaseModel):

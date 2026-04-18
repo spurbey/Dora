@@ -11,7 +11,6 @@ import 'package:dora/features/auth/presentation/screens/login_screen.dart';
 import 'package:dora/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/auth/presentation/screens/startup_screen.dart';
-import 'package:dora/features/create/presentation/screens/create_screen.dart';
 import 'package:dora/features/create/presentation/screens/editor_screen.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_hub_screen.dart';
@@ -68,6 +67,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.signup,
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/trip/:id/advisory',
+        redirect: (_, state) => Routes.liveCapturePath(state.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.editor,
@@ -127,10 +130,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => TripDetailScreen(
               tripId: state.pathParameters['id']!,
             ),
-          ),
-          GoRoute(
-            path: Routes.create,
-            builder: (context, state) => const CreateScreen(),
           ),
           GoRoute(
             path: Routes.liveHub,

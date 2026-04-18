@@ -4,6 +4,7 @@
 
 // ignore_for_file: unused_element
 import 'package:dora_api/src/model/date.dart';
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -18,6 +19,9 @@ part 'trip_create.g.dart';
 /// * [endDate] 
 /// * [coverPhotoUrl] 
 /// * [visibility] 
+/// * [activityFocus] 
+/// * [travelStyle] 
+/// * [budgetCategory] 
 @BuiltValue()
 abstract class TripCreate implements Built<TripCreate, TripCreateBuilder> {
   @BuiltValueField(wireName: r'title')
@@ -37,6 +41,15 @@ abstract class TripCreate implements Built<TripCreate, TripCreateBuilder> {
 
   @BuiltValueField(wireName: r'visibility')
   String? get visibility;
+
+  @BuiltValueField(wireName: r'activity_focus')
+  BuiltList<String>? get activityFocus;
+
+  @BuiltValueField(wireName: r'travel_style')
+  BuiltList<String>? get travelStyle;
+
+  @BuiltValueField(wireName: r'budget_category')
+  String? get budgetCategory;
 
   TripCreate._();
 
@@ -100,6 +113,27 @@ class _$TripCreateSerializer implements PrimitiveSerializer<TripCreate> {
       yield serializers.serialize(
         object.visibility,
         specifiedType: const FullType(String),
+      );
+    }
+    if (object.activityFocus != null) {
+      yield r'activity_focus';
+      yield serializers.serialize(
+        object.activityFocus,
+        specifiedType: const FullType.nullable(BuiltList, [FullType(String)]),
+      );
+    }
+    if (object.travelStyle != null) {
+      yield r'travel_style';
+      yield serializers.serialize(
+        object.travelStyle,
+        specifiedType: const FullType.nullable(BuiltList, [FullType(String)]),
+      );
+    }
+    if (object.budgetCategory != null) {
+      yield r'budget_category';
+      yield serializers.serialize(
+        object.budgetCategory,
+        specifiedType: const FullType.nullable(String),
       );
     }
   }
@@ -170,6 +204,30 @@ class _$TripCreateSerializer implements PrimitiveSerializer<TripCreate> {
             specifiedType: const FullType(String),
           ) as String;
           result.visibility = valueDes;
+          break;
+        case r'activity_focus':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>?;
+          if (valueDes == null) continue;
+          result.activityFocus.replace(valueDes);
+          break;
+        case r'travel_style':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>?;
+          if (valueDes == null) continue;
+          result.travelStyle.replace(valueDes);
+          break;
+        case r'budget_category':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.budgetCategory = valueDes;
           break;
         default:
           unhandled.add(key);

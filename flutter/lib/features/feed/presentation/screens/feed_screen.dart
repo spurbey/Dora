@@ -73,7 +73,7 @@ class FeedScreen extends ConsumerWidget {
                       title: 'No travelogues yet',
                       message: 'Be the first to share your journey!',
                       actionLabel: 'Create Your First Trip',
-                      onAction: () => context.go(Routes.create),
+                      onAction: () => context.go(Routes.liveHub),
                     ),
                   )
                 else

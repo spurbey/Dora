@@ -40,27 +40,11 @@ logger = logging.getLogger(__name__)
 
 
 def _best_effort_metadata_reseed(db: Session, trip_id: UUID) -> None:
-    async def _run() -> None:
-        local_db = SessionLocal()
-        try:
-            await TripBrainService(local_db).reseed(
-                trip_id, reasons=["metadata_changed"]
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "[METADATA] metadata_changed reseed hook failed trip_id=%s: %s",
-                trip_id,
-                exc,
-            )
-        finally:
-            local_db.close()
+    from app.utils.async_tasks import spawn_best_effort
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(_run())
-    except RuntimeError:
-        # Sync context; keep hook best-effort/non-blocking.
-        pass
+    async def _reseed(db_session, tid):
+        await TripBrainService(db_session).reseed(tid, reasons=["metadata_changed"])
+    spawn_best_effort(_reseed, trip_id, label="metadata_reseed")
 
 
 # ============================================================================

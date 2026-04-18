@@ -8,17 +8,14 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 
 int locationToTabIndex(String location) {
-  if (location.startsWith(Routes.create)) {
+  if (location.startsWith(Routes.liveHub)) {
     return 1;
   }
-  if (location.startsWith(Routes.liveHub)) {
+  if (location.startsWith(Routes.trips)) {
     return 2;
   }
-  if (location.startsWith(Routes.trips)) {
-    return 3;
-  }
   if (location.startsWith(Routes.profile)) {
-    return 4;
+    return 3;
   }
   return 0;
 }
@@ -28,12 +25,10 @@ String tabIndexToRoute(int index) {
     case 0:
       return Routes.feed;
     case 1:
-      return Routes.create;
-    case 2:
       return Routes.liveHub;
-    case 3:
+    case 2:
       return Routes.trips;
-    case 4:
+    case 3:
       return Routes.profile;
     default:
       return Routes.feed;
@@ -73,7 +68,6 @@ class _CustomTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     const items = <_TabItemData>[
       _TabItemData(label: 'Feed', icon: Icons.home_outlined),
-      _TabItemData(label: 'Create', icon: Icons.add_circle_outline),
       _TabItemData(label: 'Live', icon: Icons.radio_button_checked_outlined),
       _TabItemData(label: 'My Trips', icon: Icons.book_outlined),
       _TabItemData(label: 'Profile', icon: Icons.person_outline),

@@ -14,8 +14,12 @@ import 'package:dora/shared/widgets/confirmation_dialog.dart';
 import 'package:dora/shared/widgets/date_picker_field.dart';
 import 'package:dora/shared/widgets/tag_selector.dart';
 
+enum TripCreateMode { normal, live }
+
 class PreCreateScreen extends ConsumerStatefulWidget {
-  const PreCreateScreen({super.key});
+  const PreCreateScreen({super.key, this.mode = TripCreateMode.normal});
+
+  final TripCreateMode mode;
 
   @override
   ConsumerState<PreCreateScreen> createState() => _PreCreateScreenState();
@@ -120,17 +124,19 @@ class _PreCreateScreenState extends ConsumerState<PreCreateScreen> {
         const SnackBar(content: Text("Let's build your journey!")),
       );
 
-      final target = await _showPostCreateChooser();
-      if (!mounted) {
-        return;
-      }
-      switch (target) {
-        case _PostCreateTarget.live:
-          context.go(Routes.liveCapturePath(trip.id));
-          break;
-        case _PostCreateTarget.editor:
-          context.go(Routes.editorPath(trip.id));
-          break;
+      if (widget.mode == TripCreateMode.normal) {
+        context.go(Routes.editorPath(trip.id));
+      } else {
+        final target = await _showPostCreateChooser();
+        if (!mounted) return;
+        switch (target) {
+          case _PostCreateTarget.live:
+            context.go(Routes.liveCapturePath(trip.id));
+            break;
+          case _PostCreateTarget.editor:
+            context.go(Routes.editorPath(trip.id));
+            break;
+        }
       }
     } on TripIdentityException catch (e) {
       if (!mounted) return;

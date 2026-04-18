@@ -14,6 +14,9 @@ Name | Type | Description | Notes
 **endDate** | [**Date**](Date.md) |  | [optional] 
 **coverPhotoUrl** | **String** |  | [optional] 
 **visibility** | **String** |  | [optional] [default to 'private']
+**activityFocus** | **BuiltList&lt;String&gt;** |  | [optional] 
+**travelStyle** | **BuiltList&lt;String&gt;** |  | [optional] 
+**budgetCategory** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

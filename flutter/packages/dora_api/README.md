@@ -137,7 +137,9 @@ Class | Method | HTTP request | Description
 [*UsersApi*](doc/UsersApi.md) | [**getCurrentUserCompleteProfileApiV1UsersMeProfileGet**](doc/UsersApi.md#getcurrentusercompleteprofileapiv1usersmeprofileget) | **GET** /api/v1/users/me/profile | Get Current User Complete Profile
 [*UsersApi*](doc/UsersApi.md) | [**getCurrentUserProfileApiV1UsersMeGet**](doc/UsersApi.md#getcurrentuserprofileapiv1usersmeget) | **GET** /api/v1/users/me | Get Current User Profile
 [*UsersApi*](doc/UsersApi.md) | [**getCurrentUserStatsApiV1UsersMeStatsGet**](doc/UsersApi.md#getcurrentuserstatsapiv1usersmestatsget) | **GET** /api/v1/users/me/stats | Get Current User Stats
+[*UsersApi*](doc/UsersApi.md) | [**getUserMetadataApiV1UsersMeMetadataGet**](doc/UsersApi.md#getusermetadataapiv1usersmemetadataget) | **GET** /api/v1/users/me/metadata | Get User Metadata
 [*UsersApi*](doc/UsersApi.md) | [**updateCurrentUserProfileApiV1UsersMePatch**](doc/UsersApi.md#updatecurrentuserprofileapiv1usersmepatch) | **PATCH** /api/v1/users/me | Update Current User Profile
+[*UsersApi*](doc/UsersApi.md) | [**upsertUserMetadataApiV1UsersMeMetadataPut**](doc/UsersApi.md#upsertusermetadataapiv1usersmemetadataput) | **PUT** /api/v1/users/me/metadata | Upsert User Metadata
 
 
 ## Documentation For Models
@@ -211,6 +213,8 @@ Class | Method | HTTP request | Description
  - [TripResponse](doc/TripResponse.md)
  - [TripUpdate](doc/TripUpdate.md)
  - [UserActionType](doc/UserActionType.md)
+ - [UserMetadataResponse](doc/UserMetadataResponse.md)
+ - [UserMetadataUpdate](doc/UserMetadataUpdate.md)
  - [UserProfileResponse](doc/UserProfileResponse.md)
  - [UserStats](doc/UserStats.md)
  - [UserUpdate](doc/UserUpdate.md)

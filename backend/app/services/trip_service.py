@@ -190,20 +190,26 @@ class TripService:
             - Auto-generates UUID primary key
             - Auto-sets created_at, updated_at timestamps
         """
-        # Enforce free-tier limits before creating a new trip.
         self._check_free_tier_limit(user_id)
 
-        # Create trip instance
-        trip = Trip(
-            user_id=user_id,
-            v2_backend_enabled=True,
-            **trip_data.model_dump()
+        trip_fields = trip_data.model_dump(
+            include={"title", "description", "start_date", "end_date", "cover_photo_url", "visibility"},
         )
-
+        trip = Trip(user_id=user_id, v2_backend_enabled=True, **trip_fields)
         self.db.add(trip)
+        self.db.flush()
+
+        if any([trip_data.activity_focus, trip_data.travel_style, trip_data.budget_category]):
+            from app.models.trip_metadata import TripMetadata
+            self.db.add(TripMetadata(
+                trip_id=trip.id,
+                activity_focus=trip_data.activity_focus,
+                travel_style=trip_data.travel_style,
+                budget_category=trip_data.budget_category,
+            ))
+
         self.db.commit()
         self.db.refresh(trip)
-
         return trip
 
     def _build_trip_list_response(

@@ -48,7 +48,7 @@ abstract class RouteCreate implements Built<RouteCreate, RouteCreateBuilder> {
 
   /// Must be valid GeoJSON LineString
   @BuiltValueField(wireName: r'route_geojson')
-  BuiltMap<String, JsonObject?> get routeGeojson;
+  JsonObject get routeGeojson;
 
   RouteCreate._();
 
@@ -122,7 +122,7 @@ class _$RouteCreateSerializer implements PrimitiveSerializer<RouteCreate> {
     yield r'route_geojson';
     yield serializers.serialize(
       object.routeGeojson,
-      specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+      specifiedType: const FullType(JsonObject),
     );
   }
 
@@ -203,9 +203,9 @@ class _$RouteCreateSerializer implements PrimitiveSerializer<RouteCreate> {
         case r'route_geojson':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>;
-          result.routeGeojson.replace(valueDes);
+            specifiedType: const FullType(JsonObject),
+          ) as JsonObject;
+          result.routeGeojson = valueDes;
           break;
         default:
           unhandled.add(key);

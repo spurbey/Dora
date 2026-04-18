@@ -3,7 +3,6 @@
 //
 
 // ignore_for_file: unused_element
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -26,7 +25,7 @@ abstract class RouteUpdate implements Built<RouteUpdate, RouteUpdateBuilder> {
   String? get description;
 
   @BuiltValueField(wireName: r'route_geojson')
-  BuiltMap<String, JsonObject?>? get routeGeojson;
+  JsonObject? get routeGeojson;
 
   @BuiltValueField(wireName: r'order_in_trip')
   int? get orderInTrip;
@@ -72,7 +71,7 @@ class _$RouteUpdateSerializer implements PrimitiveSerializer<RouteUpdate> {
       yield r'route_geojson';
       yield serializers.serialize(
         object.routeGeojson,
-        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType: const FullType.nullable(JsonObject),
       );
     }
     if (object.orderInTrip != null) {
@@ -124,10 +123,10 @@ class _$RouteUpdateSerializer implements PrimitiveSerializer<RouteUpdate> {
         case r'route_geojson':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>?;
+            specifiedType: const FullType.nullable(JsonObject),
+          ) as JsonObject?;
           if (valueDes == null) continue;
-          result.routeGeojson.replace(valueDes);
+          result.routeGeojson = valueDes;
           break;
         case r'order_in_trip':
           final valueDes = serializers.deserialize(

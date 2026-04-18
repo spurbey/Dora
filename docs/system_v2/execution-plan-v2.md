@@ -2,7 +2,7 @@
 
 Status: Draft for execution lock
 Version: v2.2
-Last updated: 2026-04-12
+Last updated: 2026-04-18
 Owner: Tech lead + Flutter lead + Backend lead + QA lead
 
 ## 1. Purpose
@@ -191,3 +191,16 @@ Rollback:
 3. published snapshot is reproducible on new devices,
 4. no high-frequency sync churn in V2,
 5. program soak/quality gates pass.
+
+## 11. Recent Execution Notes (2026-04-18)
+
+1. OpenAPI client cleanup executed against backend-sourced schema:
+   - refreshed `flutter/openapi.json` from current backend app OpenAPI,
+   - regenerated `flutter/packages/dora_api`,
+   - removed stale generated compiled-projection and legacy V1 tracking artifacts.
+2. Compatibility patches applied in Flutter runtime to avoid dependency on removed generated V1 DTOs:
+   - legacy notification/media calls now use raw Dio payloads in `live_tracking_api.dart`,
+   - route/timeline geojson parsing updated for regenerated `JsonObject` shape.
+3. Remaining known runtime gap:
+   - push-token registration lifecycle currently calls `/api/v1/notifications/device-tokens/register`,
+   - backend route is absent, resulting in `404` until route is restored or bootstrap is gated off.

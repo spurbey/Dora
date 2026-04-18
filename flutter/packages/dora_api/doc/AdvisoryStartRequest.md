@@ -9,7 +9,7 @@ import 'package:dora_api/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **jobType** | [**AdvisoryJobType**](AdvisoryJobType.md) |  | [optional] [default to AdvisoryJobType.preTrip]
-**triggerPayload** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
+**triggerPayload** | [**JsonObject**](.md) |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:built_value/json_object.dart';
 import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/features/feed/data/models/place_search_result.dart';
 import 'package:dora/features/feed/data/models/trip_detail_data.dart';
@@ -286,9 +287,9 @@ class FeedApi {
   }
 
   List<TripLatLng> _extractRouteCoordinates(RouteResponse route) {
-    final raw = route.routeGeojson.asMap();
-    final typeVal = raw['type']?.value;
-    final coordsVal = raw['coordinates']?.value;
+    final raw = _jsonObjectAsMap(route.routeGeojson);
+    final typeVal = raw['type'];
+    final coordsVal = raw['coordinates'];
     final coordinates = coordsVal is List ? coordsVal : null;
 
     if (typeVal == 'LineString' && coordinates != null) {
@@ -318,6 +319,17 @@ class FeedApi {
     }
 
     return const <TripLatLng>[];
+  }
+
+  Map<String, dynamic> _jsonObjectAsMap(JsonObject value) {
+    final raw = value.value;
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is Map) {
+      return raw.map((key, nested) => MapEntry(key.toString(), nested));
+    }
+    return const <String, dynamic>{};
   }
 
   List<TripLatLng> _decodePolyline(String encoded) {

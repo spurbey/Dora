@@ -10,7 +10,7 @@ class _$AdvisoryStartRequest extends AdvisoryStartRequest {
   @override
   final AdvisoryJobType? jobType;
   @override
-  final BuiltMap<String, JsonObject?>? triggerPayload;
+  final JsonObject? triggerPayload;
 
   factory _$AdvisoryStartRequest(
           [void Function(AdvisoryStartRequestBuilder)? updates]) =>
@@ -60,10 +60,9 @@ class AdvisoryStartRequestBuilder
   AdvisoryJobType? get jobType => _$this._jobType;
   set jobType(AdvisoryJobType? jobType) => _$this._jobType = jobType;
 
-  MapBuilder<String, JsonObject?>? _triggerPayload;
-  MapBuilder<String, JsonObject?> get triggerPayload =>
-      _$this._triggerPayload ??= MapBuilder<String, JsonObject?>();
-  set triggerPayload(MapBuilder<String, JsonObject?>? triggerPayload) =>
+  JsonObject? _triggerPayload;
+  JsonObject? get triggerPayload => _$this._triggerPayload;
+  set triggerPayload(JsonObject? triggerPayload) =>
       _$this._triggerPayload = triggerPayload;
 
   AdvisoryStartRequestBuilder() {
@@ -74,7 +73,7 @@ class AdvisoryStartRequestBuilder
     final $v = _$v;
     if ($v != null) {
       _jobType = $v.jobType;
-      _triggerPayload = $v.triggerPayload?.toBuilder();
+      _triggerPayload = $v.triggerPayload;
       _$v = null;
     }
     return this;
@@ -94,24 +93,11 @@ class AdvisoryStartRequestBuilder
   AdvisoryStartRequest build() => _build();
 
   _$AdvisoryStartRequest _build() {
-    _$AdvisoryStartRequest _$result;
-    try {
-      _$result = _$v ??
-          _$AdvisoryStartRequest._(
-            jobType: jobType,
-            triggerPayload: _triggerPayload?.build(),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'triggerPayload';
-        _triggerPayload?.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'AdvisoryStartRequest', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$AdvisoryStartRequest._(
+          jobType: jobType,
+          triggerPayload: triggerPayload,
+        );
     replace(_$result);
     return _$result;
   }

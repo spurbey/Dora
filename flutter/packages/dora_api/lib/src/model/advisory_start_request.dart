@@ -4,7 +4,6 @@
 
 // ignore_for_file: unused_element
 import 'package:dora_api/src/model/advisory_job_type.dart';
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -23,7 +22,7 @@ abstract class AdvisoryStartRequest implements Built<AdvisoryStartRequest, Advis
   // enum jobTypeEnum {  pre_trip,  on_demand,  location_trigger,  };
 
   @BuiltValueField(wireName: r'trigger_payload')
-  BuiltMap<String, JsonObject?>? get triggerPayload;
+  JsonObject? get triggerPayload;
 
   AdvisoryStartRequest._();
 
@@ -60,7 +59,7 @@ class _$AdvisoryStartRequestSerializer implements PrimitiveSerializer<AdvisorySt
       yield r'trigger_payload';
       yield serializers.serialize(
         object.triggerPayload,
-        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType: const FullType.nullable(JsonObject),
       );
     }
   }
@@ -96,10 +95,10 @@ class _$AdvisoryStartRequestSerializer implements PrimitiveSerializer<AdvisorySt
         case r'trigger_payload':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>?;
+            specifiedType: const FullType.nullable(JsonObject),
+          ) as JsonObject?;
           if (valueDes == null) continue;
-          result.triggerPayload.replace(valueDes);
+          result.triggerPayload = valueDes;
           break;
         default:
           unhandled.add(key);

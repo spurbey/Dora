@@ -171,7 +171,7 @@ class _$RouteResponse extends RouteResponse {
   @override
   final String userId;
   @override
-  final BuiltMap<String, JsonObject?> routeGeojson;
+  final JsonObject routeGeojson;
   @override
   final String? polylineEncoded;
   @override
@@ -325,10 +325,9 @@ class RouteResponseBuilder
   String? get userId => _$this._userId;
   set userId(String? userId) => _$this._userId = userId;
 
-  MapBuilder<String, JsonObject?>? _routeGeojson;
-  MapBuilder<String, JsonObject?> get routeGeojson =>
-      _$this._routeGeojson ??= MapBuilder<String, JsonObject?>();
-  set routeGeojson(MapBuilder<String, JsonObject?>? routeGeojson) =>
+  JsonObject? _routeGeojson;
+  JsonObject? get routeGeojson => _$this._routeGeojson;
+  set routeGeojson(JsonObject? routeGeojson) =>
       _$this._routeGeojson = routeGeojson;
 
   String? _polylineEncoded;
@@ -369,7 +368,7 @@ class RouteResponseBuilder
       _id = $v.id;
       _tripId = $v.tripId;
       _userId = $v.userId;
-      _routeGeojson = $v.routeGeojson.toBuilder();
+      _routeGeojson = $v.routeGeojson;
       _polylineEncoded = $v.polylineEncoded;
       _distanceKm = $v.distanceKm;
       _durationMins = $v.durationMins;
@@ -394,45 +393,32 @@ class RouteResponseBuilder
   RouteResponse build() => _build();
 
   _$RouteResponse _build() {
-    _$RouteResponse _$result;
-    try {
-      _$result = _$v ??
-          _$RouteResponse._(
-            name: name,
-            description: description,
-            transportMode: BuiltValueNullFieldError.checkNotNull(
-                transportMode, r'RouteResponse', 'transportMode'),
-            routeCategory: BuiltValueNullFieldError.checkNotNull(
-                routeCategory, r'RouteResponse', 'routeCategory'),
-            startPlaceId: startPlaceId,
-            endPlaceId: endPlaceId,
-            orderInTrip: orderInTrip,
-            id: BuiltValueNullFieldError.checkNotNull(
-                id, r'RouteResponse', 'id'),
-            tripId: BuiltValueNullFieldError.checkNotNull(
-                tripId, r'RouteResponse', 'tripId'),
-            userId: BuiltValueNullFieldError.checkNotNull(
-                userId, r'RouteResponse', 'userId'),
-            routeGeojson: routeGeojson.build(),
-            polylineEncoded: polylineEncoded,
-            distanceKm: distanceKm,
-            durationMins: durationMins,
-            createdAt: BuiltValueNullFieldError.checkNotNull(
-                createdAt, r'RouteResponse', 'createdAt'),
-            updatedAt: BuiltValueNullFieldError.checkNotNull(
-                updatedAt, r'RouteResponse', 'updatedAt'),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'routeGeojson';
-        routeGeojson.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'RouteResponse', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$RouteResponse._(
+          name: name,
+          description: description,
+          transportMode: BuiltValueNullFieldError.checkNotNull(
+              transportMode, r'RouteResponse', 'transportMode'),
+          routeCategory: BuiltValueNullFieldError.checkNotNull(
+              routeCategory, r'RouteResponse', 'routeCategory'),
+          startPlaceId: startPlaceId,
+          endPlaceId: endPlaceId,
+          orderInTrip: orderInTrip,
+          id: BuiltValueNullFieldError.checkNotNull(id, r'RouteResponse', 'id'),
+          tripId: BuiltValueNullFieldError.checkNotNull(
+              tripId, r'RouteResponse', 'tripId'),
+          userId: BuiltValueNullFieldError.checkNotNull(
+              userId, r'RouteResponse', 'userId'),
+          routeGeojson: BuiltValueNullFieldError.checkNotNull(
+              routeGeojson, r'RouteResponse', 'routeGeojson'),
+          polylineEncoded: polylineEncoded,
+          distanceKm: distanceKm,
+          durationMins: durationMins,
+          createdAt: BuiltValueNullFieldError.checkNotNull(
+              createdAt, r'RouteResponse', 'createdAt'),
+          updatedAt: BuiltValueNullFieldError.checkNotNull(
+              updatedAt, r'RouteResponse', 'updatedAt'),
+        );
     replace(_$result);
     return _$result;
   }

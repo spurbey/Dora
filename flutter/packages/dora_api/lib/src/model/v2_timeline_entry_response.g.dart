@@ -38,7 +38,7 @@ class _$V2TimelineEntryResponse extends V2TimelineEntryResponse {
   @override
   final String? subtitle;
   @override
-  final BuiltMap<String, JsonObject?>? renderPayloadJson;
+  final JsonObject? renderPayloadJson;
 
   factory _$V2TimelineEntryResponse(
           [void Function(V2TimelineEntryResponseBuilder)? updates]) =>
@@ -211,10 +211,9 @@ class V2TimelineEntryResponseBuilder
   String? get subtitle => _$this._subtitle;
   set subtitle(String? subtitle) => _$this._subtitle = subtitle;
 
-  MapBuilder<String, JsonObject?>? _renderPayloadJson;
-  MapBuilder<String, JsonObject?> get renderPayloadJson =>
-      _$this._renderPayloadJson ??= MapBuilder<String, JsonObject?>();
-  set renderPayloadJson(MapBuilder<String, JsonObject?>? renderPayloadJson) =>
+  JsonObject? _renderPayloadJson;
+  JsonObject? get renderPayloadJson => _$this._renderPayloadJson;
+  set renderPayloadJson(JsonObject? renderPayloadJson) =>
       _$this._renderPayloadJson = renderPayloadJson;
 
   V2TimelineEntryResponseBuilder() {
@@ -239,7 +238,7 @@ class V2TimelineEntryResponseBuilder
       _routeDistanceM = $v.routeDistanceM;
       _title = $v.title;
       _subtitle = $v.subtitle;
-      _renderPayloadJson = $v.renderPayloadJson?.toBuilder();
+      _renderPayloadJson = $v.renderPayloadJson;
       _$v = null;
     }
     return this;
@@ -259,47 +258,34 @@ class V2TimelineEntryResponseBuilder
   V2TimelineEntryResponse build() => _build();
 
   _$V2TimelineEntryResponse _build() {
-    _$V2TimelineEntryResponse _$result;
-    try {
-      _$result = _$v ??
-          _$V2TimelineEntryResponse._(
-            entryId: BuiltValueNullFieldError.checkNotNull(
-                entryId, r'V2TimelineEntryResponse', 'entryId'),
-            entryKind: BuiltValueNullFieldError.checkNotNull(
-                entryKind, r'V2TimelineEntryResponse', 'entryKind'),
-            sourceServerId: BuiltValueNullFieldError.checkNotNull(
-                sourceServerId, r'V2TimelineEntryResponse', 'sourceServerId'),
-            capturedAt: BuiltValueNullFieldError.checkNotNull(
-                capturedAt, r'V2TimelineEntryResponse', 'capturedAt'),
-            bucketType: BuiltValueNullFieldError.checkNotNull(
-                bucketType, r'V2TimelineEntryResponse', 'bucketType'),
-            placeBindName: placeBindName,
-            placeBindId: placeBindId,
-            decisionSource: decisionSource,
-            manualLock: BuiltValueNullFieldError.checkNotNull(
-                manualLock, r'V2TimelineEntryResponse', 'manualLock'),
-            anchorLatitude: BuiltValueNullFieldError.checkNotNull(
-                anchorLatitude, r'V2TimelineEntryResponse', 'anchorLatitude'),
-            anchorLongitude: BuiltValueNullFieldError.checkNotNull(
-                anchorLongitude, r'V2TimelineEntryResponse', 'anchorLongitude'),
-            routeSegmentKey: routeSegmentKey,
-            routeDistanceM: routeDistanceM,
-            title: BuiltValueNullFieldError.checkNotNull(
-                title, r'V2TimelineEntryResponse', 'title'),
-            subtitle: subtitle,
-            renderPayloadJson: _renderPayloadJson?.build(),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'renderPayloadJson';
-        _renderPayloadJson?.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'V2TimelineEntryResponse', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$V2TimelineEntryResponse._(
+          entryId: BuiltValueNullFieldError.checkNotNull(
+              entryId, r'V2TimelineEntryResponse', 'entryId'),
+          entryKind: BuiltValueNullFieldError.checkNotNull(
+              entryKind, r'V2TimelineEntryResponse', 'entryKind'),
+          sourceServerId: BuiltValueNullFieldError.checkNotNull(
+              sourceServerId, r'V2TimelineEntryResponse', 'sourceServerId'),
+          capturedAt: BuiltValueNullFieldError.checkNotNull(
+              capturedAt, r'V2TimelineEntryResponse', 'capturedAt'),
+          bucketType: BuiltValueNullFieldError.checkNotNull(
+              bucketType, r'V2TimelineEntryResponse', 'bucketType'),
+          placeBindName: placeBindName,
+          placeBindId: placeBindId,
+          decisionSource: decisionSource,
+          manualLock: BuiltValueNullFieldError.checkNotNull(
+              manualLock, r'V2TimelineEntryResponse', 'manualLock'),
+          anchorLatitude: BuiltValueNullFieldError.checkNotNull(
+              anchorLatitude, r'V2TimelineEntryResponse', 'anchorLatitude'),
+          anchorLongitude: BuiltValueNullFieldError.checkNotNull(
+              anchorLongitude, r'V2TimelineEntryResponse', 'anchorLongitude'),
+          routeSegmentKey: routeSegmentKey,
+          routeDistanceM: routeDistanceM,
+          title: BuiltValueNullFieldError.checkNotNull(
+              title, r'V2TimelineEntryResponse', 'title'),
+          subtitle: subtitle,
+          renderPayloadJson: renderPayloadJson,
+        );
     replace(_$result);
     return _$result;
   }

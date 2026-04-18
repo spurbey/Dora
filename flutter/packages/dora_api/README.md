@@ -75,8 +75,6 @@ Class | Method | HTTP request | Description
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost**](doc/AdvisoryApi.md#resumeadvisoryapiv1tripstripidadvisoryresumepost) | **POST** /api/v1/trips/{trip_id}/advisory/resume | Resume Advisory
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**startAdvisoryApiV1TripsTripIdAdvisoryStartPost**](doc/AdvisoryApi.md#startadvisoryapiv1tripstripidadvisorystartpost) | **POST** /api/v1/trips/{trip_id}/advisory/start | Start Advisory
 [*AuthenticationApi*](doc/AuthenticationApi.md) | [**getCurrentUserInfoApiV1AuthMeGet**](doc/AuthenticationApi.md#getcurrentuserinfoapiv1authmeget) | **GET** /api/v1/auth/me | Get Current User Info
-[*CompiledProjectionApi*](doc/CompiledProjectionApi.md) | [**getCompiledProjectionApiV1TripsTripIdCompiledProjectionGet**](doc/CompiledProjectionApi.md#getcompiledprojectionapiv1tripstripidcompiledprojectionget) | **GET** /api/v1/trips/{trip_id}/compiled/projection | Get Compiled Projection
-[*CompiledProjectionApi*](doc/CompiledProjectionApi.md) | [**rebindCompiledProjectionItemApiV1TripsTripIdCompiledRebindPost**](doc/CompiledProjectionApi.md#rebindcompiledprojectionitemapiv1tripstripidcompiledrebindpost) | **POST** /api/v1/trips/{trip_id}/compiled/rebind | Rebind Compiled Projection Item
 [*ComponentsApi*](doc/ComponentsApi.md) | [**getComponentDetailsApiV1TripsTripIdComponentsComponentIdGet**](doc/ComponentsApi.md#getcomponentdetailsapiv1tripstripidcomponentscomponentidget) | **GET** /api/v1/trips/{trip_id}/components/{component_id} | Get component details
 [*ComponentsApi*](doc/ComponentsApi.md) | [**getComponentsApiV1TripsTripIdComponentsGet**](doc/ComponentsApi.md#getcomponentsapiv1tripstripidcomponentsget) | **GET** /api/v1/trips/{trip_id}/components | Get unified timeline
 [*ComponentsApi*](doc/ComponentsApi.md) | [**reorderComponentsApiV1TripsTripIdComponentsReorderPatch**](doc/ComponentsApi.md#reordercomponentsapiv1tripstripidcomponentsreorderpatch) | **PATCH** /api/v1/trips/{trip_id}/components/reorder | Bulk reorder components
@@ -89,25 +87,6 @@ Class | Method | HTTP request | Description
 [*ExportsApi*](doc/ExportsApi.md) | [**getExportShareUrlApiV1ExportsJobIdShareGet**](doc/ExportsApi.md#getexportshareurlapiv1exportsjobidshareget) | **GET** /api/v1/exports/{job_id}/share | Get Export Share Url
 [*ExportsApi*](doc/ExportsApi.md) | [**getExportStatusApiV1ExportsJobIdGet**](doc/ExportsApi.md#getexportstatusapiv1exportsjobidget) | **GET** /api/v1/exports/{job_id} | Get Export Status
 [*ExportsApi*](doc/ExportsApi.md) | [**listExportsApiV1ExportsGet**](doc/ExportsApi.md#listexportsapiv1exportsget) | **GET** /api/v1/exports | List Exports
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**commitAutoFinalizeApiV1TripsTripIdAutoFinalizeCommitPost**](doc/LiveTrackingApi.md#commitautofinalizeapiv1tripstripidautofinalizecommitpost) | **POST** /api/v1/trips/{trip_id}/auto-finalize/commit | Commit Auto Finalize
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**confirmCheckinCandidateApiV1CheckinsCandidateIdConfirmPost**](doc/LiveTrackingApi.md#confirmcheckincandidateapiv1checkinscandidateidconfirmpost) | **POST** /api/v1/checkins/{candidate_id}/confirm | Confirm Checkin Candidate
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**createTripMomentApiV1TripsTripIdMomentsPost**](doc/LiveTrackingApi.md#createtripmomentapiv1tripstripidmomentspost) | **POST** /api/v1/trips/{trip_id}/moments | Create Trip Moment
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**deactivateDeviceTokenApiV1NotificationsDeviceTokensDeactivatePost**](doc/LiveTrackingApi.md#deactivatedevicetokenapiv1notificationsdevicetokensdeactivatepost) | **POST** /api/v1/notifications/device-tokens/deactivate | Deactivate Device Token
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**getTrackingPathApiV1TripsTripIdTrackingPathGet**](doc/LiveTrackingApi.md#gettrackingpathapiv1tripstripidtrackingpathget) | **GET** /api/v1/trips/{trip_id}/tracking/path | Get Tracking Path
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**ingestEventsBatchApiV1TripsTripIdTrackingEventsBatchPost**](doc/LiveTrackingApi.md#ingesteventsbatchapiv1tripstripidtrackingeventsbatchpost) | **POST** /api/v1/trips/{trip_id}/tracking/events:batch | Ingest Events Batch
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**ingestMediaBatchApiV1TripsTripIdTrackingMediaBatchPost**](doc/LiveTrackingApi.md#ingestmediabatchapiv1tripstripidtrackingmediabatchpost) | **POST** /api/v1/trips/{trip_id}/tracking/media:batch | Ingest Media Batch
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**ingestPointsBatchApiV1TripsTripIdTrackingPointsBatchPost**](doc/LiveTrackingApi.md#ingestpointsbatchapiv1tripstripidtrackingpointsbatchpost) | **POST** /api/v1/trips/{trip_id}/tracking/points:batch | Ingest Points Batch
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**listPendingCheckinsApiV1TripsTripIdCheckinsPendingGet**](doc/LiveTrackingApi.md#listpendingcheckinsapiv1tripstripidcheckinspendingget) | **GET** /api/v1/trips/{trip_id}/checkins/pending | List Pending Checkins
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**listTripMomentsApiV1TripsTripIdMomentsGet**](doc/LiveTrackingApi.md#listtripmomentsapiv1tripstripidmomentsget) | **GET** /api/v1/trips/{trip_id}/moments | List Trip Moments
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**pauseTrackingApiV1TripsTripIdTrackingPausePost**](doc/LiveTrackingApi.md#pausetrackingapiv1tripstripidtrackingpausepost) | **POST** /api/v1/trips/{trip_id}/tracking/pause | Pause Tracking
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**registerDeviceTokenApiV1NotificationsDeviceTokensRegisterPost**](doc/LiveTrackingApi.md#registerdevicetokenapiv1notificationsdevicetokensregisterpost) | **POST** /api/v1/notifications/device-tokens/register | Register Device Token
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**rejectCheckinCandidateApiV1CheckinsCandidateIdRejectPost**](doc/LiveTrackingApi.md#rejectcheckincandidateapiv1checkinscandidateidrejectpost) | **POST** /api/v1/checkins/{candidate_id}/reject | Reject Checkin Candidate
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**resumeTrackingApiV1TripsTripIdTrackingResumePost**](doc/LiveTrackingApi.md#resumetrackingapiv1tripstripidtrackingresumepost) | **POST** /api/v1/trips/{trip_id}/tracking/resume | Resume Tracking
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**snoozeCheckinCandidateApiV1CheckinsCandidateIdSnoozePost**](doc/LiveTrackingApi.md#snoozecheckincandidateapiv1checkinscandidateidsnoozepost) | **POST** /api/v1/checkins/{candidate_id}/snooze | Snooze Checkin Candidate
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**startTrackingApiV1TripsTripIdTrackingStartPost**](doc/LiveTrackingApi.md#starttrackingapiv1tripstripidtrackingstartpost) | **POST** /api/v1/trips/{trip_id}/tracking/start | Start Tracking
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**stopTrackingApiV1TripsTripIdTrackingStopPost**](doc/LiveTrackingApi.md#stoptrackingapiv1tripstripidtrackingstoppost) | **POST** /api/v1/trips/{trip_id}/tracking/stop | Stop Tracking
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**updateTripMomentApiV1MomentsMomentIdPatch**](doc/LiveTrackingApi.md#updatetripmomentapiv1momentsmomentidpatch) | **PATCH** /api/v1/moments/{moment_id} | Update Trip Moment
-[*LiveTrackingApi*](doc/LiveTrackingApi.md) | [**uploadTrackingMediaBinaryApiV1TripsTripIdTrackingMediaUploadPost**](doc/LiveTrackingApi.md#uploadtrackingmediabinaryapiv1tripstripidtrackingmediauploadpost) | **POST** /api/v1/trips/{trip_id}/tracking/media:upload | Upload Tracking Media Binary
 [*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**getV2RouteApiV2TripsTripIdRouteGet**](doc/LiveTrackingV2Api.md#getv2routeapiv2tripstripidrouteget) | **GET** /api/v2/trips/{trip_id}/route | Get V2 Route
 [*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**getV2TimelineApiV2TripsTripIdTimelineGet**](doc/LiveTrackingV2Api.md#getv2timelineapiv2tripstripidtimelineget) | **GET** /api/v2/trips/{trip_id}/timeline | Get V2 Timeline
 [*LiveTrackingV2Api*](doc/LiveTrackingV2Api.md) | [**publishCommitApiV2TripsTripIdPublishCommitPost**](doc/LiveTrackingV2Api.md#publishcommitapiv2tripstripidpublishcommitpost) | **POST** /api/v2/trips/{trip_id}/publish:commit | Publish Commit
@@ -179,28 +158,10 @@ Class | Method | HTTP request | Description
  - [AdvisoryStartRequest](doc/AdvisoryStartRequest.md)
  - [AppSchemasAuthUserResponse](doc/AppSchemasAuthUserResponse.md)
  - [AppSchemasUserUserResponse](doc/AppSchemasUserUserResponse.md)
- - [AutoFinalizeCommitRequest](doc/AutoFinalizeCommitRequest.md)
- - [AutoFinalizeCommitResponse](doc/AutoFinalizeCommitResponse.md)
  - [BudgetPerPerson](doc/BudgetPerPerson.md)
- - [CheckinActionResponse](doc/CheckinActionResponse.md)
- - [CheckinCandidateResponse](doc/CheckinCandidateResponse.md)
- - [CheckinConfirmRequest](doc/CheckinConfirmRequest.md)
- - [CheckinPlaceOverride](doc/CheckinPlaceOverride.md)
- - [CheckinRejectRequest](doc/CheckinRejectRequest.md)
- - [CheckinSnoozeRequest](doc/CheckinSnoozeRequest.md)
- - [CompiledProjectionResponse](doc/CompiledProjectionResponse.md)
- - [CompiledProjectionStats](doc/CompiledProjectionStats.md)
- - [CompiledRebindRequest](doc/CompiledRebindRequest.md)
- - [CompiledRouteSegment](doc/CompiledRouteSegment.md)
- - [CompiledTimelineDayGroup](doc/CompiledTimelineDayGroup.md)
- - [CompiledTimelineEntry](doc/CompiledTimelineEntry.md)
  - [ComponentReorderItem](doc/ComponentReorderItem.md)
  - [ComponentReorderRequest](doc/ComponentReorderRequest.md)
  - [ComponentReorderResponse](doc/ComponentReorderResponse.md)
- - [DeviceTokenActionResponse](doc/DeviceTokenActionResponse.md)
- - [DeviceTokenDeactivateRequest](doc/DeviceTokenDeactivateRequest.md)
- - [DeviceTokenRegisterRequest](doc/DeviceTokenRegisterRequest.md)
- - [DeviceTokenResponse](doc/DeviceTokenResponse.md)
  - [ExportAspectRatio](doc/ExportAspectRatio.md)
  - [ExportCancelResponse](doc/ExportCancelResponse.md)
  - [ExportCreateRequest](doc/ExportCreateRequest.md)
@@ -219,12 +180,6 @@ Class | Method | HTTP request | Description
  - [LocationInner](doc/LocationInner.md)
  - [MeResponse](doc/MeResponse.md)
  - [MediaResponse](doc/MediaResponse.md)
- - [MomentCreateRequest](doc/MomentCreateRequest.md)
- - [MomentListResponse](doc/MomentListResponse.md)
- - [MomentLocation](doc/MomentLocation.md)
- - [MomentResponse](doc/MomentResponse.md)
- - [MomentUpdateRequest](doc/MomentUpdateRequest.md)
- - [PendingCheckinsResponse](doc/PendingCheckinsResponse.md)
  - [PlaceCreate](doc/PlaceCreate.md)
  - [PlaceListResponse](doc/PlaceListResponse.md)
  - [PlaceMetadataCreate](doc/PlaceMetadataCreate.md)
@@ -245,27 +200,6 @@ Class | Method | HTTP request | Description
  - [SearchResult](doc/SearchResult.md)
  - [SearchResultDebug](doc/SearchResultDebug.md)
  - [TollCost](doc/TollCost.md)
- - [TrackingEventAcceptedResponse](doc/TrackingEventAcceptedResponse.md)
- - [TrackingEventInput](doc/TrackingEventInput.md)
- - [TrackingEventRejectedResponse](doc/TrackingEventRejectedResponse.md)
- - [TrackingEventsBatchRequest](doc/TrackingEventsBatchRequest.md)
- - [TrackingEventsBatchResponse](doc/TrackingEventsBatchResponse.md)
- - [TrackingMediaAcceptedResponse](doc/TrackingMediaAcceptedResponse.md)
- - [TrackingMediaBatchRequest](doc/TrackingMediaBatchRequest.md)
- - [TrackingMediaBatchResponse](doc/TrackingMediaBatchResponse.md)
- - [TrackingMediaInput](doc/TrackingMediaInput.md)
- - [TrackingMediaRejectedResponse](doc/TrackingMediaRejectedResponse.md)
- - [TrackingMediaUploadResponse](doc/TrackingMediaUploadResponse.md)
- - [TrackingPathPointResponse](doc/TrackingPathPointResponse.md)
- - [TrackingPathResponse](doc/TrackingPathResponse.md)
- - [TrackingPauseRequest](doc/TrackingPauseRequest.md)
- - [TrackingPointInput](doc/TrackingPointInput.md)
- - [TrackingPointsBatchRequest](doc/TrackingPointsBatchRequest.md)
- - [TrackingPointsBatchResponse](doc/TrackingPointsBatchResponse.md)
- - [TrackingResumeRequest](doc/TrackingResumeRequest.md)
- - [TrackingSessionResponse](doc/TrackingSessionResponse.md)
- - [TrackingStartRequest](doc/TrackingStartRequest.md)
- - [TrackingStopRequest](doc/TrackingStopRequest.md)
  - [TripComponentDetailResponse](doc/TripComponentDetailResponse.md)
  - [TripComponentListResponse](doc/TripComponentListResponse.md)
  - [TripComponentResponse](doc/TripComponentResponse.md)

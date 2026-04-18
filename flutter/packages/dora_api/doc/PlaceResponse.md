@@ -19,8 +19,8 @@ Name | Type | Description | Notes
 **userRating** | **int** |  | [optional] 
 **visitDate** | [**Date**](Date.md) |  | [optional] 
 **photos** | [**BuiltList&lt;MediaResponse&gt;**](MediaResponse.md) |  | [optional] [default to ListBuilder()]
-**videos** | [**BuiltList&lt;BuiltMap&lt;String, JsonObject&gt;&gt;**](BuiltMap.md) |  | [optional] [default to ListBuilder()]
-**externalData** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | [optional] 
+**videos** | [**BuiltList&lt;JsonObject&gt;**](JsonObject.md) |  | [optional] [default to ListBuilder()]
+**externalData** | [**JsonObject**](.md) |  | [optional] 
 **orderInTrip** | **int** |  | [optional] 
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **updatedAt** | [**DateTime**](DateTime.md) |  | 

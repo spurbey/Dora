@@ -11,11 +11,9 @@ import 'package:dora_api/src/auth/bearer_auth.dart';
 import 'package:dora_api/src/auth/oauth.dart';
 import 'package:dora_api/src/api/advisory_api.dart';
 import 'package:dora_api/src/api/authentication_api.dart';
-import 'package:dora_api/src/api/compiled_projection_api.dart';
 import 'package:dora_api/src/api/components_api.dart';
 import 'package:dora_api/src/api/default_api.dart';
 import 'package:dora_api/src/api/exports_api.dart';
-import 'package:dora_api/src/api/live_tracking_api.dart';
 import 'package:dora_api/src/api/live_tracking_v2_api.dart';
 import 'package:dora_api/src/api/media_api.dart';
 import 'package:dora_api/src/api/metadata_api.dart';
@@ -91,12 +89,6 @@ class DoraApi {
     return AuthenticationApi(dio, serializers);
   }
 
-  /// Get CompiledProjectionApi instance, base route and serializer can be overridden by a given but be careful,
-  /// by doing that all interceptors will not be executed
-  CompiledProjectionApi getCompiledProjectionApi() {
-    return CompiledProjectionApi(dio, serializers);
-  }
-
   /// Get ComponentsApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   ComponentsApi getComponentsApi() {
@@ -113,12 +105,6 @@ class DoraApi {
   /// by doing that all interceptors will not be executed
   ExportsApi getExportsApi() {
     return ExportsApi(dio, serializers);
-  }
-
-  /// Get LiveTrackingApi instance, base route and serializer can be overridden by a given but be careful,
-  /// by doing that all interceptors will not be executed
-  LiveTrackingApi getLiveTrackingApi() {
-    return LiveTrackingApi(dio, serializers);
   }
 
   /// Get LiveTrackingV2Api instance, base route and serializer can be overridden by a given but be careful,

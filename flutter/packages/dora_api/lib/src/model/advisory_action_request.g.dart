@@ -10,7 +10,7 @@ class _$AdvisoryActionRequest extends AdvisoryActionRequest {
   @override
   final UserActionType action;
   @override
-  final BuiltMap<String, JsonObject?>? actionMetadata;
+  final JsonObject? actionMetadata;
 
   factory _$AdvisoryActionRequest(
           [void Function(AdvisoryActionRequestBuilder)? updates]) =>
@@ -61,10 +61,9 @@ class AdvisoryActionRequestBuilder
   UserActionType? get action => _$this._action;
   set action(UserActionType? action) => _$this._action = action;
 
-  MapBuilder<String, JsonObject?>? _actionMetadata;
-  MapBuilder<String, JsonObject?> get actionMetadata =>
-      _$this._actionMetadata ??= MapBuilder<String, JsonObject?>();
-  set actionMetadata(MapBuilder<String, JsonObject?>? actionMetadata) =>
+  JsonObject? _actionMetadata;
+  JsonObject? get actionMetadata => _$this._actionMetadata;
+  set actionMetadata(JsonObject? actionMetadata) =>
       _$this._actionMetadata = actionMetadata;
 
   AdvisoryActionRequestBuilder() {
@@ -75,7 +74,7 @@ class AdvisoryActionRequestBuilder
     final $v = _$v;
     if ($v != null) {
       _action = $v.action;
-      _actionMetadata = $v.actionMetadata?.toBuilder();
+      _actionMetadata = $v.actionMetadata;
       _$v = null;
     }
     return this;
@@ -95,25 +94,12 @@ class AdvisoryActionRequestBuilder
   AdvisoryActionRequest build() => _build();
 
   _$AdvisoryActionRequest _build() {
-    _$AdvisoryActionRequest _$result;
-    try {
-      _$result = _$v ??
-          _$AdvisoryActionRequest._(
-            action: BuiltValueNullFieldError.checkNotNull(
-                action, r'AdvisoryActionRequest', 'action'),
-            actionMetadata: _actionMetadata?.build(),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'actionMetadata';
-        _actionMetadata?.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'AdvisoryActionRequest', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$AdvisoryActionRequest._(
+          action: BuiltValueNullFieldError.checkNotNull(
+              action, r'AdvisoryActionRequest', 'action'),
+          actionMetadata: actionMetadata,
+        );
     replace(_$result);
     return _$result;
   }

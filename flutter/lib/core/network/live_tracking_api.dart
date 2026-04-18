@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:built_value/json_object.dart';
-import 'package:built_value/serializer.dart';
 import 'package:dio/dio.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
@@ -108,14 +107,10 @@ class DioLiveTrackingApi implements LiveTrackingApi {
   DioLiveTrackingApi(
     this._dio, {
     AuthTokenProvider? authTokenProvider,
-    openapi.LiveTrackingApi? liveTrackingApi,
-  })  : _authTokenProvider = authTokenProvider,
-        _liveTrackingApi = liveTrackingApi ??
-            openapi.LiveTrackingApi(_dio, openapi.standardSerializers);
+  }) : _authTokenProvider = authTokenProvider;
 
   final Dio _dio;
   final AuthTokenProvider? _authTokenProvider;
-  final openapi.LiveTrackingApi _liveTrackingApi;
 
   static const String _apiV2Prefix = '/api/v2';
 
@@ -254,14 +249,6 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       return value.map(_normalizeSerializedValue).toList(growable: false);
     }
     return value;
-  }
-
-  T _deserialize<T>(Map<String, dynamic> data, FullType type) {
-    final deserialized = openapi.standardSerializers.deserialize(
-      data,
-      specifiedType: type,
-    );
-    return deserialized as T;
   }
 
   Future<String> _authorizationHeader() async {
@@ -449,11 +436,17 @@ class DioLiveTrackingApi implements LiveTrackingApi {
       filePath,
       filename: resolvedFileName,
     );
-    final response = await _liveTrackingApi
-        .uploadTrackingMediaBinaryApiV1TripsTripIdTrackingMediaUploadPost(
-      tripId: tripId,
-      authorization: await _authorizationHeader(),
-      file: multipart,
+    final authorization = await _authorizationHeader();
+    final response = await _dio.post<dynamic>(
+      '/api/v1/trips/$tripId/tracking/media/upload',
+      data: FormData.fromMap(<String, dynamic>{
+        'file': multipart,
+      }),
+      options: Options(
+        headers: <String, dynamic>{
+          if (authorization.isNotEmpty) 'Authorization': authorization,
+        },
+      ),
     );
     return _asJsonMap(response.data);
   }
@@ -464,17 +457,18 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String idempotencyKey,
     required List<Map<String, dynamic>> media,
   }) async {
-    final request = _deserialize<openapi.TrackingMediaBatchRequest>(
-      <String, dynamic>{'media': media},
-      const FullType(openapi.TrackingMediaBatchRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .ingestMediaBatchApiV1TripsTripIdTrackingMediaBatchPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingMediaBatchRequest: request,
+    final authorization = await _authorizationHeader();
+    final response = await _dio.post<dynamic>(
+      '/api/v1/trips/$tripId/tracking/media/batch',
+      data: <String, dynamic>{
+        'media': media,
+      },
+      options: Options(
+        headers: <String, dynamic>{
+          'Idempotency-Key': idempotencyKey,
+          if (authorization.isNotEmpty) 'Authorization': authorization,
+        },
+      ),
     );
     return _asJsonMap(response.data);
   }
@@ -492,8 +486,10 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     String? appVersion,
     String? locale,
   }) async {
-    final request = _deserialize<openapi.DeviceTokenRegisterRequest>(
-      <String, dynamic>{
+    final authorization = await _authorizationHeader();
+    final response = await _dio.post<dynamic>(
+      '/api/v1/notifications/device-tokens/register',
+      data: <String, dynamic>{
         'client_event_id': clientEventId,
         'platform': platform,
         'push_token': pushToken,
@@ -503,14 +499,12 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         if (locale != null && locale.isNotEmpty) 'locale': locale,
         'seen_at': _toUtc(seenAt ?? DateTime.now()).toIso8601String(),
       },
-      const FullType(openapi.DeviceTokenRegisterRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .registerDeviceTokenApiV1NotificationsDeviceTokensRegisterPost(
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      deviceTokenRegisterRequest: request,
+      options: Options(
+        headers: <String, dynamic>{
+          'Idempotency-Key': idempotencyKey,
+          if (authorization.isNotEmpty) 'Authorization': authorization,
+        },
+      ),
     );
     return _asJsonMap(response.data);
   }
@@ -522,21 +516,21 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String pushToken,
     DateTime? deactivatedAt,
   }) async {
-    final request = _deserialize<openapi.DeviceTokenDeactivateRequest>(
-      <String, dynamic>{
+    final authorization = await _authorizationHeader();
+    final response = await _dio.post<dynamic>(
+      '/api/v1/notifications/device-tokens/deactivate',
+      data: <String, dynamic>{
         'client_event_id': clientEventId,
         'push_token': pushToken,
         'deactivated_at':
             _toUtc(deactivatedAt ?? DateTime.now()).toIso8601String(),
       },
-      const FullType(openapi.DeviceTokenDeactivateRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .deactivateDeviceTokenApiV1NotificationsDeviceTokensDeactivatePost(
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      deviceTokenDeactivateRequest: request,
+      options: Options(
+        headers: <String, dynamic>{
+          'Idempotency-Key': idempotencyKey,
+          if (authorization.isNotEmpty) 'Authorization': authorization,
+        },
+      ),
     );
     return _asJsonMap(response.data);
   }

@@ -8,7 +8,7 @@ import 'package:dora_api/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**routeGeojson** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | 
+**routeGeojson** | [**JsonObject**](.md) |  | 
 **distanceKm** | **num** |  | 
 **durationMins** | **int** |  | 
 **polylineEncoded** | **String** |  | [optional] 

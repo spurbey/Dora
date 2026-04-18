@@ -23,33 +23,11 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(AdvisoryStartRequest.serializer)
       ..add(AppSchemasAuthUserResponse.serializer)
       ..add(AppSchemasUserUserResponse.serializer)
-      ..add(AutoFinalizeCommitRequest.serializer)
-      ..add(AutoFinalizeCommitResponse.serializer)
-      ..add(AutoFinalizeCommitResponseStatusEnum.serializer)
       ..add(BudgetPerPerson.serializer)
-      ..add(CheckinActionResponse.serializer)
-      ..add(CheckinCandidateResponse.serializer)
-      ..add(CheckinCandidateResponseStatusEnum.serializer)
-      ..add(CheckinConfirmRequest.serializer)
-      ..add(CheckinPlaceOverride.serializer)
-      ..add(CheckinRejectRequest.serializer)
-      ..add(CheckinSnoozeRequest.serializer)
-      ..add(CompiledProjectionResponse.serializer)
-      ..add(CompiledProjectionStats.serializer)
-      ..add(CompiledRebindRequest.serializer)
-      ..add(CompiledRouteSegment.serializer)
-      ..add(CompiledTimelineDayGroup.serializer)
-      ..add(CompiledTimelineEntry.serializer)
       ..add(ComponentReorderItem.serializer)
       ..add(ComponentReorderItemComponentTypeEnum.serializer)
       ..add(ComponentReorderRequest.serializer)
       ..add(ComponentReorderResponse.serializer)
-      ..add(DeviceTokenActionResponse.serializer)
-      ..add(DeviceTokenDeactivateRequest.serializer)
-      ..add(DeviceTokenRegisterRequest.serializer)
-      ..add(DeviceTokenRegisterRequestPlatformEnum.serializer)
-      ..add(DeviceTokenResponse.serializer)
-      ..add(DeviceTokenResponsePlatformEnum.serializer)
       ..add(ExportAspectRatio.serializer)
       ..add(ExportCancelResponse.serializer)
       ..add(ExportCreateRequest.serializer)
@@ -68,13 +46,6 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(LocationInner.serializer)
       ..add(MeResponse.serializer)
       ..add(MediaResponse.serializer)
-      ..add(MomentCreateRequest.serializer)
-      ..add(MomentListResponse.serializer)
-      ..add(MomentLocation.serializer)
-      ..add(MomentResponse.serializer)
-      ..add(MomentResponseSource_Enum.serializer)
-      ..add(MomentUpdateRequest.serializer)
-      ..add(PendingCheckinsResponse.serializer)
       ..add(PlaceCreate.serializer)
       ..add(PlaceListResponse.serializer)
       ..add(PlaceMetadataCreate.serializer)
@@ -106,31 +77,6 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(SearchResult.serializer)
       ..add(SearchResultDebug.serializer)
       ..add(TollCost.serializer)
-      ..add(TrackingEventAcceptedResponse.serializer)
-      ..add(TrackingEventInput.serializer)
-      ..add(TrackingEventRejectedResponse.serializer)
-      ..add(TrackingEventsBatchRequest.serializer)
-      ..add(TrackingEventsBatchResponse.serializer)
-      ..add(TrackingMediaAcceptedResponse.serializer)
-      ..add(TrackingMediaBatchRequest.serializer)
-      ..add(TrackingMediaBatchResponse.serializer)
-      ..add(TrackingMediaInput.serializer)
-      ..add(TrackingMediaInputBindModeEnum.serializer)
-      ..add(TrackingMediaInputMediaTypeEnum.serializer)
-      ..add(TrackingMediaRejectedResponse.serializer)
-      ..add(TrackingMediaUploadResponse.serializer)
-      ..add(TrackingPathPointResponse.serializer)
-      ..add(TrackingPathResponse.serializer)
-      ..add(TrackingPauseRequest.serializer)
-      ..add(TrackingPointInput.serializer)
-      ..add(TrackingPointsBatchRequest.serializer)
-      ..add(TrackingPointsBatchResponse.serializer)
-      ..add(TrackingResumeRequest.serializer)
-      ..add(TrackingSessionResponse.serializer)
-      ..add(TrackingSessionResponseStateEnum.serializer)
-      ..add(TrackingSessionResponseTripStatusEnum.serializer)
-      ..add(TrackingStartRequest.serializer)
-      ..add(TrackingStopRequest.serializer)
       ..add(TripComponentDetailResponse.serializer)
       ..add(TripComponentDetailResponseComponentTypeEnum.serializer)
       ..add(TripComponentListResponse.serializer)
@@ -198,78 +144,6 @@ Serializers _$serializers = (Serializers().toBuilder()
           ]),
           () => ListBuilder<BuiltList<JsonObject?>>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => ListBuilder<BuiltMap<String, JsonObject?>>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => ListBuilder<BuiltMap<String, JsonObject?>>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => ListBuilder<BuiltMap<String, JsonObject?>>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CheckinCandidateResponse)]),
-          () => ListBuilder<CheckinCandidateResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CompiledTimelineEntry)]),
-          () => ListBuilder<CompiledTimelineEntry>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CompiledTimelineDayGroup)]),
-          () => ListBuilder<CompiledTimelineDayGroup>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CompiledRouteSegment)]),
-          () => ListBuilder<CompiledRouteSegment>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CompiledTimelineEntry)]),
-          () => ListBuilder<CompiledTimelineEntry>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(CompiledTimelineEntry)]),
-          () => ListBuilder<CompiledTimelineEntry>())
-      ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(ComponentReorderItem)]),
           () => ListBuilder<ComponentReorderItem>())
@@ -284,22 +158,8 @@ Serializers _$serializers = (Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(MediaResponse)]),
           () => ListBuilder<MediaResponse>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [
-            const FullType(BuiltMap, const [
-              const FullType(String),
-              const FullType.nullable(JsonObject)
-            ])
-          ]),
-          () => ListBuilder<BuiltMap<String, JsonObject?>>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(MomentResponse)]),
-          () => ListBuilder<MomentResponse>())
+          const FullType(BuiltList, const [const FullType(JsonObject)]),
+          () => ListBuilder<JsonObject>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(PlaceResponse)]),
           () => ListBuilder<PlaceResponse>())
@@ -376,38 +236,6 @@ Serializers _$serializers = (Serializers().toBuilder()
           const FullType(BuiltList, const [const FullType(String)]),
           () => ListBuilder<String>())
       ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(String)]),
-          () => ListBuilder<String>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(TrackingEventAcceptedResponse)]),
-          () => ListBuilder<TrackingEventAcceptedResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(TrackingEventRejectedResponse)]),
-          () => ListBuilder<TrackingEventRejectedResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(TrackingEventInput)]),
-          () => ListBuilder<TrackingEventInput>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(TrackingMediaAcceptedResponse)]),
-          () => ListBuilder<TrackingMediaAcceptedResponse>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(TrackingMediaRejectedResponse)]),
-          () => ListBuilder<TrackingMediaRejectedResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(TrackingMediaInput)]),
-          () => ListBuilder<TrackingMediaInput>())
-      ..addBuilderFactory(
-          const FullType(
-              BuiltList, const [const FullType(TrackingPathPointResponse)]),
-          () => ListBuilder<TrackingPathPointResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltList, const [const FullType(TrackingPointInput)]),
-          () => ListBuilder<TrackingPointInput>())
-      ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(TripComponentResponse)]),
           () => ListBuilder<TripComponentResponse>())
@@ -441,109 +269,7 @@ Serializers _$serializers = (Serializers().toBuilder()
           () => ListBuilder<ValidationError>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(WaypointResponse)]),
-          () => ListBuilder<WaypointResponse>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>())
-      ..addBuilderFactory(
-          const FullType(BuiltMap, const [
-            const FullType(String),
-            const FullType.nullable(JsonObject)
-          ]),
-          () => MapBuilder<String, JsonObject?>()))
+          () => ListBuilder<WaypointResponse>()))
     .build();
 
 // ignore_for_file: deprecated_member_use_from_same_package,type=lint

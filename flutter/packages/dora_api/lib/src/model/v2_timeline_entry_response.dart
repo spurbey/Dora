@@ -3,7 +3,6 @@
 //
 
 // ignore_for_file: unused_element
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -77,7 +76,7 @@ abstract class V2TimelineEntryResponse implements Built<V2TimelineEntryResponse,
   String? get subtitle;
 
   @BuiltValueField(wireName: r'render_payload_json')
-  BuiltMap<String, JsonObject?>? get renderPayloadJson;
+  JsonObject? get renderPayloadJson;
 
   V2TimelineEntryResponse._();
 
@@ -193,7 +192,7 @@ class _$V2TimelineEntryResponseSerializer implements PrimitiveSerializer<V2Timel
       yield r'render_payload_json';
       yield serializers.serialize(
         object.renderPayloadJson,
-        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType: const FullType.nullable(JsonObject),
       );
     }
   }
@@ -333,10 +332,10 @@ class _$V2TimelineEntryResponseSerializer implements PrimitiveSerializer<V2Timel
         case r'render_payload_json':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>?;
+            specifiedType: const FullType.nullable(JsonObject),
+          ) as JsonObject?;
           if (valueDes == null) continue;
-          result.renderPayloadJson.replace(valueDes);
+          result.renderPayloadJson = valueDes;
           break;
         default:
           unhandled.add(key);

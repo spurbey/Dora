@@ -30,28 +30,10 @@ import 'package:dora_api/src/model/advisory_source.dart';
 import 'package:dora_api/src/model/advisory_start_request.dart';
 import 'package:dora_api/src/model/app_schemas_auth_user_response.dart';
 import 'package:dora_api/src/model/app_schemas_user_user_response.dart';
-import 'package:dora_api/src/model/auto_finalize_commit_request.dart';
-import 'package:dora_api/src/model/auto_finalize_commit_response.dart';
 import 'package:dora_api/src/model/budget_per_person.dart';
-import 'package:dora_api/src/model/checkin_action_response.dart';
-import 'package:dora_api/src/model/checkin_candidate_response.dart';
-import 'package:dora_api/src/model/checkin_confirm_request.dart';
-import 'package:dora_api/src/model/checkin_place_override.dart';
-import 'package:dora_api/src/model/checkin_reject_request.dart';
-import 'package:dora_api/src/model/checkin_snooze_request.dart';
-import 'package:dora_api/src/model/compiled_projection_response.dart';
-import 'package:dora_api/src/model/compiled_projection_stats.dart';
-import 'package:dora_api/src/model/compiled_rebind_request.dart';
-import 'package:dora_api/src/model/compiled_route_segment.dart';
-import 'package:dora_api/src/model/compiled_timeline_day_group.dart';
-import 'package:dora_api/src/model/compiled_timeline_entry.dart';
 import 'package:dora_api/src/model/component_reorder_item.dart';
 import 'package:dora_api/src/model/component_reorder_request.dart';
 import 'package:dora_api/src/model/component_reorder_response.dart';
-import 'package:dora_api/src/model/device_token_action_response.dart';
-import 'package:dora_api/src/model/device_token_deactivate_request.dart';
-import 'package:dora_api/src/model/device_token_register_request.dart';
-import 'package:dora_api/src/model/device_token_response.dart';
 import 'package:dora_api/src/model/export_aspect_ratio.dart';
 import 'package:dora_api/src/model/export_cancel_response.dart';
 import 'package:dora_api/src/model/export_create_request.dart';
@@ -70,12 +52,6 @@ import 'package:dora_api/src/model/http_validation_error.dart';
 import 'package:dora_api/src/model/location_inner.dart';
 import 'package:dora_api/src/model/me_response.dart';
 import 'package:dora_api/src/model/media_response.dart';
-import 'package:dora_api/src/model/moment_create_request.dart';
-import 'package:dora_api/src/model/moment_list_response.dart';
-import 'package:dora_api/src/model/moment_location.dart';
-import 'package:dora_api/src/model/moment_response.dart';
-import 'package:dora_api/src/model/moment_update_request.dart';
-import 'package:dora_api/src/model/pending_checkins_response.dart';
 import 'package:dora_api/src/model/place_create.dart';
 import 'package:dora_api/src/model/place_list_response.dart';
 import 'package:dora_api/src/model/place_metadata_create.dart';
@@ -96,27 +72,6 @@ import 'package:dora_api/src/model/search_response.dart';
 import 'package:dora_api/src/model/search_result.dart';
 import 'package:dora_api/src/model/search_result_debug.dart';
 import 'package:dora_api/src/model/toll_cost.dart';
-import 'package:dora_api/src/model/tracking_event_accepted_response.dart';
-import 'package:dora_api/src/model/tracking_event_input.dart';
-import 'package:dora_api/src/model/tracking_event_rejected_response.dart';
-import 'package:dora_api/src/model/tracking_events_batch_request.dart';
-import 'package:dora_api/src/model/tracking_events_batch_response.dart';
-import 'package:dora_api/src/model/tracking_media_accepted_response.dart';
-import 'package:dora_api/src/model/tracking_media_batch_request.dart';
-import 'package:dora_api/src/model/tracking_media_batch_response.dart';
-import 'package:dora_api/src/model/tracking_media_input.dart';
-import 'package:dora_api/src/model/tracking_media_rejected_response.dart';
-import 'package:dora_api/src/model/tracking_media_upload_response.dart';
-import 'package:dora_api/src/model/tracking_path_point_response.dart';
-import 'package:dora_api/src/model/tracking_path_response.dart';
-import 'package:dora_api/src/model/tracking_pause_request.dart';
-import 'package:dora_api/src/model/tracking_point_input.dart';
-import 'package:dora_api/src/model/tracking_points_batch_request.dart';
-import 'package:dora_api/src/model/tracking_points_batch_response.dart';
-import 'package:dora_api/src/model/tracking_resume_request.dart';
-import 'package:dora_api/src/model/tracking_session_response.dart';
-import 'package:dora_api/src/model/tracking_start_request.dart';
-import 'package:dora_api/src/model/tracking_stop_request.dart';
 import 'package:dora_api/src/model/trip_component_detail_response.dart';
 import 'package:dora_api/src/model/trip_component_list_response.dart';
 import 'package:dora_api/src/model/trip_component_response.dart';
@@ -176,28 +131,10 @@ part 'serializers.g.dart';
   AdvisoryStartRequest,
   AppSchemasAuthUserResponse,
   AppSchemasUserUserResponse,
-  AutoFinalizeCommitRequest,
-  AutoFinalizeCommitResponse,
   BudgetPerPerson,
-  CheckinActionResponse,
-  CheckinCandidateResponse,
-  CheckinConfirmRequest,
-  CheckinPlaceOverride,
-  CheckinRejectRequest,
-  CheckinSnoozeRequest,
-  CompiledProjectionResponse,
-  CompiledProjectionStats,
-  CompiledRebindRequest,
-  CompiledRouteSegment,
-  CompiledTimelineDayGroup,
-  CompiledTimelineEntry,
   ComponentReorderItem,
   ComponentReorderRequest,
   ComponentReorderResponse,
-  DeviceTokenActionResponse,
-  DeviceTokenDeactivateRequest,
-  DeviceTokenRegisterRequest,
-  DeviceTokenResponse,
   ExportAspectRatio,
   ExportCancelResponse,
   ExportCreateRequest,
@@ -216,12 +153,6 @@ part 'serializers.g.dart';
   LocationInner,
   MeResponse,
   MediaResponse,
-  MomentCreateRequest,
-  MomentListResponse,
-  MomentLocation,
-  MomentResponse,
-  MomentUpdateRequest,
-  PendingCheckinsResponse,
   PlaceCreate,
   PlaceListResponse,
   PlaceMetadataCreate,
@@ -242,27 +173,6 @@ part 'serializers.g.dart';
   SearchResult,
   SearchResultDebug,
   TollCost,
-  TrackingEventAcceptedResponse,
-  TrackingEventInput,
-  TrackingEventRejectedResponse,
-  TrackingEventsBatchRequest,
-  TrackingEventsBatchResponse,
-  TrackingMediaAcceptedResponse,
-  TrackingMediaBatchRequest,
-  TrackingMediaBatchResponse,
-  TrackingMediaInput,
-  TrackingMediaRejectedResponse,
-  TrackingMediaUploadResponse,
-  TrackingPathPointResponse,
-  TrackingPathResponse,
-  TrackingPauseRequest,
-  TrackingPointInput,
-  TrackingPointsBatchRequest,
-  TrackingPointsBatchResponse,
-  TrackingResumeRequest,
-  TrackingSessionResponse,
-  TrackingStartRequest,
-  TrackingStopRequest,
   TripComponentDetailResponse,
   TripComponentListResponse,
   TripComponentResponse,
@@ -304,10 +214,6 @@ part 'serializers.g.dart';
   WaypointUpdate,
 ])
 Serializers serializers = (_$serializers.toBuilder()
-      ..addBuilderFactory(
-        const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-        () => MapBuilder<String, JsonObject>(),
-      )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())
       ..add(const DateSerializer())

@@ -18,7 +18,7 @@ Name | Type | Description | Notes
 **id** | **String** |  | 
 **tripId** | **String** |  | 
 **userId** | **String** |  | 
-**routeGeojson** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) |  | 
+**routeGeojson** | [**JsonObject**](.md) |  | 
 **polylineEncoded** | **String** |  | [optional] 
 **distanceKm** | **num** |  | [optional] 
 **durationMins** | **int** |  | [optional] 

@@ -163,7 +163,7 @@ class _$RouteCreate extends RouteCreate {
   @override
   final int? orderInTrip;
   @override
-  final BuiltMap<String, JsonObject?> routeGeojson;
+  final JsonObject routeGeojson;
 
   factory _$RouteCreate([void Function(RouteCreateBuilder)? updates]) =>
       (RouteCreateBuilder()..update(updates))._build();
@@ -262,10 +262,9 @@ class RouteCreateBuilder implements Builder<RouteCreate, RouteCreateBuilder> {
   int? get orderInTrip => _$this._orderInTrip;
   set orderInTrip(int? orderInTrip) => _$this._orderInTrip = orderInTrip;
 
-  MapBuilder<String, JsonObject?>? _routeGeojson;
-  MapBuilder<String, JsonObject?> get routeGeojson =>
-      _$this._routeGeojson ??= MapBuilder<String, JsonObject?>();
-  set routeGeojson(MapBuilder<String, JsonObject?>? routeGeojson) =>
+  JsonObject? _routeGeojson;
+  JsonObject? get routeGeojson => _$this._routeGeojson;
+  set routeGeojson(JsonObject? routeGeojson) =>
       _$this._routeGeojson = routeGeojson;
 
   RouteCreateBuilder() {
@@ -282,7 +281,7 @@ class RouteCreateBuilder implements Builder<RouteCreate, RouteCreateBuilder> {
       _startPlaceId = $v.startPlaceId;
       _endPlaceId = $v.endPlaceId;
       _orderInTrip = $v.orderInTrip;
-      _routeGeojson = $v.routeGeojson.toBuilder();
+      _routeGeojson = $v.routeGeojson;
       _$v = null;
     }
     return this;
@@ -302,32 +301,20 @@ class RouteCreateBuilder implements Builder<RouteCreate, RouteCreateBuilder> {
   RouteCreate build() => _build();
 
   _$RouteCreate _build() {
-    _$RouteCreate _$result;
-    try {
-      _$result = _$v ??
-          _$RouteCreate._(
-            name: name,
-            description: description,
-            transportMode: BuiltValueNullFieldError.checkNotNull(
-                transportMode, r'RouteCreate', 'transportMode'),
-            routeCategory: BuiltValueNullFieldError.checkNotNull(
-                routeCategory, r'RouteCreate', 'routeCategory'),
-            startPlaceId: startPlaceId,
-            endPlaceId: endPlaceId,
-            orderInTrip: orderInTrip,
-            routeGeojson: routeGeojson.build(),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'routeGeojson';
-        routeGeojson.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'RouteCreate', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$RouteCreate._(
+          name: name,
+          description: description,
+          transportMode: BuiltValueNullFieldError.checkNotNull(
+              transportMode, r'RouteCreate', 'transportMode'),
+          routeCategory: BuiltValueNullFieldError.checkNotNull(
+              routeCategory, r'RouteCreate', 'routeCategory'),
+          startPlaceId: startPlaceId,
+          endPlaceId: endPlaceId,
+          orderInTrip: orderInTrip,
+          routeGeojson: BuiltValueNullFieldError.checkNotNull(
+              routeGeojson, r'RouteCreate', 'routeGeojson'),
+        );
     replace(_$result);
     return _$result;
   }

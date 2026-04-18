@@ -14,7 +14,7 @@ class _$V2SessionStartRequest extends V2SessionStartRequest {
   @override
   final String? timezone;
   @override
-  final BuiltMap<String, JsonObject?>? deviceContext;
+  final JsonObject? deviceContext;
 
   factory _$V2SessionStartRequest(
           [void Function(V2SessionStartRequestBuilder)? updates]) =>
@@ -84,10 +84,9 @@ class V2SessionStartRequestBuilder
   String? get timezone => _$this._timezone;
   set timezone(String? timezone) => _$this._timezone = timezone;
 
-  MapBuilder<String, JsonObject?>? _deviceContext;
-  MapBuilder<String, JsonObject?> get deviceContext =>
-      _$this._deviceContext ??= MapBuilder<String, JsonObject?>();
-  set deviceContext(MapBuilder<String, JsonObject?>? deviceContext) =>
+  JsonObject? _deviceContext;
+  JsonObject? get deviceContext => _$this._deviceContext;
+  set deviceContext(JsonObject? deviceContext) =>
       _$this._deviceContext = deviceContext;
 
   V2SessionStartRequestBuilder() {
@@ -100,7 +99,7 @@ class V2SessionStartRequestBuilder
       _clientSessionId = $v.clientSessionId;
       _startedAt = $v.startedAt;
       _timezone = $v.timezone;
-      _deviceContext = $v.deviceContext?.toBuilder();
+      _deviceContext = $v.deviceContext;
       _$v = null;
     }
     return this;
@@ -120,28 +119,15 @@ class V2SessionStartRequestBuilder
   V2SessionStartRequest build() => _build();
 
   _$V2SessionStartRequest _build() {
-    _$V2SessionStartRequest _$result;
-    try {
-      _$result = _$v ??
-          _$V2SessionStartRequest._(
-            clientSessionId: BuiltValueNullFieldError.checkNotNull(
-                clientSessionId, r'V2SessionStartRequest', 'clientSessionId'),
-            startedAt: BuiltValueNullFieldError.checkNotNull(
-                startedAt, r'V2SessionStartRequest', 'startedAt'),
-            timezone: timezone,
-            deviceContext: _deviceContext?.build(),
-          );
-    } catch (_) {
-      late String _$failedField;
-      try {
-        _$failedField = 'deviceContext';
-        _deviceContext?.build();
-      } catch (e) {
-        throw BuiltValueNestedFieldError(
-            r'V2SessionStartRequest', _$failedField, e.toString());
-      }
-      rethrow;
-    }
+    final _$result = _$v ??
+        _$V2SessionStartRequest._(
+          clientSessionId: BuiltValueNullFieldError.checkNotNull(
+              clientSessionId, r'V2SessionStartRequest', 'clientSessionId'),
+          startedAt: BuiltValueNullFieldError.checkNotNull(
+              startedAt, r'V2SessionStartRequest', 'startedAt'),
+          timezone: timezone,
+          deviceContext: deviceContext,
+        );
     replace(_$result);
     return _$result;
   }

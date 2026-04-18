@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 **startPlaceId** | **String** |  | [optional] 
 **endPlaceId** | **String** |  | [optional] 
 **orderInTrip** | **int** |  | [optional] [default to 0]
-**routeGeojson** | [**BuiltMap&lt;String, JsonObject&gt;**](JsonObject.md) | Must be valid GeoJSON LineString | 
+**routeGeojson** | [**JsonObject**](.md) | Must be valid GeoJSON LineString | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

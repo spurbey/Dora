@@ -3,7 +3,6 @@
 //
 
 // ignore_for_file: unused_element
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -20,7 +19,7 @@ part 'route_generate_response.g.dart';
 @BuiltValue()
 abstract class RouteGenerateResponse implements Built<RouteGenerateResponse, RouteGenerateResponseBuilder> {
   @BuiltValueField(wireName: r'route_geojson')
-  BuiltMap<String, JsonObject?> get routeGeojson;
+  JsonObject get routeGeojson;
 
   @BuiltValueField(wireName: r'distance_km')
   num get distanceKm;
@@ -57,7 +56,7 @@ class _$RouteGenerateResponseSerializer implements PrimitiveSerializer<RouteGene
     yield r'route_geojson';
     yield serializers.serialize(
       object.routeGeojson,
-      specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+      specifiedType: const FullType(JsonObject),
     );
     yield r'distance_km';
     yield serializers.serialize(
@@ -102,9 +101,9 @@ class _$RouteGenerateResponseSerializer implements PrimitiveSerializer<RouteGene
         case r'route_geojson':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>;
-          result.routeGeojson.replace(valueDes);
+            specifiedType: const FullType(JsonObject),
+          ) as JsonObject;
+          result.routeGeojson = valueDes;
           break;
         case r'distance_km':
           final valueDes = serializers.deserialize(

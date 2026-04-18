@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -243,7 +242,8 @@ class RouteRepository {
 
       for (final remote in remoteRoutes) {
         final localId = const Uuid().v4();
-        final coordinates = _extractCoordinatesFromGeojsonMap(remote.routeGeojson.asMap());
+        final coordinates =
+            _extractCoordinatesFromGeojsonMap(_jsonObjectAsMap(remote.routeGeojson));
         final localStartPlaceId = remote.startPlaceId != null
             ? remotePlaceToLocalId[remote.startPlaceId]
             : null;
@@ -253,7 +253,7 @@ class RouteRepository {
 
         String? geojsonStr;
         try {
-          geojsonStr = jsonEncode(remote.routeGeojson.asMap());
+          geojsonStr = jsonEncode(_jsonObjectAsMap(remote.routeGeojson));
         } catch (_) {}
 
         routes.add(Route(
@@ -286,11 +286,22 @@ class RouteRepository {
     }
   }
 
+  Map<String, dynamic> _jsonObjectAsMap(JsonObject value) {
+    final raw = value.value;
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is Map) {
+      return raw.map((key, nested) => MapEntry(key.toString(), nested));
+    }
+    return const <String, dynamic>{};
+  }
+
   List<AppLatLng> _extractCoordinatesFromGeojsonMap(Map<String, dynamic> geojsonMap) {
     try {
       final map = geojsonMap;
       final type = map['type'];
-      final coordinates = map?['coordinates'];
+      final coordinates = map['coordinates'];
 
       if (type == 'LineString' && coordinates is List) {
         final parsed = <AppLatLng>[];
@@ -451,9 +462,7 @@ class RouteRepository {
       builder
         ..transportMode = _mapTransportMode(local.transportMode)
         ..routeCategory = _mapRouteCategory(local.routeCategory)
-        ..routeGeojson = MapBuilder<String, JsonObject?>(
-            (_resolveRouteGeoJson(local) as Map<String, dynamic>).map(
-                (k, v) => MapEntry(k, v != null ? JsonObject(v) : null)))
+        ..routeGeojson = JsonObject(_resolveRouteGeoJson(local))
         ..orderInTrip = local.orderIndex;
 
       final name = local.name;

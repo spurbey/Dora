@@ -1,7 +1,7 @@
 # Implementation Order Checklist (V2)
 
 Status: Execution checklist
-Last updated: 2026-04-12
+Last updated: 2026-04-18
 Reference: [Execution Plan V2](./execution-plan-v2.md)
 
 ## Phase 0: Contract Lock and Scaffolding
@@ -116,6 +116,18 @@ Flutter deletions:
 3. **`lib/core/live_tracking/`** — Tracked in commit 9687160.
 
 4. **`live_tracking_api.dart`** — V1 API methods removed (startTracking, pauseTracking, resumeTracking, stopTracking, uploadPointsBatch, uploadEventsBatch, checkin/moment methods).
+
+### Completed (2026-04-18)
+
+1. **OpenAPI source alignment** — `flutter/openapi.json` regenerated from current backend app OpenAPI to avoid stale running-server schema.
+
+2. **Generated client cleanup (`dora_api`)** — stale compiled-projection and legacy V1 tracking generated artifacts removed; serializers/models regenerated.
+
+3. **Flutter compatibility bridge after client cleanup**:
+   - `lib/core/network/live_tracking_api.dart` moved legacy notification/media endpoints to raw Dio payloads (no deleted generated V1 DTO dependency).
+   - `lib/features/create/data/route_repository.dart` and `lib/features/feed/data/feed_api.dart` updated for current `JsonObject` structure in regenerated client.
+
+4. **Known gap** — push-token lifecycle currently logs `POST /api/v1/notifications/device-tokens/register 404` because backend route is absent; either reintroduce backend notification routes or disable bootstrap on Flutter side.
 
 ### NOT YET DONE (deferred or Track B)
 

@@ -4,7 +4,6 @@
 
 // ignore_for_file: unused_element
 import 'package:dora_api/src/model/user_action_type.dart';
-import 'package:built_collection/built_collection.dart';
 import 'package:built_value/json_object.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
@@ -23,7 +22,7 @@ abstract class AdvisoryActionRequest implements Built<AdvisoryActionRequest, Adv
   // enum actionEnum {  dismissed,  liked,  saved,  acted_on,  converted_to_place,  };
 
   @BuiltValueField(wireName: r'action_metadata')
-  BuiltMap<String, JsonObject?>? get actionMetadata;
+  JsonObject? get actionMetadata;
 
   AdvisoryActionRequest._();
 
@@ -57,7 +56,7 @@ class _$AdvisoryActionRequestSerializer implements PrimitiveSerializer<AdvisoryA
       yield r'action_metadata';
       yield serializers.serialize(
         object.actionMetadata,
-        specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
+        specifiedType: const FullType.nullable(JsonObject),
       );
     }
   }
@@ -93,10 +92,10 @@ class _$AdvisoryActionRequestSerializer implements PrimitiveSerializer<AdvisoryA
         case r'action_metadata':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(BuiltMap, [FullType(String), FullType.nullable(JsonObject)]),
-          ) as BuiltMap<String, JsonObject?>?;
+            specifiedType: const FullType.nullable(JsonObject),
+          ) as JsonObject?;
           if (valueDes == null) continue;
-          result.actionMetadata.replace(valueDes);
+          result.actionMetadata = valueDes;
           break;
         default:
           unhandled.add(key);

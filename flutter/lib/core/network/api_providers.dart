@@ -4,7 +4,7 @@ import 'package:dora/core/config/env_config.dart';
 import 'package:dora/core/network/api_client.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
-import 'package:dora_api/dora_api.dart' hide LiveTrackingApi;
+import 'package:dora_api/dora_api.dart';
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final authService = ref.watch(authServiceProvider);

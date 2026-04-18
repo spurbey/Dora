@@ -36,10 +36,6 @@ from app.models.user_device_token import UserDeviceToken
 from app.models.trip_tracking_event import TripTrackingEvent
 from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.models.trip_location_point import TripLocationPoint
-from app.models.trip_compiled_projection_state import TripCompiledProjectionState
-from app.models.trip_compiled_projection_item import TripCompiledProjectionItem
-from app.models.trip_compiled_route_segment import TripCompiledRouteSegment
-from app.models.trip_compiled_projection_override import TripCompiledProjectionOverride
 from app.models.trip_session_raw import TripSessionRaw
 from app.models.trip_event_raw import TripEventRaw
 from app.models.trip_media_raw import TripMediaRaw
@@ -73,10 +69,6 @@ __all__ = [
     "TripTrackingEvent",
     "TripTrackingEventMedia",
     "TripLocationPoint",
-    "TripCompiledProjectionState",
-    "TripCompiledProjectionItem",
-    "TripCompiledRouteSegment",
-    "TripCompiledProjectionOverride",
     "TripSessionRaw",
     "TripEventRaw",
     "TripMediaRaw",

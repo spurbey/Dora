@@ -79,78 +79,105 @@ void main() {
       expect(result.failures, contains(ExportPrecheckFailure.pendingMedia));
     });
 
-    test('blocks export when sync queue has blocking trip task', () async {
+    test('blocks export when V2 session is active', () async {
       await _insertTrip(
         database,
-        tripId: 'trip-with-sync-task',
+        tripId: 'trip-active-session',
         serverTripId: 'server-trip-2',
       );
-      await _insertSyncTask(
+      await _insertSessionJournal(
         database,
-        taskId: 'task-trip-queued',
-        entityType: 'trip',
-        entityId: 'trip-with-sync-task',
-        status: 'queued',
+        sessionId: 'session-1',
+        tripLocalId: 'trip-active-session',
+        controlState: 'active',
       );
 
       final result =
-          await repository.evaluatePreSubmitGuards('trip-with-sync-task');
+          await repository.evaluatePreSubmitGuards('trip-active-session');
 
-      expect(result.blockingSyncTaskCount, 1);
+      expect(result.blockingV2ConditionCount, 1);
       expect(result.canExport, isFalse);
-      expect(result.failures, contains(ExportPrecheckFailure.pendingSync));
+      expect(result.failures, contains(ExportPrecheckFailure.activeSessionOrPublish));
     });
 
-    test('counts place-linked blocking sync tasks for the trip', () async {
+    test('blocks export when V2 session is paused', () async {
       await _insertTrip(
         database,
-        tripId: 'trip-with-place-task',
+        tripId: 'trip-paused-session',
         serverTripId: 'server-trip-3',
       );
-      await _insertPlace(
+      await _insertSessionJournal(
         database,
-        placeId: 'place-1',
-        tripId: 'trip-with-place-task',
-      );
-      await _insertSyncTask(
-        database,
-        taskId: 'task-place-in-progress',
-        entityType: 'place',
-        entityId: 'place-1',
-        status: 'in_progress',
+        sessionId: 'session-2',
+        tripLocalId: 'trip-paused-session',
+        controlState: 'paused',
       );
 
       final result =
-          await repository.evaluatePreSubmitGuards('trip-with-place-task');
+          await repository.evaluatePreSubmitGuards('trip-paused-session');
 
-      expect(result.blockingSyncTaskCount, 1);
+      expect(result.blockingV2ConditionCount, 1);
       expect(result.canExport, isFalse);
-      expect(result.failures, contains(ExportPrecheckFailure.pendingSync));
+      expect(result.failures, contains(ExportPrecheckFailure.activeSessionOrPublish));
     });
 
-    test('counts route delete task linked by trip dependency', () async {
+    test('blocks export when V2 publish is in progress', () async {
       await _insertTrip(
         database,
-        tripId: 'trip-with-route-delete',
+        tripId: 'trip-publishing',
         serverTripId: 'server-trip-4',
       );
-      await _insertSyncTask(
+      await _insertTripPublishState(
         database,
-        taskId: 'task-route-delete',
-        entityType: 'route',
-        entityId: 'route-deleted-locally',
-        status: 'queued',
-        operation: 'delete',
-        dependsOnEntityType: 'trip',
-        dependsOnEntityId: 'trip-with-route-delete',
+        tripLocalId: 'trip-publishing',
+        publishState: 'publishing',
       );
 
       final result =
-          await repository.evaluatePreSubmitGuards('trip-with-route-delete');
+          await repository.evaluatePreSubmitGuards('trip-publishing');
 
-      expect(result.blockingSyncTaskCount, 1);
+      expect(result.blockingV2ConditionCount, 1);
       expect(result.canExport, isFalse);
-      expect(result.failures, contains(ExportPrecheckFailure.pendingSync));
+      expect(result.failures, contains(ExportPrecheckFailure.activeSessionOrPublish));
+    });
+
+    test('allows export when V2 session is sealed (not active/paused)', () async {
+      await _insertTrip(
+        database,
+        tripId: 'trip-sealed-session',
+        serverTripId: 'server-trip-5',
+      );
+      await _insertSessionJournal(
+        database,
+        sessionId: 'session-3',
+        tripLocalId: 'trip-sealed-session',
+        controlState: 'sealed',
+      );
+
+      final result =
+          await repository.evaluatePreSubmitGuards('trip-sealed-session');
+
+      expect(result.blockingV2ConditionCount, 0);
+      expect(result.canExport, isTrue);
+    });
+
+    test('allows export when V2 publish is completed', () async {
+      await _insertTrip(
+        database,
+        tripId: 'trip-published',
+        serverTripId: 'server-trip-6',
+      );
+      await _insertTripPublishState(
+        database,
+        tripLocalId: 'trip-published',
+        publishState: 'published',
+      );
+
+      final result =
+          await repository.evaluatePreSubmitGuards('trip-published');
+
+      expect(result.blockingV2ConditionCount, 0);
+      expect(result.canExport, isTrue);
     });
 
     test('allows export when all pre-submit guards pass', () async {
@@ -166,7 +193,7 @@ void main() {
       expect(result.hasServerTripId, isTrue);
       expect(result.pendingMediaCount, 0);
       expect(result.failedMediaCount, 0);
-      expect(result.blockingSyncTaskCount, 0);
+      expect(result.blockingV2ConditionCount, 0);
       expect(result.failures, isEmpty);
       expect(result.canExport, isTrue);
     });
@@ -301,47 +328,37 @@ Future<void> _insertMedia(
       );
 }
 
-Future<void> _insertPlace(
+Future<void> _insertSessionJournal(
   AppDatabase database, {
-  required String placeId,
-  required String tripId,
+  required String sessionId,
+  required String tripLocalId,
+  required String controlState,
 }) async {
   final now = DateTime(2026, 2, 28, 10, 0, 0);
-  await database.into(database.places).insert(
-        PlacesCompanion.insert(
-          id: placeId,
-          tripId: tripId,
-          name: 'Test Place',
-          coordinates: const AppLatLng(latitude: 12.9716, longitude: 77.5946),
-          orderIndex: 0,
-          localUpdatedAt: now,
-          serverUpdatedAt: now,
-          syncStatus: 'synced',
+  await database.into(database.sessionJournal).insert(
+        SessionJournalCompanion.insert(
+          sessionId: sessionId,
+          tripLocalId: tripLocalId,
+          controlState: controlState,
+          sessionSeq: 1,
+          deviceId: 'device-1',
+          startedAt: Value(now),
+          createdAt: now,
+          updatedAt: now,
         ),
       );
 }
 
-Future<void> _insertSyncTask(
+Future<void> _insertTripPublishState(
   AppDatabase database, {
-  required String taskId,
-  required String entityType,
-  required String entityId,
-  required String status,
-  String operation = 'update',
-  String? dependsOnEntityType,
-  String? dependsOnEntityId,
+  required String tripLocalId,
+  required String publishState,
 }) async {
   final now = DateTime(2026, 2, 28, 10, 0, 0);
-  await database.into(database.syncTasks).insert(
-        SyncTasksCompanion.insert(
-          id: taskId,
-          entityType: entityType,
-          entityId: entityId,
-          operation: operation,
-          status: Value(status),
-          dependsOnEntityType: Value(dependsOnEntityType),
-          dependsOnEntityId: Value(dependsOnEntityId),
-          createdAt: now,
+  await database.into(database.tripPublishState).insert(
+        TripPublishStateCompanion.insert(
+          tripLocalId: tripLocalId,
+          publishState: Value(publishState),
           updatedAt: now,
         ),
       );

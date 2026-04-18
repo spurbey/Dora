@@ -240,8 +240,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       shellState: shellState,
       syncStatus: syncStatusAsync?.valueOrNull,
     );
-    final blockedMessage =
-        syncStatus?.snapshot.firstBlockedTaskErrorMessage?.trim();
+    // V2: blockedMediaCount > 0 indicates media upload is blocked.
+    final hasBlockedMedia = (syncStatus?.snapshot.blockedMediaCount ?? 0) > 0;
     final capturePosition = mapOverlay?.currentMarker?.position;
     final mapInitialCenter = capturePosition ??
         (mapOverlay?.pathRoute?.coordinates.isNotEmpty == true
@@ -259,10 +259,9 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       if (!usePreview &&
           !useV2Lane &&
           syncStatus?.kind == EditorSyncStatusKind.blocked &&
-          blockedMessage != null &&
-          blockedMessage.isNotEmpty)
+          hasBlockedMedia)
         _SyncBlockedCallout(
-          message: blockedMessage,
+          message: 'Media upload blocked',
           onRetry: _actionInFlight ? null : _retrySyncNow,
         ),
       if (!usePreview && !useV2Lane && unresolvedSummary.hasReviewRequired)
@@ -578,15 +577,19 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     }
     switch (syncStatus?.kind) {
       case EditorSyncStatusKind.blocked:
-        return 'Sync blocked';
+        return 'Upload blocked';
       case EditorSyncStatusKind.failed:
-        return 'Sync failed';
+        return 'Upload failed';
       case EditorSyncStatusKind.syncing:
-        return 'Syncing...';
+        return 'Uploading...';
       case EditorSyncStatusKind.localSaved:
         return 'Saved locally';
       case EditorSyncStatusKind.synced:
         return 'Synced';
+      case EditorSyncStatusKind.activeSession:
+        return 'Live session active';
+      case EditorSyncStatusKind.publishing:
+        return 'Publishing...';
       case null:
         return 'Syncing...';
     }

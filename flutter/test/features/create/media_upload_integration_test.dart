@@ -343,7 +343,6 @@ Future<File> _createTempFile(String suffix) async {
 
 Future<void> _clearTables(AppDatabase database) async {
   await database.customStatement('DELETE FROM media');
-  await database.customStatement('DELETE FROM sync_tasks');
   await database.customStatement('DELETE FROM routes');
   await database.customStatement('DELETE FROM places');
   await database.customStatement('DELETE FROM user_trips');
@@ -511,32 +510,8 @@ void main() {
         ),
       );
 
-      await database.customInsert(
-        '''
-        INSERT INTO sync_tasks (
-          id,
-          entity_type,
-          entity_id,
-          operation,
-          status,
-          retry_count,
-          next_attempt_at,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
-        ''',
-        variables: [
-          drift.Variable<String>('dep-trip-queued-1'),
-          drift.Variable<String>('trip'),
-          drift.Variable<String>(localTripId),
-          drift.Variable<String>('create'),
-          drift.Variable<String>('queued'),
-          drift.Variable<int>(0),
-          drift.Variable<int>(now.millisecondsSinceEpoch),
-          drift.Variable<int>(now.millisecondsSinceEpoch),
-        ],
-      );
+      // Place has syncStatus='pending' and no serverPlaceId, which is the
+      // V2 signal for deferred upload (sync_tasks table removed in V2).
 
       await mediaRepository.enqueueFilePaths(
         tripId: localTripId,

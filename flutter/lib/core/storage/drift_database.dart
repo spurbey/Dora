@@ -30,7 +30,6 @@ import 'package:dora/core/storage/tables/media_table.dart';
 import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
 import 'package:dora/core/storage/tables/routes_table.dart';
-import 'package:dora/core/storage/tables/sync_tasks_table.dart';
 import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
 import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
@@ -58,7 +57,6 @@ part 'drift_database.g.dart';
     Media,
     PublicTrips,
     UserTrips,
-    SyncTasks,
     SessionJournal,
     SessionActivityWindow,
     RoutePointJournal,
@@ -100,7 +98,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -174,16 +172,10 @@ class AppDatabase extends _$AppDatabase {
             // Trips: persistent mapping to backend trip UUID for place/media sync.
             await m.addColumn(trips, trips.serverTripId);
           }
-          if (from < 9) {
-            await m.createTable(syncTasks);
-          }
-          if (from >= 9 && from < 10) {
-            await _addColumnIfMissing(
-              tableName: 'sync_tasks',
-              columnName: 'remote_entity_id',
-              definition: 'TEXT',
-            );
-          }
+          // Migration 9: sync_tasks table — dropped in v22, skip creation.
+          // if (from < 9) { await m.createTable(syncTasks); }
+          // Migration 10: sync_tasks.remote_entity_id column — skipped.
+          // if (from >= 9 && from < 10) { ... }
           if (from >= 4 && from < 10) {
             await _addColumnIfMissing(
               tableName: 'routes',
@@ -194,13 +186,8 @@ class AppDatabase extends _$AppDatabase {
           if (from < 11) {
             await _repairSchemaForV11(m);
           }
-          if (from < 12) {
-            await _addColumnIfMissing(
-              tableName: 'sync_tasks',
-              columnName: 'pending_requeue',
-              definition: 'INTEGER NOT NULL DEFAULT 0',
-            );
-          }
+          // Migration 12: sync_tasks.pending_requeue column — skipped (table dropped in v22).
+          // if (from < 12) { ... }
           // Migration from < 13: V1 live-tracking tables (tracking_sessions,
           // tracking_point_batches, tracking_candidates, tracking_moments) and
           // their indexes. These tables are legacy — removed from @DriftDatabase
@@ -606,6 +593,10 @@ class AppDatabase extends _$AppDatabase {
               ''',
             );
           }
+          if (from < 22) {
+            // V1→V2 migration: Drop sync_tasks table (no longer used).
+            await customStatement('DROP TABLE IF EXISTS sync_tasks');
+          }
         },
       );
 
@@ -681,29 +672,12 @@ class AppDatabase extends _$AppDatabase {
       definition: 'TEXT',
     );
     await _backfillMediaUploadState();
-    await _ensureTableExists(m, 'sync_tasks');
-    await _addColumnIfMissing(
-      tableName: 'sync_tasks',
-      columnName: 'remote_entity_id',
-      definition: 'TEXT',
-    );
+    // sync_tasks table removed in V22 migration — skip creation/backfill.
     await _addColumnIfMissing(
       tableName: 'routes',
       columnName: 'server_route_id',
       definition: 'TEXT',
     );
-    await _backfillSyncTasksForUnsyncedEntities();
-  }
-
-  Future<void> _ensureTableExists(Migrator m, String tableName) async {
-    final exists = await _tableExists(tableName);
-    if (exists) {
-      return;
-    }
-
-    if (tableName == 'sync_tasks') {
-      await m.createTable(syncTasks);
-    }
   }
 
   Future<void> _addColumnIfMissing({
@@ -748,113 +722,6 @@ class AppDatabase extends _$AppDatabase {
     return rows.any((row) => row.read<String>('name') == columnName);
   }
 
-  Future<void> _backfillSyncTasksForUnsyncedEntities() async {
-    final now = DateTime.now();
-
-    // Any trip without a backend identity gets a create task.
-    await customStatement(
-      '''
-      INSERT OR IGNORE INTO sync_tasks (
-        id,
-        entity_type,
-        entity_id,
-        operation,
-        status,
-        retry_count,
-        created_at,
-        updated_at
-      )
-      SELECT
-        lower(hex(randomblob(16))),
-        'trip',
-        t.id,
-        'create',
-        'queued',
-        0,
-        ?,
-        ?
-      FROM trips t
-      WHERE t.server_trip_id IS NULL OR TRIM(t.server_trip_id) = ''
-      ''',
-      [now, now],
-    );
-
-    // Any place without a backend identity gets a create task that depends on trip.
-    await customStatement(
-      '''
-      INSERT OR IGNORE INTO sync_tasks (
-        id,
-        entity_type,
-        entity_id,
-        operation,
-        status,
-        retry_count,
-        depends_on_entity_type,
-        depends_on_entity_id,
-        created_at,
-        updated_at
-      )
-      SELECT
-        lower(hex(randomblob(16))),
-        'place',
-        p.id,
-        'create',
-        'queued',
-        0,
-        'trip',
-        p.trip_id,
-        ?,
-        ?
-      FROM places p
-      WHERE p.server_place_id IS NULL OR TRIM(p.server_place_id) = ''
-      ''',
-      [now, now],
-    );
-
-    await _backfillRouteSyncTasks();
-  }
-
-  Future<void> _backfillRouteSyncTasks() async {
-    final now = DateTime.now();
-    await customStatement(
-      '''
-      INSERT OR IGNORE INTO sync_tasks (
-        id,
-        entity_type,
-        entity_id,
-        operation,
-        status,
-        retry_count,
-        depends_on_entity_type,
-        depends_on_entity_id,
-        created_at,
-        updated_at
-      )
-      SELECT
-        lower(hex(randomblob(16))),
-        'route',
-        r.id,
-        'create',
-        'queued',
-        0,
-        CASE
-          WHEN r.start_place_id IS NOT NULL AND TRIM(r.start_place_id) != '' THEN 'place'
-          WHEN r.end_place_id IS NOT NULL AND TRIM(r.end_place_id) != '' THEN 'place'
-          ELSE 'trip'
-        END,
-        CASE
-          WHEN r.start_place_id IS NOT NULL AND TRIM(r.start_place_id) != '' THEN r.start_place_id
-          WHEN r.end_place_id IS NOT NULL AND TRIM(r.end_place_id) != '' THEN r.end_place_id
-          ELSE r.trip_id
-        END,
-        ?,
-        ?
-      FROM routes r
-      WHERE r.server_route_id IS NULL OR TRIM(r.server_route_id) = ''
-      ''',
-      [now, now],
-    );
-  }
 
   Future<void> _backfillMediaUploadState() async {
     if (!await _tableExists('media') ||

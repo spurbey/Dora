@@ -152,10 +152,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             kind: EditorSyncStatusKind.localSaved,
             label: 'Saved locally',
             snapshot: EditorSyncSnapshot(
-              blockedItems: 0,
-              failedItems: 0,
-              activeItems: 0,
-              unsyncedRows: 0,
+              tripSynced: true,
+              unsyncedPlaceCount: 0,
+              unsyncedRouteCount: 0,
+              pendingMediaCount: 0,
+              failedMediaCount: 0,
+              blockedMediaCount: 0,
+              hasActiveSession: false,
+              hasPendingPublish: false,
+              uncommittedSessionCount: 0,
             ),
           ),
         );
@@ -391,6 +396,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             return (status.label, AppColors.error);
           case EditorSyncStatusKind.blocked:
             return (status.label, AppColors.warning);
+          case EditorSyncStatusKind.activeSession:
+            return (status.label, AppColors.accent);
+          case EditorSyncStatusKind.publishing:
+            return (status.label, AppColors.accent);
         }
       },
       loading: () => ('Checking sync...', AppColors.textSecondary),
@@ -426,12 +435,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
               );
             }
             return _EditorSyncCallout(
-              message: snapshot.firstBlockedTaskErrorMessage ??
-                  'Sync is blocked. Resolve the issue and retry.',
+              message: 'Upload is blocked. Resolve the issue and retry.',
               tint: AppColors.warning,
-              actionLabel: 'Review',
-              onAction: () => _focusBlockedEntity(snapshot, controller),
+              actionLabel: 'Retry',
+              onAction: () => unawaited(_retrySyncNow()),
             );
+          case EditorSyncStatusKind.activeSession:
+          case EditorSyncStatusKind.publishing:
           case EditorSyncStatusKind.localSaved:
           case EditorSyncStatusKind.syncing:
           case EditorSyncStatusKind.synced:
@@ -469,33 +479,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     await context.push(Routes.mediaUploadPath(widget.tripId, placeId));
   }
 
-  void _focusBlockedEntity(
-    EditorSyncSnapshot snapshot,
-    EditorController controller,
-  ) {
-    final entityType = snapshot.firstBlockedTaskEntityType;
-    final entityId = snapshot.firstBlockedTaskEntityId;
-    if (entityType == 'place' && entityId != null) {
-      controller.selectPlace(entityId);
-    } else if (entityType == 'route' && entityId != null) {
-      controller.selectRoute(entityId);
-    }
-
-    final message = snapshot.firstBlockedTaskErrorMessage ??
-        'Sync is blocked. Resolve the highlighted item and retry.';
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Retry',
-          onPressed: () => unawaited(_retrySyncNow()),
-        ),
-      ),
-    );
-  }
 
   Widget _buildSyncCallout(_EditorSyncCallout callout) {
     return Padding(

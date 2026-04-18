@@ -128,13 +128,13 @@ class ExportRepository implements ExportRepositoryContract {
         hasServerTripId: isRemoteBacked,
         pendingMediaCount: pendingMediaCount,
         failedMediaCount: failedMediaCount,
-        blockingSyncTaskCount: 0,
+        blockingV2ConditionCount: 0,
       );
     }
 
     final hasServerTripId = (trip.serverTripId ?? '').trim().isNotEmpty;
 
-    final blockingSyncTaskCount = await _countBlockingSyncTasks(tripId);
+    final blockingV2Count = await _countBlockingV2Conditions(tripId);
 
     return ExportPrecheckResult(
       tripId: tripId,
@@ -142,7 +142,7 @@ class ExportRepository implements ExportRepositoryContract {
       hasServerTripId: hasServerTripId,
       pendingMediaCount: pendingMediaCount,
       failedMediaCount: failedMediaCount,
-      blockingSyncTaskCount: blockingSyncTaskCount,
+      blockingV2ConditionCount: blockingV2Count,
     );
   }
 
@@ -423,44 +423,31 @@ class ExportRepository implements ExportRepositoryContract {
     }
   }
 
-  Future<int> _countBlockingSyncTasks(String tripId) async {
+  /// Counts blocking V2 conditions: active sessions + in-progress publishes.
+  Future<int> _countBlockingV2Conditions(String tripId) async {
     final variables = <Variable<String>>[
-      Variable<String>(tripId),
-      Variable<String>(tripId),
       Variable<String>(tripId),
       Variable<String>(tripId),
     ];
 
     const query = '''
-      SELECT COUNT(*) AS task_count
-      FROM sync_tasks
-      WHERE status IN ('queued', 'in_progress', 'failed', 'blocked')
-        AND (
-          (entity_type = 'trip' AND entity_id = ?)
-          OR (depends_on_entity_type = 'trip' AND depends_on_entity_id = ?)
-          OR (
-            entity_type = 'place'
-            AND EXISTS (
-              SELECT 1
-              FROM places
-              WHERE places.id = sync_tasks.entity_id
-                AND places.trip_id = ?
-            )
-          )
-          OR (
-            entity_type = 'route'
-            AND EXISTS (
-              SELECT 1
-              FROM routes
-              WHERE routes.id = sync_tasks.entity_id
-                AND routes.trip_id = ?
-            )
-          )
-        )
+      SELECT
+        (
+          SELECT COUNT(*)
+          FROM session_journal
+          WHERE trip_local_id = ?
+            AND control_state IN ('active', 'paused')
+        ) +
+        (
+          SELECT COUNT(*)
+          FROM trip_publish_state
+          WHERE trip_local_id = ?
+            AND publish_state = 'publishing'
+        ) AS blocking_count
     ''';
 
     final row = await _db.customSelect(query, variables: variables).getSingle();
-    return row.read<int>('task_count');
+    return row.read<int>('blocking_count');
   }
 
   String _mapSubmitError({

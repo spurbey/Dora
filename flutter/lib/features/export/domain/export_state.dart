@@ -3,7 +3,7 @@ enum ExportPrecheckFailure {
   tripNotFound,
   tripNotSynced,
   pendingMedia,
-  pendingSync,
+  activeSessionOrPublish,
 }
 
 /// Snapshot of all local pre-submit checks for an export request.
@@ -14,7 +14,7 @@ class ExportPrecheckResult {
     required this.hasServerTripId,
     required this.pendingMediaCount,
     required this.failedMediaCount,
-    required this.blockingSyncTaskCount,
+    required this.blockingV2ConditionCount,
   });
 
   final String tripId;
@@ -22,7 +22,9 @@ class ExportPrecheckResult {
   final bool hasServerTripId;
   final int pendingMediaCount;
   final int failedMediaCount;
-  final int blockingSyncTaskCount;
+
+  /// Count of blocking V2 conditions: active/paused sessions + in-progress publishes.
+  final int blockingV2ConditionCount;
 
   int get unresolvedMediaCount => pendingMediaCount + failedMediaCount;
 
@@ -40,8 +42,8 @@ class ExportPrecheckResult {
     if (unresolvedMediaCount > 0) {
       values.add(ExportPrecheckFailure.pendingMedia);
     }
-    if (blockingSyncTaskCount > 0) {
-      values.add(ExportPrecheckFailure.pendingSync);
+    if (blockingV2ConditionCount > 0) {
+      values.add(ExportPrecheckFailure.activeSessionOrPublish);
     }
 
     return values;

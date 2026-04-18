@@ -288,7 +288,7 @@ ExportPrecheckResult _precheck({
   required bool hasServerTripId,
   int pendingMediaCount = 0,
   int failedMediaCount = 0,
-  int blockingSyncTaskCount = 0,
+  int blockingV2ConditionCount = 0,
 }) {
   return ExportPrecheckResult(
     tripId: 'trip-1',
@@ -296,7 +296,7 @@ ExportPrecheckResult _precheck({
     hasServerTripId: hasServerTripId,
     pendingMediaCount: pendingMediaCount,
     failedMediaCount: failedMediaCount,
-    blockingSyncTaskCount: blockingSyncTaskCount,
+    blockingV2ConditionCount: blockingV2ConditionCount,
   );
 }
 

@@ -9,40 +9,7 @@ import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
 abstract class LiveTrackingApi {
-  Future<Map<String, dynamic>> startTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientSessionId,
-    required DateTime startedAt,
-    String? timezone,
-    Map<String, dynamic>? deviceContext,
-  });
-
-  Future<Map<String, dynamic>> pauseTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime pausedAt,
-    String? sessionId,
-    String? reason,
-  });
-
-  Future<Map<String, dynamic>> resumeTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime resumedAt,
-    String? sessionId,
-  });
-
-  Future<Map<String, dynamic>> stopTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime stoppedAt,
-    String? sessionId,
-    String? reason,
-  });
+  // ─── V2 Session Control ─────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> startTrackingV2({
     required String tripId,
@@ -102,20 +69,7 @@ abstract class LiveTrackingApi {
     required int schemaVersion,
   });
 
-  Future<Map<String, dynamic>> uploadPointsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required String sessionId,
-    required String clientBatchId,
-    required DateTime sentAt,
-    required List<Map<String, dynamic>> points,
-  });
-
-  Future<Map<String, dynamic>> uploadEventsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required List<Map<String, dynamic>> events,
-  });
+  // ─── Media Upload ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> uploadTrackingMediaBinary({
     required String tripId,
@@ -154,59 +108,7 @@ abstract class LiveTrackingApi {
     );
   }
 
-  Future<Map<String, dynamic>> fetchTrackingPath({
-    required String tripId,
-    String? sessionId,
-    int limit = 5000,
-  });
-
-  Future<Map<String, dynamic>> confirmCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime confirmedAt,
-  });
-
-  Future<Map<String, dynamic>> rejectCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime rejectedAt,
-    String? reason,
-  });
-
-  Future<Map<String, dynamic>> snoozeCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime snoozedUntil,
-  });
-
-  Future<Map<String, dynamic>> createMoment({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime capturedAt,
-    String? note,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    Map<String, dynamic>? extraPayload,
-  });
-
-  Future<Map<String, dynamic>> updateMoment({
-    required String momentId,
-    required String idempotencyKey,
-    required String clientEventId,
-    DateTime? capturedAt,
-    String? note,
-    bool includeNote = false,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    bool includeLinkedTripPlaceId = false,
-    Map<String, dynamic>? extraPayload,
-  });
+  // ─── Push Notifications ─────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> registerDeviceToken({
     required String idempotencyKey,
@@ -430,119 +332,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     );
   }
 
-  @override
-  Future<Map<String, dynamic>> startTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientSessionId,
-    required DateTime startedAt,
-    String? timezone,
-    Map<String, dynamic>? deviceContext,
-  }) async {
-    final request = _deserialize<openapi.TrackingStartRequest>(
-      <String, dynamic>{
-        'client_session_id': clientSessionId,
-        'started_at': _toUtc(startedAt).toIso8601String(),
-        if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
-        'device_context': deviceContext ?? <String, dynamic>{},
-      },
-      const FullType(openapi.TrackingStartRequest),
-    );
-
-    final response =
-        await _liveTrackingApi.startTrackingApiV1TripsTripIdTrackingStartPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingStartRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> pauseTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime pausedAt,
-    String? sessionId,
-    String? reason,
-  }) async {
-    final request = _deserialize<openapi.TrackingPauseRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
-        'paused_at': _toUtc(pausedAt).toIso8601String(),
-        if (reason != null && reason.isNotEmpty) 'reason': reason,
-      },
-      const FullType(openapi.TrackingPauseRequest),
-    );
-
-    final response =
-        await _liveTrackingApi.pauseTrackingApiV1TripsTripIdTrackingPausePost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingPauseRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> resumeTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime resumedAt,
-    String? sessionId,
-  }) async {
-    final request = _deserialize<openapi.TrackingResumeRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
-        'resumed_at': _toUtc(resumedAt).toIso8601String(),
-      },
-      const FullType(openapi.TrackingResumeRequest),
-    );
-
-    final response =
-        await _liveTrackingApi.resumeTrackingApiV1TripsTripIdTrackingResumePost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingResumeRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> stopTracking({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime stoppedAt,
-    String? sessionId,
-    String? reason,
-  }) async {
-    final request = _deserialize<openapi.TrackingStopRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
-        'stopped_at': _toUtc(stoppedAt).toIso8601String(),
-        if (reason != null && reason.isNotEmpty) 'reason': reason,
-      },
-      const FullType(openapi.TrackingStopRequest),
-    );
-
-    final response =
-        await _liveTrackingApi.stopTrackingApiV1TripsTripIdTrackingStopPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingStopRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
+  // ─── V2 Session Control ─────────────────────────────────────────────────────
 
   @override
   Future<Map<String, dynamic>> startTrackingV2({
@@ -683,55 +473,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     return _asJsonMap(response.data);
   }
 
-  @override
-  Future<Map<String, dynamic>> uploadPointsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required String sessionId,
-    required String clientBatchId,
-    required DateTime sentAt,
-    required List<Map<String, dynamic>> points,
-  }) async {
-    final request = _deserialize<openapi.TrackingPointsBatchRequest>(
-      <String, dynamic>{
-        'session_id': sessionId,
-        'client_batch_id': clientBatchId,
-        'sent_at': _toUtc(sentAt).toIso8601String(),
-        'points': points,
-      },
-      const FullType(openapi.TrackingPointsBatchRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .ingestPointsBatchApiV1TripsTripIdTrackingPointsBatchPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingPointsBatchRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> uploadEventsBatch({
-    required String tripId,
-    required String idempotencyKey,
-    required List<Map<String, dynamic>> events,
-  }) async {
-    final request = _deserialize<openapi.TrackingEventsBatchRequest>(
-      <String, dynamic>{'events': events},
-      const FullType(openapi.TrackingEventsBatchRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .ingestEventsBatchApiV1TripsTripIdTrackingEventsBatchPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      trackingEventsBatchRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
+  // ─── Media Upload ───────────────────────────────────────────────────────────
 
   @override
   Future<Map<String, dynamic>> uploadTrackingMediaBinary({
@@ -842,170 +584,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     return _asJsonMap(response.data);
   }
 
-  @override
-  Future<Map<String, dynamic>> fetchTrackingPath({
-    required String tripId,
-    String? sessionId,
-    int limit = 5000,
-  }) async {
-    final clampedLimit = limit.clamp(1, 10000);
-    final response =
-        await _liveTrackingApi.getTrackingPathApiV1TripsTripIdTrackingPathGet(
-      tripId: tripId,
-      authorization: await _authorizationHeader(),
-      sessionId: (sessionId != null && sessionId.isNotEmpty) ? sessionId : null,
-      limit: clampedLimit,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> confirmCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime confirmedAt,
-  }) async {
-    final request = _deserialize<openapi.CheckinConfirmRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        'confirmed_at': _toUtc(confirmedAt).toIso8601String(),
-      },
-      const FullType(openapi.CheckinConfirmRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .confirmCheckinCandidateApiV1CheckinsCandidateIdConfirmPost(
-      candidateId: candidateId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      checkinConfirmRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> rejectCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime rejectedAt,
-    String? reason,
-  }) async {
-    final request = _deserialize<openapi.CheckinRejectRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        'rejected_at': _toUtc(rejectedAt).toIso8601String(),
-        if (reason != null && reason.isNotEmpty) 'reason': reason,
-      },
-      const FullType(openapi.CheckinRejectRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .rejectCheckinCandidateApiV1CheckinsCandidateIdRejectPost(
-      candidateId: candidateId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      checkinRejectRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> snoozeCheckin({
-    required String candidateId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime snoozedUntil,
-  }) async {
-    final request = _deserialize<openapi.CheckinSnoozeRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        'snoozed_until': _toUtc(snoozedUntil).toIso8601String(),
-      },
-      const FullType(openapi.CheckinSnoozeRequest),
-    );
-
-    final response = await _liveTrackingApi
-        .snoozeCheckinCandidateApiV1CheckinsCandidateIdSnoozePost(
-      candidateId: candidateId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      checkinSnoozeRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> createMoment({
-    required String tripId,
-    required String idempotencyKey,
-    required String clientEventId,
-    required DateTime capturedAt,
-    String? note,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    Map<String, dynamic>? extraPayload,
-  }) async {
-    final request = _deserialize<openapi.MomentCreateRequest>(
-      <String, dynamic>{
-        'client_event_id': clientEventId,
-        'captured_at': _toUtc(capturedAt).toIso8601String(),
-        if (note != null) 'note': note,
-        if (location != null) 'location': location,
-        'media_refs': mediaRefs ?? <Map<String, dynamic>>[],
-        if (linkedTripPlaceId != null && linkedTripPlaceId.isNotEmpty)
-          'linked_trip_place_id': linkedTripPlaceId,
-        'extra_payload': extraPayload ?? <String, dynamic>{},
-      },
-      const FullType(openapi.MomentCreateRequest),
-    );
-
-    final response =
-        await _liveTrackingApi.createTripMomentApiV1TripsTripIdMomentsPost(
-      tripId: tripId,
-      xIdempotencyKey: idempotencyKey,
-      authorization: await _authorizationHeader(),
-      momentCreateRequest: request,
-    );
-    return _asJsonMap(response.data);
-  }
-
-  @override
-  Future<Map<String, dynamic>> updateMoment({
-    required String momentId,
-    required String idempotencyKey,
-    required String clientEventId,
-    DateTime? capturedAt,
-    String? note,
-    bool includeNote = false,
-    Map<String, dynamic>? location,
-    List<Map<String, dynamic>>? mediaRefs,
-    String? linkedTripPlaceId,
-    bool includeLinkedTripPlaceId = false,
-    Map<String, dynamic>? extraPayload,
-  }) async {
-    // Keep manual payload construction here to preserve explicit-null patch
-    // semantics for clear-intent fields (note / linked_trip_place_id).
-    final response = await _dio.patch<dynamic>(
-      _v1Path('/moments/$momentId'),
-      data: <String, dynamic>{
-        'client_event_id': clientEventId,
-        if (capturedAt != null)
-          'captured_at': _toUtc(capturedAt).toIso8601String(),
-        if (includeNote || note != null) 'note': note,
-        if (location != null) 'location': location,
-        if (mediaRefs != null) 'media_refs': mediaRefs,
-        if (includeLinkedTripPlaceId ||
-            (linkedTripPlaceId != null && linkedTripPlaceId.isNotEmpty))
-          'linked_trip_place_id': linkedTripPlaceId,
-        if (extraPayload != null) 'extra_payload': extraPayload,
-      },
-      options: _idempotentOptions(idempotencyKey),
-    );
-    return _asJsonMap(response.data);
-  }
+  // ─── Push Notifications ─────────────────────────────────────────────────────
 
   @override
   Future<Map<String, dynamic>> registerDeviceToken({

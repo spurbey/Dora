@@ -10,6 +10,8 @@ enum EditorSyncStatusKind {
   synced,
   failed,
   blocked,
+  activeSession,
+  publishing,
 }
 
 class EditorSyncStatus {
@@ -26,41 +28,70 @@ class EditorSyncStatus {
 
 @visibleForTesting
 EditorSyncStatus resolveEditorSyncStatus(EditorSyncSnapshot snapshot) {
-  if (snapshot.blockedItems > 0) {
+  // V2 session states take priority
+  if (snapshot.hasActiveSession) {
+    return EditorSyncStatus(
+      kind: EditorSyncStatusKind.activeSession,
+      label: 'Live session active',
+      snapshot: snapshot,
+    );
+  }
+  if (snapshot.hasPendingPublish) {
+    return EditorSyncStatus(
+      kind: EditorSyncStatusKind.publishing,
+      label: 'Publishing...',
+      snapshot: snapshot,
+    );
+  }
+
+  // Media states
+  if (snapshot.blockedMediaCount > 0) {
     return EditorSyncStatus(
       kind: EditorSyncStatusKind.blocked,
-      label: 'Sync blocked',
+      label: 'Upload blocked',
       snapshot: snapshot,
     );
   }
-  if (snapshot.failedItems > 0) {
+  if (snapshot.failedMediaCount > 0) {
     return EditorSyncStatus(
       kind: EditorSyncStatusKind.failed,
-      label: 'Sync failed',
+      label: 'Upload failed',
       snapshot: snapshot,
     );
   }
-  if (snapshot.activeItems > 0) {
+  if (snapshot.pendingMediaCount > 0) {
     return EditorSyncStatus(
       kind: EditorSyncStatusKind.syncing,
-      label: 'Syncing...',
+      label: 'Uploading...',
       snapshot: snapshot,
     );
   }
-  if (snapshot.unsyncedRows > 0) {
+
+  // Entity sync states
+  if (snapshot.unsyncedPlaceCount > 0 || snapshot.unsyncedRouteCount > 0) {
     return EditorSyncStatus(
       kind: EditorSyncStatusKind.localSaved,
       label: 'Saved locally',
       snapshot: snapshot,
     );
   }
-  if (snapshot.droppedPointBatchItems > 0) {
+  if (!snapshot.tripSynced) {
     return EditorSyncStatus(
-      kind: EditorSyncStatusKind.synced,
-      label: 'Synced (GPS drops recovered)',
+      kind: EditorSyncStatusKind.localSaved,
+      label: 'Saved locally',
       snapshot: snapshot,
     );
   }
+
+  // V2 uncommitted sessions (sealed but not published)
+  if (snapshot.uncommittedSessionCount > 0) {
+    return EditorSyncStatus(
+      kind: EditorSyncStatusKind.localSaved,
+      label: 'Unpublished captures',
+      snapshot: snapshot,
+    );
+  }
+
   return EditorSyncStatus(
     kind: EditorSyncStatusKind.synced,
     label: 'Synced',
@@ -68,122 +99,79 @@ EditorSyncStatus resolveEditorSyncStatus(EditorSyncSnapshot snapshot) {
   );
 }
 
+/// Main editor sync status provider - monitors trip/place/route/media sync
+/// and V2 session state.
 final editorSyncStatusProvider =
     StreamProvider.family<EditorSyncStatus, String>((ref, tripId) {
   final db = ref.watch(appDatabaseProvider);
   final query = db.customSelect(
     '''
-    WITH scoped_sync_tasks AS (
-      SELECT
-        t.entity_type,
-        t.entity_id,
-        t.status,
-        t.updated_at,
-        t.error_message
-      FROM sync_tasks AS t
-      WHERE (
-          (t.entity_type = 'trip' AND t.entity_id = ?)
-          OR (t.entity_type = 'place' AND t.entity_id IN (
-            SELECT p.id FROM places AS p WHERE p.trip_id = ?
-          ))
-          OR (t.entity_type = 'route' AND t.entity_id IN (
-            SELECT r.id FROM routes AS r WHERE r.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_session' AND t.entity_id IN (
-            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
-            SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
-          ))
-          OR (t.entity_type = 'moment' AND t.entity_id IN (
-            SELECT m.id FROM tracking_moments AS m WHERE m.trip_id = ?
-          ))
-          OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
-            SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
-            SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
-            SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
-          ))
-      )
-    )
     SELECT
+      -- Trip sync status
       (
-        SELECT COUNT(*) FROM scoped_sync_tasks
-        WHERE status = 'blocked'
-      ) AS blocked_tasks,
+        SELECT CASE
+          WHEN t.sync_status = 'synced' OR (t.server_trip_id IS NOT NULL AND t.server_trip_id != '')
+          THEN 1 ELSE 0
+        END
+        FROM trips AS t
+        WHERE t.id = ?
+      ) AS trip_synced,
+
+      -- Place sync status
       (
-        SELECT COUNT(*) FROM scoped_sync_tasks
-        WHERE status = 'failed'
-      ) AS failed_tasks,
+        SELECT COUNT(*)
+        FROM places AS p
+        WHERE p.trip_id = ? AND p.sync_status != 'synced'
+      ) AS unsynced_place_count,
+
+      -- Route sync status
       (
-        SELECT COUNT(*) FROM scoped_sync_tasks
-        WHERE status IN ('queued', 'pending', 'in_progress', 'deferred')
-      ) AS active_tasks,
+        SELECT COUNT(*)
+        FROM routes AS r
+        WHERE r.trip_id = ? AND r.sync_status != 'synced'
+      ) AS unsynced_route_count,
+
+      -- Media upload states
       (
         SELECT COUNT(*)
         FROM media AS m
-        WHERE m.trip_id = ? AND m.upload_status = 'blocked'
-      ) AS blocked_media,
+        WHERE m.trip_id = ? AND m.upload_status IN ('queued', 'compressing', 'uploading', 'deferred')
+      ) AS pending_media_count,
       (
         SELECT COUNT(*)
         FROM media AS m
         WHERE m.trip_id = ? AND m.upload_status = 'failed'
-      ) AS failed_media,
+      ) AS failed_media_count,
       (
         SELECT COUNT(*)
         FROM media AS m
-        WHERE m.trip_id = ?
-          AND m.upload_status IN ('queued', 'compressing', 'uploading', 'deferred')
-      ) AS active_media,
+        WHERE m.trip_id = ? AND m.upload_status = 'blocked'
+      ) AS blocked_media_count,
+
+      -- V2 session state: active or paused sessions
       (
         SELECT COUNT(*)
-        FROM trips AS t
-        WHERE t.id = ? AND t.sync_status <> 'synced'
-      ) AS unsynced_trip_rows,
+        FROM session_journal AS sj
+        WHERE sj.trip_local_id = ? AND sj.control_state IN ('active', 'paused')
+      ) AS active_session_count,
+
+      -- V2 session state: uncommitted sealed sessions
       (
         SELECT COUNT(*)
-        FROM places AS p
-        WHERE p.trip_id = ? AND p.sync_status <> 'synced'
-      ) AS unsynced_place_rows,
+        FROM session_journal AS sj
+        WHERE sj.trip_local_id = ? AND sj.control_state = 'sealed'
+      ) AS uncommitted_session_count,
+
+      -- V2 publish state
       (
-        SELECT COUNT(*)
-        FROM routes AS r
-        WHERE r.trip_id = ? AND r.sync_status <> 'synced'
-      ) AS unsynced_route_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_event_media AS em
-        WHERE em.trip_id = ? AND em.sync_status <> 'synced'
-      ) AS unsynced_tracking_media_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_point_batches AS b
-        WHERE b.trip_id = ? AND b.status = 'dropped_stale_session'
-      ) AS dropped_point_batch_rows,
-      (
-        SELECT entity_type
-        FROM scoped_sync_tasks
-        WHERE status = 'blocked'
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_entity_type,
-      (
-        SELECT entity_id
-        FROM scoped_sync_tasks
-        WHERE status = 'blocked'
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_entity_id,
-      (
-        SELECT error_message
-        FROM scoped_sync_tasks
-        WHERE status = 'blocked'
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_error_message,
+        SELECT CASE
+          WHEN tps.publish_state = 'publishing' THEN 1 ELSE 0
+        END
+        FROM trip_publish_state AS tps
+        WHERE tps.trip_local_id = ?
+      ) AS is_publishing,
+
+      -- First blocked media place for UI hint
       (
         SELECT m.place_id
         FROM media AS m
@@ -195,292 +183,106 @@ final editorSyncStatusProvider =
       ) AS first_blocked_media_place_id
     ''',
     variables: [
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
+      Variable<String>(tripId), // trip_synced
+      Variable<String>(tripId), // unsynced_place_count
+      Variable<String>(tripId), // unsynced_route_count
+      Variable<String>(tripId), // pending_media_count
+      Variable<String>(tripId), // failed_media_count
+      Variable<String>(tripId), // blocked_media_count
+      Variable<String>(tripId), // active_session_count
+      Variable<String>(tripId), // uncommitted_session_count
+      Variable<String>(tripId), // is_publishing
+      Variable<String>(tripId), // first_blocked_media_place_id
     ],
     readsFrom: {
-      db.syncTasks,
-      db.media,
       db.trips,
       db.places,
       db.routes,
+      db.media,
+      db.sessionJournal,
+      db.tripPublishState,
     },
   );
 
   return query.watchSingle().map((row) {
-    final blockedItems =
-        row.read<int>('blocked_tasks') + row.read<int>('blocked_media');
-    final failedItems =
-        row.read<int>('failed_tasks') + row.read<int>('failed_media');
-    final activeItems =
-        row.read<int>('active_tasks') + row.read<int>('active_media');
-    final unsyncedRows = row.read<int>('unsynced_trip_rows') +
-        row.read<int>('unsynced_place_rows') +
-        row.read<int>('unsynced_route_rows') +
-        row.read<int>('unsynced_tracking_media_rows');
-    final blockedMediaItems = row.read<int>('blocked_media');
-    final failedMediaItems = row.read<int>('failed_media');
-    final droppedPointBatchItems = row.read<int>('dropped_point_batch_rows');
-    final firstBlockedTaskEntityType =
-        row.data['first_blocked_task_entity_type'] as String?;
-    final firstBlockedTaskEntityId =
-        row.data['first_blocked_task_entity_id'] as String?;
-    final firstBlockedTaskErrorMessage =
-        row.data['first_blocked_task_error_message'] as String?;
+    final tripSynced = (row.read<int?>('trip_synced') ?? 0) == 1;
+    final unsyncedPlaceCount = row.read<int?>('unsynced_place_count') ?? 0;
+    final unsyncedRouteCount = row.read<int?>('unsynced_route_count') ?? 0;
+    final pendingMediaCount = row.read<int?>('pending_media_count') ?? 0;
+    final failedMediaCount = row.read<int?>('failed_media_count') ?? 0;
+    final blockedMediaCount = row.read<int?>('blocked_media_count') ?? 0;
+    final activeSessionCount = row.read<int?>('active_session_count') ?? 0;
+    final uncommittedSessionCount =
+        row.read<int?>('uncommitted_session_count') ?? 0;
+    final isPublishing = (row.read<int?>('is_publishing') ?? 0) == 1;
     final firstBlockedMediaPlaceId =
         row.data['first_blocked_media_place_id'] as String?;
 
     return resolveEditorSyncStatus(
       EditorSyncSnapshot(
-        blockedItems: blockedItems,
-        failedItems: failedItems,
-        activeItems: activeItems,
-        unsyncedRows: unsyncedRows,
-        blockedMediaItems: blockedMediaItems,
-        failedMediaItems: failedMediaItems,
-        droppedPointBatchItems: droppedPointBatchItems,
-        firstBlockedTaskEntityType: firstBlockedTaskEntityType,
-        firstBlockedTaskEntityId: firstBlockedTaskEntityId,
-        firstBlockedTaskErrorMessage: firstBlockedTaskErrorMessage,
+        tripSynced: tripSynced,
+        unsyncedPlaceCount: unsyncedPlaceCount,
+        unsyncedRouteCount: unsyncedRouteCount,
+        pendingMediaCount: pendingMediaCount,
+        failedMediaCount: failedMediaCount,
+        blockedMediaCount: blockedMediaCount,
+        hasActiveSession: activeSessionCount > 0,
+        hasPendingPublish: isPublishing,
+        uncommittedSessionCount: uncommittedSessionCount,
         firstBlockedMediaPlaceId: firstBlockedMediaPlaceId,
       ),
     );
   });
 });
 
-final liveTrackingSyncStatusProvider =
-    StreamProvider.family<EditorSyncStatus, String>((ref, tripId) {
-  final db = ref.watch(appDatabaseProvider);
-  final query = db.customSelect(
-    '''
-    WITH scoped_tracking_tasks AS (
-      SELECT
-        t.entity_type,
-        t.entity_id,
-        t.operation,
-        t.status,
-        t.error_code,
-        t.updated_at,
-        t.error_message
-      FROM sync_tasks AS t
-      WHERE (
-          (t.entity_type = 'trip' AND t.entity_id = ?)
-          OR
-          (t.entity_type = 'tracking_session' AND t.entity_id IN (
-            SELECT s.id FROM tracking_sessions AS s WHERE s.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_point_batch' AND t.entity_id IN (
-            SELECT b.id FROM tracking_point_batches AS b WHERE b.trip_id = ?
-          ))
-          OR (t.entity_type = 'moment' AND t.entity_id IN (
-            SELECT m.id FROM tracking_moments AS m WHERE m.trip_id = ?
-          ))
-          OR (t.entity_type = 'checkin_decision' AND t.entity_id IN (
-            SELECT c.id FROM tracking_candidates AS c WHERE c.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_event' AND t.entity_id IN (
-            SELECT e.id FROM tracking_events AS e WHERE e.trip_id = ?
-          ))
-          OR (t.entity_type = 'tracking_event_media' AND t.entity_id IN (
-            SELECT em.id FROM tracking_event_media AS em WHERE em.trip_id = ?
-          ))
-      )
-    )
-    SELECT
-      (
-        SELECT COUNT(*) FROM scoped_tracking_tasks
-        WHERE status = 'blocked'
-          AND NOT (
-            entity_type = 'tracking_session'
-            AND operation = 'start'
-            AND error_code = 'http_409'
-          )
-      ) AS blocked_tasks,
-      (
-        SELECT COUNT(*) FROM scoped_tracking_tasks
-        WHERE status = 'failed'
-      ) AS failed_tasks,
-      (
-        SELECT COUNT(*) FROM scoped_tracking_tasks
-        WHERE status IN ('queued', 'pending', 'in_progress', 'deferred')
-      ) AS active_tasks,
-      (
-        SELECT COUNT(*)
-        FROM trips AS t
-        WHERE t.id = ? AND t.sync_status <> 'synced'
-      ) AS unsynced_trip_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_sessions AS s
-        WHERE s.trip_id = ? AND s.sync_status <> 'synced'
-      ) AS unsynced_session_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_point_batches AS b
-        WHERE b.trip_id = ? AND b.sync_status <> 'synced'
-      ) AS unsynced_batch_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_moments AS m
-        WHERE m.trip_id = ? AND m.sync_status <> 'synced'
-      ) AS unsynced_moment_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_candidates AS c
-        WHERE c.trip_id = ? AND c.sync_status <> 'synced'
-      ) AS unsynced_candidate_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_events AS e
-        WHERE e.trip_id = ? AND e.sync_status <> 'synced'
-      ) AS unsynced_event_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_event_media AS em
-        WHERE em.trip_id = ? AND em.sync_status <> 'synced'
-      ) AS unsynced_tracking_media_rows,
-      (
-        SELECT COUNT(*)
-        FROM tracking_point_batches AS b
-        WHERE b.trip_id = ? AND b.status = 'dropped_stale_session'
-      ) AS dropped_point_batch_rows,
-      (
-        SELECT entity_type
-        FROM scoped_tracking_tasks
-        WHERE status = 'blocked'
-          AND NOT (
-            entity_type = 'tracking_session'
-            AND operation = 'start'
-            AND error_code = 'http_409'
-          )
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_entity_type,
-      (
-        SELECT entity_id
-        FROM scoped_tracking_tasks
-        WHERE status = 'blocked'
-          AND NOT (
-            entity_type = 'tracking_session'
-            AND operation = 'start'
-            AND error_code = 'http_409'
-          )
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_entity_id,
-      (
-        SELECT error_message
-        FROM scoped_tracking_tasks
-        WHERE status = 'blocked'
-          AND NOT (
-            entity_type = 'tracking_session'
-            AND operation = 'start'
-            AND error_code = 'http_409'
-          )
-        ORDER BY updated_at DESC
-        LIMIT 1
-      ) AS first_blocked_task_error_message
-    ''',
-    variables: [
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-      Variable<String>(tripId),
-    ],
-    readsFrom: {
-      db.syncTasks,
-      db.trips,
-    },
-  );
-
-  return query.watchSingle().map((row) {
-    final blockedItems = row.read<int>('blocked_tasks');
-    final failedItems = row.read<int>('failed_tasks');
-    final activeItems = row.read<int>('active_tasks');
-    final unsyncedRows = row.read<int>('unsynced_trip_rows') +
-        row.read<int>('unsynced_session_rows') +
-        row.read<int>('unsynced_batch_rows') +
-        row.read<int>('unsynced_moment_rows') +
-        row.read<int>('unsynced_candidate_rows') +
-        row.read<int>('unsynced_event_rows') +
-        row.read<int>('unsynced_tracking_media_rows');
-    final droppedPointBatchItems = row.read<int>('dropped_point_batch_rows');
-    final firstBlockedTaskEntityType =
-        row.data['first_blocked_task_entity_type'] as String?;
-    final firstBlockedTaskEntityId =
-        row.data['first_blocked_task_entity_id'] as String?;
-    final firstBlockedTaskErrorMessage =
-        row.data['first_blocked_task_error_message'] as String?;
-
-    return resolveEditorSyncStatus(
-      EditorSyncSnapshot(
-        blockedItems: blockedItems,
-        failedItems: failedItems,
-        activeItems: activeItems,
-        unsyncedRows: unsyncedRows,
-        blockedMediaItems: 0,
-        failedMediaItems: 0,
-        droppedPointBatchItems: droppedPointBatchItems,
-        firstBlockedTaskEntityType: firstBlockedTaskEntityType,
-        firstBlockedTaskEntityId: firstBlockedTaskEntityId,
-        firstBlockedTaskErrorMessage: firstBlockedTaskErrorMessage,
-        firstBlockedMediaPlaceId: null,
-      ),
-    );
-  });
-});
-
+/// Snapshot of editor sync state for UI display.
 class EditorSyncSnapshot {
   const EditorSyncSnapshot({
-    required this.blockedItems,
-    required this.failedItems,
-    required this.activeItems,
-    required this.unsyncedRows,
-    this.blockedMediaItems = 0,
-    this.failedMediaItems = 0,
-    this.droppedPointBatchItems = 0,
-    this.firstBlockedTaskEntityType,
-    this.firstBlockedTaskEntityId,
-    this.firstBlockedTaskErrorMessage,
+    required this.tripSynced,
+    required this.unsyncedPlaceCount,
+    required this.unsyncedRouteCount,
+    required this.pendingMediaCount,
+    required this.failedMediaCount,
+    required this.blockedMediaCount,
+    required this.hasActiveSession,
+    required this.hasPendingPublish,
+    required this.uncommittedSessionCount,
     this.firstBlockedMediaPlaceId,
   });
 
-  final int blockedItems;
-  final int failedItems;
-  final int activeItems;
-  final int unsyncedRows;
-  final int blockedMediaItems;
-  final int failedMediaItems;
-  final int droppedPointBatchItems;
-  final String? firstBlockedTaskEntityType;
-  final String? firstBlockedTaskEntityId;
-  final String? firstBlockedTaskErrorMessage;
+  final bool tripSynced;
+  final int unsyncedPlaceCount;
+  final int unsyncedRouteCount;
+  final int pendingMediaCount;
+  final int failedMediaCount;
+  final int blockedMediaCount;
+  final bool hasActiveSession;
+  final bool hasPendingPublish;
+  final int uncommittedSessionCount;
   final String? firstBlockedMediaPlaceId;
+
+  /// True if all entities are synced and no media is pending.
+  bool get isSynced =>
+      tripSynced &&
+      unsyncedPlaceCount == 0 &&
+      unsyncedRouteCount == 0 &&
+      pendingMediaCount == 0 &&
+      failedMediaCount == 0 &&
+      blockedMediaCount == 0 &&
+      !hasActiveSession &&
+      !hasPendingPublish;
+
+  /// Legacy compatibility getters for tests that use old field names.
+  @Deprecated('Use specific counters instead')
+  int get blockedItems => blockedMediaCount;
+
+  @Deprecated('Use specific counters instead')
+  int get failedItems => failedMediaCount;
+
+  @Deprecated('Use specific counters instead')
+  int get activeItems => pendingMediaCount;
+
+  @Deprecated('Use unsyncedPlaceCount + unsyncedRouteCount instead')
+  int get unsyncedRows =>
+      (tripSynced ? 0 : 1) + unsyncedPlaceCount + unsyncedRouteCount;
 }

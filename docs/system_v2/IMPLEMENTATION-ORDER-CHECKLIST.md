@@ -107,19 +107,21 @@ Flutter deletions:
 - [x] V1 tests removed: All `live_tracking_*_test.dart` files in `test/features/create/` and `test/features/live_capture/`
 - [x] Drift database regenerated without V1 tables
 
-### NOT YET DONE (blockers for "single V2 system")
+### Completed (2026-04-17)
 
-1. **`editor_sync_status_provider.dart`** — SQL still queries deleted V1 tables (`tracking_sessions`, `tracking_point_batches`, `tracking_moments`, `tracking_candidates`, `tracking_events`, `tracking_event_media`). **Will crash at runtime.**
+1. **`editor_sync_status_provider.dart`** — Rewritten with V2-aware model (session_journal, trip_publish_state queries).
 
-2. **`sync_tasks` table** — Still in Drift schema (`drift_database.dart:61`) and still used by `export_repository.dart:436`. Orphaned V1 infrastructure.
+2. **`sync_tasks` table** — Removed from Drift schema, migration drops table in v22, export guards rewritten.
 
-3. **`lib/core/live_tracking/`** — Untracked directory imported by tracked code. Clean checkout will fail.
+3. **`lib/core/live_tracking/`** — Tracked in commit 9687160.
 
-4. **`live_tracking_api.dart`** — V1 API methods still exist (lines ~453-538+), calling deleted `/api/v1/tracking/*` endpoints.
+4. **`live_tracking_api.dart`** — V1 API methods removed (startTracking, pauseTracking, resumeTracking, stopTracking, uploadPointsBatch, uploadEventsBatch, checkin/moment methods).
 
-5. **V1/V2 gate logic** — `liveSystemV2RolloutGateProvider` still evaluates in editor. Should be removed or hardcoded to V2.
+### NOT YET DONE (deferred or Track B)
 
-6. **Backend V1 compiled_projection** — Endpoint at `/api/v1/compiled/projection` still served but unused by V2.
+5. **V1/V2 gate logic** — `liveSystemV2RolloutGateProvider` still evaluates in editor. Keep for subsystem-specific flags until unified timeline replaces V1.
+
+6. **Backend V1 compiled_projection** — Endpoint at `/api/v1/compiled/projection` still served — Flutter still uses it until Track B (unified timeline).
 
 7. **Backend tests** — `test_advisory_lifecycle_hooks.py` and `test_compiled_projection_endpoints.py` may reference deleted V1 modules.
 

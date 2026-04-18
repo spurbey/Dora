@@ -10,55 +10,113 @@ import 'package:dora/features/create/presentation/providers/editor_sync_status_p
 
 void main() {
   group('resolveEditorSyncStatus', () {
-    test('returns blocked when blocked items exist', () {
+    test('returns activeSession when session is active', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 1,
-          failedItems: 5,
-          activeItems: 10,
-          unsyncedRows: 3,
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: true,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.activeSession);
+      expect(status.label, 'Live session active');
+    });
+
+    test('returns publishing when publish is in progress', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: true,
+          uncommittedSessionCount: 0,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.publishing);
+      expect(status.label, 'Publishing...');
+    });
+
+    test('returns blocked when media is blocked', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 2,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
       expect(status.kind, EditorSyncStatusKind.blocked);
-      expect(status.label, 'Sync blocked');
+      expect(status.label, 'Upload blocked');
     });
 
-    test('returns failed when failed items exist without blocked', () {
+    test('returns failed when media upload failed', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 2,
-          activeItems: 10,
-          unsyncedRows: 3,
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 3,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
       expect(status.kind, EditorSyncStatusKind.failed);
-      expect(status.label, 'Sync failed');
+      expect(status.label, 'Upload failed');
     });
 
-    test('returns syncing when active items exist', () {
+    test('returns syncing when media is uploading', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: 4,
-          unsyncedRows: 5,
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 5,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
       expect(status.kind, EditorSyncStatusKind.syncing);
-      expect(status.label, 'Syncing...');
+      expect(status.label, 'Uploading...');
     });
 
-    test('returns localSaved when unsynced rows exist without active work', () {
+    test('returns localSaved when places are unsynced', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: 0,
-          unsyncedRows: 2,
+          tripSynced: true,
+          unsyncedPlaceCount: 2,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
@@ -66,13 +124,75 @@ void main() {
       expect(status.label, 'Saved locally');
     });
 
-    test('returns synced when no pending or failed signals exist', () {
+    test('returns localSaved when routes are unsynced', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: 0,
-          unsyncedRows: 0,
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 1,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.localSaved);
+      expect(status.label, 'Saved locally');
+    });
+
+    test('returns localSaved when trip is not synced', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: false,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.localSaved);
+      expect(status.label, 'Saved locally');
+    });
+
+    test('returns localSaved with uncommitted sessions', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 2,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.localSaved);
+      expect(status.label, 'Unpublished captures');
+    });
+
+    test('returns synced when everything is synced', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 0,
+          hasActiveSession: false,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
@@ -80,252 +200,279 @@ void main() {
       expect(status.label, 'Synced');
     });
 
-    test('returns partial synced label when stale GPS drops were recovered', () {
+    test('activeSession takes priority over blocked media', () {
       final status = resolveEditorSyncStatus(
         const EditorSyncSnapshot(
-          blockedItems: 0,
-          failedItems: 0,
-          activeItems: 0,
-          unsyncedRows: 0,
-          droppedPointBatchItems: 2,
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 5,
+          hasActiveSession: true,
+          hasPendingPublish: false,
+          uncommittedSessionCount: 0,
         ),
       );
 
-      expect(status.kind, EditorSyncStatusKind.synced);
-      expect(status.label, 'Synced (GPS drops recovered)');
+      expect(status.kind, EditorSyncStatusKind.activeSession);
+    });
+
+    test('publishing takes priority over blocked media', () {
+      final status = resolveEditorSyncStatus(
+        const EditorSyncSnapshot(
+          tripSynced: true,
+          unsyncedPlaceCount: 0,
+          unsyncedRouteCount: 0,
+          pendingMediaCount: 0,
+          failedMediaCount: 0,
+          blockedMediaCount: 5,
+          hasActiveSession: false,
+          hasPendingPublish: true,
+          uncommittedSessionCount: 0,
+        ),
+      );
+
+      expect(status.kind, EditorSyncStatusKind.publishing);
     });
   });
 
-  test('editorSyncStatusProvider includes blocked tracking tasks for trip',
-      () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    final now = DateTime.utc(2026, 3, 26, 10, 0);
-    await db.tripDao.insertTrip(
-      TripsCompanion.insert(
-        id: 'trip-tracking-1',
-        serverTripId: const Value('remote-trip-tracking-1'),
-        userId: 'user-1',
-        name: 'Trip Tracking',
-        localUpdatedAt: now,
-        serverUpdatedAt: now,
-        syncStatus: 'synced',
-        createdAt: now,
-      ),
-    );
-    // V1 tracking_sessions table removed from Drift. Insert a blocked
-    // sync task directly — the editorSyncStatusProvider queries
-    // sync_tasks, not the tracking_sessions table itself.
-    await db.into(db.syncTasks).insert(
-          SyncTasksCompanion.insert(
-            id: 'task-tracking-session-1',
-            entityType: 'tracking_session',
-            entityId: 'tracking-session-1',
-            operation: 'start',
-            status: const Value('blocked'),
-            pendingRequeue: const Value(false),
-            retryCount: const Value(0),
-            nextAttemptAt: const Value(null),
-            errorCode: const Value('tracking_trip_remote_id_missing'),
-            errorMessage: const Value('Trip identity missing'),
-            workerSessionId: const Value(null),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+  group('editorSyncStatusProvider integration', () {
+    test('shows active session status when V2 session is active', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final now = DateTime.utc(2026, 4, 17, 10, 0);
 
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWith((ref) => db),
-      ],
-    );
-    addTearDown(() {
-      container.dispose();
-    });
-    addTearDown(() async {
-      await db.close();
-    });
+      await db.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-1',
+          serverTripId: const Value('remote-trip-1'),
+          userId: 'user-1',
+          name: 'Test Trip',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
 
-    final status = await container
-        .read(editorSyncStatusProvider('trip-tracking-1').future);
-    expect(status.kind, EditorSyncStatusKind.blocked);
-    expect(status.snapshot.firstBlockedTaskEntityType,
-        'tracking_session');
-    expect(status.snapshot.firstBlockedTaskEntityId, 'tracking-session-1');
-  });
-
-  test('liveTrackingSyncStatusProvider ignores blocked non-tracking tasks',
-      () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    final now = DateTime.utc(2026, 3, 30, 8, 0);
-    await db.tripDao.insertTrip(
-      TripsCompanion.insert(
-        id: 'trip-live-scope-1',
-        serverTripId: const Value('remote-trip-live-scope-1'),
-        userId: 'user-1',
-        name: 'Live Scope Trip',
-        localUpdatedAt: now,
-        serverUpdatedAt: now,
-        syncStatus: 'synced',
-        createdAt: now,
-      ),
-    );
-    await db.placeDao.insertPlace(
-      PlacesCompanion.insert(
-        id: 'place-live-scope-1',
-        tripId: 'trip-live-scope-1',
-        name: 'Blocked Place',
-        coordinates: const AppLatLng(latitude: 27.7, longitude: 85.3),
-        orderIndex: 0,
-        localUpdatedAt: now,
-        serverUpdatedAt: now,
-        syncStatus: 'pending',
-      ),
-    );
-    await db.into(db.syncTasks).insert(
-          SyncTasksCompanion.insert(
-            id: 'task-place-blocked-1',
-            entityType: 'place',
-            entityId: 'place-live-scope-1',
-            operation: 'update',
-            status: const Value('blocked'),
-            pendingRequeue: const Value(false),
-            retryCount: const Value(0),
-            nextAttemptAt: const Value(null),
-            errorCode: const Value('place_conflict'),
-            errorMessage: const Value('Place failed'),
-            workerSessionId: const Value(null),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWith((ref) => db),
-      ],
-    );
-    addTearDown(() {
-      container.dispose();
-    });
-    addTearDown(() async {
-      await db.close();
-    });
-
-    final liveStatus = await container
-        .read(liveTrackingSyncStatusProvider('trip-live-scope-1').future);
-    expect(liveStatus.kind, EditorSyncStatusKind.synced);
-    expect(liveStatus.snapshot.blockedItems, 0);
-  });
-
-  test('liveTrackingSyncStatusProvider blocks on tracking task failures',
-      () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    final now = DateTime.utc(2026, 3, 30, 8, 30);
-    await db.tripDao.insertTrip(
-      TripsCompanion.insert(
-        id: 'trip-live-scope-2',
-        serverTripId: const Value('remote-trip-live-scope-2'),
-        userId: 'user-1',
-        name: 'Live Scope Trip 2',
-        localUpdatedAt: now,
-        serverUpdatedAt: now,
-        syncStatus: 'synced',
-        createdAt: now,
-      ),
-    );
-    // V1 tracking_sessions table removed from Drift. Insert a blocked
-    // sync task directly — the provider queries sync_tasks.
-    await db.into(db.syncTasks).insert(
-          SyncTasksCompanion.insert(
-            id: 'task-tracking-session-blocked-1',
-            entityType: 'tracking_session',
-            entityId: 'tracking-session-live-scope-1',
-            operation: 'start',
-            status: const Value('blocked'),
-            pendingRequeue: const Value(false),
-            retryCount: const Value(0),
-            nextAttemptAt: const Value(null),
-            errorCode: const Value('tracking_trip_remote_id_missing'),
-            errorMessage: const Value('Trip identity missing'),
-            workerSessionId: const Value(null),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWith((ref) => db),
-      ],
-    );
-    addTearDown(() {
-      container.dispose();
-    });
-    addTearDown(() async {
-      await db.close();
-    });
-
-    final liveStatus = await container
-        .read(liveTrackingSyncStatusProvider('trip-live-scope-2').future);
-    expect(liveStatus.kind, EditorSyncStatusKind.blocked);
-    expect(liveStatus.snapshot.firstBlockedTaskEntityType,
-        'tracking_session');
-  });
-
-  test('liveTrackingSyncStatusProvider ignores start 409 policy blocks',
-      () async {
-    final db = AppDatabase(NativeDatabase.memory());
-    final now = DateTime.utc(2026, 3, 30, 9, 0);
-    await db.tripDao.insertTrip(
-      TripsCompanion.insert(
-        id: 'trip-live-scope-3',
-        serverTripId: const Value('remote-trip-live-scope-3'),
-        userId: 'user-1',
-        name: 'Live Scope Trip 3',
-        localUpdatedAt: now,
-        serverUpdatedAt: now,
-        syncStatus: 'synced',
-        createdAt: now,
-      ),
-    );
-    // V1 tracking_sessions table removed from Drift. Insert a blocked
-    // sync task directly with http_409 error code — the provider should
-    // ignore this policy block.
-    await db.into(db.syncTasks).insert(
-          SyncTasksCompanion.insert(
-            id: 'task-tracking-session-blocked-409',
-            entityType: 'tracking_session',
-            entityId: 'tracking-session-live-scope-3',
-            operation: 'start',
-            status: const Value('blocked'),
-            pendingRequeue: const Value(false),
-            retryCount: const Value(0),
-            nextAttemptAt: const Value(null),
-            errorCode: const Value('http_409'),
-            errorMessage: const Value(
-              'Tracking can only be started from planned trip status',
+      await db.into(db.sessionJournal).insert(
+            SessionJournalCompanion.insert(
+              sessionId: 'session-1',
+              tripLocalId: 'trip-1',
+              controlState: 'active',
+              sessionSeq: 1,
+              deviceId: 'device-1',
+              startedAt: Value(now),
+              createdAt: now,
+              updatedAt: now,
             ),
-            workerSessionId: const Value(null),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
+          );
 
-    final container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWith((ref) => db),
-      ],
-    );
-    addTearDown(() {
-      container.dispose();
-    });
-    addTearDown(() async {
-      await db.close();
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) => db),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+      });
+      addTearDown(() async {
+        await db.close();
+      });
+
+      final status =
+          await container.read(editorSyncStatusProvider('trip-1').future);
+      expect(status.kind, EditorSyncStatusKind.activeSession);
+      expect(status.snapshot.hasActiveSession, isTrue);
     });
 
-    final liveStatus = await container
-        .read(liveTrackingSyncStatusProvider('trip-live-scope-3').future);
-    expect(liveStatus.kind, EditorSyncStatusKind.localSaved);
-    expect(liveStatus.snapshot.blockedItems, 0);
+    test('shows publishing status when V2 publish is in progress', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final now = DateTime.utc(2026, 4, 17, 10, 0);
+
+      await db.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-2',
+          serverTripId: const Value('remote-trip-2'),
+          userId: 'user-1',
+          name: 'Test Trip 2',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+
+      await db.into(db.tripPublishState).insert(
+            TripPublishStateCompanion.insert(
+              tripLocalId: 'trip-2',
+              publishState: const Value('publishing'),
+              updatedAt: now,
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) => db),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+      });
+      addTearDown(() async {
+        await db.close();
+      });
+
+      final status =
+          await container.read(editorSyncStatusProvider('trip-2').future);
+      expect(status.kind, EditorSyncStatusKind.publishing);
+      expect(status.snapshot.hasPendingPublish, isTrue);
+    });
+
+    test('shows blocked when media upload is blocked', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final now = DateTime.utc(2026, 4, 17, 10, 0);
+
+      await db.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-3',
+          serverTripId: const Value('remote-trip-3'),
+          userId: 'user-1',
+          name: 'Test Trip 3',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+
+      await db.placeDao.insertPlace(
+        PlacesCompanion.insert(
+          id: 'place-1',
+          tripId: 'trip-3',
+          name: 'Test Place',
+          coordinates: const AppLatLng(latitude: 27.7, longitude: 85.3),
+          orderIndex: 0,
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+        ),
+      );
+
+      await db.into(db.media).insert(
+            MediaCompanion.insert(
+              id: 'media-1',
+              tripId: 'trip-3',
+              placeId: const Value('place-1'),
+              localUpdatedAt: now,
+              serverUpdatedAt: now,
+              syncStatus: 'synced',
+              createdAt: now,
+              uploadStatus: const Value('blocked'),
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) => db),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+      });
+      addTearDown(() async {
+        await db.close();
+      });
+
+      final status =
+          await container.read(editorSyncStatusProvider('trip-3').future);
+      expect(status.kind, EditorSyncStatusKind.blocked);
+      expect(status.snapshot.blockedMediaCount, 1);
+      expect(status.snapshot.firstBlockedMediaPlaceId, 'place-1');
+    });
+
+    test('shows localSaved with uncommitted sealed sessions', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final now = DateTime.utc(2026, 4, 17, 10, 0);
+
+      await db.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-4',
+          serverTripId: const Value('remote-trip-4'),
+          userId: 'user-1',
+          name: 'Test Trip 4',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+
+      await db.into(db.sessionJournal).insert(
+            SessionJournalCompanion.insert(
+              sessionId: 'session-2',
+              tripLocalId: 'trip-4',
+              controlState: 'sealed',
+              sessionSeq: 1,
+              deviceId: 'device-1',
+              startedAt: Value(now),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) => db),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+      });
+      addTearDown(() async {
+        await db.close();
+      });
+
+      final status =
+          await container.read(editorSyncStatusProvider('trip-4').future);
+      expect(status.kind, EditorSyncStatusKind.localSaved);
+      expect(status.label, 'Unpublished captures');
+      expect(status.snapshot.uncommittedSessionCount, 1);
+    });
+
+    test('shows synced when all conditions are met', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final now = DateTime.utc(2026, 4, 17, 10, 0);
+
+      await db.tripDao.insertTrip(
+        TripsCompanion.insert(
+          id: 'trip-5',
+          serverTripId: const Value('remote-trip-5'),
+          userId: 'user-1',
+          name: 'Test Trip 5',
+          localUpdatedAt: now,
+          serverUpdatedAt: now,
+          syncStatus: 'synced',
+          createdAt: now,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWith((ref) => db),
+        ],
+      );
+      addTearDown(() {
+        container.dispose();
+      });
+      addTearDown(() async {
+        await db.close();
+      });
+
+      final status =
+          await container.read(editorSyncStatusProvider('trip-5').future);
+      expect(status.kind, EditorSyncStatusKind.synced);
+      expect(status.snapshot.isSynced, isTrue);
+    });
   });
 }

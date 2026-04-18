@@ -172,6 +172,8 @@ void main() {
       expect(media, isNotNull);
       expect(media!.uploadState, 'staged_for_commit');
 
+      // Verify V2 repositories work purely local-only without sync_tasks.
+      // sync_tasks table was removed in V22 migration as part of V1→V2.
       final rows = await database.customSelect(
         '''
         SELECT name
@@ -179,10 +181,7 @@ void main() {
         WHERE type = 'table' AND name = 'sync_tasks'
         ''',
       ).get();
-      expect(rows, isNotEmpty);
-      final pendingSyncTasks =
-          await (database.select(database.syncTasks)).get();
-      expect(pendingSyncTasks, isEmpty);
+      expect(rows, isEmpty, reason: 'sync_tasks table should not exist in V2');
     });
 
     test('repository upserts map to dao rows deterministically', () async {

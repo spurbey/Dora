@@ -15,8 +15,8 @@ class ExportErrorStrings {
         return 'Trip must be synced before exporting.';
       case ExportPrecheckFailure.pendingMedia:
         return 'Finish pending media uploads before exporting.';
-      case ExportPrecheckFailure.pendingSync:
-        return 'Wait for sync queue to finish before exporting.';
+      case ExportPrecheckFailure.activeSessionOrPublish:
+        return 'Stop live session or wait for publish to complete before exporting.';
     }
   }
 
@@ -35,9 +35,9 @@ class ExportErrorStrings {
         '${result.unresolvedMediaCount} media item(s) are pending or failed.',
       );
     }
-    if (result.blockingSyncTaskCount > 0) {
+    if (result.blockingV2ConditionCount > 0) {
       details.add(
-        '${result.blockingSyncTaskCount} sync task(s) are still active/blocked.',
+        'Live session active or publish in progress.',
       );
     }
 

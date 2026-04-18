@@ -35,6 +35,10 @@ import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dar
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
+import 'package:dora/core/network/api_providers.dart';
+import 'package:dora/features/advisory/providers/advisory_providers.dart';
+import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
+import 'package:dora_api/dora_api.dart' as openapi;
 
 final liveCaptureTripNameProvider =
     StreamProvider.autoDispose.family<String, String>((ref, tripId) {
@@ -321,7 +325,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                       syncLabel: syncLabel,
                       syncKind: syncKind,
                       onBack: _handleBack,
-                      onOverflow: _showDebugDiagnostics,
+                      onOverflow: _showOverflowMenu,
                     ),
                     _topBarAnim,
                     slideY: -8,
@@ -707,10 +711,90 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     context.go(Routes.liveHubPath());
   }
 
-  Future<void> _showDebugDiagnostics() async {
+  Future<void> _showOverflowMenu() async {
     if (!mounted) return;
-    // V1 sync diagnostics removed — V2 uses journal-based diagnostics.
-    _showMessage('Debug diagnostics: V2 active, no V1 sync state.');
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Trip preferences'),
+              subtitle: const Text('Edit activity focus, style, budget'),
+              onTap: () => Navigator.of(ctx).pop('metadata'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report_outlined),
+              title: const Text('Debug diagnostics'),
+              onTap: () => Navigator.of(ctx).pop('debug'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'metadata':
+        _showTripMetadataEditor();
+        break;
+      case 'debug':
+        _showMessage('Debug diagnostics: V2 active, no V1 sync state.');
+        break;
+    }
+  }
+
+  Future<void> _showTripMetadataEditor() async {
+    if (!mounted) return;
+    try {
+      final authService = ref.read(authServiceProvider);
+      final token = await authService.getAccessToken();
+      if (token == null || token.isEmpty) return;
+      final auth = 'Bearer $token';
+      final serverTripId = await ref.read(serverTripIdProvider(widget.tripId).future);
+      final metaApi = ref.read(metadataApiProvider);
+
+      openapi.TripMetadataResponse? current;
+      try {
+        final resp = await metaApi.getTripMetadataApiV1TripsTripIdMetadataGet(
+          tripId: serverTripId,
+          authorization: auth,
+        );
+        current = resp.data;
+      } catch (_) {}
+
+      if (!mounted) return;
+
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _TripMetadataEditSheet(
+          currentActivityFocus: current?.activityFocus?.toList() ?? [],
+          currentTravelStyle: current?.travelStyle?.toList() ?? [],
+          currentBudgetCategory: current?.budgetCategory,
+          onSave: (activityFocus, travelStyle, budgetCategory) async {
+            try {
+              final payload = openapi.TripMetadataUpdate((b) {
+                b.activityFocus.replace(activityFocus);
+                b.travelStyle.replace(travelStyle);
+                b.budgetCategory = budgetCategory;
+              });
+              await metaApi.updateTripMetadataApiV1TripsTripIdMetadataPatch(
+                tripId: serverTripId,
+                authorization: auth,
+                tripMetadataUpdate: payload,
+              );
+              if (mounted) _showMessage('Preferences updated');
+            } catch (e) {
+              if (mounted) _showMessage('Could not save: $e');
+            }
+          },
+        ),
+      );
+    } catch (e) {
+      if (mounted) _showMessage('Could not load metadata: $e');
+    }
   }
 
   Future<void> _runLiveTrackingAction({
@@ -1498,6 +1582,171 @@ class _ProbablePlacePromptCard extends StatelessWidget {
             ],
           )
         ],
+      ),
+    );
+  }
+}
+
+class _TripMetadataEditSheet extends StatefulWidget {
+  const _TripMetadataEditSheet({
+    required this.currentActivityFocus,
+    required this.currentTravelStyle,
+    required this.currentBudgetCategory,
+    required this.onSave,
+  });
+
+  final List<String> currentActivityFocus;
+  final List<String> currentTravelStyle;
+  final String? currentBudgetCategory;
+  final Future<void> Function(
+    List<String> activityFocus,
+    List<String> travelStyle,
+    String? budgetCategory,
+  ) onSave;
+
+  @override
+  State<_TripMetadataEditSheet> createState() => _TripMetadataEditSheetState();
+}
+
+class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
+  late List<String> _activityFocus;
+  late List<String> _travelStyle;
+  String? _budgetCategory;
+  bool _saving = false;
+
+  static const _activityOptions = [
+    'hiking', 'food', 'photography', 'nightlife',
+    'beaches', 'cultural', 'adventure', 'relaxation',
+  ];
+
+  static const _styleOptions = [
+    'adventure', 'luxury', 'budget', 'cultural', 'relaxed',
+  ];
+
+  static const _budgetOptions = ['budget', 'mid-range', 'luxury'];
+
+  @override
+  void initState() {
+    super.initState();
+    _activityFocus = List<String>.from(widget.currentActivityFocus);
+    _travelStyle = List<String>.from(widget.currentTravelStyle);
+    _budgetCategory = widget.currentBudgetCategory;
+  }
+
+  String _displayLabel(String s) => s[0].toUpperCase() + s.substring(1);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.md,
+        right: AppSpacing.md,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Trip preferences', style: AppTypography.h2),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Changes update your advisory recommendations.',
+              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Activity focus', style: AppTypography.h3),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: _activityOptions.map((opt) {
+                final selected = _activityFocus.contains(opt);
+                return FilterChip(
+                  label: Text(_displayLabel(opt)),
+                  selected: selected,
+                  onSelected: (val) {
+                    setState(() {
+                      val ? _activityFocus.add(opt) : _activityFocus.remove(opt);
+                    });
+                  },
+                  selectedColor: AppColors.accentSoft,
+                  checkmarkColor: AppColors.accent,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Travel style', style: AppTypography.h3),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: _styleOptions.map((opt) {
+                final selected = _travelStyle.contains(opt);
+                return FilterChip(
+                  label: Text(_displayLabel(opt)),
+                  selected: selected,
+                  onSelected: (val) {
+                    setState(() {
+                      val ? _travelStyle.add(opt) : _travelStyle.remove(opt);
+                    });
+                  },
+                  selectedColor: AppColors.accentSoft,
+                  checkmarkColor: AppColors.accent,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text('Budget', style: AppTypography.h3),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: _budgetOptions.map((opt) {
+                final selected = _budgetCategory == opt;
+                return ChoiceChip(
+                  label: Text(_displayLabel(opt)),
+                  selected: selected,
+                  onSelected: (val) {
+                    setState(() => _budgetCategory = val ? opt : null);
+                  },
+                  selectedColor: AppColors.accentSoft,
+                  checkmarkColor: AppColors.accent,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            setState(() => _saving = true);
+                            await widget.onSave(
+                              _activityFocus,
+                              _travelStyle,
+                              _budgetCategory,
+                            );
+                            if (mounted) Navigator.of(context).pop();
+                          },
+                    child: Text(_saving ? 'Saving...' : 'Save'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
       ),
     );
   }

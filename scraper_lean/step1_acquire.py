@@ -19,14 +19,23 @@ Run again to build cookie/profile trust over multiple runs.
 """
 
 import sys
+import os
 import time
 import re
 from pathlib import Path
 from datetime import datetime
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
+
 PROFILE_DIR = str(Path(__file__).parent / "profile")
 DEBUG_DIR = Path(__file__).parent / "debug"
+BRIGHTDATA_WS = os.getenv("BRIGHTDATA_WS_ENDPOINT", "")
+USE_BRIGHTDATA = os.getenv("USE_BRIGHTDATA", "0") == "1"
 
 
 def save_snapshot(page, label: str, run_dir: Path):
@@ -118,19 +127,28 @@ def run(query: str):
     print(f"{'='*60}\n")
 
     with sync_playwright() as p:
-        # Persistent context — this is the key difference from scraper_gmaps
-        # Preserves cookies, localStorage, history across runs
-        # Each run builds more "trust" with Google
-        context = p.chromium.launch_persistent_context(
-            PROFILE_DIR,
-            headless=False,
-            locale="en-US",
-            timezone_id="Asia/Kolkata",
-            viewport={"width": 1400, "height": 1000},
-            args=[
-                "--disable-blink-features=AutomationControlled",
-            ],
-        )
+        browser = None
+        if USE_BRIGHTDATA and BRIGHTDATA_WS:
+            # Remote real browser on residential IP via Bright Data Scraping Browser
+            print(f"[*] Connecting to Bright Data Scraping Browser...")
+            browser = p.chromium.connect_over_cdp(BRIGHTDATA_WS)
+            context = browser.contexts[0] if browser.contexts else browser.new_context(
+                locale="en-US",
+                timezone_id="Asia/Kolkata",
+                viewport={"width": 1400, "height": 1000},
+            )
+        else:
+            # Local persistent context — preserves cookies/trust across runs
+            context = p.chromium.launch_persistent_context(
+                PROFILE_DIR,
+                headless=False,
+                locale="en-US",
+                timezone_id="Asia/Kolkata",
+                viewport={"width": 1400, "height": 1000},
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                ],
+            )
 
         page = context.pages[0] if context.pages else context.new_page()
 
@@ -167,6 +185,8 @@ def run(query: str):
             save_snapshot(page, "A_maps_home_timeout", run_dir)
             print("  [A] FAIL: Maps home timed out")
             context.close()
+            if browser:
+                browser.close()
             return
 
         # --- Phase B: Search for place ---
@@ -189,6 +209,8 @@ def run(query: str):
             save_snapshot(page, "B_no_search_box", run_dir)
             print("  [B] FAIL: Search box not found")
             context.close()
+            if browser:
+                browser.close()
             return
 
         search_box.click()
@@ -197,7 +219,16 @@ def run(query: str):
         search_box.type(query, delay=50)
         time.sleep(0.3)
         page.keyboard.press("Enter")
-        time.sleep(3)
+
+        # Wait for either a place page or search results to render
+        try:
+            page.wait_for_selector(
+                "h1.DUwDvf, a.hfpxzc, div.Nv2PK",
+                timeout=15_000,
+            )
+        except PWTimeout:
+            print("  [B] Warning: results did not render within 15s")
+        time.sleep(1)
         save_snapshot(page, "B_search_results", run_dir)
         print("  [B] Search executed")
 
@@ -282,6 +313,8 @@ def run(query: str):
         print("\nBrowser stays open 5s for inspection...")
         time.sleep(5)
         context.close()
+        if browser:
+            browser.close()
 
 
 if __name__ == "__main__":

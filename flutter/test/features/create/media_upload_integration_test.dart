@@ -342,12 +342,34 @@ Future<File> _createTempFile(String suffix) async {
 }
 
 Future<void> _clearTables(AppDatabase database) async {
+  await database.customStatement('DELETE FROM media_attachments');
   await database.customStatement('DELETE FROM media');
   await database.customStatement('DELETE FROM routes');
   await database.customStatement('DELETE FROM places');
   await database.customStatement('DELETE FROM user_trips');
   await database.customStatement('DELETE FROM public_trips');
   await database.customStatement('DELETE FROM trips');
+}
+
+Future<List<MediaItem>> _mediaRowsForPlace(
+  AppDatabase database,
+  String placeLocalId,
+) async {
+  final rows = await database.customSelect(
+    '''
+    SELECT m.* FROM media m
+    INNER JOIN media_attachments ma ON ma.media_id = m.id
+    WHERE ma.target_kind = 'place'
+      AND ma.target_local_id = ?
+      AND ma.role = 'review'
+      AND ma.detached_at IS NULL
+      AND m.deleted_at IS NULL
+    ORDER BY m.captured_at DESC
+    ''',
+    variables: [drift.Variable<String>(placeLocalId)],
+    readsFrom: {database.media, database.mediaAttachments},
+  ).get();
+  return rows.map((row) => database.media.map(row.data)).toList(growable: false);
 }
 
 Future<void> _insertTripRow({
@@ -438,6 +460,7 @@ void main() {
         placeRepository: placeRepository,
         mediaUploader: uploader,
         supportDirectoryProvider: () async => testSupportDir,
+        resolveOwnerUserId: () => 'user-1',
       );
     });
 
@@ -463,14 +486,16 @@ void main() {
         placeId: localPlaceId,
         filePaths: [source.path],
       );
+      await mediaRepository.enqueueMediaForTripPublish(localTripId);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      final mediaRows = await database.mediaDao.getMediaForPlace(localPlaceId);
+      final mediaRows = await _mediaRowsForPlace(database, localPlaceId);
       expect(mediaRows, hasLength(1));
       final row = mediaRows.single;
-      expect(row.uploadStatus, 'uploaded');
+      expect(row.uploadState, 'uploaded');
       expect(row.uploadProgress, 1.0);
-      expect(row.url, isNotNull);
-      expect(row.url, uploader.uploadedFileUrl);
+      expect(row.remoteUrl, isNotNull);
+      expect(row.remoteUrl, uploader.uploadedFileUrl);
       expect(uploader.lastTripPlaceId, remotePlaceId);
 
       final place = await placeRepository.getPlace(localPlaceId);
@@ -478,40 +503,15 @@ void main() {
       expect(place!.photoUrls, contains(uploader.uploadedFileUrl));
     });
 
-    test('defers upload when trip dependency sync task is not ready', () async {
-      final source = await _createTempFile('queue-deferred.jpg');
+    test('editor media stays local_only until trip publish triggers queueing',
+        () async {
+      await seedPlaceWithRemoteId();
+      final source = await _createTempFile('queue-local-only.jpg');
       addTearDown(() async {
         if (await source.exists()) {
           await source.delete();
         }
       });
-
-      final now = DateTime.utc(2026, 2, 21);
-      await database.placeDao.insertPlace(
-        PlacesCompanion(
-          id: const drift.Value(localPlaceId),
-          serverPlaceId: const drift.Value(null),
-          tripId: const drift.Value(localTripId),
-          name: const drift.Value('Deferred Place'),
-          address: const drift.Value.absent(),
-          coordinates: const drift.Value(
-            AppLatLng(latitude: 37.7749, longitude: -122.4194),
-          ),
-          notes: const drift.Value.absent(),
-          visitTime: const drift.Value.absent(),
-          dayNumber: const drift.Value.absent(),
-          orderIndex: const drift.Value(0),
-          photoUrls: const drift.Value(<String>[]),
-          placeType: const drift.Value.absent(),
-          rating: const drift.Value.absent(),
-          localUpdatedAt: drift.Value(now),
-          serverUpdatedAt: drift.Value(now),
-          syncStatus: const drift.Value('pending'),
-        ),
-      );
-
-      // Place has syncStatus='pending' and no serverPlaceId, which is the
-      // V2 signal for deferred upload (sync_tasks table removed in V2).
 
       await mediaRepository.enqueueFilePaths(
         tripId: localTripId,
@@ -519,14 +519,20 @@ void main() {
         filePaths: [source.path],
       );
 
-      final rows = await database.mediaDao.getMediaForPlace(localPlaceId);
-      expect(rows, hasLength(1));
-      final row = rows.single;
-      expect(row.uploadStatus, 'deferred');
-      expect(row.retryCount, 0);
-      expect(row.nextAttemptAt, isNotNull);
-      expect(row.errorMessage, contains('Waiting for trip sync'));
+      // Before publish: worker should not touch local_only rows.
+      await queueWorker.startIfIdle();
+      final beforePublish = await _mediaRowsForPlace(database, localPlaceId);
+      expect(beforePublish, hasLength(1));
+      expect(beforePublish.single.uploadState, 'local_only');
       expect(uploader.uploadCalls, 0);
+
+      // Simulate trip publish — flips local_only → queued, then worker runs.
+      await mediaRepository.enqueueMediaForTripPublish(localTripId);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final afterPublish = await _mediaRowsForPlace(database, localPlaceId);
+      expect(afterPublish.single.uploadState, 'uploaded');
+      expect(uploader.uploadCalls, 1);
     });
 
     test('canceling in-flight upload keeps row canceled and avoids URL bridge',
@@ -543,23 +549,27 @@ void main() {
       final mediaId = 'media-cancel-1';
       final now = DateTime.utc(2026, 2, 21);
       await database.mediaDao.insertMedia(
-        MediaCompanion(
-          id: drift.Value(mediaId),
-          tripId: const drift.Value(localTripId),
-          placeId: const drift.Value(localPlaceId),
-          localPath: drift.Value(source.path),
-          type: const drift.Value('photo'),
-          uploadStatus: const drift.Value('queued'),
-          uploadProgress: const drift.Value(0.0),
-          retryCount: const drift.Value(0),
-          errorMessage: const drift.Value(null),
-          uploadedAt: const drift.Value(null),
-          nextAttemptAt: const drift.Value(null),
-          workerSessionId: const drift.Value(null),
-          localUpdatedAt: drift.Value(now),
-          serverUpdatedAt: drift.Value(now),
-          syncStatus: const drift.Value('pending'),
-          createdAt: drift.Value(now),
+        MediaCompanion.insert(
+          id: mediaId,
+          ownerUserId: 'user-cancel',
+          originScope: 'editor',
+          mediaType: const drift.Value('photo'),
+          localUri: drift.Value(source.path),
+          capturedAt: now,
+          uploadState: const drift.Value('queued'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.mediaAttachmentsDao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-cancel-1',
+          mediaId: mediaId,
+          targetKind: 'place',
+          targetLocalId: localPlaceId,
+          role: 'review',
+          attachedAt: now,
         ),
       );
 
@@ -583,6 +593,7 @@ void main() {
         placeRepository: placeRepository,
         mediaUploader: uploader,
         supportDirectoryProvider: () async => testSupportDir,
+        resolveOwnerUserId: () => 'user-1',
       );
 
       final processing = queueWorker.startIfIdle();
@@ -594,8 +605,8 @@ void main() {
 
       final row = await database.mediaDao.getMediaById(mediaId);
       expect(row, isNotNull);
-      expect(row!.uploadStatus, 'canceled');
-      expect(row.url, isNull);
+      expect(row!.uploadState, 'canceled');
+      expect(row.remoteUrl, isNull);
       expect(uploader.deleteCalls, 1);
 
       final place = await placeRepository.getPlace(localPlaceId);

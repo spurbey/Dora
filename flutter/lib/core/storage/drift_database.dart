@@ -7,14 +7,15 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart'; // ignore: unused_import
 import 'package:dora/core/storage/converters.dart'; // ignore: unused_import
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
 import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/daos/place_dao.dart';
 import 'package:dora/core/storage/daos/public_trips_dao.dart';
 import 'package:dora/core/storage/daos/route_dao.dart';
+import 'package:dora/core/storage/daos/stories_dao.dart';
 import 'package:dora/core/storage/daos/trip_dao.dart';
 import 'package:dora/core/storage/daos/user_trips_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
@@ -26,14 +27,15 @@ import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_compile_cursor_dao.dart';
 import 'package:dora/core/storage/daos/v2/timeline_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/trip_publish_state_dao.dart';
+import 'package:dora/core/storage/tables/media_attachments_table.dart';
 import 'package:dora/core/storage/tables/media_table.dart';
 import 'package:dora/core/storage/tables/places_table.dart';
 import 'package:dora/core/storage/tables/public_trips_table.dart';
 import 'package:dora/core/storage/tables/routes_table.dart';
+import 'package:dora/core/storage/tables/stories_table.dart';
 import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
 import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
-import 'package:dora/core/storage/tables/v2/media_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/route_projection_local_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_attempt_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_candidate_journal_table.dart';
@@ -55,13 +57,14 @@ part 'drift_database.g.dart';
     Places,
     Routes,
     Media,
+    MediaAttachments,
+    Stories,
     PublicTrips,
     UserTrips,
     SessionJournal,
     SessionActivityWindow,
     RoutePointJournal,
     EventJournal,
-    MediaJournal,
     ResolverCandidateJournal,
     ResolverAttemptJournal,
     SessionCommitJob,
@@ -77,12 +80,13 @@ part 'drift_database.g.dart';
     PlaceDao,
     RouteDao,
     MediaDao,
+    MediaAttachmentsDao,
+    StoriesDao,
     PublicTripsDao,
     UserTripsDao,
     SessionJournalDao,
     RoutePointJournalDao,
     EventJournalDao,
-    MediaJournalDao,
     ResolverCandidateJournalDao,
     ResolverAttemptJournalDao,
     SessionCommitJobDao,
@@ -98,7 +102,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -110,6 +114,14 @@ class AppDatabase extends _$AppDatabase {
             '''
             CREATE UNIQUE INDEX IF NOT EXISTS timeline_projection_local_trip_source_unique_idx
             ON timeline_projection_local (trip_local_id, source_kind, source_id)
+            ''',
+          );
+          // Partial unique index on live (not-yet-detached) media attachments.
+          await customStatement(
+            '''
+            CREATE UNIQUE INDEX IF NOT EXISTS media_attachments_unique_idx
+            ON media_attachments (media_id, target_kind, target_local_id, role)
+            WHERE detached_at IS NULL
             ''',
           );
         },
@@ -152,19 +164,46 @@ class AppDatabase extends _$AppDatabase {
             // Places: persistent mapping to backend place UUID for media uploads.
             await m.addColumn(places, places.serverPlaceId);
 
-            // Media: queue and upload lifecycle metadata.
-            await m.addColumn(media, media.thumbnailPath);
-            await m.addColumn(media, media.mimeType);
-            await m.addColumn(media, media.fileSizeBytes);
-            await m.addColumn(media, media.width);
-            await m.addColumn(media, media.height);
-            await m.addColumn(media, media.uploadStatus);
-            await m.addColumn(media, media.uploadProgress);
-            await m.addColumn(media, media.retryCount);
-            await m.addColumn(media, media.errorMessage);
-            await m.addColumn(media, media.uploadedAt);
-            await m.addColumn(media, media.nextAttemptAt);
-            await m.addColumn(media, media.workerSessionId);
+            // Legacy V1 media upload queue columns (pre-canonical). The
+            // `media` table is fully dropped and recreated in migration 23,
+            // so these raw ALTERs only need to let the V<7 install boot to
+            // V23 without schema drift errors.
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN thumbnail_path TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN mime_type TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN file_size_bytes INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN width INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN height INTEGER',
+            );
+            await customStatement(
+              "ALTER TABLE media ADD COLUMN upload_status TEXT NOT NULL DEFAULT 'queued'",
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN upload_progress REAL NOT NULL DEFAULT 0.0',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN error_message TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN uploaded_at INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN next_attempt_at INTEGER',
+            );
+            await customStatement(
+              'ALTER TABLE media ADD COLUMN worker_session_id TEXT',
+            );
 
             await _backfillMediaUploadState();
           }
@@ -364,7 +403,32 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(sessionActivityWindow);
             await m.createTable(routePointJournal);
             await m.createTable(eventJournal);
-            await m.createTable(mediaJournal);
+            // Legacy V2 media_journal schema (pre-canonical). Created with
+            // raw SQL so the V<18 install can boot to V23 where the table
+            // is dropped entirely; the Dart-level MediaJournal class is
+            // gone in V23, so we can't call m.createTable() for it.
+            await customStatement(
+              '''
+              CREATE TABLE IF NOT EXISTS media_journal (
+                media_id TEXT NOT NULL PRIMARY KEY,
+                event_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                trip_local_id TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                local_uri TEXT NOT NULL,
+                mime_type TEXT,
+                bytes_size INTEGER,
+                duration_ms INTEGER,
+                captured_at INTEGER NOT NULL,
+                width_px INTEGER,
+                height_px INTEGER,
+                upload_state TEXT NOT NULL DEFAULT 'local_only',
+                upload_ref TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+              )
+              ''',
+            );
             await m.createTable(resolverCandidateJournal);
             await m.createTable(resolverAttemptJournal);
 
@@ -596,6 +660,68 @@ class AppDatabase extends _$AppDatabase {
           if (from < 22) {
             // V1→V2 migration: Drop sync_tasks table (no longer used).
             await customStatement('DROP TABLE IF EXISTS sync_tasks');
+          }
+          if (from < 23) {
+            // Canonical media refactor. Drops the legacy V1 `media` table
+            // and V2 `media_journal` table; replaces them with a single
+            // `media` table plus polymorphic `media_attachments` and a
+            // `stories` table. Per the approved plan this is a fresh-start
+            // migration — any local-only rows from the old schema are lost.
+            await customStatement(
+              'DROP INDEX IF EXISTS media_journal_event_idx',
+            );
+            await customStatement(
+              'DROP INDEX IF EXISTS media_journal_session_upload_state_idx',
+            );
+            await customStatement(
+              'DROP INDEX IF EXISTS media_journal_trip_captured_idx',
+            );
+            await customStatement('DROP TABLE IF EXISTS media_journal');
+            await customStatement('DROP TABLE IF EXISTS media');
+            await m.createTable(media);
+            await m.createTable(mediaAttachments);
+            await m.createTable(stories);
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_owner_captured_idx '
+              'ON media (owner_user_id, captured_at)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_upload_state_next_attempt_idx '
+              'ON media (upload_state, next_attempt_at)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_origin_captured_idx '
+              'ON media (origin_scope, captured_at)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_geo_idx '
+              'ON media (latitude, longitude)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_attachments_target_role_idx '
+              'ON media_attachments (target_kind, target_local_id, role)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS media_attachments_media_idx '
+              'ON media_attachments (media_id)',
+            );
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS media_attachments_unique_idx '
+              'ON media_attachments (media_id, target_kind, target_local_id, role) '
+              'WHERE detached_at IS NULL',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS stories_visibility_published_idx '
+              'ON stories (visibility, published_at)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS stories_author_published_idx '
+              'ON stories (author_user_id, published_at)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS stories_geo_idx '
+              'ON stories (center_lat, center_lng)',
+            );
           }
         },
       );

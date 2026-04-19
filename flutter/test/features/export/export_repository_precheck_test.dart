@@ -318,12 +318,23 @@ Future<void> _insertMedia(
   await database.into(database.media).insert(
         MediaCompanion.insert(
           id: mediaId,
-          tripId: tripId,
+          ownerUserId: 'user-1',
+          originScope: 'editor',
+          capturedAt: now,
+          uploadState: Value(uploadStatus),
           localUpdatedAt: now,
-          serverUpdatedAt: now,
-          syncStatus: 'synced',
           createdAt: now,
-          uploadStatus: Value(uploadStatus),
+          updatedAt: now,
+        ),
+      );
+  await database.into(database.mediaAttachments).insert(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-$mediaId',
+          mediaId: mediaId,
+          targetKind: 'trip',
+          targetLocalId: tripId,
+          role: 'review',
+          attachedAt: now,
         ),
       );
 }

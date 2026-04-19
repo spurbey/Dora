@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_chunk_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_job_dao.dart';
@@ -35,7 +34,8 @@ void main() {
         mediaItemDao: SessionCommitMediaItemDao(database),
         chunkDao: SessionCommitChunkDao(database),
         eventDao: EventJournalDao(database),
-        mediaDao: MediaJournalDao(database),
+        mediaDao: database.mediaDao,
+        mediaAttachmentsDao: database.mediaAttachmentsDao,
         routePointDao: RoutePointJournalDao(database),
       );
       orchestrator = V2SessionCommitOrchestrator(

@@ -112,12 +112,12 @@ class ExportRepository implements ExportRepositoryContract {
   Future<ExportPrecheckResult> evaluatePreSubmitGuards(String tripId) async {
     final trip = await _db.tripDao.getTripById(tripId);
     final userTrip = await _db.userTripsDao.getTripById(tripId);
-    final mediaItems = await _db.mediaDao.getMediaForTrip(tripId);
-    final pendingMediaCount = mediaItems
-        .where((item) => _pendingMediaStatuses.contains(item.uploadStatus))
+    final mediaStates = await _mediaUploadStatesForTrip(tripId);
+    final pendingMediaCount = mediaStates
+        .where((state) => _pendingMediaStatuses.contains(state))
         .length;
-    final failedMediaCount = mediaItems
-        .where((item) => _failedMediaStatuses.contains(item.uploadStatus))
+    final failedMediaCount = mediaStates
+        .where((state) => _failedMediaStatuses.contains(state))
         .length;
 
     if (trip == null) {
@@ -421,6 +421,44 @@ class ExportRepository implements ExportRepositoryContract {
       default:
         return null;
     }
+  }
+
+  /// Collects upload states for all media attached to a trip (direct trip
+  /// attachments, place attachments on trip places, and trip-event capture
+  /// attachments). Used to compute pending/failed counts for the precheck.
+  Future<List<String>> _mediaUploadStatesForTrip(String tripLocalId) async {
+    final rows = await _db.customSelect(
+      '''
+      SELECT DISTINCT m.id AS id, m.upload_state AS upload_state
+      FROM media m
+      INNER JOIN media_attachments ma ON ma.media_id = m.id
+      WHERE ma.detached_at IS NULL
+        AND m.deleted_at IS NULL
+        AND (
+          (ma.target_kind = 'trip' AND ma.target_local_id = ?)
+          OR (ma.target_kind = 'place' AND ma.target_local_id IN (
+            SELECT id FROM places WHERE trip_id = ?
+          ))
+          OR (ma.target_kind = 'trip_event' AND ma.target_local_id IN (
+            SELECT event_id FROM event_journal WHERE trip_local_id = ?
+          ))
+        )
+      ''',
+      variables: <Variable<Object>>[
+        Variable<String>(tripLocalId),
+        Variable<String>(tripLocalId),
+        Variable<String>(tripLocalId),
+      ],
+      readsFrom: {
+        _db.media,
+        _db.mediaAttachments,
+        _db.places,
+        _db.eventJournal,
+      },
+    ).get();
+    return rows.map((row) => row.read<String>('upload_state')).toList(
+          growable: false,
+        );
   }
 
   /// Counts blocking V2 conditions: active sessions + in-progress publishes.

@@ -3,7 +3,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
@@ -16,7 +15,6 @@ void main() {
     late SessionJournalDao sessionDao;
     late RoutePointJournalDao routePointDao;
     late EventJournalDao eventDao;
-    late MediaJournalDao mediaDao;
     late ResolverCandidateJournalDao candidateDao;
     late ResolverAttemptJournalDao attemptDao;
 
@@ -25,7 +23,6 @@ void main() {
       sessionDao = SessionJournalDao(database);
       routePointDao = RoutePointJournalDao(database);
       eventDao = EventJournalDao(database);
-      mediaDao = MediaJournalDao(database);
       candidateDao = ResolverCandidateJournalDao(database);
       attemptDao = ResolverAttemptJournalDao(database);
     });
@@ -174,33 +171,6 @@ void main() {
         'e-unresolved',
         'e-review',
       ]);
-    });
-
-    test('media dao persists and updates upload state', () async {
-      final now = DateTime.utc(2026, 4, 10, 11, 0);
-      await mediaDao.upsertMedia(
-        MediaJournalCompanion.insert(
-          mediaId: 'm1',
-          eventId: 'e1',
-          sessionId: 'session-1',
-          tripLocalId: 'trip-1',
-          mediaType: 'photo',
-          localUri: '/tmp/photo.jpg',
-          capturedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
-
-      await mediaDao.markUploadState(
-        mediaId: 'm1',
-        uploadState: 'staged_for_commit',
-        uploadRef: 'file-ref-1',
-      );
-      final media = await mediaDao.getMediaById('m1');
-      expect(media, isNotNull);
-      expect(media!.uploadState, 'staged_for_commit');
-      expect(media.uploadRef, 'file-ref-1');
     });
 
     test('resolver candidate and attempt daos return latest deterministic sets',

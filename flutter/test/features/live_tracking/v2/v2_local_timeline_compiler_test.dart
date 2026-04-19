@@ -1,8 +1,8 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
@@ -12,16 +12,46 @@ import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_timeline_compiler.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
-import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/route_point_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
+
+Future<void> _insertLiveCaptureMedia(
+  AppDatabase database, {
+  required String mediaId,
+  required String eventId,
+  required DateTime at,
+}) async {
+  await database.mediaDao.insertMedia(
+    MediaCompanion.insert(
+      id: mediaId,
+      ownerUserId: 'user-1',
+      originScope: 'live_capture',
+      mediaType: const Value('photo'),
+      localUri: const Value('/tmp/photo.jpg'),
+      capturedAt: at,
+      uploadState: const Value('local_only'),
+      localUpdatedAt: at,
+      createdAt: at,
+      updatedAt: at,
+    ),
+  );
+  await database.mediaAttachmentsDao.insertAttachment(
+    MediaAttachmentsCompanion.insert(
+      id: 'attach-$mediaId',
+      mediaId: mediaId,
+      targetKind: 'trip_event',
+      targetLocalId: eventId,
+      role: 'capture',
+      attachedAt: at,
+    ),
+  );
+}
 
 void main() {
   group('V2LocalTimelineCompiler', () {
     late AppDatabase database;
     late V2SessionJournalRepository sessionRepository;
     late V2EventJournalRepository eventRepository;
-    late V2MediaJournalRepository mediaRepository;
     late V2RoutePointJournalRepository routePointRepository;
     late V2LocalProjectionRepository projectionRepository;
     late V2LocalTimelineCompiler compiler;
@@ -31,7 +61,6 @@ void main() {
       sessionRepository =
           V2SessionJournalRepository(SessionJournalDao(database));
       eventRepository = V2EventJournalRepository(EventJournalDao(database));
-      mediaRepository = V2MediaJournalRepository(MediaJournalDao(database));
       routePointRepository =
           V2RoutePointJournalRepository(RoutePointJournalDao(database));
       projectionRepository = V2LocalProjectionRepository(
@@ -44,7 +73,6 @@ void main() {
         projectionRepository: projectionRepository,
         sessionRepository: sessionRepository,
         eventRepository: eventRepository,
-        mediaRepository: mediaRepository,
         routePointRepository: routePointRepository,
       );
     });
@@ -99,16 +127,11 @@ void main() {
         updatedAt: startedAt.add(const Duration(minutes: 2)),
         eventSeq: 2,
       );
-      await mediaRepository.upsertMedia(
+      await _insertLiveCaptureMedia(
+        database,
         mediaId: 'media-1',
         eventId: 'event-route',
-        sessionId: 'session-1',
-        tripLocalId: 'trip-1',
-        mediaType: 'photo',
-        localUri: '/tmp/photo.jpg',
-        capturedAt: startedAt.add(const Duration(minutes: 2)),
-        createdAt: startedAt.add(const Duration(minutes: 2)),
-        updatedAt: startedAt.add(const Duration(minutes: 2)),
+        at: startedAt.add(const Duration(minutes: 2)),
       );
       await routePointRepository.upsertPoint(
         pointId: 'point-1',

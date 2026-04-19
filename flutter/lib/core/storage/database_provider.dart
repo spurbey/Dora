@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
+import 'package:dora/core/storage/daos/media_dao.dart';
+import 'package:dora/core/storage/daos/stories_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
@@ -42,9 +44,19 @@ final v2EventJournalDaoProvider = Provider<EventJournalDao>((ref) {
   return EventJournalDao(db);
 });
 
-final v2MediaJournalDaoProvider = Provider<MediaJournalDao>((ref) {
+final mediaDaoProvider = Provider<MediaDao>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return MediaJournalDao(db);
+  return MediaDao(db);
+});
+
+final mediaAttachmentsDaoProvider = Provider<MediaAttachmentsDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return MediaAttachmentsDao(db);
+});
+
+final storiesDaoProvider = Provider<StoriesDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return StoriesDao(db);
 });
 
 final v2ResolverCandidateJournalDaoProvider =

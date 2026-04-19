@@ -6,32 +6,27 @@ import 'package:dora/core/storage/drift_database.dart';
 class QueuedMediaTask {
   const QueuedMediaTask({
     required this.id,
-    required this.tripId,
-    required this.placeId,
-    required this.localPath,
+    required this.localUri,
     required this.retryCount,
     required this.workerSessionId,
+    required this.mediaType,
+    required this.originScope,
   });
 
   final String id;
-  final String tripId;
-  final String placeId;
-  final String localPath;
+  final String localUri;
   final int retryCount;
   final String workerSessionId;
+  final String mediaType;
+  final String originScope;
 
   factory QueuedMediaTask.fromRow(MediaItem row) {
-    final localPath = row.localPath;
-    final placeId = row.placeId;
+    final localUri = row.localUri;
     final workerSessionId = row.workerSessionId;
 
-    if (localPath == null || localPath.isEmpty) {
+    if (localUri == null || localUri.isEmpty) {
       throw QueuedMediaTaskException(
-          'Queue row ${row.id} has no localPath for upload');
-    }
-    if (placeId == null || placeId.isEmpty) {
-      throw QueuedMediaTaskException(
-          'Queue row ${row.id} has no placeId for upload');
+          'Queue row ${row.id} has no localUri for upload');
     }
     if (workerSessionId == null || workerSessionId.isEmpty) {
       throw QueuedMediaTaskException(
@@ -40,11 +35,11 @@ class QueuedMediaTask {
 
     return QueuedMediaTask(
       id: row.id,
-      tripId: row.tripId,
-      placeId: placeId,
-      localPath: localPath,
+      localUri: localUri,
       retryCount: row.retryCount,
       workerSessionId: workerSessionId,
+      mediaType: row.mediaType,
+      originScope: row.originScope,
     );
   }
 }

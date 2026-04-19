@@ -117,7 +117,7 @@ class _MediaAttachmentViewerState extends State<MediaAttachmentViewer> {
                       .copyWith(color: AppColors.textSecondary),
                 ),
                 const Spacer(),
-                _StatusBadge(status: item.uploadStatus),
+                _StatusBadge(status: item.uploadState),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -153,7 +153,7 @@ class _MediaAttachmentViewerState extends State<MediaAttachmentViewer> {
   }
 
   ImageProvider<Object>? _resolveImage(MediaItem item) {
-    final thumb = item.thumbnailPath;
+    final thumb = item.thumbnailLocalPath;
     if (thumb != null && thumb.isNotEmpty) {
       if (thumb.startsWith('http')) {
         return NetworkImage(thumb);
@@ -164,15 +164,15 @@ class _MediaAttachmentViewerState extends State<MediaAttachmentViewer> {
       }
     }
 
-    final localPath = item.localPath;
-    if (localPath != null && localPath.isNotEmpty) {
-      final file = File(localPath);
+    final localUri = item.localUri;
+    if (localUri != null && localUri.isNotEmpty) {
+      final file = File(localUri);
       if (file.existsSync()) {
         return FileImage(file);
       }
     }
 
-    final url = item.url;
+    final url = item.remoteUrl;
     if (url != null && url.isNotEmpty) {
       return NetworkImage(url);
     }

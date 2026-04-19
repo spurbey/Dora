@@ -362,13 +362,23 @@ void main() {
       await db.into(db.media).insert(
             MediaCompanion.insert(
               id: 'media-1',
-              tripId: 'trip-3',
-              placeId: const Value('place-1'),
+              ownerUserId: 'user-1',
+              originScope: 'editor',
+              capturedAt: now,
+              uploadState: const Value('blocked'),
               localUpdatedAt: now,
-              serverUpdatedAt: now,
-              syncStatus: 'synced',
               createdAt: now,
-              uploadStatus: const Value('blocked'),
+              updatedAt: now,
+            ),
+          );
+      await db.into(db.mediaAttachments).insert(
+            MediaAttachmentsCompanion.insert(
+              id: 'attach-1',
+              mediaId: 'media-1',
+              targetKind: 'place',
+              targetLocalId: 'place-1',
+              role: 'review',
+              attachedAt: now,
             ),
           );
 

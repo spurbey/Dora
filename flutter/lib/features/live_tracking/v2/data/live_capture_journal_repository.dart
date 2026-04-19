@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
+import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show LiveTrackingEventType;
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
-import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
 
 class V2MediaCaptureResult {
@@ -39,18 +41,24 @@ class V2LiveCaptureJournalRepository {
   V2LiveCaptureJournalRepository({
     required V2SessionJournalRepository sessionRepository,
     required V2EventJournalRepository eventRepository,
-    required V2MediaJournalRepository mediaRepository,
+    required MediaDao mediaDao,
+    required MediaAttachmentsDao mediaAttachmentsDao,
+    required String Function() resolveOwnerUserId,
     DateTime Function()? now,
     Uuid? uuid,
   })  : _sessionRepository = sessionRepository,
         _eventRepository = eventRepository,
-        _mediaRepository = mediaRepository,
+        _mediaDao = mediaDao,
+        _mediaAttachmentsDao = mediaAttachmentsDao,
+        _resolveOwnerUserId = resolveOwnerUserId,
         _now = now ?? DateTime.now,
         _uuid = uuid ?? const Uuid();
 
   final V2SessionJournalRepository _sessionRepository;
   final V2EventJournalRepository _eventRepository;
-  final V2MediaJournalRepository _mediaRepository;
+  final MediaDao _mediaDao;
+  final MediaAttachmentsDao _mediaAttachmentsDao;
+  final String Function() _resolveOwnerUserId;
   final DateTime Function() _now;
   final Uuid _uuid;
   final Map<String, int> _eventSeqBySession = <String, int>{};
@@ -151,20 +159,55 @@ class V2LiveCaptureJournalRepository {
     );
 
     final mediaId = _uuid.v4();
-    await _mediaRepository.upsertMedia(
-      mediaId: mediaId,
-      eventId: eventId,
-      sessionId: session.sessionId,
-      tripLocalId: tripId,
-      mediaType: _eventTypeWireName(eventType),
-      localUri: localPath,
-      mimeType: _resolveMimeType(path: localPath, mimeType: mimeType),
-      bytesSize: _readFileSize(localPath),
-      capturedAt: now,
-      uploadState: 'local_only',
-      uploadRef: null,
-      createdAt: now,
-      updatedAt: now,
+    final ownerUserId = _resolveOwnerUserId();
+    final resolvedMimeType = _resolveMimeType(path: localPath, mimeType: mimeType);
+    final bytesSize = _readFileSize(localPath);
+    final wireType = _eventTypeWireName(eventType);
+
+    await _mediaDao.insertMedia(
+      MediaCompanion.insert(
+        id: mediaId,
+        ownerUserId: ownerUserId,
+        originScope: 'live_capture',
+        mediaType: Value(wireType == 'video' ? 'video' : 'photo'),
+        localUri: Value(localPath),
+        mimeType: Value(resolvedMimeType),
+        bytesSize: Value(bytesSize),
+        capturedAt: now,
+        latitude: Value(latitude),
+        longitude: Value(longitude),
+        uploadState: const Value('local_only'),
+        uploadProgress: const Value(0.0),
+        retryCount: const Value(0),
+        syncStatus: const Value('pending'),
+        localUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await _mediaAttachmentsDao.insertAttachment(
+      MediaAttachmentsCompanion.insert(
+        id: _uuid.v4(),
+        mediaId: mediaId,
+        targetKind: 'trip_event',
+        targetLocalId: eventId,
+        role: 'capture',
+        source: const Value('auto_geotag'),
+        attachedAt: now,
+      ),
+    );
+
+    await _mediaAttachmentsDao.insertAttachment(
+      MediaAttachmentsCompanion.insert(
+        id: _uuid.v4(),
+        mediaId: mediaId,
+        targetKind: 'trip',
+        targetLocalId: tripId,
+        role: 'capture',
+        source: const Value('auto_geotag'),
+        attachedAt: now,
+      ),
     );
 
     return V2MediaCaptureResult(

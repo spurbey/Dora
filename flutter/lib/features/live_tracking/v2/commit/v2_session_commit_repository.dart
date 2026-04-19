@@ -5,8 +5,9 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
+import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_chunk_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_job_dao.dart';
@@ -14,6 +15,20 @@ import 'package:dora/core/storage/daos/v2/session_commit_media_item_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
+
+class V2SessionMediaItem {
+  const V2SessionMediaItem({
+    required this.media,
+    required this.eventId,
+    required this.sessionId,
+    required this.tripLocalId,
+  });
+
+  final MediaItem media;
+  final String eventId;
+  final String sessionId;
+  final String tripLocalId;
+}
 
 class V2SessionCommitRepository {
   V2SessionCommitRepository({
@@ -23,7 +38,8 @@ class V2SessionCommitRepository {
     required SessionCommitMediaItemDao mediaItemDao,
     required SessionCommitChunkDao chunkDao,
     required EventJournalDao eventDao,
-    required MediaJournalDao mediaDao,
+    required MediaDao mediaDao,
+    required MediaAttachmentsDao mediaAttachmentsDao,
     required RoutePointJournalDao routePointDao,
     DateTime Function()? now,
   })  : _database = database,
@@ -33,6 +49,7 @@ class V2SessionCommitRepository {
         _chunkDao = chunkDao,
         _eventDao = eventDao,
         _mediaDao = mediaDao,
+        _mediaAttachmentsDao = mediaAttachmentsDao,
         _routePointDao = routePointDao,
         _now = now ?? DateTime.now;
 
@@ -42,7 +59,8 @@ class V2SessionCommitRepository {
   final SessionCommitMediaItemDao _mediaItemDao;
   final SessionCommitChunkDao _chunkDao;
   final EventJournalDao _eventDao;
-  final MediaJournalDao _mediaDao;
+  final MediaDao _mediaDao;
+  final MediaAttachmentsDao _mediaAttachmentsDao;
   final RoutePointJournalDao _routePointDao;
   final DateTime Function() _now;
 
@@ -230,7 +248,10 @@ class V2SessionCommitRepository {
         return;
       }
       final events = await _eventDao.listEventsForSession(session.sessionId);
-      final media = await _mediaDao.listMediaForSession(session.sessionId);
+      final media = await _listSessionMediaItems(
+        sessionId: session.sessionId,
+        tripLocalId: session.tripLocalId,
+      );
       final points =
           await _routePointDao.listPointsForSession(session.sessionId);
       final now = _now().toUtc();
@@ -283,18 +304,18 @@ class V2SessionCommitRepository {
         'media': media
             .map(
               (item) => <String, Object?>{
-                'media_id': item.mediaId,
+                'media_id': item.media.id,
                 'session_id': item.sessionId,
                 'event_id': item.eventId,
-                'captured_at': item.capturedAt.toIso8601String(),
-                'media_type': item.mediaType,
-                'local_uri': item.localUri,
-                'mime_type': item.mimeType,
-                'bytes_size': item.bytesSize,
-                'upload_state': item.uploadState,
-                'upload_ref': item.uploadRef,
-                'created_at': item.createdAt.toIso8601String(),
-                'updated_at': item.updatedAt.toIso8601String(),
+                'captured_at': item.media.capturedAt.toIso8601String(),
+                'media_type': item.media.mediaType,
+                'local_uri': item.media.localUri,
+                'mime_type': item.media.mimeType,
+                'bytes_size': item.media.bytesSize,
+                'upload_state': item.media.uploadState,
+                'upload_ref': item.media.serverId,
+                'created_at': item.media.createdAt.toIso8601String(),
+                'updated_at': item.media.updatedAt.toIso8601String(),
               },
             )
             .toList(growable: false),
@@ -326,13 +347,13 @@ class V2SessionCommitRepository {
       final mediaItems = media
           .map(
             (item) => SessionCommitMediaItemCompanion.insert(
-              itemId: 'media:$jobId:${item.mediaId}',
+              itemId: 'media:$jobId:${item.media.id}',
               jobId: jobId,
-              mediaId: item.mediaId,
+              mediaId: item.media.id,
               uploadState: 'pending',
-              localUri: item.localUri,
-              mimeType: Value(item.mimeType),
-              bytesSize: Value(item.bytesSize),
+              localUri: item.media.localUri ?? '',
+              mimeType: Value(item.media.mimeType),
+              bytesSize: Value(item.media.bytesSize),
               createdAt: now,
               updatedAt: now,
             ),
@@ -518,16 +539,53 @@ class V2SessionCommitRepository {
     return int.tryParse(parts.last);
   }
 
+  Future<List<V2SessionMediaItem>> _listSessionMediaItems({
+    required String sessionId,
+    required String tripLocalId,
+  }) async {
+    final rows = await _database.customSelect(
+      '''
+      SELECT m.*, ma.target_local_id AS attachment_event_id
+      FROM media m
+      INNER JOIN media_attachments ma ON ma.media_id = m.id
+      INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+      WHERE ma.target_kind = 'trip_event'
+        AND ma.role = 'capture'
+        AND ma.detached_at IS NULL
+        AND m.deleted_at IS NULL
+        AND e.session_id = ?
+      ORDER BY m.captured_at ASC, m.id ASC
+      ''',
+      variables: [Variable<String>(sessionId)],
+      readsFrom: {
+        _database.media,
+        _database.mediaAttachments,
+        _database.eventJournal,
+      },
+    ).get();
+
+    return rows.map((row) {
+      final media = _database.media.map(row.data);
+      final eventId = row.read<String>('attachment_event_id');
+      return V2SessionMediaItem(
+        media: media,
+        eventId: eventId,
+        sessionId: sessionId,
+        tripLocalId: tripLocalId,
+      );
+    }).toList(growable: false);
+  }
+
   Future<List<Map<String, Object?>>> _buildMediaManifest(
-    List<MediaJournalRow> media,
+    List<V2SessionMediaItem> media,
   ) async {
     final manifest = <Map<String, Object?>>[];
     for (final item in media) {
       manifest.add(
         <String, Object?>{
-          'client_media_id': item.mediaId,
-          'mime_type': item.mimeType,
-          'size_bytes': item.bytesSize,
+          'client_media_id': item.media.id,
+          'mime_type': item.media.mimeType,
+          'size_bytes': item.media.bytesSize,
           'media_content_hash': await _computeMediaContentHash(item),
         },
       );
@@ -539,21 +597,24 @@ class V2SessionCommitRepository {
     return manifest;
   }
 
-  Future<String> _computeMediaContentHash(MediaJournalRow item) async {
-    final file = _fileFromLocalUri(item.localUri);
-    if (file != null && await file.exists()) {
-      final digest = await crypto.sha256.bind(file.openRead()).first;
-      return digest.toString();
+  Future<String> _computeMediaContentHash(V2SessionMediaItem item) async {
+    final localUri = item.media.localUri;
+    if (localUri != null && localUri.isNotEmpty) {
+      final file = _fileFromLocalUri(localUri);
+      if (file != null && await file.exists()) {
+        final digest = await crypto.sha256.bind(file.openRead()).first;
+        return digest.toString();
+      }
     }
     return _stableHash(
       _canonicalJson(
         <String, Object?>{
-          'media_id': item.mediaId,
+          'media_id': item.media.id,
           'event_id': item.eventId,
-          'local_uri': item.localUri,
-          'mime_type': item.mimeType,
-          'bytes_size': item.bytesSize,
-          'captured_at': item.capturedAt.toIso8601String(),
+          'local_uri': item.media.localUri,
+          'mime_type': item.media.mimeType,
+          'bytes_size': item.media.bytesSize,
+          'captured_at': item.media.capturedAt.toIso8601String(),
         },
       ),
     );

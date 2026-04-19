@@ -4,8 +4,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
+import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_chunk_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_commit_job_dao.dart';
@@ -23,7 +24,8 @@ void main() {
     late SessionCommitMediaItemDao mediaItemDao;
     late SessionCommitChunkDao chunkDao;
     late EventJournalDao eventDao;
-    late MediaJournalDao mediaDao;
+    late MediaDao mediaDao;
+    late MediaAttachmentsDao mediaAttachmentsDao;
     late RoutePointJournalDao routePointDao;
     late V2SessionCommitRepository repository;
 
@@ -34,7 +36,8 @@ void main() {
       mediaItemDao = SessionCommitMediaItemDao(database);
       chunkDao = SessionCommitChunkDao(database);
       eventDao = EventJournalDao(database);
-      mediaDao = MediaJournalDao(database);
+      mediaDao = database.mediaDao;
+      mediaAttachmentsDao = database.mediaAttachmentsDao;
       routePointDao = RoutePointJournalDao(database);
       repository = V2SessionCommitRepository(
         database: database,
@@ -44,6 +47,7 @@ void main() {
         chunkDao: chunkDao,
         eventDao: eventDao,
         mediaDao: mediaDao,
+        mediaAttachmentsDao: mediaAttachmentsDao,
         routePointDao: routePointDao,
       );
     });
@@ -149,6 +153,7 @@ void main() {
       await _insertEventMediaAndPoint(
         eventDao: eventDao,
         mediaDao: mediaDao,
+        mediaAttachmentsDao: mediaAttachmentsDao,
         routePointDao: routePointDao,
         sessionId: 'session-snapshot',
         tripId: 'trip-snapshot',
@@ -167,6 +172,7 @@ void main() {
       await _insertEventMediaAndPoint(
         eventDao: eventDao,
         mediaDao: mediaDao,
+        mediaAttachmentsDao: mediaAttachmentsDao,
         routePointDao: routePointDao,
         sessionId: 'session-snapshot',
         tripId: 'trip-snapshot',
@@ -253,7 +259,8 @@ Future<void> _insertSealedSession({
 
 Future<void> _insertEventMediaAndPoint({
   required EventJournalDao eventDao,
-  required MediaJournalDao mediaDao,
+  required MediaDao mediaDao,
+  required MediaAttachmentsDao mediaAttachmentsDao,
   required RoutePointJournalDao routePointDao,
   required String sessionId,
   required String tripId,
@@ -283,21 +290,30 @@ Future<void> _insertEventMediaAndPoint({
     ),
   );
 
-  await mediaDao.upsertMedia(
-    MediaJournalCompanion.insert(
-      mediaId: 'media-$suffix',
-      eventId: 'event-$suffix',
-      sessionId: sessionId,
-      tripLocalId: tripId,
-      mediaType: 'photo',
-      localUri: '/tmp/photo-$suffix.jpg',
+  await mediaDao.insertMedia(
+    MediaCompanion.insert(
+      id: 'media-$suffix',
+      ownerUserId: 'user-1',
+      originScope: 'live_capture',
+      mediaType: const Value('photo'),
+      localUri: Value('/tmp/photo-$suffix.jpg'),
       mimeType: const Value('image/jpeg'),
       bytesSize: const Value(2048),
       capturedAt: at,
       uploadState: const Value('local_only'),
-      uploadRef: const Value(null),
+      localUpdatedAt: at,
       createdAt: at,
       updatedAt: at,
+    ),
+  );
+  await mediaAttachmentsDao.insertAttachment(
+    MediaAttachmentsCompanion.insert(
+      id: 'attach-media-$suffix',
+      mediaId: 'media-$suffix',
+      targetKind: 'trip_event',
+      targetLocalId: 'event-$suffix',
+      role: 'capture',
+      attachedAt: at,
     ),
   );
 

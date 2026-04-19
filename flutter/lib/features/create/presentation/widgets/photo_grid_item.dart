@@ -37,17 +37,17 @@ class PhotoGridItem extends StatelessWidget {
                 image: image,
                 fit: BoxFit.cover,
               ),
-            if (item.uploadStatus == 'uploading' ||
-                item.uploadStatus == 'compressing' ||
-                item.uploadStatus == 'queued' ||
-                item.uploadStatus == 'deferred')
+            if (item.uploadState == 'uploading' ||
+                item.uploadState == 'compressing' ||
+                item.uploadState == 'queued' ||
+                item.uploadState == 'deferred')
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: LinearProgressIndicator(
-                  value: item.uploadStatus == 'queued' ||
-                          item.uploadStatus == 'deferred'
+                  value: item.uploadState == 'queued' ||
+                          item.uploadState == 'deferred'
                       ? null
                       : item.uploadProgress,
                   minHeight: 3,
@@ -61,7 +61,7 @@ class PhotoGridItem extends StatelessWidget {
   }
 
   ImageProvider<Object>? _resolveImage(MediaItem item) {
-    final thumbnail = item.thumbnailPath;
+    final thumbnail = item.thumbnailLocalPath;
     if (thumbnail != null && thumbnail.isNotEmpty) {
       if (thumbnail.startsWith('http')) {
         return NetworkImage(thumbnail);
@@ -72,15 +72,15 @@ class PhotoGridItem extends StatelessWidget {
       }
     }
 
-    final localPath = item.localPath;
-    if (localPath != null && localPath.isNotEmpty) {
-      final file = File(localPath);
+    final localUri = item.localUri;
+    if (localUri != null && localUri.isNotEmpty) {
+      final file = File(localUri);
       if (file.existsSync()) {
         return FileImage(file);
       }
     }
 
-    final url = item.url;
+    final url = item.remoteUrl;
     if (url != null && url.isNotEmpty) {
       return NetworkImage(url);
     }

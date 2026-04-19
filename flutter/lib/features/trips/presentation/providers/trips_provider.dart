@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
+import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/profile/presentation/providers/profile_provider.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora/features/trips/data/trips_api.dart';
@@ -29,7 +30,14 @@ TripsRepository tripsRepository(TripsRepositoryRef ref) {
   final api = ref.watch(userTripsApiProvider);
   final authService = ref.watch(authServiceProvider);
   final liveTrackingApi = ref.watch(liveTrackingApiProvider);
-  return TripsRepository(db, api, authService, liveTrackingApi);
+  final mediaRepository = ref.watch(mediaRepositoryProvider);
+  return TripsRepository(
+    db,
+    api,
+    authService,
+    liveTrackingApi,
+    enqueueEditorMediaForPublish: mediaRepository.enqueueMediaForTripPublish,
+  );
 }
 
 @riverpod

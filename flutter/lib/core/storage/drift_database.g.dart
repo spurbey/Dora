@@ -2433,71 +2433,124 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
   @override
-  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
-      'trip_id', aliasedName, false,
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ownerUserIdMeta =
+      const VerificationMeta('ownerUserId');
+  @override
+  late final GeneratedColumn<String> ownerUserId = GeneratedColumn<String>(
+      'owner_user_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _placeIdMeta =
-      const VerificationMeta('placeId');
+  static const VerificationMeta _mediaTypeMeta =
+      const VerificationMeta('mediaType');
   @override
-  late final GeneratedColumn<String> placeId = GeneratedColumn<String>(
-      'place_id', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
+      'media_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('photo'));
+  static const VerificationMeta _originScopeMeta =
+      const VerificationMeta('originScope');
   @override
-  late final GeneratedColumn<String> url = GeneratedColumn<String>(
-      'url', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _localPathMeta =
-      const VerificationMeta('localPath');
+  late final GeneratedColumn<String> originScope = GeneratedColumn<String>(
+      'origin_scope', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _localUriMeta =
+      const VerificationMeta('localUri');
   @override
-  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
-      'local_path', aliasedName, true,
+  late final GeneratedColumn<String> localUri = GeneratedColumn<String>(
+      'local_uri', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _thumbnailPathMeta =
-      const VerificationMeta('thumbnailPath');
+  static const VerificationMeta _thumbnailLocalPathMeta =
+      const VerificationMeta('thumbnailLocalPath');
   @override
-  late final GeneratedColumn<String> thumbnailPath = GeneratedColumn<String>(
-      'thumbnail_path', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
+  late final GeneratedColumn<String> thumbnailLocalPath =
+      GeneratedColumn<String>('thumbnail_local_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _mimeTypeMeta =
       const VerificationMeta('mimeType');
   @override
   late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
       'mime_type', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _fileSizeBytesMeta =
-      const VerificationMeta('fileSizeBytes');
+  static const VerificationMeta _bytesSizeMeta =
+      const VerificationMeta('bytesSize');
   @override
-  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
-      'file_size_bytes', aliasedName, true,
+  late final GeneratedColumn<int> bytesSize = GeneratedColumn<int>(
+      'bytes_size', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  static const VerificationMeta _widthPxMeta =
+      const VerificationMeta('widthPx');
   @override
-  late final GeneratedColumn<int> width = GeneratedColumn<int>(
-      'width', aliasedName, true,
+  late final GeneratedColumn<int> widthPx = GeneratedColumn<int>(
+      'width_px', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  static const VerificationMeta _heightPxMeta =
+      const VerificationMeta('heightPx');
   @override
-  late final GeneratedColumn<int> height = GeneratedColumn<int>(
-      'height', aliasedName, true,
+  late final GeneratedColumn<int> heightPx = GeneratedColumn<int>(
+      'height_px', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  static const VerificationMeta _durationMsMeta =
+      const VerificationMeta('durationMs');
   @override
-  late final GeneratedColumn<String> type = GeneratedColumn<String>(
-      'type', aliasedName, false,
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+      'duration_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _contentHashMeta =
+      const VerificationMeta('contentHash');
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+      'content_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _remoteUrlMeta =
+      const VerificationMeta('remoteUrl');
+  @override
+  late final GeneratedColumn<String> remoteUrl = GeneratedColumn<String>(
+      'remote_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _remoteThumbnailUrlMeta =
+      const VerificationMeta('remoteThumbnailUrl');
+  @override
+  late final GeneratedColumn<String> remoteThumbnailUrl =
+      GeneratedColumn<String>('remote_thumbnail_url', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _latitudeMeta =
+      const VerificationMeta('latitude');
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+      'latitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _longitudeMeta =
+      const VerificationMeta('longitude');
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+      'longitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _accuracyMMeta =
+      const VerificationMeta('accuracyM');
+  @override
+  late final GeneratedColumn<double> accuracyM = GeneratedColumn<double>(
+      'accuracy_m', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _uploadStateMeta =
+      const VerificationMeta('uploadState');
+  @override
+  late final GeneratedColumn<String> uploadState = GeneratedColumn<String>(
+      'upload_state', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('photo'));
-  static const VerificationMeta _uploadStatusMeta =
-      const VerificationMeta('uploadStatus');
-  @override
-  late final GeneratedColumn<String> uploadStatus = GeneratedColumn<String>(
-      'upload_status', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('queued'));
+      defaultValue: const Constant('local_only'));
   static const VerificationMeta _uploadProgressMeta =
       const VerificationMeta('uploadProgress');
   @override
@@ -2514,18 +2567,6 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
-  static const VerificationMeta _errorMessageMeta =
-      const VerificationMeta('errorMessage');
-  @override
-  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
-      'error_message', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _uploadedAtMeta =
-      const VerificationMeta('uploadedAt');
-  @override
-  late final GeneratedColumn<DateTime> uploadedAt = GeneratedColumn<DateTime>(
-      'uploaded_at', aliasedName, true,
-      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _nextAttemptAtMeta =
       const VerificationMeta('nextAttemptAt');
   @override
@@ -2538,6 +2579,26 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
   late final GeneratedColumn<String> workerSessionId = GeneratedColumn<String>(
       'worker_session_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _errorMessageMeta =
+      const VerificationMeta('errorMessage');
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+      'error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _uploadedAtMeta =
+      const VerificationMeta('uploadedAt');
+  @override
+  late final GeneratedColumn<DateTime> uploadedAt = GeneratedColumn<DateTime>(
+      'uploaded_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
   static const VerificationMeta _localUpdatedAtMeta =
       const VerificationMeta('localUpdatedAt');
   @override
@@ -2548,44 +2609,60 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
       const VerificationMeta('serverUpdatedAt');
   @override
   late final GeneratedColumn<DateTime> serverUpdatedAt =
-      GeneratedColumn<DateTime>('server_updated_at', aliasedName, false,
-          type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _syncStatusMeta =
-      const VerificationMeta('syncStatus');
-  @override
-  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
-      'sync_status', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
       'created_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
-        tripId,
-        placeId,
-        url,
-        localPath,
-        thumbnailPath,
+        serverId,
+        ownerUserId,
+        mediaType,
+        originScope,
+        localUri,
+        thumbnailLocalPath,
         mimeType,
-        fileSizeBytes,
-        width,
-        height,
-        type,
-        uploadStatus,
+        bytesSize,
+        widthPx,
+        heightPx,
+        durationMs,
+        contentHash,
+        remoteUrl,
+        remoteThumbnailUrl,
+        capturedAt,
+        latitude,
+        longitude,
+        accuracyM,
+        uploadState,
         uploadProgress,
         retryCount,
-        errorMessage,
-        uploadedAt,
         nextAttemptAt,
         workerSessionId,
+        errorMessage,
+        uploadedAt,
+        syncStatus,
         localUpdatedAt,
         serverUpdatedAt,
-        syncStatus,
-        createdAt
+        createdAt,
+        updatedAt,
+        deletedAt
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2602,57 +2679,103 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('trip_id')) {
-      context.handle(_tripIdMeta,
-          tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta));
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('owner_user_id')) {
+      context.handle(
+          _ownerUserIdMeta,
+          ownerUserId.isAcceptableOrUnknown(
+              data['owner_user_id']!, _ownerUserIdMeta));
     } else if (isInserting) {
-      context.missing(_tripIdMeta);
+      context.missing(_ownerUserIdMeta);
     }
-    if (data.containsKey('place_id')) {
-      context.handle(_placeIdMeta,
-          placeId.isAcceptableOrUnknown(data['place_id']!, _placeIdMeta));
+    if (data.containsKey('media_type')) {
+      context.handle(_mediaTypeMeta,
+          mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta));
     }
-    if (data.containsKey('url')) {
+    if (data.containsKey('origin_scope')) {
       context.handle(
-          _urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+          _originScopeMeta,
+          originScope.isAcceptableOrUnknown(
+              data['origin_scope']!, _originScopeMeta));
+    } else if (isInserting) {
+      context.missing(_originScopeMeta);
     }
-    if (data.containsKey('local_path')) {
-      context.handle(_localPathMeta,
-          localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta));
+    if (data.containsKey('local_uri')) {
+      context.handle(_localUriMeta,
+          localUri.isAcceptableOrUnknown(data['local_uri']!, _localUriMeta));
     }
-    if (data.containsKey('thumbnail_path')) {
+    if (data.containsKey('thumbnail_local_path')) {
       context.handle(
-          _thumbnailPathMeta,
-          thumbnailPath.isAcceptableOrUnknown(
-              data['thumbnail_path']!, _thumbnailPathMeta));
+          _thumbnailLocalPathMeta,
+          thumbnailLocalPath.isAcceptableOrUnknown(
+              data['thumbnail_local_path']!, _thumbnailLocalPathMeta));
     }
     if (data.containsKey('mime_type')) {
       context.handle(_mimeTypeMeta,
           mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
     }
-    if (data.containsKey('file_size_bytes')) {
-      context.handle(
-          _fileSizeBytesMeta,
-          fileSizeBytes.isAcceptableOrUnknown(
-              data['file_size_bytes']!, _fileSizeBytesMeta));
+    if (data.containsKey('bytes_size')) {
+      context.handle(_bytesSizeMeta,
+          bytesSize.isAcceptableOrUnknown(data['bytes_size']!, _bytesSizeMeta));
     }
-    if (data.containsKey('width')) {
-      context.handle(
-          _widthMeta, width.isAcceptableOrUnknown(data['width']!, _widthMeta));
+    if (data.containsKey('width_px')) {
+      context.handle(_widthPxMeta,
+          widthPx.isAcceptableOrUnknown(data['width_px']!, _widthPxMeta));
     }
-    if (data.containsKey('height')) {
-      context.handle(_heightMeta,
-          height.isAcceptableOrUnknown(data['height']!, _heightMeta));
+    if (data.containsKey('height_px')) {
+      context.handle(_heightPxMeta,
+          heightPx.isAcceptableOrUnknown(data['height_px']!, _heightPxMeta));
     }
-    if (data.containsKey('type')) {
+    if (data.containsKey('duration_ms')) {
       context.handle(
-          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+          _durationMsMeta,
+          durationMs.isAcceptableOrUnknown(
+              data['duration_ms']!, _durationMsMeta));
     }
-    if (data.containsKey('upload_status')) {
+    if (data.containsKey('content_hash')) {
       context.handle(
-          _uploadStatusMeta,
-          uploadStatus.isAcceptableOrUnknown(
-              data['upload_status']!, _uploadStatusMeta));
+          _contentHashMeta,
+          contentHash.isAcceptableOrUnknown(
+              data['content_hash']!, _contentHashMeta));
+    }
+    if (data.containsKey('remote_url')) {
+      context.handle(_remoteUrlMeta,
+          remoteUrl.isAcceptableOrUnknown(data['remote_url']!, _remoteUrlMeta));
+    }
+    if (data.containsKey('remote_thumbnail_url')) {
+      context.handle(
+          _remoteThumbnailUrlMeta,
+          remoteThumbnailUrl.isAcceptableOrUnknown(
+              data['remote_thumbnail_url']!, _remoteThumbnailUrlMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(_latitudeMeta,
+          latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta));
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(_longitudeMeta,
+          longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta));
+    }
+    if (data.containsKey('accuracy_m')) {
+      context.handle(_accuracyMMeta,
+          accuracyM.isAcceptableOrUnknown(data['accuracy_m']!, _accuracyMMeta));
+    }
+    if (data.containsKey('upload_state')) {
+      context.handle(
+          _uploadStateMeta,
+          uploadState.isAcceptableOrUnknown(
+              data['upload_state']!, _uploadStateMeta));
     }
     if (data.containsKey('upload_progress')) {
       context.handle(
@@ -2666,6 +2789,18 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
           retryCount.isAcceptableOrUnknown(
               data['retry_count']!, _retryCountMeta));
     }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+          _nextAttemptAtMeta,
+          nextAttemptAt.isAcceptableOrUnknown(
+              data['next_attempt_at']!, _nextAttemptAtMeta));
+    }
+    if (data.containsKey('worker_session_id')) {
+      context.handle(
+          _workerSessionIdMeta,
+          workerSessionId.isAcceptableOrUnknown(
+              data['worker_session_id']!, _workerSessionIdMeta));
+    }
     if (data.containsKey('error_message')) {
       context.handle(
           _errorMessageMeta,
@@ -2678,17 +2813,11 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
           uploadedAt.isAcceptableOrUnknown(
               data['uploaded_at']!, _uploadedAtMeta));
     }
-    if (data.containsKey('next_attempt_at')) {
+    if (data.containsKey('sync_status')) {
       context.handle(
-          _nextAttemptAtMeta,
-          nextAttemptAt.isAcceptableOrUnknown(
-              data['next_attempt_at']!, _nextAttemptAtMeta));
-    }
-    if (data.containsKey('worker_session_id')) {
-      context.handle(
-          _workerSessionIdMeta,
-          workerSessionId.isAcceptableOrUnknown(
-              data['worker_session_id']!, _workerSessionIdMeta));
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
     }
     if (data.containsKey('local_updated_at')) {
       context.handle(
@@ -2703,22 +2832,22 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
           _serverUpdatedAtMeta,
           serverUpdatedAt.isAcceptableOrUnknown(
               data['server_updated_at']!, _serverUpdatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_serverUpdatedAtMeta);
-    }
-    if (data.containsKey('sync_status')) {
-      context.handle(
-          _syncStatusMeta,
-          syncStatus.isAcceptableOrUnknown(
-              data['sync_status']!, _syncStatusMeta));
-    } else if (isInserting) {
-      context.missing(_syncStatusMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
     } else if (isInserting) {
       context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
     }
     return context;
   }
@@ -2731,48 +2860,68 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
     return MediaItem(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      tripId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}trip_id'])!,
-      placeId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}place_id']),
-      url: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}url']),
-      localPath: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}local_path']),
-      thumbnailPath: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}thumbnail_path']),
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_id']),
+      ownerUserId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_user_id'])!,
+      mediaType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}media_type'])!,
+      originScope: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin_scope'])!,
+      localUri: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_uri']),
+      thumbnailLocalPath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}thumbnail_local_path']),
       mimeType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
-      fileSizeBytes: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}file_size_bytes']),
-      width: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}width']),
-      height: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}height']),
-      type: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
-      uploadStatus: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}upload_status'])!,
+      bytesSize: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}bytes_size']),
+      widthPx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}width_px']),
+      heightPx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}height_px']),
+      durationMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}duration_ms']),
+      contentHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_hash']),
+      remoteUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}remote_url']),
+      remoteThumbnailUrl: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}remote_thumbnail_url']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}captured_at'])!,
+      latitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}latitude']),
+      longitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}longitude']),
+      accuracyM: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}accuracy_m']),
+      uploadState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_state'])!,
       uploadProgress: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}upload_progress'])!,
       retryCount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}retry_count'])!,
-      errorMessage: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
-      uploadedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}uploaded_at']),
       nextAttemptAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}next_attempt_at']),
       workerSessionId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}worker_session_id']),
+      errorMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_message']),
+      uploadedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}uploaded_at']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
       localUpdatedAt: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at'])!,
       serverUpdatedAt: attachedDatabase.typeMapping.read(
-          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at'])!,
-      syncStatus: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
     );
   }
 
@@ -2784,146 +2933,222 @@ class $MediaTable extends Media with TableInfo<$MediaTable, MediaItem> {
 
 class MediaItem extends DataClass implements Insertable<MediaItem> {
   final String id;
-  final String tripId;
-  final String? placeId;
-  final String? url;
-  final String? localPath;
-  final String? thumbnailPath;
+  final String? serverId;
+  final String ownerUserId;
+  final String mediaType;
+  final String originScope;
+  final String? localUri;
+  final String? thumbnailLocalPath;
   final String? mimeType;
-  final int? fileSizeBytes;
-  final int? width;
-  final int? height;
-  final String type;
-  final String uploadStatus;
+  final int? bytesSize;
+  final int? widthPx;
+  final int? heightPx;
+  final int? durationMs;
+  final String? contentHash;
+  final String? remoteUrl;
+  final String? remoteThumbnailUrl;
+  final DateTime capturedAt;
+  final double? latitude;
+  final double? longitude;
+  final double? accuracyM;
+  final String uploadState;
   final double uploadProgress;
   final int retryCount;
-  final String? errorMessage;
-  final DateTime? uploadedAt;
   final DateTime? nextAttemptAt;
   final String? workerSessionId;
-  final DateTime localUpdatedAt;
-  final DateTime serverUpdatedAt;
+  final String? errorMessage;
+  final DateTime? uploadedAt;
   final String syncStatus;
+  final DateTime localUpdatedAt;
+  final DateTime? serverUpdatedAt;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
   const MediaItem(
       {required this.id,
-      required this.tripId,
-      this.placeId,
-      this.url,
-      this.localPath,
-      this.thumbnailPath,
+      this.serverId,
+      required this.ownerUserId,
+      required this.mediaType,
+      required this.originScope,
+      this.localUri,
+      this.thumbnailLocalPath,
       this.mimeType,
-      this.fileSizeBytes,
-      this.width,
-      this.height,
-      required this.type,
-      required this.uploadStatus,
+      this.bytesSize,
+      this.widthPx,
+      this.heightPx,
+      this.durationMs,
+      this.contentHash,
+      this.remoteUrl,
+      this.remoteThumbnailUrl,
+      required this.capturedAt,
+      this.latitude,
+      this.longitude,
+      this.accuracyM,
+      required this.uploadState,
       required this.uploadProgress,
       required this.retryCount,
-      this.errorMessage,
-      this.uploadedAt,
       this.nextAttemptAt,
       this.workerSessionId,
-      required this.localUpdatedAt,
-      required this.serverUpdatedAt,
+      this.errorMessage,
+      this.uploadedAt,
       required this.syncStatus,
-      required this.createdAt});
+      required this.localUpdatedAt,
+      this.serverUpdatedAt,
+      required this.createdAt,
+      required this.updatedAt,
+      this.deletedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['trip_id'] = Variable<String>(tripId);
-    if (!nullToAbsent || placeId != null) {
-      map['place_id'] = Variable<String>(placeId);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
     }
-    if (!nullToAbsent || url != null) {
-      map['url'] = Variable<String>(url);
+    map['owner_user_id'] = Variable<String>(ownerUserId);
+    map['media_type'] = Variable<String>(mediaType);
+    map['origin_scope'] = Variable<String>(originScope);
+    if (!nullToAbsent || localUri != null) {
+      map['local_uri'] = Variable<String>(localUri);
     }
-    if (!nullToAbsent || localPath != null) {
-      map['local_path'] = Variable<String>(localPath);
-    }
-    if (!nullToAbsent || thumbnailPath != null) {
-      map['thumbnail_path'] = Variable<String>(thumbnailPath);
+    if (!nullToAbsent || thumbnailLocalPath != null) {
+      map['thumbnail_local_path'] = Variable<String>(thumbnailLocalPath);
     }
     if (!nullToAbsent || mimeType != null) {
       map['mime_type'] = Variable<String>(mimeType);
     }
-    if (!nullToAbsent || fileSizeBytes != null) {
-      map['file_size_bytes'] = Variable<int>(fileSizeBytes);
+    if (!nullToAbsent || bytesSize != null) {
+      map['bytes_size'] = Variable<int>(bytesSize);
     }
-    if (!nullToAbsent || width != null) {
-      map['width'] = Variable<int>(width);
+    if (!nullToAbsent || widthPx != null) {
+      map['width_px'] = Variable<int>(widthPx);
     }
-    if (!nullToAbsent || height != null) {
-      map['height'] = Variable<int>(height);
+    if (!nullToAbsent || heightPx != null) {
+      map['height_px'] = Variable<int>(heightPx);
     }
-    map['type'] = Variable<String>(type);
-    map['upload_status'] = Variable<String>(uploadStatus);
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
+    if (!nullToAbsent || remoteUrl != null) {
+      map['remote_url'] = Variable<String>(remoteUrl);
+    }
+    if (!nullToAbsent || remoteThumbnailUrl != null) {
+      map['remote_thumbnail_url'] = Variable<String>(remoteThumbnailUrl);
+    }
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || accuracyM != null) {
+      map['accuracy_m'] = Variable<double>(accuracyM);
+    }
+    map['upload_state'] = Variable<String>(uploadState);
     map['upload_progress'] = Variable<double>(uploadProgress);
     map['retry_count'] = Variable<int>(retryCount);
-    if (!nullToAbsent || errorMessage != null) {
-      map['error_message'] = Variable<String>(errorMessage);
-    }
-    if (!nullToAbsent || uploadedAt != null) {
-      map['uploaded_at'] = Variable<DateTime>(uploadedAt);
-    }
     if (!nullToAbsent || nextAttemptAt != null) {
       map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
     }
     if (!nullToAbsent || workerSessionId != null) {
       map['worker_session_id'] = Variable<String>(workerSessionId);
     }
-    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
-    map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    if (!nullToAbsent || uploadedAt != null) {
+      map['uploaded_at'] = Variable<DateTime>(uploadedAt);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
+    map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
   MediaCompanion toCompanion(bool nullToAbsent) {
     return MediaCompanion(
       id: Value(id),
-      tripId: Value(tripId),
-      placeId: placeId == null && nullToAbsent
+      serverId: serverId == null && nullToAbsent
           ? const Value.absent()
-          : Value(placeId),
-      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
-      localPath: localPath == null && nullToAbsent
+          : Value(serverId),
+      ownerUserId: Value(ownerUserId),
+      mediaType: Value(mediaType),
+      originScope: Value(originScope),
+      localUri: localUri == null && nullToAbsent
           ? const Value.absent()
-          : Value(localPath),
-      thumbnailPath: thumbnailPath == null && nullToAbsent
+          : Value(localUri),
+      thumbnailLocalPath: thumbnailLocalPath == null && nullToAbsent
           ? const Value.absent()
-          : Value(thumbnailPath),
+          : Value(thumbnailLocalPath),
       mimeType: mimeType == null && nullToAbsent
           ? const Value.absent()
           : Value(mimeType),
-      fileSizeBytes: fileSizeBytes == null && nullToAbsent
+      bytesSize: bytesSize == null && nullToAbsent
           ? const Value.absent()
-          : Value(fileSizeBytes),
-      width:
-          width == null && nullToAbsent ? const Value.absent() : Value(width),
-      height:
-          height == null && nullToAbsent ? const Value.absent() : Value(height),
-      type: Value(type),
-      uploadStatus: Value(uploadStatus),
+          : Value(bytesSize),
+      widthPx: widthPx == null && nullToAbsent
+          ? const Value.absent()
+          : Value(widthPx),
+      heightPx: heightPx == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heightPx),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
+      remoteUrl: remoteUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUrl),
+      remoteThumbnailUrl: remoteThumbnailUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteThumbnailUrl),
+      capturedAt: Value(capturedAt),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      accuracyM: accuracyM == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accuracyM),
+      uploadState: Value(uploadState),
       uploadProgress: Value(uploadProgress),
       retryCount: Value(retryCount),
-      errorMessage: errorMessage == null && nullToAbsent
-          ? const Value.absent()
-          : Value(errorMessage),
-      uploadedAt: uploadedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(uploadedAt),
       nextAttemptAt: nextAttemptAt == null && nullToAbsent
           ? const Value.absent()
           : Value(nextAttemptAt),
       workerSessionId: workerSessionId == null && nullToAbsent
           ? const Value.absent()
           : Value(workerSessionId),
-      localUpdatedAt: Value(localUpdatedAt),
-      serverUpdatedAt: Value(serverUpdatedAt),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      uploadedAt: uploadedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(uploadedAt),
       syncStatus: Value(syncStatus),
+      localUpdatedAt: Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
       createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -2932,27 +3157,39 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return MediaItem(
       id: serializer.fromJson<String>(json['id']),
-      tripId: serializer.fromJson<String>(json['tripId']),
-      placeId: serializer.fromJson<String?>(json['placeId']),
-      url: serializer.fromJson<String?>(json['url']),
-      localPath: serializer.fromJson<String?>(json['localPath']),
-      thumbnailPath: serializer.fromJson<String?>(json['thumbnailPath']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+      ownerUserId: serializer.fromJson<String>(json['ownerUserId']),
+      mediaType: serializer.fromJson<String>(json['mediaType']),
+      originScope: serializer.fromJson<String>(json['originScope']),
+      localUri: serializer.fromJson<String?>(json['localUri']),
+      thumbnailLocalPath:
+          serializer.fromJson<String?>(json['thumbnailLocalPath']),
       mimeType: serializer.fromJson<String?>(json['mimeType']),
-      fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
-      width: serializer.fromJson<int?>(json['width']),
-      height: serializer.fromJson<int?>(json['height']),
-      type: serializer.fromJson<String>(json['type']),
-      uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
+      bytesSize: serializer.fromJson<int?>(json['bytesSize']),
+      widthPx: serializer.fromJson<int?>(json['widthPx']),
+      heightPx: serializer.fromJson<int?>(json['heightPx']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
+      remoteUrl: serializer.fromJson<String?>(json['remoteUrl']),
+      remoteThumbnailUrl:
+          serializer.fromJson<String?>(json['remoteThumbnailUrl']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      accuracyM: serializer.fromJson<double?>(json['accuracyM']),
+      uploadState: serializer.fromJson<String>(json['uploadState']),
       uploadProgress: serializer.fromJson<double>(json['uploadProgress']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
-      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
-      uploadedAt: serializer.fromJson<DateTime?>(json['uploadedAt']),
       nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
       workerSessionId: serializer.fromJson<String?>(json['workerSessionId']),
-      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
-      serverUpdatedAt: serializer.fromJson<DateTime>(json['serverUpdatedAt']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      uploadedAt: serializer.fromJson<DateTime?>(json['uploadedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -2960,128 +3197,176 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'tripId': serializer.toJson<String>(tripId),
-      'placeId': serializer.toJson<String?>(placeId),
-      'url': serializer.toJson<String?>(url),
-      'localPath': serializer.toJson<String?>(localPath),
-      'thumbnailPath': serializer.toJson<String?>(thumbnailPath),
+      'serverId': serializer.toJson<String?>(serverId),
+      'ownerUserId': serializer.toJson<String>(ownerUserId),
+      'mediaType': serializer.toJson<String>(mediaType),
+      'originScope': serializer.toJson<String>(originScope),
+      'localUri': serializer.toJson<String?>(localUri),
+      'thumbnailLocalPath': serializer.toJson<String?>(thumbnailLocalPath),
       'mimeType': serializer.toJson<String?>(mimeType),
-      'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
-      'width': serializer.toJson<int?>(width),
-      'height': serializer.toJson<int?>(height),
-      'type': serializer.toJson<String>(type),
-      'uploadStatus': serializer.toJson<String>(uploadStatus),
+      'bytesSize': serializer.toJson<int?>(bytesSize),
+      'widthPx': serializer.toJson<int?>(widthPx),
+      'heightPx': serializer.toJson<int?>(heightPx),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'contentHash': serializer.toJson<String?>(contentHash),
+      'remoteUrl': serializer.toJson<String?>(remoteUrl),
+      'remoteThumbnailUrl': serializer.toJson<String?>(remoteThumbnailUrl),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'accuracyM': serializer.toJson<double?>(accuracyM),
+      'uploadState': serializer.toJson<String>(uploadState),
       'uploadProgress': serializer.toJson<double>(uploadProgress),
       'retryCount': serializer.toJson<int>(retryCount),
-      'errorMessage': serializer.toJson<String?>(errorMessage),
-      'uploadedAt': serializer.toJson<DateTime?>(uploadedAt),
       'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
       'workerSessionId': serializer.toJson<String?>(workerSessionId),
-      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
-      'serverUpdatedAt': serializer.toJson<DateTime>(serverUpdatedAt),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'uploadedAt': serializer.toJson<DateTime?>(uploadedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
   MediaItem copyWith(
           {String? id,
-          String? tripId,
-          Value<String?> placeId = const Value.absent(),
-          Value<String?> url = const Value.absent(),
-          Value<String?> localPath = const Value.absent(),
-          Value<String?> thumbnailPath = const Value.absent(),
+          Value<String?> serverId = const Value.absent(),
+          String? ownerUserId,
+          String? mediaType,
+          String? originScope,
+          Value<String?> localUri = const Value.absent(),
+          Value<String?> thumbnailLocalPath = const Value.absent(),
           Value<String?> mimeType = const Value.absent(),
-          Value<int?> fileSizeBytes = const Value.absent(),
-          Value<int?> width = const Value.absent(),
-          Value<int?> height = const Value.absent(),
-          String? type,
-          String? uploadStatus,
+          Value<int?> bytesSize = const Value.absent(),
+          Value<int?> widthPx = const Value.absent(),
+          Value<int?> heightPx = const Value.absent(),
+          Value<int?> durationMs = const Value.absent(),
+          Value<String?> contentHash = const Value.absent(),
+          Value<String?> remoteUrl = const Value.absent(),
+          Value<String?> remoteThumbnailUrl = const Value.absent(),
+          DateTime? capturedAt,
+          Value<double?> latitude = const Value.absent(),
+          Value<double?> longitude = const Value.absent(),
+          Value<double?> accuracyM = const Value.absent(),
+          String? uploadState,
           double? uploadProgress,
           int? retryCount,
-          Value<String?> errorMessage = const Value.absent(),
-          Value<DateTime?> uploadedAt = const Value.absent(),
           Value<DateTime?> nextAttemptAt = const Value.absent(),
           Value<String?> workerSessionId = const Value.absent(),
-          DateTime? localUpdatedAt,
-          DateTime? serverUpdatedAt,
+          Value<String?> errorMessage = const Value.absent(),
+          Value<DateTime?> uploadedAt = const Value.absent(),
           String? syncStatus,
-          DateTime? createdAt}) =>
+          DateTime? localUpdatedAt,
+          Value<DateTime?> serverUpdatedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          Value<DateTime?> deletedAt = const Value.absent()}) =>
       MediaItem(
         id: id ?? this.id,
-        tripId: tripId ?? this.tripId,
-        placeId: placeId.present ? placeId.value : this.placeId,
-        url: url.present ? url.value : this.url,
-        localPath: localPath.present ? localPath.value : this.localPath,
-        thumbnailPath:
-            thumbnailPath.present ? thumbnailPath.value : this.thumbnailPath,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        ownerUserId: ownerUserId ?? this.ownerUserId,
+        mediaType: mediaType ?? this.mediaType,
+        originScope: originScope ?? this.originScope,
+        localUri: localUri.present ? localUri.value : this.localUri,
+        thumbnailLocalPath: thumbnailLocalPath.present
+            ? thumbnailLocalPath.value
+            : this.thumbnailLocalPath,
         mimeType: mimeType.present ? mimeType.value : this.mimeType,
-        fileSizeBytes:
-            fileSizeBytes.present ? fileSizeBytes.value : this.fileSizeBytes,
-        width: width.present ? width.value : this.width,
-        height: height.present ? height.value : this.height,
-        type: type ?? this.type,
-        uploadStatus: uploadStatus ?? this.uploadStatus,
+        bytesSize: bytesSize.present ? bytesSize.value : this.bytesSize,
+        widthPx: widthPx.present ? widthPx.value : this.widthPx,
+        heightPx: heightPx.present ? heightPx.value : this.heightPx,
+        durationMs: durationMs.present ? durationMs.value : this.durationMs,
+        contentHash: contentHash.present ? contentHash.value : this.contentHash,
+        remoteUrl: remoteUrl.present ? remoteUrl.value : this.remoteUrl,
+        remoteThumbnailUrl: remoteThumbnailUrl.present
+            ? remoteThumbnailUrl.value
+            : this.remoteThumbnailUrl,
+        capturedAt: capturedAt ?? this.capturedAt,
+        latitude: latitude.present ? latitude.value : this.latitude,
+        longitude: longitude.present ? longitude.value : this.longitude,
+        accuracyM: accuracyM.present ? accuracyM.value : this.accuracyM,
+        uploadState: uploadState ?? this.uploadState,
         uploadProgress: uploadProgress ?? this.uploadProgress,
         retryCount: retryCount ?? this.retryCount,
-        errorMessage:
-            errorMessage.present ? errorMessage.value : this.errorMessage,
-        uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
         nextAttemptAt:
             nextAttemptAt.present ? nextAttemptAt.value : this.nextAttemptAt,
         workerSessionId: workerSessionId.present
             ? workerSessionId.value
             : this.workerSessionId,
-        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
-        serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+        errorMessage:
+            errorMessage.present ? errorMessage.value : this.errorMessage,
+        uploadedAt: uploadedAt.present ? uploadedAt.value : this.uploadedAt,
         syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
         createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
       );
   MediaItem copyWithCompanion(MediaCompanion data) {
     return MediaItem(
       id: data.id.present ? data.id.value : this.id,
-      tripId: data.tripId.present ? data.tripId.value : this.tripId,
-      placeId: data.placeId.present ? data.placeId.value : this.placeId,
-      url: data.url.present ? data.url.value : this.url,
-      localPath: data.localPath.present ? data.localPath.value : this.localPath,
-      thumbnailPath: data.thumbnailPath.present
-          ? data.thumbnailPath.value
-          : this.thumbnailPath,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      ownerUserId:
+          data.ownerUserId.present ? data.ownerUserId.value : this.ownerUserId,
+      mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
+      originScope:
+          data.originScope.present ? data.originScope.value : this.originScope,
+      localUri: data.localUri.present ? data.localUri.value : this.localUri,
+      thumbnailLocalPath: data.thumbnailLocalPath.present
+          ? data.thumbnailLocalPath.value
+          : this.thumbnailLocalPath,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
-      fileSizeBytes: data.fileSizeBytes.present
-          ? data.fileSizeBytes.value
-          : this.fileSizeBytes,
-      width: data.width.present ? data.width.value : this.width,
-      height: data.height.present ? data.height.value : this.height,
-      type: data.type.present ? data.type.value : this.type,
-      uploadStatus: data.uploadStatus.present
-          ? data.uploadStatus.value
-          : this.uploadStatus,
+      bytesSize: data.bytesSize.present ? data.bytesSize.value : this.bytesSize,
+      widthPx: data.widthPx.present ? data.widthPx.value : this.widthPx,
+      heightPx: data.heightPx.present ? data.heightPx.value : this.heightPx,
+      durationMs:
+          data.durationMs.present ? data.durationMs.value : this.durationMs,
+      contentHash:
+          data.contentHash.present ? data.contentHash.value : this.contentHash,
+      remoteUrl: data.remoteUrl.present ? data.remoteUrl.value : this.remoteUrl,
+      remoteThumbnailUrl: data.remoteThumbnailUrl.present
+          ? data.remoteThumbnailUrl.value
+          : this.remoteThumbnailUrl,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      accuracyM: data.accuracyM.present ? data.accuracyM.value : this.accuracyM,
+      uploadState:
+          data.uploadState.present ? data.uploadState.value : this.uploadState,
       uploadProgress: data.uploadProgress.present
           ? data.uploadProgress.value
           : this.uploadProgress,
       retryCount:
           data.retryCount.present ? data.retryCount.value : this.retryCount,
-      errorMessage: data.errorMessage.present
-          ? data.errorMessage.value
-          : this.errorMessage,
-      uploadedAt:
-          data.uploadedAt.present ? data.uploadedAt.value : this.uploadedAt,
       nextAttemptAt: data.nextAttemptAt.present
           ? data.nextAttemptAt.value
           : this.nextAttemptAt,
       workerSessionId: data.workerSessionId.present
           ? data.workerSessionId.value
           : this.workerSessionId,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      uploadedAt:
+          data.uploadedAt.present ? data.uploadedAt.value : this.uploadedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
       localUpdatedAt: data.localUpdatedAt.present
           ? data.localUpdatedAt.value
           : this.localUpdatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
           ? data.serverUpdatedAt.value
           : this.serverUpdatedAt,
-      syncStatus:
-          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -3089,27 +3374,37 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
   String toString() {
     return (StringBuffer('MediaItem(')
           ..write('id: $id, ')
-          ..write('tripId: $tripId, ')
-          ..write('placeId: $placeId, ')
-          ..write('url: $url, ')
-          ..write('localPath: $localPath, ')
-          ..write('thumbnailPath: $thumbnailPath, ')
+          ..write('serverId: $serverId, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('originScope: $originScope, ')
+          ..write('localUri: $localUri, ')
+          ..write('thumbnailLocalPath: $thumbnailLocalPath, ')
           ..write('mimeType: $mimeType, ')
-          ..write('fileSizeBytes: $fileSizeBytes, ')
-          ..write('width: $width, ')
-          ..write('height: $height, ')
-          ..write('type: $type, ')
-          ..write('uploadStatus: $uploadStatus, ')
+          ..write('bytesSize: $bytesSize, ')
+          ..write('widthPx: $widthPx, ')
+          ..write('heightPx: $heightPx, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('remoteUrl: $remoteUrl, ')
+          ..write('remoteThumbnailUrl: $remoteThumbnailUrl, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('accuracyM: $accuracyM, ')
+          ..write('uploadState: $uploadState, ')
           ..write('uploadProgress: $uploadProgress, ')
           ..write('retryCount: $retryCount, ')
-          ..write('errorMessage: $errorMessage, ')
-          ..write('uploadedAt: $uploadedAt, ')
           ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('workerSessionId: $workerSessionId, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
-          ..write('syncStatus: $syncStatus, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -3117,234 +3412,327 @@ class MediaItem extends DataClass implements Insertable<MediaItem> {
   @override
   int get hashCode => Object.hashAll([
         id,
-        tripId,
-        placeId,
-        url,
-        localPath,
-        thumbnailPath,
+        serverId,
+        ownerUserId,
+        mediaType,
+        originScope,
+        localUri,
+        thumbnailLocalPath,
         mimeType,
-        fileSizeBytes,
-        width,
-        height,
-        type,
-        uploadStatus,
+        bytesSize,
+        widthPx,
+        heightPx,
+        durationMs,
+        contentHash,
+        remoteUrl,
+        remoteThumbnailUrl,
+        capturedAt,
+        latitude,
+        longitude,
+        accuracyM,
+        uploadState,
         uploadProgress,
         retryCount,
-        errorMessage,
-        uploadedAt,
         nextAttemptAt,
         workerSessionId,
+        errorMessage,
+        uploadedAt,
+        syncStatus,
         localUpdatedAt,
         serverUpdatedAt,
-        syncStatus,
-        createdAt
+        createdAt,
+        updatedAt,
+        deletedAt
       ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is MediaItem &&
           other.id == this.id &&
-          other.tripId == this.tripId &&
-          other.placeId == this.placeId &&
-          other.url == this.url &&
-          other.localPath == this.localPath &&
-          other.thumbnailPath == this.thumbnailPath &&
+          other.serverId == this.serverId &&
+          other.ownerUserId == this.ownerUserId &&
+          other.mediaType == this.mediaType &&
+          other.originScope == this.originScope &&
+          other.localUri == this.localUri &&
+          other.thumbnailLocalPath == this.thumbnailLocalPath &&
           other.mimeType == this.mimeType &&
-          other.fileSizeBytes == this.fileSizeBytes &&
-          other.width == this.width &&
-          other.height == this.height &&
-          other.type == this.type &&
-          other.uploadStatus == this.uploadStatus &&
+          other.bytesSize == this.bytesSize &&
+          other.widthPx == this.widthPx &&
+          other.heightPx == this.heightPx &&
+          other.durationMs == this.durationMs &&
+          other.contentHash == this.contentHash &&
+          other.remoteUrl == this.remoteUrl &&
+          other.remoteThumbnailUrl == this.remoteThumbnailUrl &&
+          other.capturedAt == this.capturedAt &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.accuracyM == this.accuracyM &&
+          other.uploadState == this.uploadState &&
           other.uploadProgress == this.uploadProgress &&
           other.retryCount == this.retryCount &&
-          other.errorMessage == this.errorMessage &&
-          other.uploadedAt == this.uploadedAt &&
           other.nextAttemptAt == this.nextAttemptAt &&
           other.workerSessionId == this.workerSessionId &&
+          other.errorMessage == this.errorMessage &&
+          other.uploadedAt == this.uploadedAt &&
+          other.syncStatus == this.syncStatus &&
           other.localUpdatedAt == this.localUpdatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
-          other.syncStatus == this.syncStatus &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class MediaCompanion extends UpdateCompanion<MediaItem> {
   final Value<String> id;
-  final Value<String> tripId;
-  final Value<String?> placeId;
-  final Value<String?> url;
-  final Value<String?> localPath;
-  final Value<String?> thumbnailPath;
+  final Value<String?> serverId;
+  final Value<String> ownerUserId;
+  final Value<String> mediaType;
+  final Value<String> originScope;
+  final Value<String?> localUri;
+  final Value<String?> thumbnailLocalPath;
   final Value<String?> mimeType;
-  final Value<int?> fileSizeBytes;
-  final Value<int?> width;
-  final Value<int?> height;
-  final Value<String> type;
-  final Value<String> uploadStatus;
+  final Value<int?> bytesSize;
+  final Value<int?> widthPx;
+  final Value<int?> heightPx;
+  final Value<int?> durationMs;
+  final Value<String?> contentHash;
+  final Value<String?> remoteUrl;
+  final Value<String?> remoteThumbnailUrl;
+  final Value<DateTime> capturedAt;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<double?> accuracyM;
+  final Value<String> uploadState;
   final Value<double> uploadProgress;
   final Value<int> retryCount;
-  final Value<String?> errorMessage;
-  final Value<DateTime?> uploadedAt;
   final Value<DateTime?> nextAttemptAt;
   final Value<String?> workerSessionId;
-  final Value<DateTime> localUpdatedAt;
-  final Value<DateTime> serverUpdatedAt;
+  final Value<String?> errorMessage;
+  final Value<DateTime?> uploadedAt;
   final Value<String> syncStatus;
+  final Value<DateTime> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
   final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const MediaCompanion({
     this.id = const Value.absent(),
-    this.tripId = const Value.absent(),
-    this.placeId = const Value.absent(),
-    this.url = const Value.absent(),
-    this.localPath = const Value.absent(),
-    this.thumbnailPath = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.ownerUserId = const Value.absent(),
+    this.mediaType = const Value.absent(),
+    this.originScope = const Value.absent(),
+    this.localUri = const Value.absent(),
+    this.thumbnailLocalPath = const Value.absent(),
     this.mimeType = const Value.absent(),
-    this.fileSizeBytes = const Value.absent(),
-    this.width = const Value.absent(),
-    this.height = const Value.absent(),
-    this.type = const Value.absent(),
-    this.uploadStatus = const Value.absent(),
+    this.bytesSize = const Value.absent(),
+    this.widthPx = const Value.absent(),
+    this.heightPx = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.remoteUrl = const Value.absent(),
+    this.remoteThumbnailUrl = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.accuracyM = const Value.absent(),
+    this.uploadState = const Value.absent(),
     this.uploadProgress = const Value.absent(),
     this.retryCount = const Value.absent(),
-    this.errorMessage = const Value.absent(),
-    this.uploadedAt = const Value.absent(),
     this.nextAttemptAt = const Value.absent(),
     this.workerSessionId = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.localUpdatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
-    this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MediaCompanion.insert({
     required String id,
-    required String tripId,
-    this.placeId = const Value.absent(),
-    this.url = const Value.absent(),
-    this.localPath = const Value.absent(),
-    this.thumbnailPath = const Value.absent(),
+    this.serverId = const Value.absent(),
+    required String ownerUserId,
+    this.mediaType = const Value.absent(),
+    required String originScope,
+    this.localUri = const Value.absent(),
+    this.thumbnailLocalPath = const Value.absent(),
     this.mimeType = const Value.absent(),
-    this.fileSizeBytes = const Value.absent(),
-    this.width = const Value.absent(),
-    this.height = const Value.absent(),
-    this.type = const Value.absent(),
-    this.uploadStatus = const Value.absent(),
+    this.bytesSize = const Value.absent(),
+    this.widthPx = const Value.absent(),
+    this.heightPx = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.remoteUrl = const Value.absent(),
+    this.remoteThumbnailUrl = const Value.absent(),
+    required DateTime capturedAt,
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.accuracyM = const Value.absent(),
+    this.uploadState = const Value.absent(),
     this.uploadProgress = const Value.absent(),
     this.retryCount = const Value.absent(),
-    this.errorMessage = const Value.absent(),
-    this.uploadedAt = const Value.absent(),
     this.nextAttemptAt = const Value.absent(),
     this.workerSessionId = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.uploadedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     required DateTime localUpdatedAt,
-    required DateTime serverUpdatedAt,
-    required String syncStatus,
+    this.serverUpdatedAt = const Value.absent(),
     required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
-        tripId = Value(tripId),
+        ownerUserId = Value(ownerUserId),
+        originScope = Value(originScope),
+        capturedAt = Value(capturedAt),
         localUpdatedAt = Value(localUpdatedAt),
-        serverUpdatedAt = Value(serverUpdatedAt),
-        syncStatus = Value(syncStatus),
-        createdAt = Value(createdAt);
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
   static Insertable<MediaItem> custom({
     Expression<String>? id,
-    Expression<String>? tripId,
-    Expression<String>? placeId,
-    Expression<String>? url,
-    Expression<String>? localPath,
-    Expression<String>? thumbnailPath,
+    Expression<String>? serverId,
+    Expression<String>? ownerUserId,
+    Expression<String>? mediaType,
+    Expression<String>? originScope,
+    Expression<String>? localUri,
+    Expression<String>? thumbnailLocalPath,
     Expression<String>? mimeType,
-    Expression<int>? fileSizeBytes,
-    Expression<int>? width,
-    Expression<int>? height,
-    Expression<String>? type,
-    Expression<String>? uploadStatus,
+    Expression<int>? bytesSize,
+    Expression<int>? widthPx,
+    Expression<int>? heightPx,
+    Expression<int>? durationMs,
+    Expression<String>? contentHash,
+    Expression<String>? remoteUrl,
+    Expression<String>? remoteThumbnailUrl,
+    Expression<DateTime>? capturedAt,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<double>? accuracyM,
+    Expression<String>? uploadState,
     Expression<double>? uploadProgress,
     Expression<int>? retryCount,
-    Expression<String>? errorMessage,
-    Expression<DateTime>? uploadedAt,
     Expression<DateTime>? nextAttemptAt,
     Expression<String>? workerSessionId,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? uploadedAt,
+    Expression<String>? syncStatus,
     Expression<DateTime>? localUpdatedAt,
     Expression<DateTime>? serverUpdatedAt,
-    Expression<String>? syncStatus,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (tripId != null) 'trip_id': tripId,
-      if (placeId != null) 'place_id': placeId,
-      if (url != null) 'url': url,
-      if (localPath != null) 'local_path': localPath,
-      if (thumbnailPath != null) 'thumbnail_path': thumbnailPath,
+      if (serverId != null) 'server_id': serverId,
+      if (ownerUserId != null) 'owner_user_id': ownerUserId,
+      if (mediaType != null) 'media_type': mediaType,
+      if (originScope != null) 'origin_scope': originScope,
+      if (localUri != null) 'local_uri': localUri,
+      if (thumbnailLocalPath != null)
+        'thumbnail_local_path': thumbnailLocalPath,
       if (mimeType != null) 'mime_type': mimeType,
-      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
-      if (width != null) 'width': width,
-      if (height != null) 'height': height,
-      if (type != null) 'type': type,
-      if (uploadStatus != null) 'upload_status': uploadStatus,
+      if (bytesSize != null) 'bytes_size': bytesSize,
+      if (widthPx != null) 'width_px': widthPx,
+      if (heightPx != null) 'height_px': heightPx,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (remoteUrl != null) 'remote_url': remoteUrl,
+      if (remoteThumbnailUrl != null)
+        'remote_thumbnail_url': remoteThumbnailUrl,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (accuracyM != null) 'accuracy_m': accuracyM,
+      if (uploadState != null) 'upload_state': uploadState,
       if (uploadProgress != null) 'upload_progress': uploadProgress,
       if (retryCount != null) 'retry_count': retryCount,
-      if (errorMessage != null) 'error_message': errorMessage,
-      if (uploadedAt != null) 'uploaded_at': uploadedAt,
       if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
       if (workerSessionId != null) 'worker_session_id': workerSessionId,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (uploadedAt != null) 'uploaded_at': uploadedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
-      if (syncStatus != null) 'sync_status': syncStatus,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
   MediaCompanion copyWith(
       {Value<String>? id,
-      Value<String>? tripId,
-      Value<String?>? placeId,
-      Value<String?>? url,
-      Value<String?>? localPath,
-      Value<String?>? thumbnailPath,
+      Value<String?>? serverId,
+      Value<String>? ownerUserId,
+      Value<String>? mediaType,
+      Value<String>? originScope,
+      Value<String?>? localUri,
+      Value<String?>? thumbnailLocalPath,
       Value<String?>? mimeType,
-      Value<int?>? fileSizeBytes,
-      Value<int?>? width,
-      Value<int?>? height,
-      Value<String>? type,
-      Value<String>? uploadStatus,
+      Value<int?>? bytesSize,
+      Value<int?>? widthPx,
+      Value<int?>? heightPx,
+      Value<int?>? durationMs,
+      Value<String?>? contentHash,
+      Value<String?>? remoteUrl,
+      Value<String?>? remoteThumbnailUrl,
+      Value<DateTime>? capturedAt,
+      Value<double?>? latitude,
+      Value<double?>? longitude,
+      Value<double?>? accuracyM,
+      Value<String>? uploadState,
       Value<double>? uploadProgress,
       Value<int>? retryCount,
-      Value<String?>? errorMessage,
-      Value<DateTime?>? uploadedAt,
       Value<DateTime?>? nextAttemptAt,
       Value<String?>? workerSessionId,
-      Value<DateTime>? localUpdatedAt,
-      Value<DateTime>? serverUpdatedAt,
+      Value<String?>? errorMessage,
+      Value<DateTime?>? uploadedAt,
       Value<String>? syncStatus,
+      Value<DateTime>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
       Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<DateTime?>? deletedAt,
       Value<int>? rowid}) {
     return MediaCompanion(
       id: id ?? this.id,
-      tripId: tripId ?? this.tripId,
-      placeId: placeId ?? this.placeId,
-      url: url ?? this.url,
-      localPath: localPath ?? this.localPath,
-      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      serverId: serverId ?? this.serverId,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
+      mediaType: mediaType ?? this.mediaType,
+      originScope: originScope ?? this.originScope,
+      localUri: localUri ?? this.localUri,
+      thumbnailLocalPath: thumbnailLocalPath ?? this.thumbnailLocalPath,
       mimeType: mimeType ?? this.mimeType,
-      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
-      width: width ?? this.width,
-      height: height ?? this.height,
-      type: type ?? this.type,
-      uploadStatus: uploadStatus ?? this.uploadStatus,
+      bytesSize: bytesSize ?? this.bytesSize,
+      widthPx: widthPx ?? this.widthPx,
+      heightPx: heightPx ?? this.heightPx,
+      durationMs: durationMs ?? this.durationMs,
+      contentHash: contentHash ?? this.contentHash,
+      remoteUrl: remoteUrl ?? this.remoteUrl,
+      remoteThumbnailUrl: remoteThumbnailUrl ?? this.remoteThumbnailUrl,
+      capturedAt: capturedAt ?? this.capturedAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      accuracyM: accuracyM ?? this.accuracyM,
+      uploadState: uploadState ?? this.uploadState,
       uploadProgress: uploadProgress ?? this.uploadProgress,
       retryCount: retryCount ?? this.retryCount,
-      errorMessage: errorMessage ?? this.errorMessage,
-      uploadedAt: uploadedAt ?? this.uploadedAt,
       nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
       workerSessionId: workerSessionId ?? this.workerSessionId,
+      errorMessage: errorMessage ?? this.errorMessage,
+      uploadedAt: uploadedAt ?? this.uploadedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
-      syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3355,38 +3743,62 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (tripId.present) {
-      map['trip_id'] = Variable<String>(tripId.value);
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
     }
-    if (placeId.present) {
-      map['place_id'] = Variable<String>(placeId.value);
+    if (ownerUserId.present) {
+      map['owner_user_id'] = Variable<String>(ownerUserId.value);
     }
-    if (url.present) {
-      map['url'] = Variable<String>(url.value);
+    if (mediaType.present) {
+      map['media_type'] = Variable<String>(mediaType.value);
     }
-    if (localPath.present) {
-      map['local_path'] = Variable<String>(localPath.value);
+    if (originScope.present) {
+      map['origin_scope'] = Variable<String>(originScope.value);
     }
-    if (thumbnailPath.present) {
-      map['thumbnail_path'] = Variable<String>(thumbnailPath.value);
+    if (localUri.present) {
+      map['local_uri'] = Variable<String>(localUri.value);
+    }
+    if (thumbnailLocalPath.present) {
+      map['thumbnail_local_path'] = Variable<String>(thumbnailLocalPath.value);
     }
     if (mimeType.present) {
       map['mime_type'] = Variable<String>(mimeType.value);
     }
-    if (fileSizeBytes.present) {
-      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
+    if (bytesSize.present) {
+      map['bytes_size'] = Variable<int>(bytesSize.value);
     }
-    if (width.present) {
-      map['width'] = Variable<int>(width.value);
+    if (widthPx.present) {
+      map['width_px'] = Variable<int>(widthPx.value);
     }
-    if (height.present) {
-      map['height'] = Variable<int>(height.value);
+    if (heightPx.present) {
+      map['height_px'] = Variable<int>(heightPx.value);
     }
-    if (type.present) {
-      map['type'] = Variable<String>(type.value);
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
     }
-    if (uploadStatus.present) {
-      map['upload_status'] = Variable<String>(uploadStatus.value);
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (remoteUrl.present) {
+      map['remote_url'] = Variable<String>(remoteUrl.value);
+    }
+    if (remoteThumbnailUrl.present) {
+      map['remote_thumbnail_url'] = Variable<String>(remoteThumbnailUrl.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (accuracyM.present) {
+      map['accuracy_m'] = Variable<double>(accuracyM.value);
+    }
+    if (uploadState.present) {
+      map['upload_state'] = Variable<String>(uploadState.value);
     }
     if (uploadProgress.present) {
       map['upload_progress'] = Variable<double>(uploadProgress.value);
@@ -3394,17 +3806,20 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     if (retryCount.present) {
       map['retry_count'] = Variable<int>(retryCount.value);
     }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (workerSessionId.present) {
+      map['worker_session_id'] = Variable<String>(workerSessionId.value);
+    }
     if (errorMessage.present) {
       map['error_message'] = Variable<String>(errorMessage.value);
     }
     if (uploadedAt.present) {
       map['uploaded_at'] = Variable<DateTime>(uploadedAt.value);
     }
-    if (nextAttemptAt.present) {
-      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
-    }
-    if (workerSessionId.present) {
-      map['worker_session_id'] = Variable<String>(workerSessionId.value);
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
     }
     if (localUpdatedAt.present) {
       map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
@@ -3412,11 +3827,14 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
     if (serverUpdatedAt.present) {
       map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
     }
-    if (syncStatus.present) {
-      map['sync_status'] = Variable<String>(syncStatus.value);
-    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -3428,27 +3846,1124 @@ class MediaCompanion extends UpdateCompanion<MediaItem> {
   String toString() {
     return (StringBuffer('MediaCompanion(')
           ..write('id: $id, ')
-          ..write('tripId: $tripId, ')
-          ..write('placeId: $placeId, ')
-          ..write('url: $url, ')
-          ..write('localPath: $localPath, ')
-          ..write('thumbnailPath: $thumbnailPath, ')
+          ..write('serverId: $serverId, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('originScope: $originScope, ')
+          ..write('localUri: $localUri, ')
+          ..write('thumbnailLocalPath: $thumbnailLocalPath, ')
           ..write('mimeType: $mimeType, ')
-          ..write('fileSizeBytes: $fileSizeBytes, ')
-          ..write('width: $width, ')
-          ..write('height: $height, ')
-          ..write('type: $type, ')
-          ..write('uploadStatus: $uploadStatus, ')
+          ..write('bytesSize: $bytesSize, ')
+          ..write('widthPx: $widthPx, ')
+          ..write('heightPx: $heightPx, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('remoteUrl: $remoteUrl, ')
+          ..write('remoteThumbnailUrl: $remoteThumbnailUrl, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('accuracyM: $accuracyM, ')
+          ..write('uploadState: $uploadState, ')
           ..write('uploadProgress: $uploadProgress, ')
           ..write('retryCount: $retryCount, ')
-          ..write('errorMessage: $errorMessage, ')
-          ..write('uploadedAt: $uploadedAt, ')
           ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('workerSessionId: $workerSessionId, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('uploadedAt: $uploadedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
-          ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MediaAttachmentsTable extends MediaAttachments
+    with TableInfo<$MediaAttachmentsTable, MediaAttachmentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MediaAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mediaIdMeta =
+      const VerificationMeta('mediaId');
+  @override
+  late final GeneratedColumn<String> mediaId = GeneratedColumn<String>(
+      'media_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _targetKindMeta =
+      const VerificationMeta('targetKind');
+  @override
+  late final GeneratedColumn<String> targetKind = GeneratedColumn<String>(
+      'target_kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _targetLocalIdMeta =
+      const VerificationMeta('targetLocalId');
+  @override
+  late final GeneratedColumn<String> targetLocalId = GeneratedColumn<String>(
+      'target_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _targetServerIdMeta =
+      const VerificationMeta('targetServerId');
+  @override
+  late final GeneratedColumn<String> targetServerId = GeneratedColumn<String>(
+      'target_server_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('user'));
+  static const VerificationMeta _attachedAtMeta =
+      const VerificationMeta('attachedAt');
+  @override
+  late final GeneratedColumn<DateTime> attachedAt = GeneratedColumn<DateTime>(
+      'attached_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _detachedAtMeta =
+      const VerificationMeta('detachedAt');
+  @override
+  late final GeneratedColumn<DateTime> detachedAt = GeneratedColumn<DateTime>(
+      'detached_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        mediaId,
+        targetKind,
+        targetLocalId,
+        targetServerId,
+        role,
+        source,
+        attachedAt,
+        detachedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'media_attachments';
+  @override
+  VerificationContext validateIntegrity(Insertable<MediaAttachmentRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('media_id')) {
+      context.handle(_mediaIdMeta,
+          mediaId.isAcceptableOrUnknown(data['media_id']!, _mediaIdMeta));
+    } else if (isInserting) {
+      context.missing(_mediaIdMeta);
+    }
+    if (data.containsKey('target_kind')) {
+      context.handle(
+          _targetKindMeta,
+          targetKind.isAcceptableOrUnknown(
+              data['target_kind']!, _targetKindMeta));
+    } else if (isInserting) {
+      context.missing(_targetKindMeta);
+    }
+    if (data.containsKey('target_local_id')) {
+      context.handle(
+          _targetLocalIdMeta,
+          targetLocalId.isAcceptableOrUnknown(
+              data['target_local_id']!, _targetLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_targetLocalIdMeta);
+    }
+    if (data.containsKey('target_server_id')) {
+      context.handle(
+          _targetServerIdMeta,
+          targetServerId.isAcceptableOrUnknown(
+              data['target_server_id']!, _targetServerIdMeta));
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('attached_at')) {
+      context.handle(
+          _attachedAtMeta,
+          attachedAt.isAcceptableOrUnknown(
+              data['attached_at']!, _attachedAtMeta));
+    } else if (isInserting) {
+      context.missing(_attachedAtMeta);
+    }
+    if (data.containsKey('detached_at')) {
+      context.handle(
+          _detachedAtMeta,
+          detachedAt.isAcceptableOrUnknown(
+              data['detached_at']!, _detachedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MediaAttachmentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MediaAttachmentRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      mediaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}media_id'])!,
+      targetKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}target_kind'])!,
+      targetLocalId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}target_local_id'])!,
+      targetServerId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}target_server_id']),
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      attachedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}attached_at'])!,
+      detachedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}detached_at']),
+    );
+  }
+
+  @override
+  $MediaAttachmentsTable createAlias(String alias) {
+    return $MediaAttachmentsTable(attachedDatabase, alias);
+  }
+}
+
+class MediaAttachmentRow extends DataClass
+    implements Insertable<MediaAttachmentRow> {
+  final String id;
+  final String mediaId;
+  final String targetKind;
+  final String targetLocalId;
+  final String? targetServerId;
+  final String role;
+  final String source;
+  final DateTime attachedAt;
+  final DateTime? detachedAt;
+  const MediaAttachmentRow(
+      {required this.id,
+      required this.mediaId,
+      required this.targetKind,
+      required this.targetLocalId,
+      this.targetServerId,
+      required this.role,
+      required this.source,
+      required this.attachedAt,
+      this.detachedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['media_id'] = Variable<String>(mediaId);
+    map['target_kind'] = Variable<String>(targetKind);
+    map['target_local_id'] = Variable<String>(targetLocalId);
+    if (!nullToAbsent || targetServerId != null) {
+      map['target_server_id'] = Variable<String>(targetServerId);
+    }
+    map['role'] = Variable<String>(role);
+    map['source'] = Variable<String>(source);
+    map['attached_at'] = Variable<DateTime>(attachedAt);
+    if (!nullToAbsent || detachedAt != null) {
+      map['detached_at'] = Variable<DateTime>(detachedAt);
+    }
+    return map;
+  }
+
+  MediaAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return MediaAttachmentsCompanion(
+      id: Value(id),
+      mediaId: Value(mediaId),
+      targetKind: Value(targetKind),
+      targetLocalId: Value(targetLocalId),
+      targetServerId: targetServerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetServerId),
+      role: Value(role),
+      source: Value(source),
+      attachedAt: Value(attachedAt),
+      detachedAt: detachedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(detachedAt),
+    );
+  }
+
+  factory MediaAttachmentRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MediaAttachmentRow(
+      id: serializer.fromJson<String>(json['id']),
+      mediaId: serializer.fromJson<String>(json['mediaId']),
+      targetKind: serializer.fromJson<String>(json['targetKind']),
+      targetLocalId: serializer.fromJson<String>(json['targetLocalId']),
+      targetServerId: serializer.fromJson<String?>(json['targetServerId']),
+      role: serializer.fromJson<String>(json['role']),
+      source: serializer.fromJson<String>(json['source']),
+      attachedAt: serializer.fromJson<DateTime>(json['attachedAt']),
+      detachedAt: serializer.fromJson<DateTime?>(json['detachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mediaId': serializer.toJson<String>(mediaId),
+      'targetKind': serializer.toJson<String>(targetKind),
+      'targetLocalId': serializer.toJson<String>(targetLocalId),
+      'targetServerId': serializer.toJson<String?>(targetServerId),
+      'role': serializer.toJson<String>(role),
+      'source': serializer.toJson<String>(source),
+      'attachedAt': serializer.toJson<DateTime>(attachedAt),
+      'detachedAt': serializer.toJson<DateTime?>(detachedAt),
+    };
+  }
+
+  MediaAttachmentRow copyWith(
+          {String? id,
+          String? mediaId,
+          String? targetKind,
+          String? targetLocalId,
+          Value<String?> targetServerId = const Value.absent(),
+          String? role,
+          String? source,
+          DateTime? attachedAt,
+          Value<DateTime?> detachedAt = const Value.absent()}) =>
+      MediaAttachmentRow(
+        id: id ?? this.id,
+        mediaId: mediaId ?? this.mediaId,
+        targetKind: targetKind ?? this.targetKind,
+        targetLocalId: targetLocalId ?? this.targetLocalId,
+        targetServerId:
+            targetServerId.present ? targetServerId.value : this.targetServerId,
+        role: role ?? this.role,
+        source: source ?? this.source,
+        attachedAt: attachedAt ?? this.attachedAt,
+        detachedAt: detachedAt.present ? detachedAt.value : this.detachedAt,
+      );
+  MediaAttachmentRow copyWithCompanion(MediaAttachmentsCompanion data) {
+    return MediaAttachmentRow(
+      id: data.id.present ? data.id.value : this.id,
+      mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
+      targetKind:
+          data.targetKind.present ? data.targetKind.value : this.targetKind,
+      targetLocalId: data.targetLocalId.present
+          ? data.targetLocalId.value
+          : this.targetLocalId,
+      targetServerId: data.targetServerId.present
+          ? data.targetServerId.value
+          : this.targetServerId,
+      role: data.role.present ? data.role.value : this.role,
+      source: data.source.present ? data.source.value : this.source,
+      attachedAt:
+          data.attachedAt.present ? data.attachedAt.value : this.attachedAt,
+      detachedAt:
+          data.detachedAt.present ? data.detachedAt.value : this.detachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaAttachmentRow(')
+          ..write('id: $id, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('targetKind: $targetKind, ')
+          ..write('targetLocalId: $targetLocalId, ')
+          ..write('targetServerId: $targetServerId, ')
+          ..write('role: $role, ')
+          ..write('source: $source, ')
+          ..write('attachedAt: $attachedAt, ')
+          ..write('detachedAt: $detachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, mediaId, targetKind, targetLocalId,
+      targetServerId, role, source, attachedAt, detachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MediaAttachmentRow &&
+          other.id == this.id &&
+          other.mediaId == this.mediaId &&
+          other.targetKind == this.targetKind &&
+          other.targetLocalId == this.targetLocalId &&
+          other.targetServerId == this.targetServerId &&
+          other.role == this.role &&
+          other.source == this.source &&
+          other.attachedAt == this.attachedAt &&
+          other.detachedAt == this.detachedAt);
+}
+
+class MediaAttachmentsCompanion extends UpdateCompanion<MediaAttachmentRow> {
+  final Value<String> id;
+  final Value<String> mediaId;
+  final Value<String> targetKind;
+  final Value<String> targetLocalId;
+  final Value<String?> targetServerId;
+  final Value<String> role;
+  final Value<String> source;
+  final Value<DateTime> attachedAt;
+  final Value<DateTime?> detachedAt;
+  final Value<int> rowid;
+  const MediaAttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.mediaId = const Value.absent(),
+    this.targetKind = const Value.absent(),
+    this.targetLocalId = const Value.absent(),
+    this.targetServerId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.source = const Value.absent(),
+    this.attachedAt = const Value.absent(),
+    this.detachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MediaAttachmentsCompanion.insert({
+    required String id,
+    required String mediaId,
+    required String targetKind,
+    required String targetLocalId,
+    this.targetServerId = const Value.absent(),
+    required String role,
+    this.source = const Value.absent(),
+    required DateTime attachedAt,
+    this.detachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        mediaId = Value(mediaId),
+        targetKind = Value(targetKind),
+        targetLocalId = Value(targetLocalId),
+        role = Value(role),
+        attachedAt = Value(attachedAt);
+  static Insertable<MediaAttachmentRow> custom({
+    Expression<String>? id,
+    Expression<String>? mediaId,
+    Expression<String>? targetKind,
+    Expression<String>? targetLocalId,
+    Expression<String>? targetServerId,
+    Expression<String>? role,
+    Expression<String>? source,
+    Expression<DateTime>? attachedAt,
+    Expression<DateTime>? detachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mediaId != null) 'media_id': mediaId,
+      if (targetKind != null) 'target_kind': targetKind,
+      if (targetLocalId != null) 'target_local_id': targetLocalId,
+      if (targetServerId != null) 'target_server_id': targetServerId,
+      if (role != null) 'role': role,
+      if (source != null) 'source': source,
+      if (attachedAt != null) 'attached_at': attachedAt,
+      if (detachedAt != null) 'detached_at': detachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MediaAttachmentsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? mediaId,
+      Value<String>? targetKind,
+      Value<String>? targetLocalId,
+      Value<String?>? targetServerId,
+      Value<String>? role,
+      Value<String>? source,
+      Value<DateTime>? attachedAt,
+      Value<DateTime?>? detachedAt,
+      Value<int>? rowid}) {
+    return MediaAttachmentsCompanion(
+      id: id ?? this.id,
+      mediaId: mediaId ?? this.mediaId,
+      targetKind: targetKind ?? this.targetKind,
+      targetLocalId: targetLocalId ?? this.targetLocalId,
+      targetServerId: targetServerId ?? this.targetServerId,
+      role: role ?? this.role,
+      source: source ?? this.source,
+      attachedAt: attachedAt ?? this.attachedAt,
+      detachedAt: detachedAt ?? this.detachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mediaId.present) {
+      map['media_id'] = Variable<String>(mediaId.value);
+    }
+    if (targetKind.present) {
+      map['target_kind'] = Variable<String>(targetKind.value);
+    }
+    if (targetLocalId.present) {
+      map['target_local_id'] = Variable<String>(targetLocalId.value);
+    }
+    if (targetServerId.present) {
+      map['target_server_id'] = Variable<String>(targetServerId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (attachedAt.present) {
+      map['attached_at'] = Variable<DateTime>(attachedAt.value);
+    }
+    if (detachedAt.present) {
+      map['detached_at'] = Variable<DateTime>(detachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaAttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('targetKind: $targetKind, ')
+          ..write('targetLocalId: $targetLocalId, ')
+          ..write('targetServerId: $targetServerId, ')
+          ..write('role: $role, ')
+          ..write('source: $source, ')
+          ..write('attachedAt: $attachedAt, ')
+          ..write('detachedAt: $detachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StoriesTable extends Stories with TableInfo<$StoriesTable, StoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serverIdMeta =
+      const VerificationMeta('serverId');
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+      'server_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mediaIdMeta =
+      const VerificationMeta('mediaId');
+  @override
+  late final GeneratedColumn<String> mediaId = GeneratedColumn<String>(
+      'media_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _authorUserIdMeta =
+      const VerificationMeta('authorUserId');
+  @override
+  late final GeneratedColumn<String> authorUserId = GeneratedColumn<String>(
+      'author_user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _centerLatMeta =
+      const VerificationMeta('centerLat');
+  @override
+  late final GeneratedColumn<double> centerLat = GeneratedColumn<double>(
+      'center_lat', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _centerLngMeta =
+      const VerificationMeta('centerLng');
+  @override
+  late final GeneratedColumn<double> centerLng = GeneratedColumn<double>(
+      'center_lng', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _publishedAtMeta =
+      const VerificationMeta('publishedAt');
+  @override
+  late final GeneratedColumn<DateTime> publishedAt = GeneratedColumn<DateTime>(
+      'published_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+      'expires_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _visibilityMeta =
+      const VerificationMeta('visibility');
+  @override
+  late final GeneratedColumn<String> visibility = GeneratedColumn<String>(
+      'visibility', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('draft'));
+  static const VerificationMeta _viewCountMeta =
+      const VerificationMeta('viewCount');
+  @override
+  late final GeneratedColumn<int> viewCount = GeneratedColumn<int>(
+      'view_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        serverId,
+        mediaId,
+        authorUserId,
+        centerLat,
+        centerLng,
+        publishedAt,
+        expiresAt,
+        visibility,
+        viewCount,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stories';
+  @override
+  VerificationContext validateIntegrity(Insertable<StoryRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(_serverIdMeta,
+          serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta));
+    }
+    if (data.containsKey('media_id')) {
+      context.handle(_mediaIdMeta,
+          mediaId.isAcceptableOrUnknown(data['media_id']!, _mediaIdMeta));
+    } else if (isInserting) {
+      context.missing(_mediaIdMeta);
+    }
+    if (data.containsKey('author_user_id')) {
+      context.handle(
+          _authorUserIdMeta,
+          authorUserId.isAcceptableOrUnknown(
+              data['author_user_id']!, _authorUserIdMeta));
+    } else if (isInserting) {
+      context.missing(_authorUserIdMeta);
+    }
+    if (data.containsKey('center_lat')) {
+      context.handle(_centerLatMeta,
+          centerLat.isAcceptableOrUnknown(data['center_lat']!, _centerLatMeta));
+    } else if (isInserting) {
+      context.missing(_centerLatMeta);
+    }
+    if (data.containsKey('center_lng')) {
+      context.handle(_centerLngMeta,
+          centerLng.isAcceptableOrUnknown(data['center_lng']!, _centerLngMeta));
+    } else if (isInserting) {
+      context.missing(_centerLngMeta);
+    }
+    if (data.containsKey('published_at')) {
+      context.handle(
+          _publishedAtMeta,
+          publishedAt.isAcceptableOrUnknown(
+              data['published_at']!, _publishedAtMeta));
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
+    }
+    if (data.containsKey('visibility')) {
+      context.handle(
+          _visibilityMeta,
+          visibility.isAcceptableOrUnknown(
+              data['visibility']!, _visibilityMeta));
+    }
+    if (data.containsKey('view_count')) {
+      context.handle(_viewCountMeta,
+          viewCount.isAcceptableOrUnknown(data['view_count']!, _viewCountMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StoryRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      serverId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}server_id']),
+      mediaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}media_id'])!,
+      authorUserId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}author_user_id'])!,
+      centerLat: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}center_lat'])!,
+      centerLng: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}center_lng'])!,
+      publishedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}published_at']),
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at']),
+      visibility: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}visibility'])!,
+      viewCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}view_count'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $StoriesTable createAlias(String alias) {
+    return $StoriesTable(attachedDatabase, alias);
+  }
+}
+
+class StoryRow extends DataClass implements Insertable<StoryRow> {
+  final String id;
+  final String? serverId;
+  final String mediaId;
+  final String authorUserId;
+  final double centerLat;
+  final double centerLng;
+  final DateTime? publishedAt;
+  final DateTime? expiresAt;
+  final String visibility;
+  final int viewCount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const StoryRow(
+      {required this.id,
+      this.serverId,
+      required this.mediaId,
+      required this.authorUserId,
+      required this.centerLat,
+      required this.centerLng,
+      this.publishedAt,
+      this.expiresAt,
+      required this.visibility,
+      required this.viewCount,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<String>(serverId);
+    }
+    map['media_id'] = Variable<String>(mediaId);
+    map['author_user_id'] = Variable<String>(authorUserId);
+    map['center_lat'] = Variable<double>(centerLat);
+    map['center_lng'] = Variable<double>(centerLng);
+    if (!nullToAbsent || publishedAt != null) {
+      map['published_at'] = Variable<DateTime>(publishedAt);
+    }
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<DateTime>(expiresAt);
+    }
+    map['visibility'] = Variable<String>(visibility);
+    map['view_count'] = Variable<int>(viewCount);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  StoriesCompanion toCompanion(bool nullToAbsent) {
+    return StoriesCompanion(
+      id: Value(id),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      mediaId: Value(mediaId),
+      authorUserId: Value(authorUserId),
+      centerLat: Value(centerLat),
+      centerLng: Value(centerLng),
+      publishedAt: publishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publishedAt),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
+      visibility: Value(visibility),
+      viewCount: Value(viewCount),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory StoryRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
+      mediaId: serializer.fromJson<String>(json['mediaId']),
+      authorUserId: serializer.fromJson<String>(json['authorUserId']),
+      centerLat: serializer.fromJson<double>(json['centerLat']),
+      centerLng: serializer.fromJson<double>(json['centerLng']),
+      publishedAt: serializer.fromJson<DateTime?>(json['publishedAt']),
+      expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
+      visibility: serializer.fromJson<String>(json['visibility']),
+      viewCount: serializer.fromJson<int>(json['viewCount']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'serverId': serializer.toJson<String?>(serverId),
+      'mediaId': serializer.toJson<String>(mediaId),
+      'authorUserId': serializer.toJson<String>(authorUserId),
+      'centerLat': serializer.toJson<double>(centerLat),
+      'centerLng': serializer.toJson<double>(centerLng),
+      'publishedAt': serializer.toJson<DateTime?>(publishedAt),
+      'expiresAt': serializer.toJson<DateTime?>(expiresAt),
+      'visibility': serializer.toJson<String>(visibility),
+      'viewCount': serializer.toJson<int>(viewCount),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  StoryRow copyWith(
+          {String? id,
+          Value<String?> serverId = const Value.absent(),
+          String? mediaId,
+          String? authorUserId,
+          double? centerLat,
+          double? centerLng,
+          Value<DateTime?> publishedAt = const Value.absent(),
+          Value<DateTime?> expiresAt = const Value.absent(),
+          String? visibility,
+          int? viewCount,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      StoryRow(
+        id: id ?? this.id,
+        serverId: serverId.present ? serverId.value : this.serverId,
+        mediaId: mediaId ?? this.mediaId,
+        authorUserId: authorUserId ?? this.authorUserId,
+        centerLat: centerLat ?? this.centerLat,
+        centerLng: centerLng ?? this.centerLng,
+        publishedAt: publishedAt.present ? publishedAt.value : this.publishedAt,
+        expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+        visibility: visibility ?? this.visibility,
+        viewCount: viewCount ?? this.viewCount,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  StoryRow copyWithCompanion(StoriesCompanion data) {
+    return StoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
+      authorUserId: data.authorUserId.present
+          ? data.authorUserId.value
+          : this.authorUserId,
+      centerLat: data.centerLat.present ? data.centerLat.value : this.centerLat,
+      centerLng: data.centerLng.present ? data.centerLng.value : this.centerLng,
+      publishedAt:
+          data.publishedAt.present ? data.publishedAt.value : this.publishedAt,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      visibility:
+          data.visibility.present ? data.visibility.value : this.visibility,
+      viewCount: data.viewCount.present ? data.viewCount.value : this.viewCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoryRow(')
+          ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('authorUserId: $authorUserId, ')
+          ..write('centerLat: $centerLat, ')
+          ..write('centerLng: $centerLng, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('visibility: $visibility, ')
+          ..write('viewCount: $viewCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      serverId,
+      mediaId,
+      authorUserId,
+      centerLat,
+      centerLng,
+      publishedAt,
+      expiresAt,
+      visibility,
+      viewCount,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StoryRow &&
+          other.id == this.id &&
+          other.serverId == this.serverId &&
+          other.mediaId == this.mediaId &&
+          other.authorUserId == this.authorUserId &&
+          other.centerLat == this.centerLat &&
+          other.centerLng == this.centerLng &&
+          other.publishedAt == this.publishedAt &&
+          other.expiresAt == this.expiresAt &&
+          other.visibility == this.visibility &&
+          other.viewCount == this.viewCount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class StoriesCompanion extends UpdateCompanion<StoryRow> {
+  final Value<String> id;
+  final Value<String?> serverId;
+  final Value<String> mediaId;
+  final Value<String> authorUserId;
+  final Value<double> centerLat;
+  final Value<double> centerLng;
+  final Value<DateTime?> publishedAt;
+  final Value<DateTime?> expiresAt;
+  final Value<String> visibility;
+  final Value<int> viewCount;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const StoriesCompanion({
+    this.id = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.mediaId = const Value.absent(),
+    this.authorUserId = const Value.absent(),
+    this.centerLat = const Value.absent(),
+    this.centerLng = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.visibility = const Value.absent(),
+    this.viewCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StoriesCompanion.insert({
+    required String id,
+    this.serverId = const Value.absent(),
+    required String mediaId,
+    required String authorUserId,
+    required double centerLat,
+    required double centerLng,
+    this.publishedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.visibility = const Value.absent(),
+    this.viewCount = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        mediaId = Value(mediaId),
+        authorUserId = Value(authorUserId),
+        centerLat = Value(centerLat),
+        centerLng = Value(centerLng),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<StoryRow> custom({
+    Expression<String>? id,
+    Expression<String>? serverId,
+    Expression<String>? mediaId,
+    Expression<String>? authorUserId,
+    Expression<double>? centerLat,
+    Expression<double>? centerLng,
+    Expression<DateTime>? publishedAt,
+    Expression<DateTime>? expiresAt,
+    Expression<String>? visibility,
+    Expression<int>? viewCount,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (serverId != null) 'server_id': serverId,
+      if (mediaId != null) 'media_id': mediaId,
+      if (authorUserId != null) 'author_user_id': authorUserId,
+      if (centerLat != null) 'center_lat': centerLat,
+      if (centerLng != null) 'center_lng': centerLng,
+      if (publishedAt != null) 'published_at': publishedAt,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (visibility != null) 'visibility': visibility,
+      if (viewCount != null) 'view_count': viewCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StoriesCompanion copyWith(
+      {Value<String>? id,
+      Value<String?>? serverId,
+      Value<String>? mediaId,
+      Value<String>? authorUserId,
+      Value<double>? centerLat,
+      Value<double>? centerLng,
+      Value<DateTime?>? publishedAt,
+      Value<DateTime?>? expiresAt,
+      Value<String>? visibility,
+      Value<int>? viewCount,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return StoriesCompanion(
+      id: id ?? this.id,
+      serverId: serverId ?? this.serverId,
+      mediaId: mediaId ?? this.mediaId,
+      authorUserId: authorUserId ?? this.authorUserId,
+      centerLat: centerLat ?? this.centerLat,
+      centerLng: centerLng ?? this.centerLng,
+      publishedAt: publishedAt ?? this.publishedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+      visibility: visibility ?? this.visibility,
+      viewCount: viewCount ?? this.viewCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (mediaId.present) {
+      map['media_id'] = Variable<String>(mediaId.value);
+    }
+    if (authorUserId.present) {
+      map['author_user_id'] = Variable<String>(authorUserId.value);
+    }
+    if (centerLat.present) {
+      map['center_lat'] = Variable<double>(centerLat.value);
+    }
+    if (centerLng.present) {
+      map['center_lng'] = Variable<double>(centerLng.value);
+    }
+    if (publishedAt.present) {
+      map['published_at'] = Variable<DateTime>(publishedAt.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (visibility.present) {
+      map['visibility'] = Variable<String>(visibility.value);
+    }
+    if (viewCount.present) {
+      map['view_count'] = Variable<int>(viewCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('serverId: $serverId, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('authorUserId: $authorUserId, ')
+          ..write('centerLat: $centerLat, ')
+          ..write('centerLng: $centerLng, ')
+          ..write('publishedAt: $publishedAt, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('visibility: $visibility, ')
+          ..write('viewCount: $viewCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7777,773 +9292,6 @@ class EventJournalCompanion extends UpdateCompanion<EventJournalRow> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('eventSeq: $eventSeq, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $MediaJournalTable extends MediaJournal
-    with TableInfo<$MediaJournalTable, MediaJournalRow> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $MediaJournalTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _mediaIdMeta =
-      const VerificationMeta('mediaId');
-  @override
-  late final GeneratedColumn<String> mediaId = GeneratedColumn<String>(
-      'media_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _eventIdMeta =
-      const VerificationMeta('eventId');
-  @override
-  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
-      'event_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _sessionIdMeta =
-      const VerificationMeta('sessionId');
-  @override
-  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
-      'session_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _tripLocalIdMeta =
-      const VerificationMeta('tripLocalId');
-  @override
-  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
-      'trip_local_id', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _mediaTypeMeta =
-      const VerificationMeta('mediaType');
-  @override
-  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
-      'media_type', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _localUriMeta =
-      const VerificationMeta('localUri');
-  @override
-  late final GeneratedColumn<String> localUri = GeneratedColumn<String>(
-      'local_uri', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _mimeTypeMeta =
-      const VerificationMeta('mimeType');
-  @override
-  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
-      'mime_type', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _bytesSizeMeta =
-      const VerificationMeta('bytesSize');
-  @override
-  late final GeneratedColumn<int> bytesSize = GeneratedColumn<int>(
-      'bytes_size', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _durationMsMeta =
-      const VerificationMeta('durationMs');
-  @override
-  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
-      'duration_ms', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _capturedAtMeta =
-      const VerificationMeta('capturedAt');
-  @override
-  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
-      'captured_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _widthPxMeta =
-      const VerificationMeta('widthPx');
-  @override
-  late final GeneratedColumn<int> widthPx = GeneratedColumn<int>(
-      'width_px', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _heightPxMeta =
-      const VerificationMeta('heightPx');
-  @override
-  late final GeneratedColumn<int> heightPx = GeneratedColumn<int>(
-      'height_px', aliasedName, true,
-      type: DriftSqlType.int, requiredDuringInsert: false);
-  static const VerificationMeta _uploadStateMeta =
-      const VerificationMeta('uploadState');
-  @override
-  late final GeneratedColumn<String> uploadState = GeneratedColumn<String>(
-      'upload_state', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('local_only'));
-  static const VerificationMeta _uploadRefMeta =
-      const VerificationMeta('uploadRef');
-  @override
-  late final GeneratedColumn<String> uploadRef = GeneratedColumn<String>(
-      'upload_ref', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _createdAtMeta =
-      const VerificationMeta('createdAt');
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-      'created_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  @override
-  List<GeneratedColumn> get $columns => [
-        mediaId,
-        eventId,
-        sessionId,
-        tripLocalId,
-        mediaType,
-        localUri,
-        mimeType,
-        bytesSize,
-        durationMs,
-        capturedAt,
-        widthPx,
-        heightPx,
-        uploadState,
-        uploadRef,
-        createdAt,
-        updatedAt
-      ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'media_journal';
-  @override
-  VerificationContext validateIntegrity(Insertable<MediaJournalRow> instance,
-      {bool isInserting = false}) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('media_id')) {
-      context.handle(_mediaIdMeta,
-          mediaId.isAcceptableOrUnknown(data['media_id']!, _mediaIdMeta));
-    } else if (isInserting) {
-      context.missing(_mediaIdMeta);
-    }
-    if (data.containsKey('event_id')) {
-      context.handle(_eventIdMeta,
-          eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta));
-    } else if (isInserting) {
-      context.missing(_eventIdMeta);
-    }
-    if (data.containsKey('session_id')) {
-      context.handle(_sessionIdMeta,
-          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
-    } else if (isInserting) {
-      context.missing(_sessionIdMeta);
-    }
-    if (data.containsKey('trip_local_id')) {
-      context.handle(
-          _tripLocalIdMeta,
-          tripLocalId.isAcceptableOrUnknown(
-              data['trip_local_id']!, _tripLocalIdMeta));
-    } else if (isInserting) {
-      context.missing(_tripLocalIdMeta);
-    }
-    if (data.containsKey('media_type')) {
-      context.handle(_mediaTypeMeta,
-          mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta));
-    } else if (isInserting) {
-      context.missing(_mediaTypeMeta);
-    }
-    if (data.containsKey('local_uri')) {
-      context.handle(_localUriMeta,
-          localUri.isAcceptableOrUnknown(data['local_uri']!, _localUriMeta));
-    } else if (isInserting) {
-      context.missing(_localUriMeta);
-    }
-    if (data.containsKey('mime_type')) {
-      context.handle(_mimeTypeMeta,
-          mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
-    }
-    if (data.containsKey('bytes_size')) {
-      context.handle(_bytesSizeMeta,
-          bytesSize.isAcceptableOrUnknown(data['bytes_size']!, _bytesSizeMeta));
-    }
-    if (data.containsKey('duration_ms')) {
-      context.handle(
-          _durationMsMeta,
-          durationMs.isAcceptableOrUnknown(
-              data['duration_ms']!, _durationMsMeta));
-    }
-    if (data.containsKey('captured_at')) {
-      context.handle(
-          _capturedAtMeta,
-          capturedAt.isAcceptableOrUnknown(
-              data['captured_at']!, _capturedAtMeta));
-    } else if (isInserting) {
-      context.missing(_capturedAtMeta);
-    }
-    if (data.containsKey('width_px')) {
-      context.handle(_widthPxMeta,
-          widthPx.isAcceptableOrUnknown(data['width_px']!, _widthPxMeta));
-    }
-    if (data.containsKey('height_px')) {
-      context.handle(_heightPxMeta,
-          heightPx.isAcceptableOrUnknown(data['height_px']!, _heightPxMeta));
-    }
-    if (data.containsKey('upload_state')) {
-      context.handle(
-          _uploadStateMeta,
-          uploadState.isAcceptableOrUnknown(
-              data['upload_state']!, _uploadStateMeta));
-    }
-    if (data.containsKey('upload_ref')) {
-      context.handle(_uploadRefMeta,
-          uploadRef.isAcceptableOrUnknown(data['upload_ref']!, _uploadRefMeta));
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta,
-          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {mediaId};
-  @override
-  MediaJournalRow map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return MediaJournalRow(
-      mediaId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}media_id'])!,
-      eventId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}event_id'])!,
-      sessionId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
-      tripLocalId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
-      mediaType: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}media_type'])!,
-      localUri: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}local_uri'])!,
-      mimeType: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
-      bytesSize: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}bytes_size']),
-      durationMs: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}duration_ms']),
-      capturedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}captured_at'])!,
-      widthPx: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}width_px']),
-      heightPx: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}height_px']),
-      uploadState: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}upload_state'])!,
-      uploadRef: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}upload_ref']),
-      createdAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-    );
-  }
-
-  @override
-  $MediaJournalTable createAlias(String alias) {
-    return $MediaJournalTable(attachedDatabase, alias);
-  }
-}
-
-class MediaJournalRow extends DataClass implements Insertable<MediaJournalRow> {
-  final String mediaId;
-  final String eventId;
-  final String sessionId;
-  final String tripLocalId;
-  final String mediaType;
-  final String localUri;
-  final String? mimeType;
-  final int? bytesSize;
-  final int? durationMs;
-  final DateTime capturedAt;
-  final int? widthPx;
-  final int? heightPx;
-  final String uploadState;
-  final String? uploadRef;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  const MediaJournalRow(
-      {required this.mediaId,
-      required this.eventId,
-      required this.sessionId,
-      required this.tripLocalId,
-      required this.mediaType,
-      required this.localUri,
-      this.mimeType,
-      this.bytesSize,
-      this.durationMs,
-      required this.capturedAt,
-      this.widthPx,
-      this.heightPx,
-      required this.uploadState,
-      this.uploadRef,
-      required this.createdAt,
-      required this.updatedAt});
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['media_id'] = Variable<String>(mediaId);
-    map['event_id'] = Variable<String>(eventId);
-    map['session_id'] = Variable<String>(sessionId);
-    map['trip_local_id'] = Variable<String>(tripLocalId);
-    map['media_type'] = Variable<String>(mediaType);
-    map['local_uri'] = Variable<String>(localUri);
-    if (!nullToAbsent || mimeType != null) {
-      map['mime_type'] = Variable<String>(mimeType);
-    }
-    if (!nullToAbsent || bytesSize != null) {
-      map['bytes_size'] = Variable<int>(bytesSize);
-    }
-    if (!nullToAbsent || durationMs != null) {
-      map['duration_ms'] = Variable<int>(durationMs);
-    }
-    map['captured_at'] = Variable<DateTime>(capturedAt);
-    if (!nullToAbsent || widthPx != null) {
-      map['width_px'] = Variable<int>(widthPx);
-    }
-    if (!nullToAbsent || heightPx != null) {
-      map['height_px'] = Variable<int>(heightPx);
-    }
-    map['upload_state'] = Variable<String>(uploadState);
-    if (!nullToAbsent || uploadRef != null) {
-      map['upload_ref'] = Variable<String>(uploadRef);
-    }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  MediaJournalCompanion toCompanion(bool nullToAbsent) {
-    return MediaJournalCompanion(
-      mediaId: Value(mediaId),
-      eventId: Value(eventId),
-      sessionId: Value(sessionId),
-      tripLocalId: Value(tripLocalId),
-      mediaType: Value(mediaType),
-      localUri: Value(localUri),
-      mimeType: mimeType == null && nullToAbsent
-          ? const Value.absent()
-          : Value(mimeType),
-      bytesSize: bytesSize == null && nullToAbsent
-          ? const Value.absent()
-          : Value(bytesSize),
-      durationMs: durationMs == null && nullToAbsent
-          ? const Value.absent()
-          : Value(durationMs),
-      capturedAt: Value(capturedAt),
-      widthPx: widthPx == null && nullToAbsent
-          ? const Value.absent()
-          : Value(widthPx),
-      heightPx: heightPx == null && nullToAbsent
-          ? const Value.absent()
-          : Value(heightPx),
-      uploadState: Value(uploadState),
-      uploadRef: uploadRef == null && nullToAbsent
-          ? const Value.absent()
-          : Value(uploadRef),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory MediaJournalRow.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return MediaJournalRow(
-      mediaId: serializer.fromJson<String>(json['mediaId']),
-      eventId: serializer.fromJson<String>(json['eventId']),
-      sessionId: serializer.fromJson<String>(json['sessionId']),
-      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
-      mediaType: serializer.fromJson<String>(json['mediaType']),
-      localUri: serializer.fromJson<String>(json['localUri']),
-      mimeType: serializer.fromJson<String?>(json['mimeType']),
-      bytesSize: serializer.fromJson<int?>(json['bytesSize']),
-      durationMs: serializer.fromJson<int?>(json['durationMs']),
-      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
-      widthPx: serializer.fromJson<int?>(json['widthPx']),
-      heightPx: serializer.fromJson<int?>(json['heightPx']),
-      uploadState: serializer.fromJson<String>(json['uploadState']),
-      uploadRef: serializer.fromJson<String?>(json['uploadRef']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'mediaId': serializer.toJson<String>(mediaId),
-      'eventId': serializer.toJson<String>(eventId),
-      'sessionId': serializer.toJson<String>(sessionId),
-      'tripLocalId': serializer.toJson<String>(tripLocalId),
-      'mediaType': serializer.toJson<String>(mediaType),
-      'localUri': serializer.toJson<String>(localUri),
-      'mimeType': serializer.toJson<String?>(mimeType),
-      'bytesSize': serializer.toJson<int?>(bytesSize),
-      'durationMs': serializer.toJson<int?>(durationMs),
-      'capturedAt': serializer.toJson<DateTime>(capturedAt),
-      'widthPx': serializer.toJson<int?>(widthPx),
-      'heightPx': serializer.toJson<int?>(heightPx),
-      'uploadState': serializer.toJson<String>(uploadState),
-      'uploadRef': serializer.toJson<String?>(uploadRef),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  MediaJournalRow copyWith(
-          {String? mediaId,
-          String? eventId,
-          String? sessionId,
-          String? tripLocalId,
-          String? mediaType,
-          String? localUri,
-          Value<String?> mimeType = const Value.absent(),
-          Value<int?> bytesSize = const Value.absent(),
-          Value<int?> durationMs = const Value.absent(),
-          DateTime? capturedAt,
-          Value<int?> widthPx = const Value.absent(),
-          Value<int?> heightPx = const Value.absent(),
-          String? uploadState,
-          Value<String?> uploadRef = const Value.absent(),
-          DateTime? createdAt,
-          DateTime? updatedAt}) =>
-      MediaJournalRow(
-        mediaId: mediaId ?? this.mediaId,
-        eventId: eventId ?? this.eventId,
-        sessionId: sessionId ?? this.sessionId,
-        tripLocalId: tripLocalId ?? this.tripLocalId,
-        mediaType: mediaType ?? this.mediaType,
-        localUri: localUri ?? this.localUri,
-        mimeType: mimeType.present ? mimeType.value : this.mimeType,
-        bytesSize: bytesSize.present ? bytesSize.value : this.bytesSize,
-        durationMs: durationMs.present ? durationMs.value : this.durationMs,
-        capturedAt: capturedAt ?? this.capturedAt,
-        widthPx: widthPx.present ? widthPx.value : this.widthPx,
-        heightPx: heightPx.present ? heightPx.value : this.heightPx,
-        uploadState: uploadState ?? this.uploadState,
-        uploadRef: uploadRef.present ? uploadRef.value : this.uploadRef,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
-  MediaJournalRow copyWithCompanion(MediaJournalCompanion data) {
-    return MediaJournalRow(
-      mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
-      eventId: data.eventId.present ? data.eventId.value : this.eventId,
-      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
-      tripLocalId:
-          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
-      mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
-      localUri: data.localUri.present ? data.localUri.value : this.localUri,
-      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
-      bytesSize: data.bytesSize.present ? data.bytesSize.value : this.bytesSize,
-      durationMs:
-          data.durationMs.present ? data.durationMs.value : this.durationMs,
-      capturedAt:
-          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
-      widthPx: data.widthPx.present ? data.widthPx.value : this.widthPx,
-      heightPx: data.heightPx.present ? data.heightPx.value : this.heightPx,
-      uploadState:
-          data.uploadState.present ? data.uploadState.value : this.uploadState,
-      uploadRef: data.uploadRef.present ? data.uploadRef.value : this.uploadRef,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('MediaJournalRow(')
-          ..write('mediaId: $mediaId, ')
-          ..write('eventId: $eventId, ')
-          ..write('sessionId: $sessionId, ')
-          ..write('tripLocalId: $tripLocalId, ')
-          ..write('mediaType: $mediaType, ')
-          ..write('localUri: $localUri, ')
-          ..write('mimeType: $mimeType, ')
-          ..write('bytesSize: $bytesSize, ')
-          ..write('durationMs: $durationMs, ')
-          ..write('capturedAt: $capturedAt, ')
-          ..write('widthPx: $widthPx, ')
-          ..write('heightPx: $heightPx, ')
-          ..write('uploadState: $uploadState, ')
-          ..write('uploadRef: $uploadRef, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-      mediaId,
-      eventId,
-      sessionId,
-      tripLocalId,
-      mediaType,
-      localUri,
-      mimeType,
-      bytesSize,
-      durationMs,
-      capturedAt,
-      widthPx,
-      heightPx,
-      uploadState,
-      uploadRef,
-      createdAt,
-      updatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is MediaJournalRow &&
-          other.mediaId == this.mediaId &&
-          other.eventId == this.eventId &&
-          other.sessionId == this.sessionId &&
-          other.tripLocalId == this.tripLocalId &&
-          other.mediaType == this.mediaType &&
-          other.localUri == this.localUri &&
-          other.mimeType == this.mimeType &&
-          other.bytesSize == this.bytesSize &&
-          other.durationMs == this.durationMs &&
-          other.capturedAt == this.capturedAt &&
-          other.widthPx == this.widthPx &&
-          other.heightPx == this.heightPx &&
-          other.uploadState == this.uploadState &&
-          other.uploadRef == this.uploadRef &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
-}
-
-class MediaJournalCompanion extends UpdateCompanion<MediaJournalRow> {
-  final Value<String> mediaId;
-  final Value<String> eventId;
-  final Value<String> sessionId;
-  final Value<String> tripLocalId;
-  final Value<String> mediaType;
-  final Value<String> localUri;
-  final Value<String?> mimeType;
-  final Value<int?> bytesSize;
-  final Value<int?> durationMs;
-  final Value<DateTime> capturedAt;
-  final Value<int?> widthPx;
-  final Value<int?> heightPx;
-  final Value<String> uploadState;
-  final Value<String?> uploadRef;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  final Value<int> rowid;
-  const MediaJournalCompanion({
-    this.mediaId = const Value.absent(),
-    this.eventId = const Value.absent(),
-    this.sessionId = const Value.absent(),
-    this.tripLocalId = const Value.absent(),
-    this.mediaType = const Value.absent(),
-    this.localUri = const Value.absent(),
-    this.mimeType = const Value.absent(),
-    this.bytesSize = const Value.absent(),
-    this.durationMs = const Value.absent(),
-    this.capturedAt = const Value.absent(),
-    this.widthPx = const Value.absent(),
-    this.heightPx = const Value.absent(),
-    this.uploadState = const Value.absent(),
-    this.uploadRef = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  MediaJournalCompanion.insert({
-    required String mediaId,
-    required String eventId,
-    required String sessionId,
-    required String tripLocalId,
-    required String mediaType,
-    required String localUri,
-    this.mimeType = const Value.absent(),
-    this.bytesSize = const Value.absent(),
-    this.durationMs = const Value.absent(),
-    required DateTime capturedAt,
-    this.widthPx = const Value.absent(),
-    this.heightPx = const Value.absent(),
-    this.uploadState = const Value.absent(),
-    this.uploadRef = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
-    this.rowid = const Value.absent(),
-  })  : mediaId = Value(mediaId),
-        eventId = Value(eventId),
-        sessionId = Value(sessionId),
-        tripLocalId = Value(tripLocalId),
-        mediaType = Value(mediaType),
-        localUri = Value(localUri),
-        capturedAt = Value(capturedAt),
-        createdAt = Value(createdAt),
-        updatedAt = Value(updatedAt);
-  static Insertable<MediaJournalRow> custom({
-    Expression<String>? mediaId,
-    Expression<String>? eventId,
-    Expression<String>? sessionId,
-    Expression<String>? tripLocalId,
-    Expression<String>? mediaType,
-    Expression<String>? localUri,
-    Expression<String>? mimeType,
-    Expression<int>? bytesSize,
-    Expression<int>? durationMs,
-    Expression<DateTime>? capturedAt,
-    Expression<int>? widthPx,
-    Expression<int>? heightPx,
-    Expression<String>? uploadState,
-    Expression<String>? uploadRef,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (mediaId != null) 'media_id': mediaId,
-      if (eventId != null) 'event_id': eventId,
-      if (sessionId != null) 'session_id': sessionId,
-      if (tripLocalId != null) 'trip_local_id': tripLocalId,
-      if (mediaType != null) 'media_type': mediaType,
-      if (localUri != null) 'local_uri': localUri,
-      if (mimeType != null) 'mime_type': mimeType,
-      if (bytesSize != null) 'bytes_size': bytesSize,
-      if (durationMs != null) 'duration_ms': durationMs,
-      if (capturedAt != null) 'captured_at': capturedAt,
-      if (widthPx != null) 'width_px': widthPx,
-      if (heightPx != null) 'height_px': heightPx,
-      if (uploadState != null) 'upload_state': uploadState,
-      if (uploadRef != null) 'upload_ref': uploadRef,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  MediaJournalCompanion copyWith(
-      {Value<String>? mediaId,
-      Value<String>? eventId,
-      Value<String>? sessionId,
-      Value<String>? tripLocalId,
-      Value<String>? mediaType,
-      Value<String>? localUri,
-      Value<String?>? mimeType,
-      Value<int?>? bytesSize,
-      Value<int?>? durationMs,
-      Value<DateTime>? capturedAt,
-      Value<int?>? widthPx,
-      Value<int?>? heightPx,
-      Value<String>? uploadState,
-      Value<String?>? uploadRef,
-      Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
-      Value<int>? rowid}) {
-    return MediaJournalCompanion(
-      mediaId: mediaId ?? this.mediaId,
-      eventId: eventId ?? this.eventId,
-      sessionId: sessionId ?? this.sessionId,
-      tripLocalId: tripLocalId ?? this.tripLocalId,
-      mediaType: mediaType ?? this.mediaType,
-      localUri: localUri ?? this.localUri,
-      mimeType: mimeType ?? this.mimeType,
-      bytesSize: bytesSize ?? this.bytesSize,
-      durationMs: durationMs ?? this.durationMs,
-      capturedAt: capturedAt ?? this.capturedAt,
-      widthPx: widthPx ?? this.widthPx,
-      heightPx: heightPx ?? this.heightPx,
-      uploadState: uploadState ?? this.uploadState,
-      uploadRef: uploadRef ?? this.uploadRef,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (mediaId.present) {
-      map['media_id'] = Variable<String>(mediaId.value);
-    }
-    if (eventId.present) {
-      map['event_id'] = Variable<String>(eventId.value);
-    }
-    if (sessionId.present) {
-      map['session_id'] = Variable<String>(sessionId.value);
-    }
-    if (tripLocalId.present) {
-      map['trip_local_id'] = Variable<String>(tripLocalId.value);
-    }
-    if (mediaType.present) {
-      map['media_type'] = Variable<String>(mediaType.value);
-    }
-    if (localUri.present) {
-      map['local_uri'] = Variable<String>(localUri.value);
-    }
-    if (mimeType.present) {
-      map['mime_type'] = Variable<String>(mimeType.value);
-    }
-    if (bytesSize.present) {
-      map['bytes_size'] = Variable<int>(bytesSize.value);
-    }
-    if (durationMs.present) {
-      map['duration_ms'] = Variable<int>(durationMs.value);
-    }
-    if (capturedAt.present) {
-      map['captured_at'] = Variable<DateTime>(capturedAt.value);
-    }
-    if (widthPx.present) {
-      map['width_px'] = Variable<int>(widthPx.value);
-    }
-    if (heightPx.present) {
-      map['height_px'] = Variable<int>(heightPx.value);
-    }
-    if (uploadState.present) {
-      map['upload_state'] = Variable<String>(uploadState.value);
-    }
-    if (uploadRef.present) {
-      map['upload_ref'] = Variable<String>(uploadRef.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('MediaJournalCompanion(')
-          ..write('mediaId: $mediaId, ')
-          ..write('eventId: $eventId, ')
-          ..write('sessionId: $sessionId, ')
-          ..write('tripLocalId: $tripLocalId, ')
-          ..write('mediaType: $mediaType, ')
-          ..write('localUri: $localUri, ')
-          ..write('mimeType: $mimeType, ')
-          ..write('bytesSize: $bytesSize, ')
-          ..write('durationMs: $durationMs, ')
-          ..write('capturedAt: $capturedAt, ')
-          ..write('widthPx: $widthPx, ')
-          ..write('heightPx: $heightPx, ')
-          ..write('uploadState: $uploadState, ')
-          ..write('uploadRef: $uploadRef, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15403,6 +16151,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlacesTable places = $PlacesTable(this);
   late final $RoutesTable routes = $RoutesTable(this);
   late final $MediaTable media = $MediaTable(this);
+  late final $MediaAttachmentsTable mediaAttachments =
+      $MediaAttachmentsTable(this);
+  late final $StoriesTable stories = $StoriesTable(this);
   late final $PublicTripsTable publicTrips = $PublicTripsTable(this);
   late final $UserTripsTable userTrips = $UserTripsTable(this);
   late final $SessionJournalTable sessionJournal = $SessionJournalTable(this);
@@ -15411,7 +16162,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RoutePointJournalTable routePointJournal =
       $RoutePointJournalTable(this);
   late final $EventJournalTable eventJournal = $EventJournalTable(this);
-  late final $MediaJournalTable mediaJournal = $MediaJournalTable(this);
   late final $ResolverCandidateJournalTable resolverCandidateJournal =
       $ResolverCandidateJournalTable(this);
   late final $ResolverAttemptJournalTable resolverAttemptJournal =
@@ -15430,6 +16180,29 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $RouteProjectionLocalTable(this);
   late final $TimelineCompileCursorTable timelineCompileCursor =
       $TimelineCompileCursorTable(this);
+  late final Index mediaOwnerCapturedIdx = Index('media_owner_captured_idx',
+      'CREATE INDEX media_owner_captured_idx ON media (owner_user_id, captured_at)');
+  late final Index mediaUploadStateNextAttemptIdx = Index(
+      'media_upload_state_next_attempt_idx',
+      'CREATE INDEX media_upload_state_next_attempt_idx ON media (upload_state, next_attempt_at)');
+  late final Index mediaOriginCapturedIdx = Index('media_origin_captured_idx',
+      'CREATE INDEX media_origin_captured_idx ON media (origin_scope, captured_at)');
+  late final Index mediaGeoIdx = Index('media_geo_idx',
+      'CREATE INDEX media_geo_idx ON media (latitude, longitude)');
+  late final Index mediaAttachmentsTargetRoleIdx = Index(
+      'media_attachments_target_role_idx',
+      'CREATE INDEX media_attachments_target_role_idx ON media_attachments (target_kind, target_local_id, role)');
+  late final Index mediaAttachmentsMediaIdx = Index(
+      'media_attachments_media_idx',
+      'CREATE INDEX media_attachments_media_idx ON media_attachments (media_id)');
+  late final Index storiesVisibilityPublishedIdx = Index(
+      'stories_visibility_published_idx',
+      'CREATE INDEX stories_visibility_published_idx ON stories (visibility, published_at)');
+  late final Index storiesAuthorPublishedIdx = Index(
+      'stories_author_published_idx',
+      'CREATE INDEX stories_author_published_idx ON stories (author_user_id, published_at)');
+  late final Index storiesGeoIdx = Index('stories_geo_idx',
+      'CREATE INDEX stories_geo_idx ON stories (center_lat, center_lng)');
   late final Index sessionJournalTripStateUpdatedIdx = Index(
       'session_journal_trip_state_updated_idx',
       'CREATE INDEX session_journal_trip_state_updated_idx ON session_journal (trip_local_id, control_state, updated_at)');
@@ -15463,14 +16236,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index eventJournalSessionSeqIdx = Index(
       'event_journal_session_seq_idx',
       'CREATE INDEX event_journal_session_seq_idx ON event_journal (session_id, event_seq)');
-  late final Index mediaJournalEventIdx = Index('media_journal_event_idx',
-      'CREATE INDEX media_journal_event_idx ON media_journal (event_id)');
-  late final Index mediaJournalSessionUploadStateIdx = Index(
-      'media_journal_session_upload_state_idx',
-      'CREATE INDEX media_journal_session_upload_state_idx ON media_journal (session_id, upload_state)');
-  late final Index mediaJournalTripCapturedIdx = Index(
-      'media_journal_trip_captured_idx',
-      'CREATE INDEX media_journal_trip_captured_idx ON media_journal (trip_local_id, captured_at)');
   late final Index resolverCandidateJournalEventVersionRankIdx = Index(
       'resolver_candidate_journal_event_version_rank_idx',
       'CREATE INDEX resolver_candidate_journal_event_version_rank_idx ON resolver_candidate_journal (event_id, candidate_version, rank_index)');
@@ -15526,6 +16291,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PlaceDao placeDao = PlaceDao(this as AppDatabase);
   late final RouteDao routeDao = RouteDao(this as AppDatabase);
   late final MediaDao mediaDao = MediaDao(this as AppDatabase);
+  late final MediaAttachmentsDao mediaAttachmentsDao =
+      MediaAttachmentsDao(this as AppDatabase);
+  late final StoriesDao storiesDao = StoriesDao(this as AppDatabase);
   late final PublicTripsDao publicTripsDao =
       PublicTripsDao(this as AppDatabase);
   late final UserTripsDao userTripsDao = UserTripsDao(this as AppDatabase);
@@ -15535,8 +16303,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       RoutePointJournalDao(this as AppDatabase);
   late final EventJournalDao eventJournalDao =
       EventJournalDao(this as AppDatabase);
-  late final MediaJournalDao mediaJournalDao =
-      MediaJournalDao(this as AppDatabase);
   late final ResolverCandidateJournalDao resolverCandidateJournalDao =
       ResolverCandidateJournalDao(this as AppDatabase);
   late final ResolverAttemptJournalDao resolverAttemptJournalDao =
@@ -15564,13 +16330,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         places,
         routes,
         media,
+        mediaAttachments,
+        stories,
         publicTrips,
         userTrips,
         sessionJournal,
         sessionActivityWindow,
         routePointJournal,
         eventJournal,
-        mediaJournal,
         resolverCandidateJournal,
         resolverAttemptJournal,
         sessionCommitJob,
@@ -15580,6 +16347,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         timelineProjectionLocal,
         routeProjectionLocal,
         timelineCompileCursor,
+        mediaOwnerCapturedIdx,
+        mediaUploadStateNextAttemptIdx,
+        mediaOriginCapturedIdx,
+        mediaGeoIdx,
+        mediaAttachmentsTargetRoleIdx,
+        mediaAttachmentsMediaIdx,
+        storiesVisibilityPublishedIdx,
+        storiesAuthorPublishedIdx,
+        storiesGeoIdx,
         sessionJournalTripStateUpdatedIdx,
         sessionJournalTripStartedIdx,
         sessionActivityWindowSessionSeqIdx,
@@ -15591,9 +16367,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         eventJournalTripResolverCapturedIdx,
         eventJournalTripManualResolverIdx,
         eventJournalSessionSeqIdx,
-        mediaJournalEventIdx,
-        mediaJournalSessionUploadStateIdx,
-        mediaJournalTripCapturedIdx,
         resolverCandidateJournalEventVersionRankIdx,
         resolverCandidateJournalEventVersionTieIdx,
         resolverAttemptJournalEventAttemptIdx,
@@ -16671,52 +17444,72 @@ typedef $$RoutesTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$MediaTableCreateCompanionBuilder = MediaCompanion Function({
   required String id,
-  required String tripId,
-  Value<String?> placeId,
-  Value<String?> url,
-  Value<String?> localPath,
-  Value<String?> thumbnailPath,
+  Value<String?> serverId,
+  required String ownerUserId,
+  Value<String> mediaType,
+  required String originScope,
+  Value<String?> localUri,
+  Value<String?> thumbnailLocalPath,
   Value<String?> mimeType,
-  Value<int?> fileSizeBytes,
-  Value<int?> width,
-  Value<int?> height,
-  Value<String> type,
-  Value<String> uploadStatus,
+  Value<int?> bytesSize,
+  Value<int?> widthPx,
+  Value<int?> heightPx,
+  Value<int?> durationMs,
+  Value<String?> contentHash,
+  Value<String?> remoteUrl,
+  Value<String?> remoteThumbnailUrl,
+  required DateTime capturedAt,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<double?> accuracyM,
+  Value<String> uploadState,
   Value<double> uploadProgress,
   Value<int> retryCount,
-  Value<String?> errorMessage,
-  Value<DateTime?> uploadedAt,
   Value<DateTime?> nextAttemptAt,
   Value<String?> workerSessionId,
+  Value<String?> errorMessage,
+  Value<DateTime?> uploadedAt,
+  Value<String> syncStatus,
   required DateTime localUpdatedAt,
-  required DateTime serverUpdatedAt,
-  required String syncStatus,
+  Value<DateTime?> serverUpdatedAt,
   required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<DateTime?> deletedAt,
   Value<int> rowid,
 });
 typedef $$MediaTableUpdateCompanionBuilder = MediaCompanion Function({
   Value<String> id,
-  Value<String> tripId,
-  Value<String?> placeId,
-  Value<String?> url,
-  Value<String?> localPath,
-  Value<String?> thumbnailPath,
+  Value<String?> serverId,
+  Value<String> ownerUserId,
+  Value<String> mediaType,
+  Value<String> originScope,
+  Value<String?> localUri,
+  Value<String?> thumbnailLocalPath,
   Value<String?> mimeType,
-  Value<int?> fileSizeBytes,
-  Value<int?> width,
-  Value<int?> height,
-  Value<String> type,
-  Value<String> uploadStatus,
+  Value<int?> bytesSize,
+  Value<int?> widthPx,
+  Value<int?> heightPx,
+  Value<int?> durationMs,
+  Value<String?> contentHash,
+  Value<String?> remoteUrl,
+  Value<String?> remoteThumbnailUrl,
+  Value<DateTime> capturedAt,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<double?> accuracyM,
+  Value<String> uploadState,
   Value<double> uploadProgress,
   Value<int> retryCount,
-  Value<String?> errorMessage,
-  Value<DateTime?> uploadedAt,
   Value<DateTime?> nextAttemptAt,
   Value<String?> workerSessionId,
-  Value<DateTime> localUpdatedAt,
-  Value<DateTime> serverUpdatedAt,
+  Value<String?> errorMessage,
+  Value<DateTime?> uploadedAt,
   Value<String> syncStatus,
+  Value<DateTime> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
   Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> deletedAt,
   Value<int> rowid,
 });
 
@@ -16731,38 +17524,64 @@ class $$MediaTableFilterComposer extends Composer<_$AppDatabase, $MediaTable> {
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get tripId => $composableBuilder(
-      column: $table.tripId, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get placeId => $composableBuilder(
-      column: $table.placeId, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get ownerUserId => $composableBuilder(
+      column: $table.ownerUserId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get url => $composableBuilder(
-      column: $table.url, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get mediaType => $composableBuilder(
+      column: $table.mediaType, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get localPath => $composableBuilder(
-      column: $table.localPath, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get originScope => $composableBuilder(
+      column: $table.originScope, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get thumbnailPath => $composableBuilder(
-      column: $table.thumbnailPath, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get localUri => $composableBuilder(
+      column: $table.localUri, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get thumbnailLocalPath => $composableBuilder(
+      column: $table.thumbnailLocalPath,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get mimeType => $composableBuilder(
       column: $table.mimeType, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
-      column: $table.fileSizeBytes, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get bytesSize => $composableBuilder(
+      column: $table.bytesSize, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get width => $composableBuilder(
-      column: $table.width, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get widthPx => $composableBuilder(
+      column: $table.widthPx, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get height => $composableBuilder(
-      column: $table.height, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get heightPx => $composableBuilder(
+      column: $table.heightPx, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get type => $composableBuilder(
-      column: $table.type, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get durationMs => $composableBuilder(
+      column: $table.durationMs, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get uploadStatus => $composableBuilder(
-      column: $table.uploadStatus, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteUrl => $composableBuilder(
+      column: $table.remoteUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get remoteThumbnailUrl => $composableBuilder(
+      column: $table.remoteThumbnailUrl,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get accuracyM => $composableBuilder(
+      column: $table.accuracyM, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get uploadProgress => $composableBuilder(
       column: $table.uploadProgress,
@@ -16771,18 +17590,21 @@ class $$MediaTableFilterComposer extends Composer<_$AppDatabase, $MediaTable> {
   ColumnFilters<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get errorMessage => $composableBuilder(
-      column: $table.errorMessage, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get uploadedAt => $composableBuilder(
-      column: $table.uploadedAt, builder: (column) => ColumnFilters(column));
-
   ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
       column: $table.nextAttemptAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get workerSessionId => $composableBuilder(
       column: $table.workerSessionId,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get uploadedAt => $composableBuilder(
+      column: $table.uploadedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
@@ -16792,11 +17614,14 @@ class $$MediaTableFilterComposer extends Composer<_$AppDatabase, $MediaTable> {
       column: $table.serverUpdatedAt,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
-
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$MediaTableOrderingComposer
@@ -16811,41 +17636,64 @@ class $$MediaTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get tripId => $composableBuilder(
-      column: $table.tripId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get placeId => $composableBuilder(
-      column: $table.placeId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get ownerUserId => $composableBuilder(
+      column: $table.ownerUserId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get url => $composableBuilder(
-      column: $table.url, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get mediaType => $composableBuilder(
+      column: $table.mediaType, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get localPath => $composableBuilder(
-      column: $table.localPath, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get originScope => $composableBuilder(
+      column: $table.originScope, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get thumbnailPath => $composableBuilder(
-      column: $table.thumbnailPath,
+  ColumnOrderings<String> get localUri => $composableBuilder(
+      column: $table.localUri, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get thumbnailLocalPath => $composableBuilder(
+      column: $table.thumbnailLocalPath,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get mimeType => $composableBuilder(
       column: $table.mimeType, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
-      column: $table.fileSizeBytes,
+  ColumnOrderings<int> get bytesSize => $composableBuilder(
+      column: $table.bytesSize, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get widthPx => $composableBuilder(
+      column: $table.widthPx, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get heightPx => $composableBuilder(
+      column: $table.heightPx, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+      column: $table.durationMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteUrl => $composableBuilder(
+      column: $table.remoteUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remoteThumbnailUrl => $composableBuilder(
+      column: $table.remoteThumbnailUrl,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get width => $composableBuilder(
-      column: $table.width, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get height => $composableBuilder(
-      column: $table.height, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get type => $composableBuilder(
-      column: $table.type, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get uploadStatus => $composableBuilder(
-      column: $table.uploadStatus,
-      builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get accuracyM => $composableBuilder(
+      column: $table.accuracyM, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get uploadProgress => $composableBuilder(
       column: $table.uploadProgress,
@@ -16853,13 +17701,6 @@ class $$MediaTableOrderingComposer
 
   ColumnOrderings<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get errorMessage => $composableBuilder(
-      column: $table.errorMessage,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get uploadedAt => $composableBuilder(
-      column: $table.uploadedAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
       column: $table.nextAttemptAt,
@@ -16869,6 +17710,16 @@ class $$MediaTableOrderingComposer
       column: $table.workerSessionId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+      column: $table.errorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get uploadedAt => $composableBuilder(
+      column: $table.uploadedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt,
       builder: (column) => ColumnOrderings(column));
@@ -16877,11 +17728,14 @@ class $$MediaTableOrderingComposer
       column: $table.serverUpdatedAt,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$MediaTableAnnotationComposer
@@ -16896,38 +17750,62 @@ class $$MediaTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get tripId =>
-      $composableBuilder(column: $table.tripId, builder: (column) => column);
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
 
-  GeneratedColumn<String> get placeId =>
-      $composableBuilder(column: $table.placeId, builder: (column) => column);
+  GeneratedColumn<String> get ownerUserId => $composableBuilder(
+      column: $table.ownerUserId, builder: (column) => column);
 
-  GeneratedColumn<String> get url =>
-      $composableBuilder(column: $table.url, builder: (column) => column);
+  GeneratedColumn<String> get mediaType =>
+      $composableBuilder(column: $table.mediaType, builder: (column) => column);
 
-  GeneratedColumn<String> get localPath =>
-      $composableBuilder(column: $table.localPath, builder: (column) => column);
+  GeneratedColumn<String> get originScope => $composableBuilder(
+      column: $table.originScope, builder: (column) => column);
 
-  GeneratedColumn<String> get thumbnailPath => $composableBuilder(
-      column: $table.thumbnailPath, builder: (column) => column);
+  GeneratedColumn<String> get localUri =>
+      $composableBuilder(column: $table.localUri, builder: (column) => column);
+
+  GeneratedColumn<String> get thumbnailLocalPath => $composableBuilder(
+      column: $table.thumbnailLocalPath, builder: (column) => column);
 
   GeneratedColumn<String> get mimeType =>
       $composableBuilder(column: $table.mimeType, builder: (column) => column);
 
-  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
-      column: $table.fileSizeBytes, builder: (column) => column);
+  GeneratedColumn<int> get bytesSize =>
+      $composableBuilder(column: $table.bytesSize, builder: (column) => column);
 
-  GeneratedColumn<int> get width =>
-      $composableBuilder(column: $table.width, builder: (column) => column);
+  GeneratedColumn<int> get widthPx =>
+      $composableBuilder(column: $table.widthPx, builder: (column) => column);
 
-  GeneratedColumn<int> get height =>
-      $composableBuilder(column: $table.height, builder: (column) => column);
+  GeneratedColumn<int> get heightPx =>
+      $composableBuilder(column: $table.heightPx, builder: (column) => column);
 
-  GeneratedColumn<String> get type =>
-      $composableBuilder(column: $table.type, builder: (column) => column);
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+      column: $table.durationMs, builder: (column) => column);
 
-  GeneratedColumn<String> get uploadStatus => $composableBuilder(
-      column: $table.uploadStatus, builder: (column) => column);
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteUrl =>
+      $composableBuilder(column: $table.remoteUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteThumbnailUrl => $composableBuilder(
+      column: $table.remoteThumbnailUrl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<double> get accuracyM =>
+      $composableBuilder(column: $table.accuracyM, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadState => $composableBuilder(
+      column: $table.uploadState, builder: (column) => column);
 
   GeneratedColumn<double> get uploadProgress => $composableBuilder(
       column: $table.uploadProgress, builder: (column) => column);
@@ -16935,17 +17813,20 @@ class $$MediaTableAnnotationComposer
   GeneratedColumn<int> get retryCount => $composableBuilder(
       column: $table.retryCount, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+      column: $table.nextAttemptAt, builder: (column) => column);
+
+  GeneratedColumn<String> get workerSessionId => $composableBuilder(
+      column: $table.workerSessionId, builder: (column) => column);
+
   GeneratedColumn<String> get errorMessage => $composableBuilder(
       column: $table.errorMessage, builder: (column) => column);
 
   GeneratedColumn<DateTime> get uploadedAt => $composableBuilder(
       column: $table.uploadedAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
-      column: $table.nextAttemptAt, builder: (column) => column);
-
-  GeneratedColumn<String> get workerSessionId => $composableBuilder(
-      column: $table.workerSessionId, builder: (column) => column);
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
       column: $table.localUpdatedAt, builder: (column) => column);
@@ -16953,11 +17834,14 @@ class $$MediaTableAnnotationComposer
   GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
       column: $table.serverUpdatedAt, builder: (column) => column);
 
-  GeneratedColumn<String> get syncStatus => $composableBuilder(
-      column: $table.syncStatus, builder: (column) => column);
-
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
 class $$MediaTableTableManager extends RootTableManager<
@@ -16984,102 +17868,142 @@ class $$MediaTableTableManager extends RootTableManager<
               $$MediaTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
-            Value<String> tripId = const Value.absent(),
-            Value<String?> placeId = const Value.absent(),
-            Value<String?> url = const Value.absent(),
-            Value<String?> localPath = const Value.absent(),
-            Value<String?> thumbnailPath = const Value.absent(),
+            Value<String?> serverId = const Value.absent(),
+            Value<String> ownerUserId = const Value.absent(),
+            Value<String> mediaType = const Value.absent(),
+            Value<String> originScope = const Value.absent(),
+            Value<String?> localUri = const Value.absent(),
+            Value<String?> thumbnailLocalPath = const Value.absent(),
             Value<String?> mimeType = const Value.absent(),
-            Value<int?> fileSizeBytes = const Value.absent(),
-            Value<int?> width = const Value.absent(),
-            Value<int?> height = const Value.absent(),
-            Value<String> type = const Value.absent(),
-            Value<String> uploadStatus = const Value.absent(),
+            Value<int?> bytesSize = const Value.absent(),
+            Value<int?> widthPx = const Value.absent(),
+            Value<int?> heightPx = const Value.absent(),
+            Value<int?> durationMs = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> remoteUrl = const Value.absent(),
+            Value<String?> remoteThumbnailUrl = const Value.absent(),
+            Value<DateTime> capturedAt = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<double?> accuracyM = const Value.absent(),
+            Value<String> uploadState = const Value.absent(),
             Value<double> uploadProgress = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
-            Value<String?> errorMessage = const Value.absent(),
-            Value<DateTime?> uploadedAt = const Value.absent(),
             Value<DateTime?> nextAttemptAt = const Value.absent(),
             Value<String?> workerSessionId = const Value.absent(),
-            Value<DateTime> localUpdatedAt = const Value.absent(),
-            Value<DateTime> serverUpdatedAt = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<DateTime?> uploadedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
+            Value<DateTime> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MediaCompanion(
             id: id,
-            tripId: tripId,
-            placeId: placeId,
-            url: url,
-            localPath: localPath,
-            thumbnailPath: thumbnailPath,
+            serverId: serverId,
+            ownerUserId: ownerUserId,
+            mediaType: mediaType,
+            originScope: originScope,
+            localUri: localUri,
+            thumbnailLocalPath: thumbnailLocalPath,
             mimeType: mimeType,
-            fileSizeBytes: fileSizeBytes,
-            width: width,
-            height: height,
-            type: type,
-            uploadStatus: uploadStatus,
+            bytesSize: bytesSize,
+            widthPx: widthPx,
+            heightPx: heightPx,
+            durationMs: durationMs,
+            contentHash: contentHash,
+            remoteUrl: remoteUrl,
+            remoteThumbnailUrl: remoteThumbnailUrl,
+            capturedAt: capturedAt,
+            latitude: latitude,
+            longitude: longitude,
+            accuracyM: accuracyM,
+            uploadState: uploadState,
             uploadProgress: uploadProgress,
             retryCount: retryCount,
-            errorMessage: errorMessage,
-            uploadedAt: uploadedAt,
             nextAttemptAt: nextAttemptAt,
             workerSessionId: workerSessionId,
+            errorMessage: errorMessage,
+            uploadedAt: uploadedAt,
+            syncStatus: syncStatus,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
-            syncStatus: syncStatus,
             createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
-            required String tripId,
-            Value<String?> placeId = const Value.absent(),
-            Value<String?> url = const Value.absent(),
-            Value<String?> localPath = const Value.absent(),
-            Value<String?> thumbnailPath = const Value.absent(),
+            Value<String?> serverId = const Value.absent(),
+            required String ownerUserId,
+            Value<String> mediaType = const Value.absent(),
+            required String originScope,
+            Value<String?> localUri = const Value.absent(),
+            Value<String?> thumbnailLocalPath = const Value.absent(),
             Value<String?> mimeType = const Value.absent(),
-            Value<int?> fileSizeBytes = const Value.absent(),
-            Value<int?> width = const Value.absent(),
-            Value<int?> height = const Value.absent(),
-            Value<String> type = const Value.absent(),
-            Value<String> uploadStatus = const Value.absent(),
+            Value<int?> bytesSize = const Value.absent(),
+            Value<int?> widthPx = const Value.absent(),
+            Value<int?> heightPx = const Value.absent(),
+            Value<int?> durationMs = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> remoteUrl = const Value.absent(),
+            Value<String?> remoteThumbnailUrl = const Value.absent(),
+            required DateTime capturedAt,
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<double?> accuracyM = const Value.absent(),
+            Value<String> uploadState = const Value.absent(),
             Value<double> uploadProgress = const Value.absent(),
             Value<int> retryCount = const Value.absent(),
-            Value<String?> errorMessage = const Value.absent(),
-            Value<DateTime?> uploadedAt = const Value.absent(),
             Value<DateTime?> nextAttemptAt = const Value.absent(),
             Value<String?> workerSessionId = const Value.absent(),
+            Value<String?> errorMessage = const Value.absent(),
+            Value<DateTime?> uploadedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             required DateTime localUpdatedAt,
-            required DateTime serverUpdatedAt,
-            required String syncStatus,
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
             required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<DateTime?> deletedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MediaCompanion.insert(
             id: id,
-            tripId: tripId,
-            placeId: placeId,
-            url: url,
-            localPath: localPath,
-            thumbnailPath: thumbnailPath,
+            serverId: serverId,
+            ownerUserId: ownerUserId,
+            mediaType: mediaType,
+            originScope: originScope,
+            localUri: localUri,
+            thumbnailLocalPath: thumbnailLocalPath,
             mimeType: mimeType,
-            fileSizeBytes: fileSizeBytes,
-            width: width,
-            height: height,
-            type: type,
-            uploadStatus: uploadStatus,
+            bytesSize: bytesSize,
+            widthPx: widthPx,
+            heightPx: heightPx,
+            durationMs: durationMs,
+            contentHash: contentHash,
+            remoteUrl: remoteUrl,
+            remoteThumbnailUrl: remoteThumbnailUrl,
+            capturedAt: capturedAt,
+            latitude: latitude,
+            longitude: longitude,
+            accuracyM: accuracyM,
+            uploadState: uploadState,
             uploadProgress: uploadProgress,
             retryCount: retryCount,
-            errorMessage: errorMessage,
-            uploadedAt: uploadedAt,
             nextAttemptAt: nextAttemptAt,
             workerSessionId: workerSessionId,
+            errorMessage: errorMessage,
+            uploadedAt: uploadedAt,
+            syncStatus: syncStatus,
             localUpdatedAt: localUpdatedAt,
             serverUpdatedAt: serverUpdatedAt,
-            syncStatus: syncStatus,
             createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -17100,6 +18024,514 @@ typedef $$MediaTableProcessedTableManager = ProcessedTableManager<
     $$MediaTableUpdateCompanionBuilder,
     (MediaItem, BaseReferences<_$AppDatabase, $MediaTable, MediaItem>),
     MediaItem,
+    PrefetchHooks Function()>;
+typedef $$MediaAttachmentsTableCreateCompanionBuilder
+    = MediaAttachmentsCompanion Function({
+  required String id,
+  required String mediaId,
+  required String targetKind,
+  required String targetLocalId,
+  Value<String?> targetServerId,
+  required String role,
+  Value<String> source,
+  required DateTime attachedAt,
+  Value<DateTime?> detachedAt,
+  Value<int> rowid,
+});
+typedef $$MediaAttachmentsTableUpdateCompanionBuilder
+    = MediaAttachmentsCompanion Function({
+  Value<String> id,
+  Value<String> mediaId,
+  Value<String> targetKind,
+  Value<String> targetLocalId,
+  Value<String?> targetServerId,
+  Value<String> role,
+  Value<String> source,
+  Value<DateTime> attachedAt,
+  Value<DateTime?> detachedAt,
+  Value<int> rowid,
+});
+
+class $$MediaAttachmentsTableFilterComposer
+    extends Composer<_$AppDatabase, $MediaAttachmentsTable> {
+  $$MediaAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get targetKind => $composableBuilder(
+      column: $table.targetKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get targetLocalId => $composableBuilder(
+      column: $table.targetLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get targetServerId => $composableBuilder(
+      column: $table.targetServerId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get attachedAt => $composableBuilder(
+      column: $table.attachedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get detachedAt => $composableBuilder(
+      column: $table.detachedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MediaAttachmentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MediaAttachmentsTable> {
+  $$MediaAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get targetKind => $composableBuilder(
+      column: $table.targetKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get targetLocalId => $composableBuilder(
+      column: $table.targetLocalId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get targetServerId => $composableBuilder(
+      column: $table.targetServerId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get attachedAt => $composableBuilder(
+      column: $table.attachedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get detachedAt => $composableBuilder(
+      column: $table.detachedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MediaAttachmentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MediaAttachmentsTable> {
+  $$MediaAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaId =>
+      $composableBuilder(column: $table.mediaId, builder: (column) => column);
+
+  GeneratedColumn<String> get targetKind => $composableBuilder(
+      column: $table.targetKind, builder: (column) => column);
+
+  GeneratedColumn<String> get targetLocalId => $composableBuilder(
+      column: $table.targetLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get targetServerId => $composableBuilder(
+      column: $table.targetServerId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get attachedAt => $composableBuilder(
+      column: $table.attachedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get detachedAt => $composableBuilder(
+      column: $table.detachedAt, builder: (column) => column);
+}
+
+class $$MediaAttachmentsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MediaAttachmentsTable,
+    MediaAttachmentRow,
+    $$MediaAttachmentsTableFilterComposer,
+    $$MediaAttachmentsTableOrderingComposer,
+    $$MediaAttachmentsTableAnnotationComposer,
+    $$MediaAttachmentsTableCreateCompanionBuilder,
+    $$MediaAttachmentsTableUpdateCompanionBuilder,
+    (
+      MediaAttachmentRow,
+      BaseReferences<_$AppDatabase, $MediaAttachmentsTable, MediaAttachmentRow>
+    ),
+    MediaAttachmentRow,
+    PrefetchHooks Function()> {
+  $$MediaAttachmentsTableTableManager(
+      _$AppDatabase db, $MediaAttachmentsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MediaAttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MediaAttachmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MediaAttachmentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> mediaId = const Value.absent(),
+            Value<String> targetKind = const Value.absent(),
+            Value<String> targetLocalId = const Value.absent(),
+            Value<String?> targetServerId = const Value.absent(),
+            Value<String> role = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<DateTime> attachedAt = const Value.absent(),
+            Value<DateTime?> detachedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MediaAttachmentsCompanion(
+            id: id,
+            mediaId: mediaId,
+            targetKind: targetKind,
+            targetLocalId: targetLocalId,
+            targetServerId: targetServerId,
+            role: role,
+            source: source,
+            attachedAt: attachedAt,
+            detachedAt: detachedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String mediaId,
+            required String targetKind,
+            required String targetLocalId,
+            Value<String?> targetServerId = const Value.absent(),
+            required String role,
+            Value<String> source = const Value.absent(),
+            required DateTime attachedAt,
+            Value<DateTime?> detachedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MediaAttachmentsCompanion.insert(
+            id: id,
+            mediaId: mediaId,
+            targetKind: targetKind,
+            targetLocalId: targetLocalId,
+            targetServerId: targetServerId,
+            role: role,
+            source: source,
+            attachedAt: attachedAt,
+            detachedAt: detachedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MediaAttachmentsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MediaAttachmentsTable,
+    MediaAttachmentRow,
+    $$MediaAttachmentsTableFilterComposer,
+    $$MediaAttachmentsTableOrderingComposer,
+    $$MediaAttachmentsTableAnnotationComposer,
+    $$MediaAttachmentsTableCreateCompanionBuilder,
+    $$MediaAttachmentsTableUpdateCompanionBuilder,
+    (
+      MediaAttachmentRow,
+      BaseReferences<_$AppDatabase, $MediaAttachmentsTable, MediaAttachmentRow>
+    ),
+    MediaAttachmentRow,
+    PrefetchHooks Function()>;
+typedef $$StoriesTableCreateCompanionBuilder = StoriesCompanion Function({
+  required String id,
+  Value<String?> serverId,
+  required String mediaId,
+  required String authorUserId,
+  required double centerLat,
+  required double centerLng,
+  Value<DateTime?> publishedAt,
+  Value<DateTime?> expiresAt,
+  Value<String> visibility,
+  Value<int> viewCount,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$StoriesTableUpdateCompanionBuilder = StoriesCompanion Function({
+  Value<String> id,
+  Value<String?> serverId,
+  Value<String> mediaId,
+  Value<String> authorUserId,
+  Value<double> centerLat,
+  Value<double> centerLng,
+  Value<DateTime?> publishedAt,
+  Value<DateTime?> expiresAt,
+  Value<String> visibility,
+  Value<int> viewCount,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$StoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $StoriesTable> {
+  $$StoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get authorUserId => $composableBuilder(
+      column: $table.authorUserId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get centerLat => $composableBuilder(
+      column: $table.centerLat, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get centerLng => $composableBuilder(
+      column: $table.centerLng, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get viewCount => $composableBuilder(
+      column: $table.viewCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$StoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StoriesTable> {
+  $$StoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+      column: $table.serverId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mediaId => $composableBuilder(
+      column: $table.mediaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get authorUserId => $composableBuilder(
+      column: $table.authorUserId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get centerLat => $composableBuilder(
+      column: $table.centerLat, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get centerLng => $composableBuilder(
+      column: $table.centerLng, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get viewCount => $composableBuilder(
+      column: $table.viewCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$StoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StoriesTable> {
+  $$StoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaId =>
+      $composableBuilder(column: $table.mediaId, builder: (column) => column);
+
+  GeneratedColumn<String> get authorUserId => $composableBuilder(
+      column: $table.authorUserId, builder: (column) => column);
+
+  GeneratedColumn<double> get centerLat =>
+      $composableBuilder(column: $table.centerLat, builder: (column) => column);
+
+  GeneratedColumn<double> get centerLng =>
+      $composableBuilder(column: $table.centerLng, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<String> get visibility => $composableBuilder(
+      column: $table.visibility, builder: (column) => column);
+
+  GeneratedColumn<int> get viewCount =>
+      $composableBuilder(column: $table.viewCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$StoriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $StoriesTable,
+    StoryRow,
+    $$StoriesTableFilterComposer,
+    $$StoriesTableOrderingComposer,
+    $$StoriesTableAnnotationComposer,
+    $$StoriesTableCreateCompanionBuilder,
+    $$StoriesTableUpdateCompanionBuilder,
+    (StoryRow, BaseReferences<_$AppDatabase, $StoriesTable, StoryRow>),
+    StoryRow,
+    PrefetchHooks Function()> {
+  $$StoriesTableTableManager(_$AppDatabase db, $StoriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String?> serverId = const Value.absent(),
+            Value<String> mediaId = const Value.absent(),
+            Value<String> authorUserId = const Value.absent(),
+            Value<double> centerLat = const Value.absent(),
+            Value<double> centerLng = const Value.absent(),
+            Value<DateTime?> publishedAt = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
+            Value<String> visibility = const Value.absent(),
+            Value<int> viewCount = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              StoriesCompanion(
+            id: id,
+            serverId: serverId,
+            mediaId: mediaId,
+            authorUserId: authorUserId,
+            centerLat: centerLat,
+            centerLng: centerLng,
+            publishedAt: publishedAt,
+            expiresAt: expiresAt,
+            visibility: visibility,
+            viewCount: viewCount,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String?> serverId = const Value.absent(),
+            required String mediaId,
+            required String authorUserId,
+            required double centerLat,
+            required double centerLng,
+            Value<DateTime?> publishedAt = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
+            Value<String> visibility = const Value.absent(),
+            Value<int> viewCount = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              StoriesCompanion.insert(
+            id: id,
+            serverId: serverId,
+            mediaId: mediaId,
+            authorUserId: authorUserId,
+            centerLat: centerLat,
+            centerLng: centerLng,
+            publishedAt: publishedAt,
+            expiresAt: expiresAt,
+            visibility: visibility,
+            viewCount: viewCount,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$StoriesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $StoriesTable,
+    StoryRow,
+    $$StoriesTableFilterComposer,
+    $$StoriesTableOrderingComposer,
+    $$StoriesTableAnnotationComposer,
+    $$StoriesTableCreateCompanionBuilder,
+    $$StoriesTableUpdateCompanionBuilder,
+    (StoryRow, BaseReferences<_$AppDatabase, $StoriesTable, StoryRow>),
+    StoryRow,
     PrefetchHooks Function()>;
 typedef $$PublicTripsTableCreateCompanionBuilder = PublicTripsCompanion
     Function({
@@ -19031,344 +20463,6 @@ typedef $$EventJournalTableProcessedTableManager = ProcessedTableManager<
       BaseReferences<_$AppDatabase, $EventJournalTable, EventJournalRow>
     ),
     EventJournalRow,
-    PrefetchHooks Function()>;
-typedef $$MediaJournalTableCreateCompanionBuilder = MediaJournalCompanion
-    Function({
-  required String mediaId,
-  required String eventId,
-  required String sessionId,
-  required String tripLocalId,
-  required String mediaType,
-  required String localUri,
-  Value<String?> mimeType,
-  Value<int?> bytesSize,
-  Value<int?> durationMs,
-  required DateTime capturedAt,
-  Value<int?> widthPx,
-  Value<int?> heightPx,
-  Value<String> uploadState,
-  Value<String?> uploadRef,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$MediaJournalTableUpdateCompanionBuilder = MediaJournalCompanion
-    Function({
-  Value<String> mediaId,
-  Value<String> eventId,
-  Value<String> sessionId,
-  Value<String> tripLocalId,
-  Value<String> mediaType,
-  Value<String> localUri,
-  Value<String?> mimeType,
-  Value<int?> bytesSize,
-  Value<int?> durationMs,
-  Value<DateTime> capturedAt,
-  Value<int?> widthPx,
-  Value<int?> heightPx,
-  Value<String> uploadState,
-  Value<String?> uploadRef,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
-
-class $$MediaJournalTableFilterComposer
-    extends Composer<_$AppDatabase, $MediaJournalTable> {
-  $$MediaJournalTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get mediaId => $composableBuilder(
-      column: $table.mediaId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get eventId => $composableBuilder(
-      column: $table.eventId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get sessionId => $composableBuilder(
-      column: $table.sessionId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get tripLocalId => $composableBuilder(
-      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get mediaType => $composableBuilder(
-      column: $table.mediaType, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get localUri => $composableBuilder(
-      column: $table.localUri, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get mimeType => $composableBuilder(
-      column: $table.mimeType, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get bytesSize => $composableBuilder(
-      column: $table.bytesSize, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get durationMs => $composableBuilder(
-      column: $table.durationMs, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
-      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get widthPx => $composableBuilder(
-      column: $table.widthPx, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get heightPx => $composableBuilder(
-      column: $table.heightPx, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get uploadState => $composableBuilder(
-      column: $table.uploadState, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get uploadRef => $composableBuilder(
-      column: $table.uploadRef, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
-}
-
-class $$MediaJournalTableOrderingComposer
-    extends Composer<_$AppDatabase, $MediaJournalTable> {
-  $$MediaJournalTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get mediaId => $composableBuilder(
-      column: $table.mediaId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get eventId => $composableBuilder(
-      column: $table.eventId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get sessionId => $composableBuilder(
-      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get tripLocalId => $composableBuilder(
-      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get mediaType => $composableBuilder(
-      column: $table.mediaType, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get localUri => $composableBuilder(
-      column: $table.localUri, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get mimeType => $composableBuilder(
-      column: $table.mimeType, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get bytesSize => $composableBuilder(
-      column: $table.bytesSize, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get durationMs => $composableBuilder(
-      column: $table.durationMs, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
-      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get widthPx => $composableBuilder(
-      column: $table.widthPx, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get heightPx => $composableBuilder(
-      column: $table.heightPx, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get uploadState => $composableBuilder(
-      column: $table.uploadState, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get uploadRef => $composableBuilder(
-      column: $table.uploadRef, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
-}
-
-class $$MediaJournalTableAnnotationComposer
-    extends Composer<_$AppDatabase, $MediaJournalTable> {
-  $$MediaJournalTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get mediaId =>
-      $composableBuilder(column: $table.mediaId, builder: (column) => column);
-
-  GeneratedColumn<String> get eventId =>
-      $composableBuilder(column: $table.eventId, builder: (column) => column);
-
-  GeneratedColumn<String> get sessionId =>
-      $composableBuilder(column: $table.sessionId, builder: (column) => column);
-
-  GeneratedColumn<String> get tripLocalId => $composableBuilder(
-      column: $table.tripLocalId, builder: (column) => column);
-
-  GeneratedColumn<String> get mediaType =>
-      $composableBuilder(column: $table.mediaType, builder: (column) => column);
-
-  GeneratedColumn<String> get localUri =>
-      $composableBuilder(column: $table.localUri, builder: (column) => column);
-
-  GeneratedColumn<String> get mimeType =>
-      $composableBuilder(column: $table.mimeType, builder: (column) => column);
-
-  GeneratedColumn<int> get bytesSize =>
-      $composableBuilder(column: $table.bytesSize, builder: (column) => column);
-
-  GeneratedColumn<int> get durationMs => $composableBuilder(
-      column: $table.durationMs, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
-      column: $table.capturedAt, builder: (column) => column);
-
-  GeneratedColumn<int> get widthPx =>
-      $composableBuilder(column: $table.widthPx, builder: (column) => column);
-
-  GeneratedColumn<int> get heightPx =>
-      $composableBuilder(column: $table.heightPx, builder: (column) => column);
-
-  GeneratedColumn<String> get uploadState => $composableBuilder(
-      column: $table.uploadState, builder: (column) => column);
-
-  GeneratedColumn<String> get uploadRef =>
-      $composableBuilder(column: $table.uploadRef, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-}
-
-class $$MediaJournalTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $MediaJournalTable,
-    MediaJournalRow,
-    $$MediaJournalTableFilterComposer,
-    $$MediaJournalTableOrderingComposer,
-    $$MediaJournalTableAnnotationComposer,
-    $$MediaJournalTableCreateCompanionBuilder,
-    $$MediaJournalTableUpdateCompanionBuilder,
-    (
-      MediaJournalRow,
-      BaseReferences<_$AppDatabase, $MediaJournalTable, MediaJournalRow>
-    ),
-    MediaJournalRow,
-    PrefetchHooks Function()> {
-  $$MediaJournalTableTableManager(_$AppDatabase db, $MediaJournalTable table)
-      : super(TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$MediaJournalTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$MediaJournalTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$MediaJournalTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<String> mediaId = const Value.absent(),
-            Value<String> eventId = const Value.absent(),
-            Value<String> sessionId = const Value.absent(),
-            Value<String> tripLocalId = const Value.absent(),
-            Value<String> mediaType = const Value.absent(),
-            Value<String> localUri = const Value.absent(),
-            Value<String?> mimeType = const Value.absent(),
-            Value<int?> bytesSize = const Value.absent(),
-            Value<int?> durationMs = const Value.absent(),
-            Value<DateTime> capturedAt = const Value.absent(),
-            Value<int?> widthPx = const Value.absent(),
-            Value<int?> heightPx = const Value.absent(),
-            Value<String> uploadState = const Value.absent(),
-            Value<String?> uploadRef = const Value.absent(),
-            Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              MediaJournalCompanion(
-            mediaId: mediaId,
-            eventId: eventId,
-            sessionId: sessionId,
-            tripLocalId: tripLocalId,
-            mediaType: mediaType,
-            localUri: localUri,
-            mimeType: mimeType,
-            bytesSize: bytesSize,
-            durationMs: durationMs,
-            capturedAt: capturedAt,
-            widthPx: widthPx,
-            heightPx: heightPx,
-            uploadState: uploadState,
-            uploadRef: uploadRef,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          createCompanionCallback: ({
-            required String mediaId,
-            required String eventId,
-            required String sessionId,
-            required String tripLocalId,
-            required String mediaType,
-            required String localUri,
-            Value<String?> mimeType = const Value.absent(),
-            Value<int?> bytesSize = const Value.absent(),
-            Value<int?> durationMs = const Value.absent(),
-            required DateTime capturedAt,
-            Value<int?> widthPx = const Value.absent(),
-            Value<int?> heightPx = const Value.absent(),
-            Value<String> uploadState = const Value.absent(),
-            Value<String?> uploadRef = const Value.absent(),
-            required DateTime createdAt,
-            required DateTime updatedAt,
-            Value<int> rowid = const Value.absent(),
-          }) =>
-              MediaJournalCompanion.insert(
-            mediaId: mediaId,
-            eventId: eventId,
-            sessionId: sessionId,
-            tripLocalId: tripLocalId,
-            mediaType: mediaType,
-            localUri: localUri,
-            mimeType: mimeType,
-            bytesSize: bytesSize,
-            durationMs: durationMs,
-            capturedAt: capturedAt,
-            widthPx: widthPx,
-            heightPx: heightPx,
-            uploadState: uploadState,
-            uploadRef: uploadRef,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            rowid: rowid,
-          ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ));
-}
-
-typedef $$MediaJournalTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $MediaJournalTable,
-    MediaJournalRow,
-    $$MediaJournalTableFilterComposer,
-    $$MediaJournalTableOrderingComposer,
-    $$MediaJournalTableAnnotationComposer,
-    $$MediaJournalTableCreateCompanionBuilder,
-    $$MediaJournalTableUpdateCompanionBuilder,
-    (
-      MediaJournalRow,
-      BaseReferences<_$AppDatabase, $MediaJournalTable, MediaJournalRow>
-    ),
-    MediaJournalRow,
     PrefetchHooks Function()>;
 typedef $$ResolverCandidateJournalTableCreateCompanionBuilder
     = ResolverCandidateJournalCompanion Function({
@@ -22411,6 +23505,10 @@ class $AppDatabaseManager {
       $$RoutesTableTableManager(_db, _db.routes);
   $$MediaTableTableManager get media =>
       $$MediaTableTableManager(_db, _db.media);
+  $$MediaAttachmentsTableTableManager get mediaAttachments =>
+      $$MediaAttachmentsTableTableManager(_db, _db.mediaAttachments);
+  $$StoriesTableTableManager get stories =>
+      $$StoriesTableTableManager(_db, _db.stories);
   $$PublicTripsTableTableManager get publicTrips =>
       $$PublicTripsTableTableManager(_db, _db.publicTrips);
   $$UserTripsTableTableManager get userTrips =>
@@ -22423,8 +23521,6 @@ class $AppDatabaseManager {
       $$RoutePointJournalTableTableManager(_db, _db.routePointJournal);
   $$EventJournalTableTableManager get eventJournal =>
       $$EventJournalTableTableManager(_db, _db.eventJournal);
-  $$MediaJournalTableTableManager get mediaJournal =>
-      $$MediaJournalTableTableManager(_db, _db.mediaJournal);
   $$ResolverCandidateJournalTableTableManager get resolverCandidateJournal =>
       $$ResolverCandidateJournalTableTableManager(
           _db, _db.resolverCandidateJournal);

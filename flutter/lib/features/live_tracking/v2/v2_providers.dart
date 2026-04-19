@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dora/core/config/live_system_v2_gate.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
@@ -13,7 +14,6 @@ import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_orchestr
 import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/live_capture_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
-import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/resolver_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/route_point_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
@@ -40,13 +40,6 @@ final v2EventJournalRepositoryProvider = Provider<V2EventJournalRepository>(
   },
 );
 
-final v2MediaJournalRepositoryProvider = Provider<V2MediaJournalRepository>(
-  (ref) {
-    final dao = ref.watch(v2MediaJournalDaoProvider);
-    return V2MediaJournalRepository(dao);
-  },
-);
-
 final v2ResolverJournalRepositoryProvider =
     Provider<V2ResolverJournalRepository>((ref) {
   final candidateDao = ref.watch(v2ResolverCandidateJournalDaoProvider);
@@ -62,7 +55,10 @@ final v2LiveCaptureJournalRepositoryProvider =
   return V2LiveCaptureJournalRepository(
     sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
     eventRepository: ref.watch(v2EventJournalRepositoryProvider),
-    mediaRepository: ref.watch(v2MediaJournalRepositoryProvider),
+    mediaDao: ref.watch(mediaDaoProvider),
+    mediaAttachmentsDao: ref.watch(mediaAttachmentsDaoProvider),
+    resolveOwnerUserId: () =>
+        Supabase.instance.client.auth.currentUser?.id ?? 'unknown',
   );
 });
 
@@ -80,6 +76,7 @@ final v2ResolverOrchestratorProvider = Provider<V2ResolverOrchestrator>((ref) {
     eventRepository: ref.watch(v2EventJournalRepositoryProvider),
     resolverRepository: ref.watch(v2ResolverJournalRepositoryProvider),
     resolverClient: ref.watch(v2ResolverClientProvider),
+    mediaAttachmentsDao: ref.watch(mediaAttachmentsDaoProvider),
     reducer: ref.watch(v2ResolverDecisionReducerProvider),
   );
 });
@@ -102,7 +99,8 @@ final v2SessionCommitRepositoryProvider =
     mediaItemDao: ref.watch(v2SessionCommitMediaItemDaoProvider),
     chunkDao: ref.watch(v2SessionCommitChunkDaoProvider),
     eventDao: ref.watch(v2EventJournalDaoProvider),
-    mediaDao: ref.watch(v2MediaJournalDaoProvider),
+    mediaDao: ref.watch(mediaDaoProvider),
+    mediaAttachmentsDao: ref.watch(mediaAttachmentsDaoProvider),
     routePointDao: ref.watch(v2RoutePointJournalDaoProvider),
   );
 });
@@ -132,7 +130,6 @@ final v2LocalTimelineCompilerProvider =
     projectionRepository: ref.watch(v2LocalProjectionRepositoryProvider),
     sessionRepository: ref.watch(v2SessionJournalRepositoryProvider),
     eventRepository: ref.watch(v2EventJournalRepositoryProvider),
-    mediaRepository: ref.watch(v2MediaJournalRepositoryProvider),
     routePointRepository: ref.watch(v2RoutePointJournalRepositoryProvider),
   );
 });

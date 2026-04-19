@@ -8,9 +8,22 @@ import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
-import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/route_point_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
+
+class _LiveCaptureMedia {
+  const _LiveCaptureMedia({
+    required this.media,
+    required this.eventId,
+    required this.sessionId,
+    required this.tripLocalId,
+  });
+
+  final MediaItem media;
+  final String eventId;
+  final String sessionId;
+  final String tripLocalId;
+}
 
 class V2LocalTimelineCompiler {
   V2LocalTimelineCompiler({
@@ -18,14 +31,12 @@ class V2LocalTimelineCompiler {
     required V2LocalProjectionRepository projectionRepository,
     required V2SessionJournalRepository sessionRepository,
     required V2EventJournalRepository eventRepository,
-    required V2MediaJournalRepository mediaRepository,
     required V2RoutePointJournalRepository routePointRepository,
     DateTime Function()? now,
   })  : _database = database,
         _projectionRepository = projectionRepository,
         _sessionRepository = sessionRepository,
         _eventRepository = eventRepository,
-        _mediaRepository = mediaRepository,
         _routePointRepository = routePointRepository,
         _now = now ?? DateTime.now;
 
@@ -37,7 +48,6 @@ class V2LocalTimelineCompiler {
   final V2LocalProjectionRepository _projectionRepository;
   final V2SessionJournalRepository _sessionRepository;
   final V2EventJournalRepository _eventRepository;
-  final V2MediaJournalRepository _mediaRepository;
   final V2RoutePointJournalRepository _routePointRepository;
   final DateTime Function() _now;
   final Map<String, Future<void>> _inFlightCompiles = <String, Future<void>>{};
@@ -194,19 +204,19 @@ class V2LocalTimelineCompiler {
               dirtyFrom!,
             );
       final media = requiresFullRebuild
-          ? await _mediaRepository.listMediaForTrip(tripId)
-          : await _mediaRepository.listMediaForTripFromCapturedAt(
-              tripId,
-              dirtyFrom!,
+          ? await _listLiveCaptureMediaForTrip(tripId: tripId)
+          : await _listLiveCaptureMediaForTrip(
+              tripId: tripId,
+              fromCapturedAt: dirtyFrom!,
             );
-      final mediaByEvent = <String, List<MediaJournalRow>>{};
+      final mediaByEvent = <String, List<_LiveCaptureMedia>>{};
       for (final item in media) {
         mediaByEvent
-            .putIfAbsent(item.eventId, () => <MediaJournalRow>[])
+            .putIfAbsent(item.eventId, () => <_LiveCaptureMedia>[])
             .add(item);
       }
       for (final list in mediaByEvent.values) {
-        list.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+        list.sort((a, b) => a.media.capturedAt.compareTo(b.media.capturedAt));
       }
 
       final timelineRows = _buildTimelineRows(
@@ -258,9 +268,15 @@ class V2LocalTimelineCompiler {
     );
     final maxMediaUpdatedAt = await _readSingleDateTime(
       '''
-      SELECT MAX(updated_at) AS value
-      FROM media_journal
-      WHERE trip_local_id = ?
+      SELECT MAX(m.updated_at) AS value
+      FROM media m
+      INNER JOIN media_attachments ma ON ma.media_id = m.id
+      INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+      WHERE ma.target_kind = 'trip_event'
+        AND ma.role = 'capture'
+        AND ma.detached_at IS NULL
+        AND m.deleted_at IS NULL
+        AND e.trip_local_id = ?
       ''',
       <Variable<Object>>[Variable<String>(tripId)],
       'value',
@@ -296,7 +312,15 @@ class V2LocalTimelineCompiler {
       '''
       SELECT
         (SELECT COUNT(1) FROM event_journal WHERE trip_local_id = ?) AS event_count,
-        (SELECT COUNT(1) FROM media_journal WHERE trip_local_id = ?) AS media_count,
+        (SELECT COUNT(1)
+           FROM media m
+           INNER JOIN media_attachments ma ON ma.media_id = m.id
+           INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+           WHERE ma.target_kind = 'trip_event'
+             AND ma.role = 'capture'
+             AND ma.detached_at IS NULL
+             AND m.deleted_at IS NULL
+             AND e.trip_local_id = ?) AS media_count,
         (SELECT COUNT(1) FROM route_point_journal WHERE trip_local_id = ?) AS point_count
       ''',
       variables: <Variable<Object>>[
@@ -306,7 +330,8 @@ class V2LocalTimelineCompiler {
       ],
       readsFrom: {
         _database.eventJournal,
-        _database.mediaJournal,
+        _database.media,
+        _database.mediaAttachments,
         _database.routePointJournal,
       },
     ).getSingle();
@@ -325,13 +350,13 @@ class V2LocalTimelineCompiler {
         LEFT JOIN event_journal AS e
           ON t.source_kind = 'event'
          AND e.event_id = t.source_id
-        LEFT JOIN media_journal AS m
+        LEFT JOIN media AS m
           ON t.source_kind = 'media'
-         AND m.media_id = t.source_id
+         AND m.id = t.source_id
         WHERE t.trip_local_id = ?
           AND (
             (t.source_kind = 'event' AND e.event_id IS NULL) OR
-            (t.source_kind = 'media' AND m.media_id IS NULL)
+            (t.source_kind = 'media' AND m.id IS NULL)
           )
       ) AS has_issue
       ''',
@@ -339,7 +364,7 @@ class V2LocalTimelineCompiler {
       readsFrom: {
         _database.timelineProjectionLocal,
         _database.eventJournal,
-        _database.mediaJournal,
+        _database.media,
       },
     ).getSingle();
     return row.read<int>('has_issue') == 1;
@@ -357,9 +382,15 @@ class V2LocalTimelineCompiler {
     );
     final mediaMin = await _readSingleDateTime(
       '''
-      SELECT MIN(captured_at) AS value
-      FROM media_journal
-      WHERE trip_local_id = ?
+      SELECT MIN(m.captured_at) AS value
+      FROM media m
+      INNER JOIN media_attachments ma ON ma.media_id = m.id
+      INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+      WHERE ma.target_kind = 'trip_event'
+        AND ma.role = 'capture'
+        AND ma.detached_at IS NULL
+        AND m.deleted_at IS NULL
+        AND e.trip_local_id = ?
       ''',
       <Variable<Object>>[Variable<String>(tripId)],
       'value',
@@ -411,9 +442,14 @@ class V2LocalTimelineCompiler {
         ? await _readSingleDateTime(
             '''
             SELECT MIN(e.captured_at) AS value
-            FROM media_journal AS m
-            JOIN event_journal AS e ON e.event_id = m.event_id
-            WHERE m.trip_local_id = ?
+            FROM media m
+            INNER JOIN media_attachments ma ON ma.media_id = m.id
+            INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+            WHERE ma.target_kind = 'trip_event'
+              AND ma.role = 'capture'
+              AND ma.detached_at IS NULL
+              AND m.deleted_at IS NULL
+              AND e.trip_local_id = ?
             ''',
             <Variable<Object>>[Variable<String>(tripId)],
             'value',
@@ -421,9 +457,14 @@ class V2LocalTimelineCompiler {
         : await _readSingleDateTime(
             '''
             SELECT MIN(e.captured_at) AS value
-            FROM media_journal AS m
-            JOIN event_journal AS e ON e.event_id = m.event_id
-            WHERE m.trip_local_id = ?
+            FROM media m
+            INNER JOIN media_attachments ma ON ma.media_id = m.id
+            INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+            WHERE ma.target_kind = 'trip_event'
+              AND ma.role = 'capture'
+              AND ma.detached_at IS NULL
+              AND m.deleted_at IS NULL
+              AND e.trip_local_id = ?
               AND m.updated_at > ?
             ''',
             <Variable<Object>>[
@@ -521,15 +562,25 @@ class V2LocalTimelineCompiler {
         cursor.lastMediaUpdatedAt == null
             ? '''
               SELECT DISTINCT e.session_id AS session_id
-              FROM media_journal AS m
-              JOIN event_journal AS e ON e.event_id = m.event_id
-              WHERE m.trip_local_id = ?
+              FROM media m
+              INNER JOIN media_attachments ma ON ma.media_id = m.id
+              INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+              WHERE ma.target_kind = 'trip_event'
+                AND ma.role = 'capture'
+                AND ma.detached_at IS NULL
+                AND m.deleted_at IS NULL
+                AND e.trip_local_id = ?
               '''
             : '''
               SELECT DISTINCT e.session_id AS session_id
-              FROM media_journal AS m
-              JOIN event_journal AS e ON e.event_id = m.event_id
-              WHERE m.trip_local_id = ?
+              FROM media m
+              INNER JOIN media_attachments ma ON ma.media_id = m.id
+              INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+              WHERE ma.target_kind = 'trip_event'
+                AND ma.role = 'capture'
+                AND ma.detached_at IS NULL
+                AND m.deleted_at IS NULL
+                AND e.trip_local_id = ?
                 AND m.updated_at > ?
               ''',
         cursor.lastMediaUpdatedAt == null
@@ -659,7 +710,7 @@ class V2LocalTimelineCompiler {
 
   List<TimelineProjectionLocalCompanion> _buildTimelineRows({
     required List<EventJournalRow> events,
-    required Map<String, List<MediaJournalRow>> mediaByEvent,
+    required Map<String, List<_LiveCaptureMedia>> mediaByEvent,
     required Map<String, SessionJournalRow> sessionById,
     required Map<String, V2RouteProjectionSegment> routeBySession,
     required DateTime now,
@@ -714,16 +765,17 @@ class V2LocalTimelineCompiler {
       );
 
       final mediaItems =
-          mediaByEvent[event.eventId] ?? const <MediaJournalRow>[];
-      for (final media in mediaItems) {
+          mediaByEvent[event.eventId] ?? const <_LiveCaptureMedia>[];
+      for (final entry in mediaItems) {
+        final media = entry.media;
         rows.add(
           TimelineProjectionLocalCompanion.insert(
-            entryId: 'media:${media.mediaId}',
-            tripLocalId: media.tripLocalId,
-            sessionId: media.sessionId,
+            entryId: 'media:${media.id}',
+            tripLocalId: entry.tripLocalId,
+            sessionId: entry.sessionId,
             capturedAt: media.capturedAt.toUtc(),
             sourceKind: 'media',
-            sourceId: media.mediaId,
+            sourceId: media.id,
             eventType: media.mediaType,
             bucketType: bucket,
             placeBindKind: Value(event.placeBindKind),
@@ -741,7 +793,7 @@ class V2LocalTimelineCompiler {
             renderPayloadJson: Value(
               jsonEncode(
                 <String, dynamic>{
-                  'event_id': media.eventId,
+                  'event_id': entry.eventId,
                   'local_uri': media.localUri,
                   'upload_state': media.uploadState,
                 },
@@ -849,7 +901,7 @@ class V2LocalTimelineCompiler {
     return null;
   }
 
-  String _titleForMedia(MediaJournalRow media) {
+  String _titleForMedia(MediaItem media) {
     switch (media.mediaType) {
       case 'photo':
         return 'Photo';
@@ -860,7 +912,7 @@ class V2LocalTimelineCompiler {
     }
   }
 
-  String? _subtitleForMedia(MediaJournalRow media) {
+  String? _subtitleForMedia(MediaItem media) {
     switch (media.uploadState) {
       case 'local_only':
         return 'Pending commit';
@@ -869,6 +921,54 @@ class V2LocalTimelineCompiler {
       default:
         return null;
     }
+  }
+
+  Future<List<_LiveCaptureMedia>> _listLiveCaptureMediaForTrip({
+    required String tripId,
+    DateTime? fromCapturedAt,
+  }) async {
+    final variables = <Variable<Object>>[Variable<String>(tripId)];
+    final sql = StringBuffer()
+      ..write('''
+        SELECT
+          m.*,
+          ma.target_local_id AS attachment_event_id,
+          e.session_id AS attachment_session_id,
+          e.trip_local_id AS attachment_trip_local_id
+        FROM media m
+        INNER JOIN media_attachments ma ON ma.media_id = m.id
+        INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+        WHERE ma.target_kind = 'trip_event'
+          AND ma.role = 'capture'
+          AND ma.detached_at IS NULL
+          AND m.deleted_at IS NULL
+          AND e.trip_local_id = ?
+      ''');
+    if (fromCapturedAt != null) {
+      sql.write('  AND m.captured_at >= ? ');
+      variables.add(Variable<DateTime>(fromCapturedAt.toUtc()));
+    }
+    sql.write(' ORDER BY m.captured_at ASC, m.id ASC');
+
+    final rows = await _database.customSelect(
+      sql.toString(),
+      variables: variables,
+      readsFrom: {
+        _database.media,
+        _database.mediaAttachments,
+        _database.eventJournal,
+      },
+    ).get();
+
+    return rows.map((row) {
+      final media = _database.media.map(row.data);
+      return _LiveCaptureMedia(
+        media: media,
+        eventId: row.read<String>('attachment_event_id'),
+        sessionId: row.read<String>('attachment_session_id'),
+        tripLocalId: row.read<String>('attachment_trip_local_id'),
+      );
+    }).toList(growable: false);
   }
 
   String? _extractNote(String? payloadJson) {
@@ -900,7 +1000,8 @@ class V2LocalTimelineCompiler {
       variables: variables,
       readsFrom: {
         _database.eventJournal,
-        _database.mediaJournal,
+        _database.media,
+        _database.mediaAttachments,
         _database.routePointJournal,
         _database.sessionJournal,
       },
@@ -917,7 +1018,8 @@ class V2LocalTimelineCompiler {
       variables: variables,
       readsFrom: {
         _database.eventJournal,
-        _database.mediaJournal,
+        _database.media,
+        _database.mediaAttachments,
         _database.routePointJournal,
         _database.sessionJournal,
       },

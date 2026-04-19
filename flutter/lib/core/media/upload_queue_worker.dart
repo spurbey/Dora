@@ -39,7 +39,6 @@ class UploadQueueWorker {
   static const int _maxRetryAttempts = 3;
   static const Duration _firstRetryDelay = Duration(seconds: 10);
   static const Duration _secondRetryDelay = Duration(seconds: 30);
-  static const Duration _dependencyRetryDelay = Duration(seconds: 5);
 
   bool _isRunning = false;
 
@@ -86,7 +85,7 @@ class UploadQueueWorker {
 
       await _database.mediaDao.updateUploadState(
         mediaId: task.id,
-        uploadStatus: 'compressing',
+        uploadState: 'compressing',
         uploadProgress: 0.05,
         workerSessionId: workerSessionId,
         errorMessage: null,
@@ -94,7 +93,7 @@ class UploadQueueWorker {
       debugPrint('[MEDIA_COMPRESS] start mediaId=${task.id}');
 
       final compressed = await _imageCompressor.compress(
-        inputPath: task.localPath,
+        inputPath: task.localUri,
         mediaId: task.id,
       );
       if (compressed.isTemporary) {
@@ -108,15 +107,15 @@ class UploadQueueWorker {
       final localSize = await compressed.file.length();
       await _database.mediaDao.updateLocalArtifacts(
         mediaId: task.id,
-        localPath: task.localPath,
-        thumbnailPath: generatedThumbnailPath,
+        localUri: task.localUri,
+        thumbnailLocalPath: generatedThumbnailPath,
         mimeType: _guessMimeType(compressed.file.path),
-        fileSizeBytes: localSize,
+        bytesSize: localSize,
       );
 
       await _database.mediaDao.updateUploadState(
         mediaId: task.id,
-        uploadStatus: 'uploading',
+        uploadState: 'uploading',
         uploadProgress: 0.1,
         workerSessionId: workerSessionId,
         errorMessage: null,
@@ -132,11 +131,12 @@ class UploadQueueWorker {
         return;
       }
 
-      await _ensureEntityDependenciesReady(task);
-      final remotePlaceId =
-          await _placeRepository.ensureRemotePlaceId(task.placeId);
+      final placeAttachment = await _requirePlaceAttachment(task.id);
+      final remotePlaceId = await _placeRepository.ensureRemotePlaceId(
+        placeAttachment.targetLocalId,
+      );
       debugPrint(
-          '[PLACE_ID_BIND] resolved local=${task.placeId} remote=$remotePlaceId');
+          '[PLACE_ID_BIND] resolved local=${placeAttachment.targetLocalId} remote=$remotePlaceId');
 
       final uploaded = await _uploader.uploadPhoto(
         UploadPhotoRequest(
@@ -173,12 +173,13 @@ class UploadQueueWorker {
 
       final updatedRows = await _database.mediaDao.markUploaded(
         mediaId: task.id,
-        url: uploaded.fileUrl,
-        thumbnailPath: uploaded.thumbnailUrl ?? generatedThumbnailPath,
+        remoteUrl: uploaded.fileUrl,
+        remoteThumbnailUrl: uploaded.thumbnailUrl ?? generatedThumbnailPath,
+        serverId: uploaded.mediaId,
         mimeType: uploaded.mimeType ?? _guessMimeType(compressed.file.path),
-        fileSizeBytes: uploaded.fileSizeBytes ?? localSize,
-        width: uploaded.width,
-        height: uploaded.height,
+        bytesSize: uploaded.fileSizeBytes ?? localSize,
+        widthPx: uploaded.width,
+        heightPx: uploaded.height,
         uploadedAt: uploaded.createdAt,
       );
       if (updatedRows == 0) {
@@ -192,29 +193,32 @@ class UploadQueueWorker {
           newMediaId: uploaded.mediaId,
         );
       }
+      await _database.mediaAttachmentsDao.setTargetServerId(
+        targetKind: 'place',
+        targetLocalId: placeAttachment.targetLocalId,
+        targetServerId: remotePlaceId,
+      );
       await _placeRepository.addPhotoUrlBridge(
-        localPlaceId: task.placeId,
+        localPlaceId: placeAttachment.targetLocalId,
         photoUrl: uploaded.fileUrl,
       );
       debugPrint('[MEDIA_UPLOAD] success mediaId=${task.id}');
 
       await _cleanupTemporaryFile(temporaryCompressedPath);
-    } on _DependencyDeferredException catch (error) {
+    } on _MissingAttachmentException catch (error) {
       debugPrint(
-        '[MEDIA_UPLOAD] deferred mediaId=${row.id} reason=${error.message}',
+        '[MEDIA_UPLOAD] blocked_missing_attachment mediaId=${row.id} reason=${error.message}',
       );
-      final latestBeforeDeferred =
-          await _database.mediaDao.getMediaById(row.id);
+      final latest = await _database.mediaDao.getMediaById(row.id);
       if (!_shouldPersistFailure(
-        latestBeforeDeferred,
+        latest,
         workerSessionId: workerSessionId,
       )) {
         return;
       }
-      await _database.mediaDao.markDeferred(
+      await _database.mediaDao.markBlocked(
         mediaId: row.id,
         message: error.message,
-        nextAttemptAt: DateTime.now().add(_dependencyRetryDelay),
       );
     } on PlaceIdentityException catch (error, stackTrace) {
       debugPrint(
@@ -243,13 +247,9 @@ class UploadQueueWorker {
           nextAttemptAt: nextAttemptAt,
         );
       } else {
-        await _database.mediaDao.updateUploadState(
+        await _database.mediaDao.markBlocked(
           mediaId: row.id,
-          uploadStatus: 'blocked',
-          uploadProgress: 0.0,
-          errorMessage: error.message,
-          nextAttemptAt: null,
-          workerSessionId: null,
+          message: error.message,
         );
       }
     } catch (error, stackTrace) {
@@ -298,7 +298,7 @@ class UploadQueueWorker {
     if (latest == null) {
       return false;
     }
-    if (latest.uploadStatus == 'canceled') {
+    if (latest.uploadState == 'canceled') {
       return false;
     }
     final activeSession = latest.workerSessionId;
@@ -315,7 +315,7 @@ class UploadQueueWorker {
     if (latest == null) {
       return false;
     }
-    if (latest.uploadStatus == 'canceled') {
+    if (latest.uploadState == 'canceled') {
       return false;
     }
     final activeSession = latest.workerSessionId;
@@ -332,7 +332,7 @@ class UploadQueueWorker {
     if (latest == null) {
       return false;
     }
-    if (latest.uploadStatus == 'canceled') {
+    if (latest.uploadState == 'canceled') {
       return false;
     }
     if (workerSessionId == null) {
@@ -341,14 +341,20 @@ class UploadQueueWorker {
     return latest.workerSessionId == workerSessionId;
   }
 
-  Future<void> _ensureEntityDependenciesReady(QueuedMediaTask task) async {
-    final place = await _placeRepository.getPlace(task.placeId);
-    final remotePlaceId = place?.serverPlaceId;
-    if (remotePlaceId == null || remotePlaceId.isEmpty) {
-      throw _DependencyDeferredException(
-        'Waiting for place sync (entityId=${task.placeId}).',
-      );
+  Future<MediaAttachmentRow> _requirePlaceAttachment(String mediaId) async {
+    final attachments = await _database.mediaAttachmentsDao.listForMedia(
+      mediaId,
+    );
+    for (final attachment in attachments) {
+      if (attachment.targetKind == 'place' && attachment.role == 'review') {
+        return attachment;
+      }
     }
+    throw _MissingAttachmentException(
+      'Media $mediaId was queued for upload without a place-review attachment. '
+      'The publisher must call enqueueMediaForTripPublish only after '
+      'attachments are in place.',
+    );
   }
 
   Duration _backoffForRetry(int retryCount) {
@@ -450,8 +456,8 @@ class UploadQueueWorker {
   }
 }
 
-class _DependencyDeferredException implements Exception {
-  const _DependencyDeferredException(this.message);
+class _MissingAttachmentException implements Exception {
+  const _MissingAttachmentException(this.message);
 
   final String message;
 

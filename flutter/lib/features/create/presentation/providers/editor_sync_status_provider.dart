@@ -131,21 +131,57 @@ final editorSyncStatusProvider =
         WHERE r.trip_id = ? AND r.sync_status != 'synced'
       ) AS unsynced_route_count,
 
-      -- Media upload states
+      -- Media upload states (canonical: media + media_attachments)
       (
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT m.id)
         FROM media AS m
-        WHERE m.trip_id = ? AND m.upload_status IN ('queued', 'compressing', 'uploading', 'deferred')
+        INNER JOIN media_attachments AS ma ON ma.media_id = m.id
+        WHERE ma.detached_at IS NULL
+          AND m.deleted_at IS NULL
+          AND m.upload_state IN ('queued', 'compressing', 'uploading', 'deferred')
+          AND (
+            (ma.target_kind = 'trip' AND ma.target_local_id = ?)
+            OR (ma.target_kind = 'place' AND ma.target_local_id IN (
+              SELECT id FROM places WHERE trip_id = ?
+            ))
+            OR (ma.target_kind = 'trip_event' AND ma.target_local_id IN (
+              SELECT event_id FROM event_journal WHERE trip_local_id = ?
+            ))
+          )
       ) AS pending_media_count,
       (
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT m.id)
         FROM media AS m
-        WHERE m.trip_id = ? AND m.upload_status = 'failed'
+        INNER JOIN media_attachments AS ma ON ma.media_id = m.id
+        WHERE ma.detached_at IS NULL
+          AND m.deleted_at IS NULL
+          AND m.upload_state = 'failed'
+          AND (
+            (ma.target_kind = 'trip' AND ma.target_local_id = ?)
+            OR (ma.target_kind = 'place' AND ma.target_local_id IN (
+              SELECT id FROM places WHERE trip_id = ?
+            ))
+            OR (ma.target_kind = 'trip_event' AND ma.target_local_id IN (
+              SELECT event_id FROM event_journal WHERE trip_local_id = ?
+            ))
+          )
       ) AS failed_media_count,
       (
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT m.id)
         FROM media AS m
-        WHERE m.trip_id = ? AND m.upload_status = 'blocked'
+        INNER JOIN media_attachments AS ma ON ma.media_id = m.id
+        WHERE ma.detached_at IS NULL
+          AND m.deleted_at IS NULL
+          AND m.upload_state = 'blocked'
+          AND (
+            (ma.target_kind = 'trip' AND ma.target_local_id = ?)
+            OR (ma.target_kind = 'place' AND ma.target_local_id IN (
+              SELECT id FROM places WHERE trip_id = ?
+            ))
+            OR (ma.target_kind = 'trip_event' AND ma.target_local_id IN (
+              SELECT event_id FROM event_journal WHERE trip_local_id = ?
+            ))
+          )
       ) AS blocked_media_count,
 
       -- V2 session state: active or paused sessions
@@ -173,11 +209,17 @@ final editorSyncStatusProvider =
 
       -- First blocked media place for UI hint
       (
-        SELECT m.place_id
+        SELECT ma.target_local_id
         FROM media AS m
-        WHERE m.trip_id = ?
-          AND m.upload_status = 'blocked'
-          AND m.place_id IS NOT NULL
+        INNER JOIN media_attachments AS ma ON ma.media_id = m.id
+        WHERE m.upload_state = 'blocked'
+          AND m.deleted_at IS NULL
+          AND ma.detached_at IS NULL
+          AND ma.target_kind = 'place'
+          AND ma.role = 'review'
+          AND ma.target_local_id IN (
+            SELECT id FROM places WHERE trip_id = ?
+          )
         ORDER BY m.local_updated_at DESC
         LIMIT 1
       ) AS first_blocked_media_place_id
@@ -186,9 +228,15 @@ final editorSyncStatusProvider =
       Variable<String>(tripId), // trip_synced
       Variable<String>(tripId), // unsynced_place_count
       Variable<String>(tripId), // unsynced_route_count
-      Variable<String>(tripId), // pending_media_count
-      Variable<String>(tripId), // failed_media_count
-      Variable<String>(tripId), // blocked_media_count
+      Variable<String>(tripId), // pending_media: trip attachment
+      Variable<String>(tripId), // pending_media: place attachment via places
+      Variable<String>(tripId), // pending_media: event attachment via events
+      Variable<String>(tripId), // failed_media: trip attachment
+      Variable<String>(tripId), // failed_media: place attachment
+      Variable<String>(tripId), // failed_media: event attachment
+      Variable<String>(tripId), // blocked_media: trip attachment
+      Variable<String>(tripId), // blocked_media: place attachment
+      Variable<String>(tripId), // blocked_media: event attachment
       Variable<String>(tripId), // active_session_count
       Variable<String>(tripId), // uncommitted_session_count
       Variable<String>(tripId), // is_publishing
@@ -199,6 +247,8 @@ final editorSyncStatusProvider =
       db.places,
       db.routes,
       db.media,
+      db.mediaAttachments,
+      db.eventJournal,
       db.sessionJournal,
       db.tripPublishState,
     },

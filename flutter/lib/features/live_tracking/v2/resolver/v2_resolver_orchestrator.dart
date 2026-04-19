@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/core/storage/daos/media_attachments_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/network/network_probe.dart';
 import 'package:dora/core/utils/logger.dart';
@@ -19,12 +21,14 @@ class V2ResolverOrchestrator {
     required V2EventJournalRepository eventRepository,
     required V2ResolverJournalRepository resolverRepository,
     required V2ResolverClient resolverClient,
+    MediaAttachmentsDao? mediaAttachmentsDao,
     V2ResolverDecisionReducer reducer = const V2ResolverDecisionReducer(),
     Uuid? uuid,
     DateTime Function()? now,
   })  : _eventRepository = eventRepository,
         _resolverRepository = resolverRepository,
         _resolverClient = resolverClient,
+        _mediaAttachmentsDao = mediaAttachmentsDao,
         _reducer = reducer,
         _uuid = uuid ?? const Uuid(),
         _now = now ?? DateTime.now;
@@ -32,6 +36,7 @@ class V2ResolverOrchestrator {
   final V2EventJournalRepository _eventRepository;
   final V2ResolverJournalRepository _resolverRepository;
   final V2ResolverClient _resolverClient;
+  final MediaAttachmentsDao? _mediaAttachmentsDao;
   final V2ResolverDecisionReducer _reducer;
   final Uuid _uuid;
   final DateTime Function() _now;
@@ -99,6 +104,14 @@ class V2ResolverOrchestrator {
       resolvedAt: now,
       updatedAt: now,
     );
+    final candidatePlaceId = candidate.providerPlaceId;
+    if (candidatePlaceId != null && candidatePlaceId.isNotEmpty) {
+      await _mirrorPlaceAttachmentForEvent(
+        eventId: eventId,
+        placeLocalId: candidatePlaceId,
+        now: now,
+      );
+    }
     Logger.info(
       'resolver_state_transition',
       <String, Object?>{
@@ -121,17 +134,23 @@ class V2ResolverOrchestrator {
       return;
     }
     final now = _now().toUtc();
+    final trimmedPlaceId = placeId.trim();
     await _eventRepository.updateResolverOutcome(
       eventId: eventId,
       resolverState: 'place_bound',
       decisionSource: 'user_manual_place',
       manualLock: 1,
       placeBindKind: 'trip_place_local',
-      placeBindId: placeId.trim(),
+      placeBindId: trimmedPlaceId,
       placeBindName: placeName.trim(),
       geotagFinalReason: null,
       resolvedAt: now,
       updatedAt: now,
+    );
+    await _mirrorPlaceAttachmentForEvent(
+      eventId: eventId,
+      placeLocalId: trimmedPlaceId,
+      now: now,
     );
     Logger.info(
       'resolver_state_transition',
@@ -381,6 +400,15 @@ class V2ResolverOrchestrator {
         resolvedAt: decision.resolverState == 'place_bound' ? now : null,
         updatedAt: now,
       );
+      if (decision.resolverState == 'place_bound' &&
+          decision.placeBindId != null &&
+          decision.placeBindId!.isNotEmpty) {
+        await _mirrorPlaceAttachmentForEvent(
+          eventId: refreshed.eventId,
+          placeLocalId: decision.placeBindId!,
+          now: now,
+        );
+      }
       await _recordAttempt(
         event: refreshed,
         attempts: attempts,
@@ -464,6 +492,38 @@ class V2ResolverOrchestrator {
         isTopTied: isTopTied,
         rawJson: jsonEncode(candidate.rawJson),
         createdAt: _now().toUtc(),
+      );
+    }
+  }
+
+  Future<void> _mirrorPlaceAttachmentForEvent({
+    required String eventId,
+    required String placeLocalId,
+    required DateTime now,
+  }) async {
+    final dao = _mediaAttachmentsDao;
+    if (dao == null) {
+      return;
+    }
+    if (placeLocalId.isEmpty) {
+      return;
+    }
+    final eventAttachments = await dao.listForTarget(
+      targetKind: 'trip_event',
+      targetLocalId: eventId,
+      role: 'capture',
+    );
+    for (final attachment in eventAttachments) {
+      await dao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: _uuid.v4(),
+          mediaId: attachment.mediaId,
+          targetKind: 'place',
+          targetLocalId: placeLocalId,
+          role: 'review',
+          source: const Value('place_resolution'),
+          attachedAt: now,
+        ),
       );
     }
   }

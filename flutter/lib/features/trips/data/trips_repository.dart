@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart' as crypto;
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -44,13 +44,15 @@ class TripsRepository {
     this._db,
     this._api,
     this._authService,
-    this._liveTrackingApi,
-  );
+    this._liveTrackingApi, {
+    Future<void> Function(String tripId)? enqueueEditorMediaForPublish,
+  }) : _enqueueEditorMediaForPublish = enqueueEditorMediaForPublish;
 
   final AppDatabase _db;
   final TripsApi _api;
   final AuthService _authService;
   final LiveTrackingApi _liveTrackingApi;
+  final Future<void> Function(String tripId)? _enqueueEditorMediaForPublish;
 
   static const int _pageSize = 50;
 
@@ -415,6 +417,12 @@ class TripsRepository {
     }
 
     try {
+      // Save gate above guarantees places/routes have been synced, so editor
+      // media attached to this trip can now be uploaded. Enqueue before we
+      // flip visibility public so the media uploads are in flight alongside
+      // the publish.
+      await _enqueueEditorMediaForPublish?.call(id);
+
       final updated = await updateVisibility(id, 'public');
       final now = DateTime.now().toUtc();
       await _upsertTripPublishState(
@@ -482,9 +490,21 @@ class TripsRepository {
             .go();
         await (_db.delete(_db.routes)..where((t) => t.tripId.isIn(tripIds)))
             .go();
-        await (_db.delete(_db.media)..where((t) => t.tripId.isIn(tripIds)))
-            .go();
       }
+      // Clear media and their attachments for this user. Media is keyed by
+      // ownerUserId in the canonical schema, not by tripId, so scope by owner.
+      await (_db.delete(_db.mediaAttachments)
+            ..where(
+              (a) => a.mediaId.isInQuery(
+                _db.selectOnly(_db.media)
+                  ..addColumns([_db.media.id])
+                  ..where(_db.media.ownerUserId.equals(userId)),
+              ),
+            ))
+          .go();
+      await (_db.delete(_db.media)
+            ..where((m) => m.ownerUserId.equals(userId)))
+          .go();
       await (_db.delete(_db.trips)..where((t) => t.userId.equals(userId))).go();
     });
   }
@@ -690,7 +710,7 @@ class TripsRepository {
         await _db.sessionJournalDao.listSessionsForTrip(tripLocalId);
     final events =
         await _db.eventJournalDao.listEventsForTripChronological(tripLocalId);
-    final media = await _db.mediaJournalDao.listMediaForTrip(tripLocalId);
+    final media = await _listLiveCaptureMediaForTrip(tripLocalId);
     final routePoints = await _db.routePointJournalDao.listPointsForTrip(
       tripLocalId,
     );
@@ -724,6 +744,7 @@ class TripsRepository {
         }
         return a.mediaId.compareTo(b.mediaId);
       });
+    // _listLiveCaptureMediaForTrip already scopes to capture-role attachments.
     final normalizedRoutePoints = routePoints.toList()
       ..sort((a, b) {
         final byCapturedAt = a.capturedAt.compareTo(b.capturedAt);
@@ -865,7 +886,7 @@ class TripsRepository {
     }
   }
 
-  Map<String, dynamic> _mediaPayload(MediaJournalRow row) {
+  Map<String, dynamic> _mediaPayload(_TripMediaRow row) {
     return <String, dynamic>{
       'media_id': row.mediaId,
       'event_id': row.eventId,
@@ -880,6 +901,66 @@ class TripsRepository {
       'created_at': _isoUtc(row.createdAt),
       'updated_at': _isoUtc(row.updatedAt),
     };
+  }
+
+  Future<List<_TripMediaRow>> _listLiveCaptureMediaForTrip(
+    String tripLocalId,
+  ) async {
+    final rows = await _db.customSelect(
+      '''
+      SELECT
+        m.id AS media_id,
+        ma.target_local_id AS event_id,
+        e.session_id AS session_id,
+        e.trip_local_id AS trip_local_id,
+        m.media_type AS media_type,
+        m.local_uri AS local_uri,
+        m.mime_type AS mime_type,
+        m.bytes_size AS bytes_size,
+        m.width_px AS width_px,
+        m.height_px AS height_px,
+        m.duration_ms AS duration_ms,
+        m.captured_at AS captured_at,
+        m.created_at AS created_at,
+        m.updated_at AS updated_at
+      FROM media m
+      INNER JOIN media_attachments ma ON ma.media_id = m.id
+      INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+      WHERE ma.target_kind = 'trip_event'
+        AND ma.role = 'capture'
+        AND ma.detached_at IS NULL
+        AND m.deleted_at IS NULL
+        AND e.trip_local_id = ?
+      ORDER BY m.captured_at ASC, m.id ASC
+      ''',
+      variables: [Variable<String>(tripLocalId)],
+      readsFrom: {
+        _db.media,
+        _db.mediaAttachments,
+        _db.eventJournal,
+      },
+    ).get();
+
+    return rows
+        .map(
+          (row) => _TripMediaRow(
+            mediaId: row.read<String>('media_id'),
+            eventId: row.read<String>('event_id'),
+            sessionId: row.read<String>('session_id'),
+            tripLocalId: row.read<String>('trip_local_id'),
+            mediaType: row.read<String>('media_type'),
+            localUri: row.read<String?>('local_uri') ?? '',
+            mimeType: row.read<String?>('mime_type'),
+            bytesSize: row.read<int?>('bytes_size'),
+            widthPx: row.read<int?>('width_px'),
+            heightPx: row.read<int?>('height_px'),
+            durationMs: row.read<int?>('duration_ms'),
+            capturedAt: row.read<DateTime>('captured_at'),
+            createdAt: row.read<DateTime>('created_at'),
+            updatedAt: row.read<DateTime>('updated_at'),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Map<String, dynamic> _routePointPayload(RoutePointJournalRow row) {
@@ -899,7 +980,7 @@ class TripsRepository {
   }
 
   Future<List<_MediaManifestItem>> _buildMediaManifest(
-    List<MediaJournalRow> mediaRows,
+    List<_TripMediaRow> mediaRows,
   ) async {
     final manifest = <_MediaManifestItem>[];
     final sortedRows = mediaRows.toList()
@@ -1189,7 +1270,7 @@ class _TripSnapshotPayload {
   final List<Map<String, dynamic>> events;
   final List<Map<String, dynamic>> media;
   final List<Map<String, dynamic>> routePoints;
-  final List<MediaJournalRow> mediaRows;
+  final List<_TripMediaRow> mediaRows;
   final DateTime? startedAt;
   final DateTime? endedAt;
 }
@@ -1226,4 +1307,38 @@ class TripsRepositoryException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class _TripMediaRow {
+  const _TripMediaRow({
+    required this.mediaId,
+    required this.eventId,
+    required this.sessionId,
+    required this.tripLocalId,
+    required this.mediaType,
+    required this.localUri,
+    required this.mimeType,
+    required this.bytesSize,
+    required this.widthPx,
+    required this.heightPx,
+    required this.durationMs,
+    required this.capturedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String mediaId;
+  final String eventId;
+  final String sessionId;
+  final String tripLocalId;
+  final String mediaType;
+  final String localUri;
+  final String? mimeType;
+  final int? bytesSize;
+  final int? widthPx;
+  final int? heightPx;
+  final int? durationMs;
+  final DateTime capturedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 }

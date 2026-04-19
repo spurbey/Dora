@@ -355,12 +355,12 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
       previews.add(
         _PhotoPreview(
           imageProvider: provider,
-          uploadStatus: item.uploadStatus,
+          uploadStatus: item.uploadState,
           mediaItem: item,
         ),
       );
 
-      final remoteUrl = item.url;
+      final remoteUrl = item.remoteUrl;
       if (remoteUrl != null && remoteUrl.isNotEmpty) {
         seenUrls.add(remoteUrl);
       }
@@ -383,7 +383,7 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
   }
 
   ImageProvider<Object>? _imageProviderForMedia(MediaItem item) {
-    final thumb = item.thumbnailPath;
+    final thumb = item.thumbnailLocalPath;
     if (thumb != null && thumb.isNotEmpty) {
       if (thumb.startsWith('http')) {
         return NetworkImage(thumb);
@@ -394,15 +394,15 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
       }
     }
 
-    final localPath = item.localPath;
-    if (localPath != null && localPath.isNotEmpty) {
-      final file = File(localPath);
+    final localUri = item.localUri;
+    if (localUri != null && localUri.isNotEmpty) {
+      final file = File(localUri);
       if (file.existsSync()) {
         return FileImage(file);
       }
     }
 
-    final url = item.url;
+    final url = item.remoteUrl;
     if (url != null && url.isNotEmpty) {
       return NetworkImage(url);
     }

@@ -25,10 +25,10 @@ class UploadQueueItem extends StatelessWidget {
     final statusText = _statusText(item);
     final messageText = item.errorMessage;
     final showErrorText =
-        (item.uploadStatus == 'failed' || item.uploadStatus == 'blocked') &&
+        (item.uploadState == 'failed' || item.uploadState == 'blocked') &&
             messageText != null &&
             messageText.isNotEmpty;
-    final showInfoText = item.uploadStatus == 'deferred' &&
+    final showInfoText = item.uploadState == 'deferred' &&
         messageText != null &&
         messageText.isNotEmpty;
     return Container(
@@ -52,7 +52,7 @@ class UploadQueueItem extends StatelessWidget {
                 Text(
                   statusText,
                   style: AppTypography.caption.copyWith(
-                    color: _statusColor(item.uploadStatus),
+                    color: _statusColor(item.uploadState),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -97,7 +97,7 @@ class UploadQueueItem extends StatelessWidget {
         child: const Text('Remove'),
       ),
     ];
-    if (item.uploadStatus == 'failed') {
+    if (item.uploadState == 'failed') {
       actions.insert(
         0,
         TextButton(
@@ -105,7 +105,7 @@ class UploadQueueItem extends StatelessWidget {
           child: const Text('Retry'),
         ),
       );
-    } else if (item.uploadStatus == 'blocked') {
+    } else if (item.uploadState == 'blocked') {
       actions.insert(
         0,
         TextButton(
@@ -113,10 +113,10 @@ class UploadQueueItem extends StatelessWidget {
           child: const Text('Retry'),
         ),
       );
-    } else if (item.uploadStatus == 'queued' ||
-        item.uploadStatus == 'deferred' ||
-        item.uploadStatus == 'compressing' ||
-        item.uploadStatus == 'uploading') {
+    } else if (item.uploadState == 'queued' ||
+        item.uploadState == 'deferred' ||
+        item.uploadState == 'compressing' ||
+        item.uploadState == 'uploading') {
       actions.insert(
         0,
         TextButton(
@@ -129,7 +129,7 @@ class UploadQueueItem extends StatelessWidget {
   }
 
   String _statusText(MediaItem item) {
-    final status = item.uploadStatus;
+    final status = item.uploadState;
     if (status == 'uploading') {
       final percentage = (item.uploadProgress * 100).clamp(0, 100).round();
       return 'Uploading $percentage%';

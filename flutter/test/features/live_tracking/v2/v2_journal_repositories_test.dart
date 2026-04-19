@@ -2,14 +2,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
-import 'package:dora/core/storage/daos/v2/media_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/session_journal_dao.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/live_tracking/v2/data/event_journal_repository.dart';
-import 'package:dora/features/live_tracking/v2/data/media_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/resolver_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/route_point_journal_repository.dart';
 import 'package:dora/features/live_tracking/v2/data/session_journal_repository.dart';
@@ -20,7 +18,6 @@ void main() {
     late V2SessionJournalRepository sessionRepository;
     late V2RoutePointJournalRepository routePointRepository;
     late V2EventJournalRepository eventRepository;
-    late V2MediaJournalRepository mediaRepository;
     late V2ResolverJournalRepository resolverRepository;
 
     setUp(() {
@@ -30,7 +27,6 @@ void main() {
       routePointRepository =
           V2RoutePointJournalRepository(RoutePointJournalDao(database));
       eventRepository = V2EventJournalRepository(EventJournalDao(database));
-      mediaRepository = V2MediaJournalRepository(MediaJournalDao(database));
       resolverRepository = V2ResolverJournalRepository(
         resolverCandidateDao: ResolverCandidateJournalDao(database),
         resolverAttemptDao: ResolverAttemptJournalDao(database),
@@ -82,17 +78,6 @@ void main() {
         updatedAt: now,
         eventSeq: 1,
       );
-      await mediaRepository.upsertMedia(
-        mediaId: 'media-1',
-        eventId: 'event-1',
-        sessionId: 'session-1',
-        tripLocalId: 'trip-1',
-        mediaType: 'photo',
-        localUri: '/tmp/photo.jpg',
-        capturedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      );
       await resolverRepository.upsertCandidate(
         candidateId: 'candidate-1',
         eventId: 'event-1',
@@ -120,7 +105,6 @@ void main() {
           await routePointRepository.listPointsForSession('session-1');
       final unresolved =
           await eventRepository.listUnresolvedEventsForTrip('trip-1');
-      final media = await mediaRepository.listMediaForEvent('event-1');
       final candidates =
           await resolverRepository.listLatestCandidatesForEvent('event-1');
       final attempts = await resolverRepository.listAttemptsForEvent('event-1');
@@ -130,50 +114,15 @@ void main() {
       expect(points.length, 1);
       expect(unresolved.length, 1);
       expect(unresolved.first.eventId, 'event-1');
-      expect(media.length, 1);
       expect(candidates.length, 1);
       expect(candidates.first.name, 'Nearby Place');
       expect(attempts.length, 1);
       expect(attempts.first.resultKind, 'review_required');
     });
 
-    test('repositories remain local-only without api dependencies', () async {
-      final now = DateTime.utc(2026, 4, 10, 13, 30);
-      await sessionRepository.upsertSession(
-        sessionId: 'session-local-only',
-        tripLocalId: 'trip-local-only',
-        controlState: 'planned',
-        sessionSeq: 1,
-        deviceId: 'device-1',
-        createdAt: now,
-        updatedAt: now,
-      );
-      final session =
-          await sessionRepository.getSessionById('session-local-only');
-      expect(session, isNotNull);
-
-      await mediaRepository.upsertMedia(
-        mediaId: 'media-local-only',
-        eventId: 'event-local-only',
-        sessionId: 'session-local-only',
-        tripLocalId: 'trip-local-only',
-        mediaType: 'photo',
-        localUri: '/tmp/local-only.jpg',
-        capturedAt: now,
-        createdAt: now,
-        updatedAt: now,
-      );
-      await mediaRepository.markUploadState(
-        mediaId: 'media-local-only',
-        uploadState: 'staged_for_commit',
-        uploadRef: 'local-ref',
-      );
-      final media = await mediaRepository.getMediaById('media-local-only');
-      expect(media, isNotNull);
-      expect(media!.uploadState, 'staged_for_commit');
-
-      // Verify V2 repositories work purely local-only without sync_tasks.
-      // sync_tasks table was removed in V22 migration as part of V1→V2.
+    test('sync_tasks table stays dropped in canonical schema', () async {
+      // sync_tasks was removed in V22 migration as part of the V1→V2 cleanup.
+      // This test makes sure no stray migration re-creates it.
       final rows = await database.customSelect(
         '''
         SELECT name

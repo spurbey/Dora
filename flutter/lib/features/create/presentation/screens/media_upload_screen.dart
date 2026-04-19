@@ -50,7 +50,7 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
     final queueAsync = ref.watch(placeMediaProvider(widget.placeId));
     final pendingAsync = ref.watch(placePendingUploadCountProvider(widget.placeId));
     final blockedCount = queueAsync.maybeWhen(
-      data: (items) => items.where((item) => item.uploadStatus == 'blocked').length,
+      data: (items) => items.where((item) => item.uploadState == 'blocked').length,
       orElse: () => 0,
     );
 

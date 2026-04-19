@@ -126,6 +126,11 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     OPENROUTER_MODEL: str = "openai/gpt-oss-120b:free"
     BRIGHTDATA_WS_ENDPOINT: Optional[str] = None
+    # Debug-only switch to run backend gmaps scraper against local Chromium
+    # instead of BrightData CDP. Keep disabled in normal operation.
+    ADVISORY_GMAPS_LOCAL_DEBUG: bool = False
+    ADVISORY_GMAPS_LOCAL_HEADLESS: bool = False
+    ADVISORY_GMAPS_LOCAL_SLOWMO_MS: int = 0
 
     # Upstash Redis (advisory session cache)
     UPSTASH_REDIS_URL: Optional[str] = None

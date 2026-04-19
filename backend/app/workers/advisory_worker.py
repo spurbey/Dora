@@ -507,7 +507,7 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
         if review_calls_used + per_poi > reviews_limit:
             break
         try:
-            revs = await scrape_gmaps_reviews(p.url, limit=per_poi)
+            revs = await scrape_gmaps_reviews(p.name, limit=per_poi)
         except Exception as exc:  # noqa: BLE001
             logger.warning("gmaps review fetch failed for %s: %s", p.name, exc)
             revs = []

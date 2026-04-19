@@ -29,7 +29,7 @@ import contextlib
 import logging
 import re
 import urllib.parse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 
 try:
@@ -149,27 +149,46 @@ def _search_url(query: str, location: Optional[str] = None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _brightdata_ready() -> bool:
+def _use_local_browser() -> bool:
+    return bool(settings.ADVISORY_GMAPS_LOCAL_DEBUG)
+
+
+def _scraper_runtime_ready() -> bool:
+    if async_playwright is None:
+        logger.warning("playwright.async_api unavailable - gmaps_scraper disabled")
+        return False
+    if _use_local_browser():
+        return True
     ep = (settings.BRIGHTDATA_WS_ENDPOINT or "").strip()
     if not ep:
-        return False
-    if async_playwright is None:
-        logger.warning("playwright.async_api unavailable — gmaps_scraper disabled")
         return False
     return True
 
 
 @contextlib.asynccontextmanager
 async def _open_browser() -> AsyncIterator[Browser]:
-    """Open a BrightData CDP connection; yield a Browser. Raises on missing config."""
+    """Open browser session (BrightData CDP by default, local Chromium in debug mode)."""
     ep = settings.BRIGHTDATA_WS_ENDPOINT or ""
+    use_local = _use_local_browser()
+    slow_mo_ms = max(0, int(settings.ADVISORY_GMAPS_LOCAL_SLOWMO_MS or 0))
     async with async_playwright() as pw:  # type: ignore[misc]
-        browser = await pw.chromium.connect_over_cdp(ep)
+        if use_local:
+            browser = await pw.chromium.launch(
+                headless=bool(settings.ADVISORY_GMAPS_LOCAL_HEADLESS),
+                slow_mo=slow_mo_ms,
+            )
+            logger.info(
+                "gmaps scraper runtime=local_chromium headless=%s slow_mo_ms=%s",
+                bool(settings.ADVISORY_GMAPS_LOCAL_HEADLESS),
+                slow_mo_ms,
+            )
+        else:
+            browser = await pw.chromium.connect_over_cdp(ep)
+            logger.debug("gmaps scraper runtime=brightdata_cdp")
         try:
             yield browser
         finally:
             await browser.close()
-
 
 async def _new_page(browser: Browser) -> Page:
     ctx = await browser.new_context(
@@ -205,8 +224,20 @@ async def _dismiss_consent(page: Page) -> None:
 
 async def _extract_search_cards(page: Page, max_pois: int) -> list[POISearchResult]:
     """Parse the left results panel for POI cards."""
-    await page.wait_for_selector("a.hfpxzc", timeout=_SEARCH_TIMEOUT_MS)
+    with contextlib.suppress(PlaywrightTimeoutError):
+        await page.wait_for_selector(
+            "h1.DUwDvf, a.hfpxzc, div.Nv2PK", timeout=_SEARCH_TIMEOUT_MS
+        )
+
     anchors = await page.query_selector_all("a.hfpxzc")
+    if not anchors:
+        cards = await page.query_selector_all("div.Nv2PK")
+        for card in cards:
+            with contextlib.suppress(Exception):
+                link = await card.query_selector("a.hfpxzc")
+                if link:
+                    anchors.append(link)
+
     out: list[POISearchResult] = []
     seen: set[str] = set()
 
@@ -282,34 +313,156 @@ async def _extract_search_cards(page: Page, max_pois: int) -> list[POISearchResu
     return out
 
 
+async def _extract_single_place_result(page: Page) -> Optional[POISearchResult]:
+    """Build one POI from a direct-place page hit when no left-panel list exists."""
+    title_el = await page.query_selector("h1.DUwDvf") or await page.query_selector("h1")
+    if not title_el:
+        return None
+
+    name = (await title_el.inner_text()).strip()
+    if not name:
+        return None
+
+    url = page.url or ""
+    place_id = _extract_place_id(url)
+    lat, lng = _extract_coords(url)
+
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
+    category: Optional[str] = None
+
+    meta_el = await page.query_selector("span.MW4etd")
+    if meta_el:
+        with contextlib.suppress(Exception):
+            rating = float((await meta_el.inner_text()).strip())
+
+    count_el = await page.query_selector("span.UY7F9")
+    if count_el:
+        with contextlib.suppress(Exception):
+            txt = (await count_el.inner_text()).strip().strip("()").replace(",", "")
+            review_count = int(re.sub(r"[^0-9]", "", txt) or 0) or None
+
+    cat_el = await page.query_selector("div.W4Efsd span")
+    if cat_el:
+        cat_txt = (await cat_el.inner_text()).strip()
+        if cat_txt and "·" not in cat_txt:
+            category = cat_txt
+
+    return POISearchResult(
+        place_id=place_id,
+        name=name,
+        category=category,
+        rating=rating,
+        review_count=review_count,
+        lat=lat,
+        lng=lng,
+        url=url,
+    )
+
+
+async def _search_from_maps_home(
+    page: Page, query: str, location: Optional[str] = None
+) -> bool:
+    """Navigate to Maps home and run a search by typing into the search box."""
+    q = query if not location else f"{query} {location}"
+    await page.goto(
+        "https://www.google.com/maps?hl=en",
+        wait_until="domcontentloaded",
+        timeout=_SEARCH_TIMEOUT_MS,
+    )
+    await _dismiss_consent(page)
+
+    box = None
+    for sel in (
+        "input#searchboxinput",
+        "input[name='q']",
+        "input[aria-label*='Search']",
+    ):
+        box = await page.query_selector(sel)
+        if box:
+            break
+    if not box:
+        logger.warning("gmaps search box not found")
+        return False
+
+    await box.click()
+    await box.fill("")
+    await page.wait_for_timeout(200)
+    await box.type(q, delay=35)
+    await page.wait_for_timeout(300)
+    await page.keyboard.press("Enter")
+
+    try:
+        await page.wait_for_selector(
+            "h1.DUwDvf, a.hfpxzc, div.Nv2PK", timeout=_SEARCH_TIMEOUT_MS
+        )
+    except PlaywrightTimeoutError:
+        logger.warning("gmaps search results did not render for %r", q)
+        return False
+
+    with contextlib.suppress(PlaywrightTimeoutError):
+        await page.wait_for_load_state("networkidle", timeout=_NETWORK_IDLE_TIMEOUT_MS)
+    await page.wait_for_timeout(700)
+    return True
+
+
+def _is_retriable_scrape_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    retriable_tokens = (
+        "no_peer",
+        "no_peers",
+        "timeout",
+        "timed out",
+        "econnreset",
+        "connection closed",
+        "net::err",
+        "protocol error",
+    )
+    return any(token in msg for token in retriable_tokens)
+
+
 async def scrape_gmaps_search(
     query: str, location: Optional[str] = None, max_pois: int = 20
 ) -> list[POISearchResult]:
     """Return up to `max_pois` POIs for `query` (+ optional `location` suffix)."""
     if not query.strip():
         return []
-    if not _brightdata_ready():
-        logger.warning("BRIGHTDATA_WS_ENDPOINT missing — scrape_gmaps_search no-op")
+    if not _scraper_runtime_ready():
+        logger.warning("gmaps runtime unavailable — scrape_gmaps_search no-op")
         return []
 
-    url = _search_url(query, location)
+    attempts = 3
     async with _SESSION_SEMAPHORE:
-        try:
-            async with _open_browser() as browser:
-                page = await _new_page(browser)
-                try:
-                    await page.goto(url, timeout=_SEARCH_TIMEOUT_MS)
-                    await _dismiss_consent(page)
-                    with contextlib.suppress(PlaywrightTimeoutError):
-                        await page.wait_for_load_state(
-                            "networkidle", timeout=_NETWORK_IDLE_TIMEOUT_MS
-                        )
-                    return await _extract_search_cards(page, max_pois=max_pois)
-                finally:
-                    await page.context.close()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("scrape_gmaps_search failed for %r: %s", query, exc)
-            return []
+        for attempt in range(1, attempts + 1):
+            try:
+                async with _open_browser() as browser:
+                    page = await _new_page(browser)
+                    try:
+                        if not await _search_from_maps_home(page, query, location):
+                            return []
+                        pois = await _extract_search_cards(page, max_pois=max_pois)
+                        if pois:
+                            return pois
+                        single = await _extract_single_place_result(page)
+                        return [single] if single else []
+                    finally:
+                        await page.context.close()
+            except Exception as exc:  # noqa: BLE001
+                if attempt < attempts and _is_retriable_scrape_error(exc):
+                    backoff_s = 1.0 * attempt
+                    logger.warning(
+                        "scrape_gmaps_search retrying query=%r attempt=%d/%d backoff=%.1fs error=%s",
+                        query,
+                        attempt,
+                        attempts,
+                        backoff_s,
+                        exc,
+                    )
+                    await asyncio.sleep(backoff_s)
+                    continue
+                logger.warning("scrape_gmaps_search failed for %r: %s", query, exc)
+                return []
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -319,31 +472,93 @@ async def scrape_gmaps_search(
 
 async def _open_reviews_tab(page: Page) -> bool:
     """Click the Reviews tab on a place page. Returns True if it opened."""
-    # Primary selector: aria-label starts with "Reviews for" (place pages).
-    candidates = [
-        "button[aria-label^='Reviews for']",
-        "button[role='tab'][aria-label^='Reviews']",
-    ]
-    for sel in candidates:
+    buttons = await page.query_selector_all("button")
+    for btn in buttons:
         try:
-            btn = await page.query_selector(sel)
-            if not btn:
+            if not await btn.is_visible():
                 continue
-            await btn.click(timeout=2500)
-            await page.wait_for_selector(
-                "div[data-review-id]", timeout=_REVIEW_TIMEOUT_MS
-            )
-            return True
+            aria = (await btn.get_attribute("aria-label") or "").lower()
+            role = (await btn.get_attribute("role") or "").lower()
+            text = (await btn.inner_text() or "").strip().lower()
+
+            is_reviews = False
+            if aria.startswith("reviews for") or aria.startswith("reviews"):
+                if "write" not in aria and "add" not in aria:
+                    is_reviews = True
+            if role == "tab" and "review" in (aria or text):
+                if "write" not in aria:
+                    is_reviews = True
+
+            if is_reviews:
+                await btn.click(timeout=3000)
+                await page.wait_for_selector(
+                    "div[data-review-id]", timeout=_REVIEW_TIMEOUT_MS
+                )
+                return True
         except (PlaywrightTimeoutError, Exception):
             continue
     # Fallback: maybe we're already on the Reviews tab.
     try:
-        await page.wait_for_selector(
-            "div[data-review-id]", timeout=4000
-        )
+        await page.wait_for_selector("div[data-review-id]", timeout=4000)
         return True
     except PlaywrightTimeoutError:
         return False
+
+
+async def _search_navigate_to_place(page: Page, place_name: str) -> bool:
+    """Use search-click flow to reach a place page (more reliable on BrightData)."""
+    await page.goto(
+        "https://www.google.com/maps?hl=en",
+        wait_until="domcontentloaded",
+        timeout=_SEARCH_TIMEOUT_MS,
+    )
+    await _dismiss_consent(page)
+
+    box = None
+    for sel in ("input#searchboxinput", 'input[name="q"]', "input[aria-label*='Search']"):
+        box = await page.query_selector(sel)
+        if box:
+            break
+    if not box:
+        logger.warning("gmaps search box not found")
+        return False
+
+    await box.click()
+    await box.fill("")
+    await page.wait_for_timeout(200)
+    await box.type(place_name, delay=40)
+    await page.wait_for_timeout(300)
+    await page.keyboard.press("Enter")
+
+    # Wait for place page or search results to render
+    try:
+        await page.wait_for_selector(
+            "h1.DUwDvf, a.hfpxzc, div.Nv2PK", timeout=15_000
+        )
+    except PlaywrightTimeoutError:
+        logger.warning("gmaps search results did not render for %r", place_name)
+        return False
+
+    await page.wait_for_timeout(1000)
+
+    # Check if we landed directly on a place page
+    title_el = await page.query_selector("h1.DUwDvf")
+    if title_el:
+        return True
+
+    # Click first search result
+    for sel in ("a.hfpxzc", "div.Nv2PK"):
+        results = await page.query_selector_all(sel)
+        for r in results[:3]:
+            try:
+                if await r.is_visible():
+                    await r.click()
+                    await page.wait_for_selector("h1.DUwDvf", timeout=10_000)
+                    return True
+            except (PlaywrightTimeoutError, Exception):
+                continue
+
+    return False
 
 
 async def _extract_visible_reviews(page: Page) -> list[Review]:
@@ -404,39 +619,59 @@ async def _extract_visible_reviews(page: Page) -> list[Review]:
 
 
 async def scrape_gmaps_reviews(
-    place_url: str, limit: int = 4
+    place_name: str, limit: int = 4
 ) -> list[Review]:
-    """Return up to `limit` reviews for the given place URL.
+    """Return up to `limit` reviews for the given place.
 
+    Uses search-click flow (Maps home → search → click result → Reviews tab)
+    which is more reliable on BrightData's cloud browser than direct URL nav.
     Only fetches what's visible on first render — no scroll pagination.
-    For advisory use, 3-4 reviews is the entire need.
     """
-    if not place_url or not place_url.startswith("http"):
+    if not place_name or not place_name.strip():
         return []
-    if not _brightdata_ready():
-        logger.warning("BRIGHTDATA_WS_ENDPOINT missing — scrape_gmaps_reviews no-op")
+    if not _scraper_runtime_ready():
+        logger.warning("gmaps runtime unavailable — scrape_gmaps_reviews no-op")
         return []
 
     effective_limit = max(1, min(int(limit or 1), 20))
 
+    attempts = 3
     async with _SESSION_SEMAPHORE:
-        try:
-            async with _open_browser() as browser:
-                page = await _new_page(browser)
-                try:
-                    await page.goto(place_url, timeout=_REVIEW_TIMEOUT_MS)
-                    await _dismiss_consent(page)
-                    if not await _open_reviews_tab(page):
-                        logger.info(
-                            "gmaps reviews tab not found for %s", place_url[:80]
-                        )
-                        return []
-                    # Small settle wait so 2x translation cards are rendered.
-                    await page.wait_for_timeout(800)
-                    reviews = await _extract_visible_reviews(page)
-                    return reviews[:effective_limit]
-                finally:
-                    await page.context.close()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("scrape_gmaps_reviews failed for %s: %s", place_url[:80], exc)
-            return []
+        for attempt in range(1, attempts + 1):
+            try:
+                async with _open_browser() as browser:
+                    page = await _new_page(browser)
+                    try:
+                        if not await _search_navigate_to_place(page, place_name):
+                            if attempt < attempts:
+                                await asyncio.sleep(0.8 * attempt)
+                                continue
+                            logger.info("gmaps place not found for %r", place_name)
+                            return []
+                        if not await _open_reviews_tab(page):
+                            if attempt < attempts:
+                                await asyncio.sleep(0.8 * attempt)
+                                continue
+                            logger.info("gmaps reviews tab not found for %r", place_name)
+                            return []
+                        await page.wait_for_timeout(800)
+                        reviews = await _extract_visible_reviews(page)
+                        return reviews[:effective_limit]
+                    finally:
+                        await page.context.close()
+            except Exception as exc:  # noqa: BLE001
+                if attempt < attempts and _is_retriable_scrape_error(exc):
+                    backoff_s = 1.0 * attempt
+                    logger.warning(
+                        "scrape_gmaps_reviews retrying place=%r attempt=%d/%d backoff=%.1fs error=%s",
+                        place_name,
+                        attempt,
+                        attempts,
+                        backoff_s,
+                        exc,
+                    )
+                    await asyncio.sleep(backoff_s)
+                    continue
+                logger.warning("scrape_gmaps_reviews failed for %r: %s", place_name, exc)
+                return []
+    return []

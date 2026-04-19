@@ -15,6 +15,7 @@ import 'package:dora/features/trips/domain/trips_state.dart';
 import 'package:dora/features/trips/presentation/providers/trips_provider.dart';
 import 'package:dora/features/trips/presentation/widgets/trip_grid_card.dart';
 import 'package:dora/features/trips/presentation/widgets/trip_shimmer.dart';
+import 'package:dora/features/vault/presentation/screens/vault_tab.dart';
 import 'package:dora/shared/widgets/empty_state.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 
@@ -27,7 +28,7 @@ class ProfileScreen extends ConsumerWidget {
     final tripsAsync = ref.watch(tripsControllerProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Profile'),
@@ -55,10 +56,12 @@ class ProfileScreen extends ConsumerWidget {
               const TabBar(
                 labelColor: AppColors.textPrimary,
                 indicatorColor: AppColors.accent,
+                isScrollable: true,
                 tabs: [
                   Tab(text: 'My Trips'),
                   Tab(text: 'Shared'),
                   Tab(text: 'Saved'),
+                  Tab(text: 'Vault'),
                 ],
               ),
               Expanded(
@@ -79,6 +82,7 @@ class ProfileScreen extends ConsumerWidget {
                       emptyMessage: 'Make a trip public to share it',
                     ),
                     _SavedTab(),
+                    const VaultTab(),
                   ],
                 ),
               ),

@@ -628,6 +628,13 @@ class MapboxAdapter implements AppMapController {
   }
 
   Future<Uint8List> _markerImageFor(AppMarker marker) async {
+    // Custom pre-rendered bytes (e.g. Vault thumbnails) bypass the adapter's
+    // default glyph rendering entirely. The caller is responsible for caching.
+    final custom = marker.iconPngBytes;
+    if (custom != null && custom.isNotEmpty) {
+      return custom;
+    }
+
     final markerType = marker.markerType ?? 'place';
     final label = _markerGlyph(marker);
     final color = marker.color ?? const Color(0xFF1F6F78);

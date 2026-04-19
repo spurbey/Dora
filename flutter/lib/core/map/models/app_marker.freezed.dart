@@ -20,11 +20,15 @@ mixin _$AppMarker {
   AppLatLng get position => throw _privateConstructorUsedError;
   String? get title => throw _privateConstructorUsedError;
   String? get snippet => throw _privateConstructorUsedError;
-  String? get iconAsset => throw _privateConstructorUsedError;
+  String? get iconAsset =>
+      throw _privateConstructorUsedError; // Optional pre-rendered PNG bytes for custom marker imagery (e.g. Vault
+// thumbnails). When set it's handed straight to Mapbox, bypassing the
+// adapter's default glyph rendering. Caller is responsible for caching.
+  Uint8List? get iconPngBytes => throw _privateConstructorUsedError;
   Color? get color => throw _privateConstructorUsedError;
   VoidCallback? get onTap => throw _privateConstructorUsedError;
   String? get markerType =>
-      throw _privateConstructorUsedError; // 'city', 'place', 'waypoint', 'endpoint'
+      throw _privateConstructorUsedError; // 'city', 'place', 'waypoint', 'endpoint', 'vault_media'
   String? get label =>
       throw _privateConstructorUsedError; // 'C' for cities, '1','2','3' for places
   bool get draggable => throw _privateConstructorUsedError;
@@ -48,6 +52,7 @@ abstract class $AppMarkerCopyWith<$Res> {
       String? title,
       String? snippet,
       String? iconAsset,
+      Uint8List? iconPngBytes,
       Color? color,
       VoidCallback? onTap,
       String? markerType,
@@ -78,6 +83,7 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
     Object? title = freezed,
     Object? snippet = freezed,
     Object? iconAsset = freezed,
+    Object? iconPngBytes = freezed,
     Object? color = freezed,
     Object? onTap = freezed,
     Object? markerType = freezed,
@@ -106,6 +112,10 @@ class _$AppMarkerCopyWithImpl<$Res, $Val extends AppMarker>
           ? _value.iconAsset
           : iconAsset // ignore: cast_nullable_to_non_nullable
               as String?,
+      iconPngBytes: freezed == iconPngBytes
+          ? _value.iconPngBytes
+          : iconPngBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       color: freezed == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
@@ -158,6 +168,7 @@ abstract class _$$AppMarkerImplCopyWith<$Res>
       String? title,
       String? snippet,
       String? iconAsset,
+      Uint8List? iconPngBytes,
       Color? color,
       VoidCallback? onTap,
       String? markerType,
@@ -187,6 +198,7 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
     Object? title = freezed,
     Object? snippet = freezed,
     Object? iconAsset = freezed,
+    Object? iconPngBytes = freezed,
     Object? color = freezed,
     Object? onTap = freezed,
     Object? markerType = freezed,
@@ -215,6 +227,10 @@ class __$$AppMarkerImplCopyWithImpl<$Res>
           ? _value.iconAsset
           : iconAsset // ignore: cast_nullable_to_non_nullable
               as String?,
+      iconPngBytes: freezed == iconPngBytes
+          ? _value.iconPngBytes
+          : iconPngBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       color: freezed == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
@@ -252,6 +268,7 @@ class _$AppMarkerImpl implements _AppMarker {
       this.title,
       this.snippet,
       this.iconAsset,
+      this.iconPngBytes,
       this.color,
       this.onTap,
       this.markerType,
@@ -269,13 +286,18 @@ class _$AppMarkerImpl implements _AppMarker {
   final String? snippet;
   @override
   final String? iconAsset;
+// Optional pre-rendered PNG bytes for custom marker imagery (e.g. Vault
+// thumbnails). When set it's handed straight to Mapbox, bypassing the
+// adapter's default glyph rendering. Caller is responsible for caching.
+  @override
+  final Uint8List? iconPngBytes;
   @override
   final Color? color;
   @override
   final VoidCallback? onTap;
   @override
   final String? markerType;
-// 'city', 'place', 'waypoint', 'endpoint'
+// 'city', 'place', 'waypoint', 'endpoint', 'vault_media'
   @override
   final String? label;
 // 'C' for cities, '1','2','3' for places
@@ -287,7 +309,7 @@ class _$AppMarkerImpl implements _AppMarker {
 
   @override
   String toString() {
-    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, color: $color, onTap: $onTap, markerType: $markerType, label: $label, draggable: $draggable, onDragEnd: $onDragEnd)';
+    return 'AppMarker(id: $id, position: $position, title: $title, snippet: $snippet, iconAsset: $iconAsset, iconPngBytes: $iconPngBytes, color: $color, onTap: $onTap, markerType: $markerType, label: $label, draggable: $draggable, onDragEnd: $onDragEnd)';
   }
 
   @override
@@ -302,6 +324,8 @@ class _$AppMarkerImpl implements _AppMarker {
             (identical(other.snippet, snippet) || other.snippet == snippet) &&
             (identical(other.iconAsset, iconAsset) ||
                 other.iconAsset == iconAsset) &&
+            const DeepCollectionEquality()
+                .equals(other.iconPngBytes, iconPngBytes) &&
             (identical(other.color, color) || other.color == color) &&
             (identical(other.onTap, onTap) || other.onTap == onTap) &&
             (identical(other.markerType, markerType) ||
@@ -314,8 +338,20 @@ class _$AppMarkerImpl implements _AppMarker {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, position, title, snippet,
-      iconAsset, color, onTap, markerType, label, draggable, onDragEnd);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      position,
+      title,
+      snippet,
+      iconAsset,
+      const DeepCollectionEquality().hash(iconPngBytes),
+      color,
+      onTap,
+      markerType,
+      label,
+      draggable,
+      onDragEnd);
 
   /// Create a copy of AppMarker
   /// with the given fields replaced by the non-null parameter values.
@@ -333,6 +369,7 @@ abstract class _AppMarker implements AppMarker {
       final String? title,
       final String? snippet,
       final String? iconAsset,
+      final Uint8List? iconPngBytes,
       final Color? color,
       final VoidCallback? onTap,
       final String? markerType,
@@ -349,13 +386,19 @@ abstract class _AppMarker implements AppMarker {
   @override
   String? get snippet;
   @override
-  String? get iconAsset;
+  String?
+      get iconAsset; // Optional pre-rendered PNG bytes for custom marker imagery (e.g. Vault
+// thumbnails). When set it's handed straight to Mapbox, bypassing the
+// adapter's default glyph rendering. Caller is responsible for caching.
+  @override
+  Uint8List? get iconPngBytes;
   @override
   Color? get color;
   @override
   VoidCallback? get onTap;
   @override
-  String? get markerType; // 'city', 'place', 'waypoint', 'endpoint'
+  String?
+      get markerType; // 'city', 'place', 'waypoint', 'endpoint', 'vault_media'
   @override
   String? get label; // 'C' for cities, '1','2','3' for places
   @override

@@ -22,6 +22,7 @@ class Routes {
   static const String exportStudio = '/trips/:id/export';
   static const String tripsExports = '/trips/exports';
   static const String tripDetail = '/trip/:id';
+  static const String vault = '/vault';
 
   static String tripDetailPath(String id) => '/trip/$id';
   static String editorPath(String id) => '/trips/$id/edit';

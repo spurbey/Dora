@@ -25,6 +25,7 @@ import 'package:dora/features/export/presentation/screens/my_trips_export_screen
 import 'package:dora/features/profile/presentation/screens/profile_screen.dart';
 import 'package:dora/features/profile/presentation/screens/settings_screen.dart';
 import 'package:dora/features/trips/presentation/screens/my_trips_screen.dart';
+import 'package:dora/features/vault/presentation/screens/vault_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authChanges = Supabase.instance.client.auth.onAuthStateChange
@@ -113,6 +114,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: Routes.vault,
+        builder: (context, state) => const VaultScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => NavigationShell(child: child),

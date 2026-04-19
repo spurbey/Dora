@@ -236,6 +236,8 @@ class _MarkerRenderSignature {
     required this.title,
     required this.snippet,
     required this.iconAsset,
+    required this.iconBytesLength,
+    required this.iconBytesHash,
     required this.colorValue,
     required this.markerType,
     required this.label,
@@ -245,12 +247,17 @@ class _MarkerRenderSignature {
   });
 
   factory _MarkerRenderSignature.from(AppMarker marker) {
+    final bytes = marker.iconPngBytes;
     return _MarkerRenderSignature(
       lat: marker.position.latitude,
       lng: marker.position.longitude,
       title: marker.title,
       snippet: marker.snippet,
       iconAsset: marker.iconAsset,
+      iconBytesLength: bytes?.length ?? 0,
+      // Identity-based hash avoids re-encoding on every rebuild while still
+      // detecting when the caller swaps in a new Uint8List.
+      iconBytesHash: bytes == null ? 0 : identityHashCode(bytes),
       colorValue: marker.color?.toARGB32(),
       markerType: marker.markerType,
       label: marker.label,
@@ -265,6 +272,8 @@ class _MarkerRenderSignature {
   final String? title;
   final String? snippet;
   final String? iconAsset;
+  final int iconBytesLength;
+  final int iconBytesHash;
   final int? colorValue;
   final String? markerType;
   final String? label;
@@ -283,6 +292,8 @@ class _MarkerRenderSignature {
         title == other.title &&
         snippet == other.snippet &&
         iconAsset == other.iconAsset &&
+        iconBytesLength == other.iconBytesLength &&
+        iconBytesHash == other.iconBytesHash &&
         colorValue == other.colorValue &&
         markerType == other.markerType &&
         label == other.label &&
@@ -298,6 +309,8 @@ class _MarkerRenderSignature {
         title,
         snippet,
         iconAsset,
+        iconBytesLength,
+        iconBytesHash,
         colorValue,
         markerType,
         label,

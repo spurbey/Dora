@@ -6,6 +6,7 @@ import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/features/capture/presentation/widgets/camera_fab.dart';
 
 int locationToTabIndex(String location) {
   if (location.startsWith(Routes.liveHub)) {
@@ -47,6 +48,8 @@ class NavigationShell extends StatelessWidget {
 
     return Scaffold(
       body: child,
+      floatingActionButton: const CameraFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _CustomTabBar(
         currentIndex: currentIndex,
         onTap: (index) => context.go(tabIndexToRoute(index)),
@@ -64,39 +67,66 @@ class _CustomTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
+  static const _leftItems = <_TabItemData>[
+    _TabItemData(
+      index: 0,
+      label: 'Feed',
+      icon: Icons.home_outlined,
+    ),
+    _TabItemData(
+      index: 1,
+      label: 'Live',
+      icon: Icons.radio_button_checked_outlined,
+    ),
+  ];
+
+  static const _rightItems = <_TabItemData>[
+    _TabItemData(
+      index: 2,
+      label: 'My Trips',
+      icon: Icons.book_outlined,
+    ),
+    _TabItemData(
+      index: 3,
+      label: 'Profile',
+      icon: Icons.person_outline,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    const items = <_TabItemData>[
-      _TabItemData(label: 'Feed', icon: Icons.home_outlined),
-      _TabItemData(label: 'Live', icon: Icons.radio_button_checked_outlined),
-      _TabItemData(label: 'My Trips', icon: Icons.book_outlined),
-      _TabItemData(label: 'Profile', icon: Icons.person_outline),
-    ];
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(
-          top: BorderSide(color: AppColors.divider),
-        ),
+    return BottomAppBar(
+      color: AppColors.card,
+      elevation: 0,
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 6,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
-            AppSpacing.sm,
-          ),
+        child: SizedBox(
+          height: 56,
           child: Row(
             children: [
-              for (var i = 0; i < items.length; i++)
+              for (final item in _leftItems)
                 Expanded(
                   child: _TabButton(
-                    data: items[i],
-                    selected: currentIndex == i,
-                    onTap: () => onTap(i),
+                    data: item,
+                    selected: currentIndex == item.index,
+                    onTap: () => onTap(item.index),
+                  ),
+                ),
+              // Reserve space for the center-docked Camera FAB so tab buttons
+              // never sit directly under it.
+              const SizedBox(width: 64),
+              for (final item in _rightItems)
+                Expanded(
+                  child: _TabButton(
+                    data: item,
+                    selected: currentIndex == item.index,
+                    onTap: () => onTap(item.index),
                   ),
                 ),
             ],
@@ -139,7 +169,7 @@ class _TabButton extends StatelessWidget {
               constraints: const BoxConstraints(minHeight: 44),
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
+                vertical: AppSpacing.xs,
               ),
               decoration: BoxDecoration(
                 color: selected ? AppColors.accentSoft : Colors.transparent,
@@ -147,9 +177,10 @@ class _TabButton extends StatelessWidget {
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(data.icon, color: foreground, size: 22),
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: 2),
                   Text(
                     data.label,
                     maxLines: 1,
@@ -171,10 +202,12 @@ class _TabButton extends StatelessWidget {
 
 class _TabItemData {
   const _TabItemData({
+    required this.index,
     required this.label,
     required this.icon,
   });
 
+  final int index;
   final String label;
   final IconData icon;
 }

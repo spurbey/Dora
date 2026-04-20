@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Variable;
 
 import 'package:dora/core/storage/database_provider.dart';
 
@@ -56,3 +57,43 @@ final activeLiveSessionProvider =
   });
 });
 
+/// Same as [activeLiveSessionProvider] but constrained to a specific trip id.
+/// This is used by live-capture routed camera launches to avoid cross-trip
+/// attachment when multiple sessions are active/paused.
+final activeLiveSessionForTripProvider =
+    StreamProvider.autoDispose.family<ActiveLiveSessionSummary?, String>(
+  (ref, tripId) {
+    final db = ref.watch(appDatabaseProvider);
+    final query = db.customSelect(
+      '''
+      SELECT
+        s.session_id AS session_id,
+        s.control_state AS control_state,
+        s.trip_local_id AS trip_id,
+        t.name AS trip_name,
+        s.updated_at AS session_updated_at
+      FROM session_journal AS s
+      INNER JOIN trips AS t ON t.id = s.trip_local_id
+      WHERE s.control_state IN ('active', 'paused')
+        AND s.trip_local_id = ?
+      ORDER BY s.updated_at DESC
+      LIMIT 1
+      ''',
+      variables: [Variable<String>(tripId)],
+      readsFrom: {db.sessionJournal, db.trips},
+    );
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) {
+        return null;
+      }
+      final row = rows.first;
+      return ActiveLiveSessionSummary(
+        tripId: row.read<String>('trip_id'),
+        tripName: row.read<String?>('trip_name') ?? 'your trip',
+        sessionId: row.read<String>('session_id'),
+        controlState: row.read<String>('control_state'),
+      );
+    });
+  },
+);

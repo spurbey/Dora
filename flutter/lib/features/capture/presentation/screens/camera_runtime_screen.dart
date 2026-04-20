@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:audio_session/audio_session.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart';
+import 'package:disk_space_plus/disk_space_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -295,7 +296,10 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   @override
   Widget build(BuildContext context) {
     final runtime = ref.watch(cameraRuntimeControllerProvider);
-    final activeSession = ref.watch(activeLiveSessionProvider).valueOrNull;
+    final scopedTripId = widget.args.preferredTripId;
+    final activeSession = scopedTripId == null
+        ? ref.watch(activeLiveSessionProvider).valueOrNull
+        : ref.watch(activeLiveSessionForTripProvider(scopedTripId)).valueOrNull;
     _maybeHandleQueuedDismiss(runtime);
 
     return PopScope<void>(
@@ -381,41 +385,55 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Widget _buildCamera(CameraRuntimeState runtime) {
-    return CameraAwesomeBuilder.custom(
-      saveConfig: SaveConfig.photoAndVideo(
-        initialCaptureMode: _initialMode == CameraInitialMode.video
-            ? CaptureMode.video
-            : CaptureMode.photo,
-        photoPathBuilder: (sensors) async {
-          final path = await ref
-              .read(mediaCaptureFileStoreProvider)
-              .buildTempCapturePath(
-                mediaKind: CapturedMediaKind.photo,
-              );
-          return SingleCaptureRequest(path, sensors.first);
+    final shouldMountCamera =
+        runtime.phase == CameraRuntimePhase.initializing ||
+            runtime.phase == CameraRuntimePhase.preview ||
+            runtime.phase == CameraRuntimePhase.capturingPhoto ||
+            runtime.phase == CameraRuntimePhase.recordingVideo ||
+            runtime.phase == CameraRuntimePhase.persisting;
+    if (!shouldMountCamera) {
+      _lastCameraState = null;
+      return const SizedBox.expand();
+    }
+
+    return KeyedSubtree(
+      key: ValueKey<int>(runtime.generation),
+      child: CameraAwesomeBuilder.custom(
+        saveConfig: SaveConfig.photoAndVideo(
+          initialCaptureMode: _initialMode == CameraInitialMode.video
+              ? CaptureMode.video
+              : CaptureMode.photo,
+          photoPathBuilder: (sensors) async {
+            final path = await ref
+                .read(mediaCaptureFileStoreProvider)
+                .buildTempCapturePath(
+                  mediaKind: CapturedMediaKind.photo,
+                );
+            return SingleCaptureRequest(path, sensors.first);
+          },
+          videoPathBuilder: (sensors) async {
+            final path = await ref
+                .read(mediaCaptureFileStoreProvider)
+                .buildTempCapturePath(
+                  mediaKind: CapturedMediaKind.video,
+                );
+            return SingleCaptureRequest(path, sensors.first);
+          },
+          videoOptions: VideoOptions(enableAudio: true),
+        ),
+        sensorConfig: SensorConfig.single(
+          sensor: Sensor.position(SensorPosition.back),
+          flashMode: FlashMode.auto,
+        ),
+        onMediaCaptureEvent: (dynamic event) {
+          unawaited(_onMediaCaptureEvent(event));
         },
-        videoPathBuilder: (sensors) async {
-          final path = await ref
-              .read(mediaCaptureFileStoreProvider)
-              .buildTempCapturePath(
-                mediaKind: CapturedMediaKind.video,
-              );
-          return SingleCaptureRequest(path, sensors.first);
+        builder: (cameraState, _) {
+          _lastCameraState = cameraState;
+          _syncRuntimeWithCameraState(cameraState, runtime);
+          return const SizedBox.expand();
         },
-        videoOptions: VideoOptions(enableAudio: true),
       ),
-      sensorConfig: SensorConfig.single(
-        sensor: Sensor.position(SensorPosition.back),
-        flashMode: FlashMode.auto,
-      ),
-      onMediaCaptureEvent: (dynamic event) {
-        unawaited(_onMediaCaptureEvent(event));
-      },
-      builder: (cameraState, _) {
-        _lastCameraState = cameraState;
-        _syncRuntimeWithCameraState(cameraState, runtime);
-        return const SizedBox.expand();
-      },
     );
   }
 
@@ -704,7 +722,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     final selected = destination ?? CaptureDestination.vault;
 
     try {
-      final activeSession = await ref.read(activeLiveSessionProvider.future);
+      final activeSession = await _resolveActiveSessionForPersist();
       final result = await _runWithTimeout(
         kPersistTimeout,
         () => ref.read(captureOrchestratorProvider).persistCapture(
@@ -737,6 +755,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
             message: error.toString(),
           );
     }
+  }
+
+  Future<ActiveLiveSessionSummary?> _resolveActiveSessionForPersist() async {
+    final scopedTripId = widget.args.preferredTripId;
+    if (scopedTripId == null) {
+      return ref.read(activeLiveSessionProvider.future);
+    }
+    return ref.read(activeLiveSessionForTripProvider(scopedTripId).future);
   }
 
   Future<CaptureDestination?> _showDestinationChooser() {
@@ -805,11 +831,16 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
 
   Future<int?> _estimateFreeStorageBytes() async {
     try {
-      final dir = await Directory.systemTemp.createTemp('dora_storage_probe');
-      await dir.delete(recursive: true);
-      // The app does not have a cross-platform direct free-space API in this
-      // codebase yet; return null to skip hard failure on unsupported devices.
-      return null;
+      final diskSpace = DiskSpacePlus();
+      final freeMb = await diskSpace.getFreeDiskSpace;
+      if (freeMb == null || freeMb <= 0) {
+        return null;
+      }
+      final bytes = freeMb * 1024 * 1024;
+      if (bytes.isNaN || bytes.isInfinite || bytes <= 0) {
+        return null;
+      }
+      return bytes.floor();
     } catch (_) {
       return null;
     }

@@ -991,6 +991,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         extra: CameraLaunchArgs(
           context: CameraLaunchContext.liveTracking,
           initialMode: initialMode,
+          preferredTripId: widget.tripId,
         ),
       );
       if (!mounted || result == null) {

@@ -62,6 +62,7 @@ class CaptureOrchestrator {
       mediaId: managedId,
       mediaKind: mediaKind,
     );
+    var mediaPersisted = false;
     try {
       final location = await _locationService.getCurrentPosition(
         timeLimit: const Duration(seconds: 10),
@@ -105,6 +106,7 @@ class CaptureOrchestrator {
         tripId = activeSession.tripId;
         tripName = activeSession.tripName;
         attachedToTrip = true;
+        mediaPersisted = true;
       } else {
         final now = _now().toUtc();
         mediaId = managedId;
@@ -129,6 +131,7 @@ class CaptureOrchestrator {
             updatedAt: now,
           ),
         );
+        mediaPersisted = true;
       }
 
       String? storyId;
@@ -170,7 +173,12 @@ class CaptureOrchestrator {
         tripName: tripName,
       );
     } catch (error) {
-      await _safeDelete(managed.path);
+      if (!mediaPersisted) {
+        await _safeDelete(managed.path);
+      }
+      if (sourcePath != managed.path) {
+        await _safeDelete(sourcePath);
+      }
       if (error is CapturePersistException) {
         rethrow;
       }

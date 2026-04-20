@@ -35,44 +35,48 @@ class CameraRuntimeController extends AutoDisposeNotifier<CameraRuntimeState> {
   }
 
   void markRouteCovered(bool covered) {
-    state = state.copyWith(coveredByRoute: covered);
+    _queueMutation((current) => current.copyWith(coveredByRoute: covered));
   }
 
   void markInactive(DateTime nowUtc) {
-    state = state.copyWith(inactiveSince: nowUtc);
+    _queueMutation((current) => current.copyWith(inactiveSince: nowUtc));
   }
 
   void clearInactive() {
-    state = state.copyWith(clearInactiveSince: true);
+    _queueMutation((current) => current.copyWith(clearInactiveSince: true));
   }
 
   void markBackground(DateTime nowUtc) {
-    state = state.copyWith(backgroundSince: nowUtc);
+    _queueMutation((current) => current.copyWith(backgroundSince: nowUtc));
   }
 
   void clearBackground() {
-    state = state.copyWith(clearBackgroundSince: true);
+    _queueMutation((current) => current.copyWith(clearBackgroundSince: true));
   }
 
   void queueDismiss() {
-    state = state.copyWith(queuedDismiss: true);
+    _queueMutation((current) => current.copyWith(queuedDismiss: true));
   }
 
   void clearQueuedDismiss() {
-    state = state.copyWith(queuedDismiss: false);
+    _queueMutation((current) => current.copyWith(queuedDismiss: false));
   }
 
   void setPermissionDenied({String? message}) {
-    state = state.copyWith(
-      phase: CameraRuntimePhase.permissionDenied,
-      errorMessage: message ?? 'Camera permission denied',
+    _queueMutation(
+      (current) => current.copyWith(
+        phase: CameraRuntimePhase.permissionDenied,
+        errorMessage: message ?? 'Camera permission denied',
+      ),
     );
   }
 
   void setError(String message) {
-    state = state.copyWith(
-      phase: CameraRuntimePhase.error,
-      errorMessage: message,
+    _queueMutation(
+      (current) => current.copyWith(
+        phase: CameraRuntimePhase.error,
+        errorMessage: message,
+      ),
     );
   }
 
@@ -80,14 +84,25 @@ class CameraRuntimeController extends AutoDisposeNotifier<CameraRuntimeState> {
   Future<void> forceTier3Reset({String? reason}) async {
     debugPrint('[camera-runtime] force tier3 reset reason=$reason');
     await dispatch(CameraRuntimeEvent.dispose);
-    state = state.copyWith(
-      phase: CameraRuntimePhase.idle,
-      generation: state.generation + 1,
-      launchTick: state.launchTick + 1,
-      clearError: true,
-      clearBackgroundSince: true,
-      clearInactiveSince: true,
+    await _queueMutation(
+      (current) => current.copyWith(
+        phase: CameraRuntimePhase.idle,
+        generation: current.generation + 1,
+        launchTick: current.launchTick + 1,
+        clearError: true,
+        clearBackgroundSince: true,
+        clearInactiveSince: true,
+      ),
     );
+  }
+
+  Future<void> _queueMutation(
+    CameraRuntimeState Function(CameraRuntimeState current) update,
+  ) {
+    _transitionLock = _transitionLock.then((_) async {
+      state = update(state);
+    });
+    return _transitionLock;
   }
 
   CameraRuntimeState? _reduce(

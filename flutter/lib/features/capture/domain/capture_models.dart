@@ -31,10 +31,12 @@ class CameraLaunchArgs {
   const CameraLaunchArgs({
     required this.context,
     this.initialMode = CameraInitialMode.photo,
+    this.preferredTripId,
   });
 
   final CameraLaunchContext context;
   final CameraInitialMode initialMode;
+  final String? preferredTripId;
 }
 
 class CapturePersistResult {

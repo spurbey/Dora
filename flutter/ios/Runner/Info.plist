@@ -60,6 +60,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow Dora to take photos for your trip places.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow Dora to record audio while capturing trip videos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow Dora to access your photos for trip media uploads.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

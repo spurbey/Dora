@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/navigation/go_router_refresh_stream.dart';
+import 'package:dora/core/navigation/navigation_observers.dart';
 import 'package:dora/core/navigation/navigation_shell.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/config/feature_flags.dart';
@@ -12,6 +13,8 @@ import 'package:dora/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:dora/features/auth/presentation/screens/signup_screen.dart';
 import 'package:dora/features/auth/presentation/screens/startup_screen.dart';
 import 'package:dora/features/create/presentation/screens/editor_screen.dart';
+import 'package:dora/features/capture/domain/capture_models.dart';
+import 'package:dora/features/capture/presentation/screens/camera_runtime_screen.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_capture_screen.dart';
 import 'package:dora/features/live_capture/presentation/screens/live_hub_screen.dart';
 import 'package:dora/features/create/presentation/screens/city_search_screen.dart';
@@ -33,6 +36,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: Routes.startup,
+    observers: [
+      ref.watch(appRouteObserverProvider),
+    ],
     refreshListenable: GoRouterRefreshStream(authChanges),
     redirect: (BuildContext context, GoRouterState state) {
       final isLoggedIn = Supabase.instance.client.auth.currentSession != null;
@@ -71,7 +77,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/trip/:id/advisory',
-        redirect: (_, state) => Routes.liveCapturePath(state.pathParameters['id']!),
+        redirect: (_, state) =>
+            Routes.liveCapturePath(state.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.editor,
@@ -118,6 +125,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.vault,
         builder: (context, state) => const VaultScreen(),
+      ),
+      GoRoute(
+        path: Routes.camera,
+        builder: (context, state) {
+          final args = state.extra is CameraLaunchArgs
+              ? state.extra! as CameraLaunchArgs
+              : const CameraLaunchArgs(
+                  context: CameraLaunchContext.fab,
+                  initialMode: CameraInitialMode.photo,
+                );
+          return CameraRuntimeScreen(args: args);
+        },
       ),
       ShellRoute(
         builder: (context, state, child) => NavigationShell(child: child),

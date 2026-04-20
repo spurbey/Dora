@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class ThumbnailGenerator {
   const ThumbnailGenerator();
@@ -18,15 +19,23 @@ class ThumbnailGenerator {
     }
 
     final cacheDir = await getTemporaryDirectory();
-    final thumbnailsDir = Directory(p.join(cacheDir.path, 'dora', 'thumbnails'));
+    final thumbnailsDir =
+        Directory(p.join(cacheDir.path, 'dora', 'thumbnails'));
     if (!await thumbnailsDir.exists()) {
       await thumbnailsDir.create(recursive: true);
     }
 
-    final destinationPath = p.join(
-      thumbnailsDir.path,
-      '${mediaId}_thumb.jpg',
-    );
+    final destinationPath = p.join(thumbnailsDir.path, '${mediaId}_thumb.jpg');
+    final ext = p.extension(sourcePath).toLowerCase();
+    if (_isVideoExtension(ext)) {
+      return VideoThumbnail.thumbnailFile(
+        video: source.absolute.path,
+        thumbnailPath: thumbnailsDir.path,
+        imageFormat: ImageFormat.JPEG,
+        quality: 72,
+      );
+    }
+
     final thumb = await FlutterImageCompress.compressAndGetFile(
       source.absolute.path,
       destinationPath,
@@ -36,6 +45,10 @@ class ThumbnailGenerator {
       format: CompressFormat.jpeg,
     );
     return thumb?.path;
+  }
+
+  bool _isVideoExtension(String ext) {
+    return ext == '.mp4' || ext == '.mov' || ext == '.m4v' || ext == '.webm';
   }
 }
 

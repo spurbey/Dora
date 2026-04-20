@@ -17,16 +17,61 @@ class StoriesDao extends DatabaseAccessor<AppDatabase> with _$StoriesDaoMixin {
   Future<List<StoryRow>> listForAuthor(
     String authorUserId, {
     int? limit,
+    String? visibility,
   }) {
     final query = select(stories)
       ..where((r) => r.authorUserId.equals(authorUserId))
       ..orderBy([
         (r) => OrderingTerm(expression: r.createdAt, mode: OrderingMode.desc),
       ]);
+    if (visibility != null) {
+      query.where((r) => r.visibility.equals(visibility));
+    }
     if (limit != null) {
       query.limit(limit);
     }
     return query.get();
+  }
+
+  Future<List<StoryRow>> listDraftsForAuthor(
+    String authorUserId, {
+    int? limit,
+  }) {
+    return listForAuthor(
+      authorUserId,
+      limit: limit,
+      visibility: 'draft',
+    );
+  }
+
+  Future<List<StoryRow>> listDraftsByMediaId(String mediaId) {
+    return (select(stories)
+          ..where(
+            (r) => r.mediaId.equals(mediaId) & r.visibility.equals('draft'),
+          )
+          ..orderBy([
+            (r) => OrderingTerm(
+                  expression: r.createdAt,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .get();
+  }
+
+  Stream<List<StoryRow>> watchDraftsForAuthor(String authorUserId) {
+    return (select(stories)
+          ..where(
+            (r) =>
+                r.authorUserId.equals(authorUserId) &
+                r.visibility.equals('draft'),
+          )
+          ..orderBy([
+            (r) => OrderingTerm(
+                  expression: r.createdAt,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .watch();
   }
 
   Future<int> markPublished({
@@ -65,6 +110,14 @@ class StoriesDao extends DatabaseAccessor<AppDatabase> with _$StoriesDaoMixin {
         updatedAt: Value(now),
       ),
     );
+  }
+
+  Future<int> deleteDraftsByMediaId(String mediaId) {
+    return (delete(stories)
+          ..where(
+            (r) => r.mediaId.equals(mediaId) & r.visibility.equals('draft'),
+          ))
+        .go();
   }
 
   Future<int> deleteStory(String id) =>

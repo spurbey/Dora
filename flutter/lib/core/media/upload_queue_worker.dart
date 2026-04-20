@@ -451,6 +451,10 @@ class UploadQueueWorker {
       '.png' => 'image/png',
       '.webp' => 'image/webp',
       '.heic' || '.heif' => 'image/heic',
+      '.mp4' => 'video/mp4',
+      '.mov' => 'video/quicktime',
+      '.m4v' => 'video/x-m4v',
+      '.webm' => 'video/webm',
       _ => 'image/jpeg',
     };
   }

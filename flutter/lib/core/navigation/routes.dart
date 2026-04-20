@@ -8,6 +8,7 @@ class Routes {
   static const String profile = '/profile';
   static const String search = '/search';
   static const String settings = '/settings';
+  static const String camera = '/camera';
 
   static const String startup = '/startup';
   static const String onboarding = '/onboarding';
@@ -34,4 +35,5 @@ class Routes {
       '/trips/$tripId/places/$placeId/media';
   static String exportStudioPath(String id) => '/trips/$id/export';
   static String tripsExportsPath() => '/trips/exports';
+  static String cameraPath() => camera;
 }

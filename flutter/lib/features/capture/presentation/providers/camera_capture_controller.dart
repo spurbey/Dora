@@ -107,8 +107,7 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
     final latitude = position?.latitude;
     final longitude = position?.longitude;
 
-    final activeSession =
-        await ref.read(activeLiveSessionProvider.future);
+    final activeSession = await ref.read(activeLiveSessionProvider.future);
 
     if (activeSession != null) {
       return _writeTripAttached(
@@ -189,6 +188,9 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
         eventType: picked.mediaType == 'video'
             ? LiveTrackingEventType.media
             : LiveTrackingEventType.photo,
+        mediaKind: picked.mediaType == 'video'
+            ? V2CapturedMediaKind.video
+            : V2CapturedMediaKind.photo,
         localPath: picked.file.path,
         latitude: latitude,
         longitude: longitude,
@@ -291,4 +293,3 @@ class _PickedMedia {
   final String mediaType;
   final String? mimeType;
 }
-

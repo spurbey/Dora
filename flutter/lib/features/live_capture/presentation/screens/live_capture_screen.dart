@@ -1,17 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
-import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
+import 'package:dora/features/capture/domain/capture_models.dart';
 import 'package:dora/features/live_capture/map/live_capture_map_widget.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -79,7 +77,6 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
 
 class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  final ImagePicker _imagePicker = ImagePicker();
   final Set<String> _dismissedReviewPromptEventIds = <String>{};
   static const AppLatLng _defaultLiveCenter = AppLatLng(
     latitude: 20.5937,
@@ -353,10 +350,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                         ? const _RecentEventsPlaceholder()
                         : v2CompilerEnabled
                             ? v2RecentProjectionAsync!.when(
-                                data: (entries) =>
-                                    LiveCaptureRecentEventsStrip(
-                                  events:
-                                      _mapV2ProjectionRecentEvents(entries),
+                                data: (entries) => LiveCaptureRecentEventsStrip(
+                                  events: _mapV2ProjectionRecentEvents(entries),
                                   loading: false,
                                 ),
                                 loading: () =>
@@ -371,8 +366,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                                 ),
                               )
                             : v2EventsAsync!.when(
-                                data: (events) =>
-                                    LiveCaptureRecentEventsStrip(
+                                data: (events) => LiveCaptureRecentEventsStrip(
                                   events: _mapV2RecentEvents(events),
                                   loading: false,
                                 ),
@@ -397,17 +391,13 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                           isBusy: _actionInFlight,
                           onPhoto: usePreview
                               ? null
-                              : () => _captureMedia(
-                                    eventType: LiveTrackingEventType.photo,
-                                    fromCamera: true,
-                                    position: capturePosition,
+                              : () => _openCameraCapture(
+                                    initialMode: CameraInitialMode.photo,
                                   ),
                           onMedia: usePreview
                               ? null
-                              : () => _captureMedia(
-                                    eventType: LiveTrackingEventType.media,
-                                    fromCamera: false,
-                                    position: capturePosition,
+                              : () => _openCameraCapture(
+                                    initialMode: CameraInitialMode.video,
                                   ),
                           onTag: usePreview
                               ? null
@@ -752,7 +742,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       final token = await authService.getAccessToken();
       if (token == null || token.isEmpty) return;
       final auth = 'Bearer $token';
-      final serverTripId = await ref.read(serverTripIdProvider(widget.tripId).future);
+      final serverTripId =
+          await ref.read(serverTripIdProvider(widget.tripId).future);
       final metaApi = ref.read(metadataApiProvider);
 
       openapi.TripMetadataResponse? current;
@@ -916,9 +907,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         _showMessage('Location required to capture this event.');
         return;
       }
-      final v2EventId = await ref
-          .read(v2LiveCaptureJournalRepositoryProvider)
-          .createEventNow(
+      final v2EventId =
+          await ref.read(v2LiveCaptureJournalRepositoryProvider).createEventNow(
         tripId: widget.tripId,
         eventType: eventType,
         note: note,
@@ -984,76 +974,41 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     );
   }
 
-  Future<void> _captureMedia({
-    required LiveTrackingEventType eventType,
-    required bool fromCamera,
-    required AppLatLng? position,
+  Future<void> _openCameraCapture({
+    required CameraInitialMode initialMode,
   }) async {
     if (_actionInFlight || !mounted) {
       return;
     }
 
-    const permissions = MediaPermissions();
-    final permissionState = fromCamera
-        ? await permissions.ensureCameraPermission()
-        : await permissions.ensureGalleryPermission();
-    if (permissionState != MediaPermissionState.granted) {
-      await _promptToOpenMediaSettings(permissions);
-      return;
-    }
-
-    final picked = fromCamera
-        ? await _imagePicker.pickImage(source: ImageSource.camera)
-        : await _imagePicker.pickMedia();
-    if (picked == null || picked.path.trim().isEmpty) {
-      return;
-    }
-    if (!File(picked.path).existsSync()) {
-      _showMessage('Captured file is unavailable. Please try again.');
-      return;
-    }
-    if (position == null) {
-      _showMessage('Waiting for GPS fix. Try again in a few seconds.');
-      return;
-    }
-
     setState(() {
       _actionInFlight = true;
-      _actionLabel =
-          'Saving ${eventType == LiveTrackingEventType.photo ? 'photo' : 'media'}...';
+      _actionLabel = 'Opening camera...';
     });
     try {
-      final result = await ref
-          .read(v2LiveCaptureJournalRepositoryProvider)
-          .createMediaCaptureNow(
-        tripId: widget.tripId,
-        eventType: eventType,
-        localPath: picked.path,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        mimeType: picked.mimeType,
-        payload: <String, dynamic>{
-          'file_name': picked.name,
-          'capture_source': fromCamera ? 'camera' : 'gallery',
-        },
+      final result = await context.push<CapturePersistResult>(
+        Routes.cameraPath(),
+        extra: CameraLaunchArgs(
+          context: CameraLaunchContext.liveTracking,
+          initialMode: initialMode,
+        ),
       );
-      final eventId = result.eventId;
-      if (!mounted) {
+      if (!mounted || result == null) {
         return;
       }
-      _dismissedReviewPromptEventIds.remove(eventId);
-      unawaited(
-        ref.read(v2ResolverOrchestratorProvider).resolveCaptureCreated(
-              tripId: widget.tripId,
-              eventId: eventId,
-            ),
-      );
-      if (eventType == LiveTrackingEventType.photo) {
+      if (result.eventId != null) {
+        _dismissedReviewPromptEventIds.remove(result.eventId!);
+      }
+      if (result.kind == CapturedMediaKind.photo) {
         _emitEffect(TransientEffectType.photoCaptured);
       }
-      _showMessage(
-        'Captured locally. Review in editor if place confirmation is needed.',
-      );
+      final destinationMsg = result.destination == CaptureDestination.storyDraft
+          ? 'Captured and saved as a story draft.'
+          : 'Captured locally.';
+      final attachMsg = result.attachedToTrip
+          ? ' Attached to ${result.tripName ?? 'active trip'}.'
+          : '';
+      _showMessage('$destinationMsg$attachMsg');
     } catch (_) {
       _showMessage('Failed to capture media. Try again.');
     } finally {
@@ -1119,34 +1074,6 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   void _openEditorForManualPlace(String eventId) {
     _dismissedReviewPromptEventIds.add(eventId);
     context.push(Routes.editorPath(widget.tripId));
-  }
-
-  Future<void> _promptToOpenMediaSettings(MediaPermissions permissions) async {
-    if (!mounted) {
-      return;
-    }
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Permission required'),
-        content: const Text(
-          'Camera or gallery permission is required for media capture. Open app settings to continue.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await permissions.openSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _handleLiveTrackingCaptureException(
@@ -1615,12 +1542,22 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
   bool _saving = false;
 
   static const _activityOptions = [
-    'hiking', 'food', 'photography', 'nightlife',
-    'beaches', 'cultural', 'adventure', 'relaxation',
+    'hiking',
+    'food',
+    'photography',
+    'nightlife',
+    'beaches',
+    'cultural',
+    'adventure',
+    'relaxation',
   ];
 
   static const _styleOptions = [
-    'adventure', 'luxury', 'budget', 'cultural', 'relaxed',
+    'adventure',
+    'luxury',
+    'budget',
+    'cultural',
+    'relaxed',
   ];
 
   static const _budgetOptions = ['budget', 'mid-range', 'luxury'];
@@ -1653,7 +1590,8 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Changes update your advisory recommendations.',
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Activity focus', style: AppTypography.h3),
@@ -1668,7 +1606,9 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
                   selected: selected,
                   onSelected: (val) {
                     setState(() {
-                      val ? _activityFocus.add(opt) : _activityFocus.remove(opt);
+                      val
+                          ? _activityFocus.add(opt)
+                          : _activityFocus.remove(opt);
                     });
                   },
                   selectedColor: AppColors.accentSoft,

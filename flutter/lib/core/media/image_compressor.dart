@@ -29,6 +29,12 @@ class ImageCompressor {
           'Source file missing for compression: $inputPath');
     }
 
+    final ext = p.extension(inputPath).toLowerCase();
+    if (_isVideoExtension(ext)) {
+      // Video uploads bypass image compression path.
+      return CompressedImageResult(file: source, isTemporary: false);
+    }
+
     final tempDir = await getTemporaryDirectory();
     final mediaTempDir = Directory(p.join(tempDir.path, 'dora', 'media'));
     if (!await mediaTempDir.exists()) {
@@ -57,6 +63,10 @@ class ImageCompressor {
       file: File(compressed.path),
       isTemporary: compressed.path != source.path,
     );
+  }
+
+  bool _isVideoExtension(String ext) {
+    return ext == '.mp4' || ext == '.mov' || ext == '.m4v' || ext == '.webm';
   }
 }
 

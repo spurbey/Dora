@@ -24,6 +24,11 @@ class V2MediaCaptureResult {
   final String resolverState;
 }
 
+enum V2CapturedMediaKind {
+  photo,
+  video,
+}
+
 class V2LiveCaptureWriteException implements Exception {
   const V2LiveCaptureWriteException({
     required this.code,
@@ -113,6 +118,7 @@ class V2LiveCaptureJournalRepository {
   Future<V2MediaCaptureResult> createMediaCaptureNow({
     required String tripId,
     required LiveTrackingEventType eventType,
+    required V2CapturedMediaKind mediaKind,
     required String localPath,
     double? latitude,
     double? longitude,
@@ -160,16 +166,16 @@ class V2LiveCaptureJournalRepository {
 
     final mediaId = _uuid.v4();
     final ownerUserId = _resolveOwnerUserId();
-    final resolvedMimeType = _resolveMimeType(path: localPath, mimeType: mimeType);
+    final resolvedMimeType =
+        _resolveMimeType(path: localPath, mimeType: mimeType);
     final bytesSize = _readFileSize(localPath);
-    final wireType = _eventTypeWireName(eventType);
 
     await _mediaDao.insertMedia(
       MediaCompanion.insert(
         id: mediaId,
         ownerUserId: ownerUserId,
         originScope: 'live_capture',
-        mediaType: Value(wireType == 'video' ? 'video' : 'photo'),
+        mediaType: Value(mediaKind.name),
         localUri: Value(localPath),
         mimeType: Value(resolvedMimeType),
         bytesSize: Value(bytesSize),

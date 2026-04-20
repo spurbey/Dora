@@ -28,13 +28,14 @@ import 'package:dora/features/live_capture/presentation/widgets/live_capture_rec
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
-import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/features/advisory/providers/advisory_providers.dart';
+import 'package:dora/features/live_capture/presentation/widgets/advisory_active_card.dart';
+import 'package:dora/features/live_capture/presentation/widgets/advisory_side_panel.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -86,6 +87,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   bool _didTriggerV2LiveOpenRecovery = false;
   bool _actionInFlight = false;
   String? _actionLabel;
+  bool _sidePanelOpen = false;
+  String? _focusedAdvisoryId;
   Timer? _resolverReconcileTimer;
 
   // Entrance animations
@@ -270,15 +273,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
               ? null
               : () => context.push(Routes.editorPath(widget.tripId)),
         ),
-      if (!usePreview && useV2Lane && v2InboxItems.isNotEmpty)
-        V2UnresolvedReviewPanel(
-          items: v2InboxItems,
-          interactive: false,
-          onReviewInEditor: _actionInFlight
-              ? null
-              : () => context.push(Routes.editorPath(widget.tripId)),
-          title: 'Needs review',
-        ),
+      // V2 unresolved review panel replaced by compact badge on top bar.
       if (!useV2Lane && showReviewPrompt)
         _ProbablePlacePromptCard(
           hints: reviewHints,
@@ -316,13 +311,33 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
               child: Stack(
                 children: [
                   _withEntrance(
-                    LiveCaptureTopBar(
-                      tripName: tripName,
-                      state: shellState,
-                      syncLabel: syncLabel,
-                      syncKind: syncKind,
-                      onBack: _handleBack,
-                      onOverflow: _showOverflowMenu,
+                    Consumer(
+                      builder: (context, innerRef, _) {
+                        final pendingAdvisoryCount = innerRef
+                                .watch(advisoryInsightsProvider(widget.tripId))
+                                .asData
+                                ?.value
+                                .insights
+                                .where((i) => i.status.name == 'pending')
+                                .length ??
+                            0;
+                        return LiveCaptureTopBar(
+                          tripName: tripName,
+                          state: shellState,
+                          syncLabel: syncLabel,
+                          syncKind: syncKind,
+                          onBack: _handleBack,
+                          onOverflow: _showOverflowMenu,
+                          resolverBadgeCount: v2InboxItems.length,
+                          onResolverTap: v2InboxItems.isNotEmpty
+                              ? () => context.push(
+                                    Routes.editorPath(widget.tripId),
+                                  )
+                              : null,
+                          advisoryUnreadCount: pendingAdvisoryCount,
+                          onAdvisoryTap: () => _toggleSidePanel(),
+                        );
+                      },
                     ),
                     _topBarAnim,
                     slideY: -8,
@@ -505,6 +520,37 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                     _panelAnim,
                     slideY: 24,
                   ),
+                  // Advisory active card — floats just above the bottom panel
+                  if (!usePreview)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 120,
+                      child: Consumer(
+                        builder: (context, innerRef, _) {
+                          final async = innerRef.watch(
+                            activeAdvisoryProvider(widget.tripId),
+                          );
+                          final advisory = async.asData?.value;
+                          if (advisory == null) {
+                            return const SizedBox.shrink();
+                          }
+                          return AdvisoryActiveCard(
+                            key: ValueKey(
+                              'active_advisory_${advisory.id}',
+                            ),
+                            localTripId: widget.tripId,
+                            advisory: advisory,
+                            onOpenDetail: () {
+                              setState(() {
+                                _sidePanelOpen = true;
+                                _focusedAdvisoryId = advisory.id;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -516,6 +562,16 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 cancelAll: syncStatus?.kind == EditorSyncStatusKind.blocked,
               ),
             ),
+            // Advisory side panel — full-screen overlay, slides from right
+            if (!usePreview)
+              Positioned.fill(
+                child: AdvisorySidePanel(
+                  localTripId: widget.tripId,
+                  isOpen: _sidePanelOpen,
+                  onClose: _toggleSidePanel,
+                  focusedAdvisoryId: _focusedAdvisoryId,
+                ),
+              ),
           ],
         ),
       ),
@@ -688,6 +744,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       // no-op: notes are optional in payload.
     }
     return null;
+  }
+
+  void _toggleSidePanel() {
+    setState(() {
+      _sidePanelOpen = !_sidePanelOpen;
+      if (!_sidePanelOpen) {
+        _focusedAdvisoryId = null;
+      }
+    });
   }
 
   void _handleBack() {

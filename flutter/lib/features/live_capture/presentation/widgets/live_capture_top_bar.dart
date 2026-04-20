@@ -17,6 +17,10 @@ class LiveCaptureTopBar extends StatefulWidget {
     required this.onBack,
     this.syncKind,
     this.onOverflow,
+    this.resolverBadgeCount = 0,
+    this.onResolverTap,
+    this.advisoryUnreadCount = 0,
+    this.onAdvisoryTap,
   });
 
   final String tripName;
@@ -25,6 +29,10 @@ class LiveCaptureTopBar extends StatefulWidget {
   final VoidCallback onBack;
   final EditorSyncStatusKind? syncKind;
   final VoidCallback? onOverflow;
+  final int resolverBadgeCount;
+  final VoidCallback? onResolverTap;
+  final int advisoryUnreadCount;
+  final VoidCallback? onAdvisoryTap;
 
   @override
   State<LiveCaptureTopBar> createState() => _LiveCaptureTopBarState();
@@ -218,6 +226,24 @@ class _LiveCaptureTopBarState extends State<LiveCaptureTopBar>
                   ],
                 ),
               ),
+              if (widget.resolverBadgeCount > 0 &&
+                  widget.onResolverTap != null)
+                _TopBarBadge(
+                  icon: Icons.place_outlined,
+                  count: widget.resolverBadgeCount,
+                  tint: AppColors.warning,
+                  tooltip: 'Unresolved captures',
+                  onTap: widget.onResolverTap!,
+                ),
+              if (widget.onAdvisoryTap != null)
+                _TopBarBadge(
+                  icon: Icons.chat_bubble_outline,
+                  count: widget.advisoryUnreadCount,
+                  tint: AppColors.accent,
+                  tooltip: 'Chat with Dora',
+                  onTap: widget.onAdvisoryTap!,
+                  alwaysShow: true,
+                ),
               IconButton(
                 key: const ValueKey('liveCaptureMore'),
                 onPressed: widget.onOverflow ?? () {},
@@ -303,4 +329,77 @@ class _StateMeta {
   final IconData icon;
   final Color foreground;
   final Color background;
+}
+
+class _TopBarBadge extends StatelessWidget {
+  const _TopBarBadge({
+    required this.icon,
+    required this.count,
+    required this.tint,
+    required this.tooltip,
+    required this.onTap,
+    this.alwaysShow = false,
+  });
+
+  final IconData icon;
+  final int count;
+  final Color tint;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool alwaysShow;
+
+  @override
+  Widget build(BuildContext context) {
+    final showCount = count > 0;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 20, color: tint),
+                if (showCount)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tint,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

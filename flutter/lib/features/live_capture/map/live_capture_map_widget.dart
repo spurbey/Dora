@@ -24,6 +24,8 @@ class LiveCaptureMapWidget extends StatefulWidget {
     this.position,
     this.bearing,
     this.pathPoints = const <AppLatLng>[],
+    this.advisoryMarkers = const <AdvisoryMapMarker>[],
+    this.onAdvisoryMarkerTap,
   });
 
   final AppLatLng initialCenter;
@@ -31,6 +33,8 @@ class LiveCaptureMapWidget extends StatefulWidget {
   final AppLatLng? position;
   final double? bearing;
   final List<AppLatLng> pathPoints;
+  final List<AdvisoryMapMarker> advisoryMarkers;
+  final void Function(String advisoryId)? onAdvisoryMarkerTap;
 
   @override
   State<LiveCaptureMapWidget> createState() => _LiveCaptureMapWidgetState();
@@ -45,6 +49,7 @@ class _LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
   AppLatLng? _lastPushedPosition;
   double? _lastPushedBearing;
   int? _lastPushedPathSignature;
+  int? _lastPushedMarkersSignature;
 
   @override
   void didUpdateWidget(LiveCaptureMapWidget old) {
@@ -102,6 +107,26 @@ class _LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
       _lastPushedPathSignature = pathSignature;
       ctrl.updateLivePath(path);
     }
+
+    // Advisory markers: re-apply handler + diff list
+    ctrl.setOnAdvisoryMarkerTap(widget.onAdvisoryMarkerTap);
+    final markersSig = _markersSignature(widget.advisoryMarkers);
+    if (_lastPushedMarkersSignature != markersSig) {
+      _lastPushedMarkersSignature = markersSig;
+      ctrl.setAdvisoryMarkers(widget.advisoryMarkers);
+    }
+  }
+
+  int _markersSignature(List<AdvisoryMapMarker> markers) {
+    int hash = 17;
+    for (final m in markers) {
+      hash = 31 * hash + m.advisoryId.hashCode;
+      hash = 31 * hash + m.accepted.hashCode;
+      hash = 31 * hash + m.lat.hashCode;
+      hash = 31 * hash + m.lng.hashCode;
+      hash = 31 * hash + m.categoryEmoji.hashCode;
+    }
+    return hash;
   }
 
   /// Computes bearing (degrees) from the last two path points, or null.

@@ -34,8 +34,10 @@ import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/features/advisory/providers/advisory_providers.dart';
+import 'package:dora/features/live_capture/map/live_capture_map_controller.dart' show AdvisoryMapMarker;
 import 'package:dora/features/live_capture/presentation/widgets/advisory_active_card.dart';
 import 'package:dora/features/live_capture/presentation/widgets/advisory_side_panel.dart';
+import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_detail_sheet.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -89,6 +91,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   String? _actionLabel;
   bool _sidePanelOpen = false;
   String? _focusedAdvisoryId;
+  BottomSheetContent? _bottomSheetContent;
   Timer? _resolverReconcileTimer;
 
   // Entrance animations
@@ -298,13 +301,40 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         body: Stack(
           children: [
             Positioned.fill(
-              child: LiveCaptureMapWidget(
-                key: ValueKey('liveCaptureMap-${widget.tripId}'),
-                initialCenter: mapInitialCenter,
-                initialZoom: 13,
-                position: capturePosition,
-                pathPoints:
-                    mapOverlay?.pathRoute?.coordinates ?? const <AppLatLng>[],
+              child: Consumer(
+                builder: (context, innerRef, _) {
+                  final insightsAsync = usePreview
+                      ? null
+                      : innerRef.watch(
+                          advisoryInsightsProvider(widget.tripId),
+                        );
+                  final markers = usePreview
+                      ? const <AdvisoryMapMarker>[]
+                      : _mapInsightsToMarkers(
+                          insightsAsync?.asData?.value,
+                        );
+                  return LiveCaptureMapWidget(
+                    key: ValueKey('liveCaptureMap-${widget.tripId}'),
+                    initialCenter: mapInitialCenter,
+                    initialZoom: 13,
+                    position: capturePosition,
+                    pathPoints: mapOverlay?.pathRoute?.coordinates ??
+                        const <AppLatLng>[],
+                    advisoryMarkers: markers,
+                    onAdvisoryMarkerTap: (advisoryId) {
+                      final list = insightsAsync?.asData?.value.insights;
+                      if (list == null) return;
+                      final found = list
+                          .where((i) => i.id == advisoryId)
+                          .toList();
+                      if (found.isEmpty) return;
+                      setState(() {
+                        _bottomSheetContent =
+                            AdvisoryPoiDetail(found.first);
+                      });
+                    },
+                  );
+                },
               ),
             ),
             SafeArea(
@@ -570,6 +600,21 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                   isOpen: _sidePanelOpen,
                   onClose: _toggleSidePanel,
                   focusedAdvisoryId: _focusedAdvisoryId,
+                  onOpenAdvisoryDetail: (adv) {
+                    setState(() {
+                      _bottomSheetContent = AdvisoryPoiDetail(adv);
+                    });
+                  },
+                ),
+              ),
+            // Bottom detail sheet — POI / photo / place detail
+            if (!usePreview && _bottomSheetContent != null)
+              Positioned.fill(
+                child: LiveCaptureBottomDetailSheet(
+                  localTripId: widget.tripId,
+                  content: _bottomSheetContent!,
+                  onDismiss: () =>
+                      setState(() => _bottomSheetContent = null),
                 ),
               ),
           ],
@@ -753,6 +798,48 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         _focusedAdvisoryId = null;
       }
     });
+  }
+
+  static const Map<String, (String, Color)> _advisoryMarkerStyle = {
+    'safety_warning': ('⚠️', Color(0xFFF59E0B)),
+    'scam_alert': ('🚨', Color(0xFFDC2626)),
+    'food_tip': ('🍜', Color(0xFFEA580C)),
+    'photo_spot': ('📸', Color(0xFF7C3AED)),
+    'transport_tip': ('🚌', Color(0xFF2563EB)),
+    'accommodation': ('🏨', Color(0xFF0891B2)),
+    'cultural_etiquette': ('🙏', Color(0xFF7C3AED)),
+    'must_do': ('🎯', Color(0xFF059669)),
+    'avoid': ('🚫', Color(0xFFDC2626)),
+    'general_tip': ('💡', AppColors.accent),
+  };
+
+  List<AdvisoryMapMarker> _mapInsightsToMarkers(
+    openapi.AdvisoryInsightListResponse? list,
+  ) {
+    if (list == null) return const <AdvisoryMapMarker>[];
+    final out = <AdvisoryMapMarker>[];
+    for (final ins in list.insights) {
+      final lat = ins.placeLat?.toDouble();
+      final lng = ins.placeLng?.toDouble();
+      if (lat == null || lng == null) continue;
+      final style = _advisoryMarkerStyle[ins.category.name] ??
+          _advisoryMarkerStyle['general_tip']!;
+      // "pending" = suggested (Dora recommendation, not yet acted on)
+      // any other delivery status → treat as accepted (saved / acted on)
+      final accepted = ins.status.name != 'pending';
+      out.add(
+        AdvisoryMapMarker(
+          advisoryId: ins.id,
+          lat: lat,
+          lng: lng,
+          categoryEmoji: style.$1,
+          tint: style.$2,
+          accepted: accepted,
+        ),
+      );
+      if (out.length >= 15) break;
+    }
+    return out;
   }
 
   void _handleBack() {

@@ -29,6 +29,13 @@ class LiveCaptureMapController {
   PolylineAnnotationManager? _lineManager;
   PolylineAnnotation? _routeAnnotation;
 
+  PointAnnotationManager? _advisoryManager;
+  final Map<String, PointAnnotation> _advisoryAnnotations = {};
+  final Map<String, AdvisoryMapMarker> _advisoryKnown = {};
+  // Cache rendered marker images by composite cache key "emoji|tint|accepted"
+  final Map<String, Uint8List> _advisoryIconCache = {};
+  void Function(String advisoryId)? _onAdvisoryMarkerTap;
+
   bool _followMode = true;
   AppLatLng? _lastKnownPosition;
 
@@ -50,12 +57,25 @@ class LiveCaptureMapController {
 
     _pointManager = await map.annotations.createPointAnnotationManager();
     _lineManager = await map.annotations.createPolylineAnnotationManager();
+    _advisoryManager = await map.annotations.createPointAnnotationManager();
+    _advisoryManager?.addOnPointAnnotationClickListener(
+      _AdvisoryClickListener(this),
+    );
+  }
+
+  void setOnAdvisoryMarkerTap(void Function(String advisoryId)? handler) {
+    _onAdvisoryMarkerTap = handler;
   }
 
   void dispose() {
     _map = null;
     _pointManager = null;
     _lineManager = null;
+    _advisoryManager = null;
+    _advisoryAnnotations.clear();
+    _advisoryKnown.clear();
+    _advisoryIconCache.clear();
+    _onAdvisoryMarkerTap = null;
     _positionAnnotation = null;
     _routeAnnotation = null;
     _positionMarkerImage = null;
@@ -216,8 +236,126 @@ class LiveCaptureMapController {
     } catch (_) {}
   }
 
+  // ── Advisory POI markers ──────────────────────────────────────────────────
+
+  /// Reconciles the advisory markers against the given list.
+  ///
+  /// Diff-based: creates new, updates changed (style only), removes stale.
+  /// Does not rebuild unchanged markers. Safe to call on every advisory
+  /// provider update.
+  Future<void> setAdvisoryMarkers(List<AdvisoryMapMarker> markers) async {
+    final manager = _advisoryManager;
+    if (manager == null) return;
+
+    final nextIds = markers.map((m) => m.advisoryId).toSet();
+
+    // Remove stale
+    for (final staleId in _advisoryAnnotations.keys
+        .where((id) => !nextIds.contains(id))
+        .toList()) {
+      final ann = _advisoryAnnotations.remove(staleId);
+      _advisoryKnown.remove(staleId);
+      if (ann != null) {
+        try {
+          await manager.delete(ann);
+        } catch (_) {}
+      }
+    }
+
+    // Add / update
+    for (final m in markers) {
+      final existing = _advisoryAnnotations[m.advisoryId];
+      final known = _advisoryKnown[m.advisoryId];
+      final unchanged = known != null &&
+          known.lat == m.lat &&
+          known.lng == m.lng &&
+          known.categoryEmoji == m.categoryEmoji &&
+          known.accepted == m.accepted &&
+          known.tint == m.tint;
+      if (existing != null && unchanged) continue;
+
+      final image = await _getOrRenderIcon(m);
+      final geometry = Point(coordinates: Position(m.lng, m.lat));
+
+      if (existing == null) {
+        final created = await manager.create(
+          PointAnnotationOptions(
+            geometry: geometry,
+            image: image,
+            iconAnchor: IconAnchor.CENTER,
+            iconSize: 0.62,
+            symbolSortKey: 900,
+            textField: m.advisoryId, // sentinel to identify on click
+            textOpacity: 0,
+            textSize: 0.01,
+          ),
+        );
+        _advisoryAnnotations[m.advisoryId] = created;
+      } else {
+        existing.geometry = geometry;
+        existing.image = image;
+        existing.textField = m.advisoryId;
+        try {
+          await manager.update(existing);
+        } catch (_) {
+          _advisoryAnnotations.remove(m.advisoryId);
+        }
+      }
+      _advisoryKnown[m.advisoryId] = m;
+    }
+  }
+
+  Future<Uint8List> _getOrRenderIcon(AdvisoryMapMarker m) async {
+    final key = '${m.categoryEmoji}|${m.tint.toARGB32()}|${m.accepted}';
+    final cached = _advisoryIconCache[key];
+    if (cached != null) return cached;
+    final image = await MarkerImagePainter.drawAdvisoryMarker(
+      emoji: m.categoryEmoji,
+      tint: m.tint,
+      accepted: m.accepted,
+    );
+    _advisoryIconCache[key] = image;
+    return image;
+  }
+
+  void _handleAdvisoryClick(PointAnnotation annotation) {
+    final id = annotation.textField;
+    if (id == null || id.isEmpty) return;
+    _onAdvisoryMarkerTap?.call(id);
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   static Point _toPoint(AppLatLng p) =>
       Point(coordinates: Position(p.longitude, p.latitude));
+}
+
+/// Data for a single advisory POI marker.
+@immutable
+class AdvisoryMapMarker {
+  const AdvisoryMapMarker({
+    required this.advisoryId,
+    required this.lat,
+    required this.lng,
+    required this.categoryEmoji,
+    required this.tint,
+    required this.accepted,
+  });
+
+  final String advisoryId;
+  final double lat;
+  final double lng;
+  final String categoryEmoji;
+  final Color tint;
+  final bool accepted;
+}
+
+class _AdvisoryClickListener extends OnPointAnnotationClickListener {
+  _AdvisoryClickListener(this._controller);
+  final LiveCaptureMapController _controller;
+
+  @override
+  void onPointAnnotationClick(PointAnnotation annotation) {
+    _controller._handleAdvisoryClick(annotation);
+  }
 }

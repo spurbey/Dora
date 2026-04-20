@@ -369,7 +369,9 @@ Future<List<MediaItem>> _mediaRowsForPlace(
     variables: [drift.Variable<String>(placeLocalId)],
     readsFrom: {database.media, database.mediaAttachments},
   ).get();
-  return rows.map((row) => database.media.map(row.data)).toList(growable: false);
+  return rows
+      .map((row) => database.media.map(row.data))
+      .toList(growable: false);
 }
 
 Future<void> _insertTripRow({
@@ -533,6 +535,58 @@ void main() {
       final afterPublish = await _mediaRowsForPlace(database, localPlaceId);
       expect(afterPublish.single.uploadState, 'uploaded');
       expect(uploader.uploadCalls, 1);
+    });
+
+    test('trip-event capture media is not queued by trip publish worker lane',
+        () async {
+      final now = DateTime.utc(2026, 2, 21);
+      const mediaId = 'media-trip-event-only';
+      await database.mediaDao.insertMedia(
+        MediaCompanion.insert(
+          id: mediaId,
+          ownerUserId: 'user-1',
+          originScope: 'live_capture',
+          mediaType: const drift.Value('photo'),
+          localUri: const drift.Value('/tmp/trip-event-only.jpg'),
+          capturedAt: now,
+          uploadState: const drift.Value('local_only'),
+          uploadProgress: const drift.Value(0.0),
+          retryCount: const drift.Value(0),
+          syncStatus: const drift.Value('pending'),
+          localUpdatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.mediaAttachmentsDao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-trip-event-only',
+          mediaId: mediaId,
+          targetKind: 'trip_event',
+          targetLocalId: 'event-1',
+          role: 'capture',
+          attachedAt: now,
+        ),
+      );
+      await database.mediaAttachmentsDao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-trip-only',
+          mediaId: mediaId,
+          targetKind: 'trip',
+          targetLocalId: localTripId,
+          role: 'capture',
+          attachedAt: now,
+        ),
+      );
+
+      final queued =
+          await mediaRepository.enqueueMediaForTripPublish(localTripId);
+      expect(queued, 0);
+
+      final row = await database.mediaDao.getMediaById(mediaId);
+      expect(row, isNotNull);
+      expect(row!.uploadState, 'local_only');
+      expect(uploader.uploadCalls, 0);
     });
 
     test('canceling in-flight upload keeps row canceled and avoids URL bridge',

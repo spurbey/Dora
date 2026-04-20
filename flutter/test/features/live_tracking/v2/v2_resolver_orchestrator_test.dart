@@ -33,6 +33,7 @@ void main() {
         eventRepository: eventRepository,
         resolverRepository: resolverRepository,
         resolverClient: resolverClient,
+        mediaAttachmentsDao: database.mediaAttachmentsDao,
         uuid: const Uuid(),
       );
     });
@@ -125,6 +126,98 @@ void main() {
       expect(attempts[0].resultKind, anyOf('auto_place', 'review_required'));
       expect(event, isNotNull);
       expect(event!.resolverState, 'place_bound');
+    });
+
+    test(
+        'acceptCandidate does not mirror provider poi ids to place attachments',
+        () async {
+      final now = DateTime.utc(2026, 4, 11, 10, 0);
+      await eventRepository.upsertEvent(
+        eventId: 'event-provider-poi',
+        sessionId: 'session-1',
+        tripLocalId: 'trip-1',
+        eventType: 'photo',
+        capturedAt: now,
+        latitude: 27.7,
+        longitude: 85.3,
+        resolverState: 'review_required',
+        createdAt: now,
+        updatedAt: now,
+        eventSeq: 1,
+      );
+      await database.mediaAttachmentsDao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-trip-event-provider-poi',
+          mediaId: 'media-1',
+          targetKind: 'trip_event',
+          targetLocalId: 'event-provider-poi',
+          role: 'capture',
+          attachedAt: now,
+        ),
+      );
+
+      await orchestrator.acceptCandidate(
+        eventId: 'event-provider-poi',
+        candidate: const V2ResolverCandidate(
+          providerPlaceId: 'provider:poi:123',
+          name: 'Provider POI',
+          label: 'Provider POI',
+          coordinates: AppLatLng(latitude: 27.7001, longitude: 85.3001),
+          confidenceScore: 0.84,
+          distanceM: 21,
+          rawJson: <String, dynamic>{},
+        ),
+      );
+
+      final mirrored = await database.mediaAttachmentsDao.listForTarget(
+        targetKind: 'place',
+        targetLocalId: 'provider:poi:123',
+        role: 'review',
+      );
+      expect(mirrored, isEmpty);
+    });
+
+    test('assignManualPlace mirrors to place attachments for local place ids',
+        () async {
+      final now = DateTime.utc(2026, 4, 11, 10, 30);
+      await eventRepository.upsertEvent(
+        eventId: 'event-manual-place',
+        sessionId: 'session-1',
+        tripLocalId: 'trip-1',
+        eventType: 'photo',
+        capturedAt: now,
+        latitude: 27.7,
+        longitude: 85.3,
+        resolverState: 'review_required',
+        createdAt: now,
+        updatedAt: now,
+        eventSeq: 1,
+      );
+      await database.mediaAttachmentsDao.insertAttachment(
+        MediaAttachmentsCompanion.insert(
+          id: 'attach-trip-event-manual-place',
+          mediaId: 'media-2',
+          targetKind: 'trip_event',
+          targetLocalId: 'event-manual-place',
+          role: 'capture',
+          attachedAt: now,
+        ),
+      );
+
+      await orchestrator.assignManualPlace(
+        eventId: 'event-manual-place',
+        placeId: 'local-place-123',
+        placeName: 'Manual Local Place',
+      );
+
+      final mirrored = await database.mediaAttachmentsDao.listForTarget(
+        targetKind: 'place',
+        targetLocalId: 'local-place-123',
+        role: 'review',
+      );
+      expect(mirrored, hasLength(1));
+      expect(mirrored.first.source, 'place_resolution');
+      expect(mirrored.first.mediaId, 'media-2');
     });
   });
 }

@@ -104,11 +104,13 @@ class V2ResolverOrchestrator {
       resolvedAt: now,
       updatedAt: now,
     );
-    final candidatePlaceId = candidate.providerPlaceId;
-    if (candidatePlaceId != null && candidatePlaceId.isNotEmpty) {
+    if (_shouldMirrorPlaceAttachment(
+      placeBindKind: 'provider_poi',
+      placeBindId: candidate.providerPlaceId,
+    )) {
       await _mirrorPlaceAttachmentForEvent(
         eventId: eventId,
-        placeLocalId: candidatePlaceId,
+        placeLocalId: candidate.providerPlaceId!,
         now: now,
       );
     }
@@ -147,11 +149,16 @@ class V2ResolverOrchestrator {
       resolvedAt: now,
       updatedAt: now,
     );
-    await _mirrorPlaceAttachmentForEvent(
-      eventId: eventId,
-      placeLocalId: trimmedPlaceId,
-      now: now,
-    );
+    if (_shouldMirrorPlaceAttachment(
+      placeBindKind: 'trip_place_local',
+      placeBindId: trimmedPlaceId,
+    )) {
+      await _mirrorPlaceAttachmentForEvent(
+        eventId: eventId,
+        placeLocalId: trimmedPlaceId,
+        now: now,
+      );
+    }
     Logger.info(
       'resolver_state_transition',
       <String, Object?>{
@@ -400,9 +407,10 @@ class V2ResolverOrchestrator {
         resolvedAt: decision.resolverState == 'place_bound' ? now : null,
         updatedAt: now,
       );
-      if (decision.resolverState == 'place_bound' &&
-          decision.placeBindId != null &&
-          decision.placeBindId!.isNotEmpty) {
+      if (_shouldMirrorPlaceAttachment(
+        placeBindKind: decision.placeBindKind,
+        placeBindId: decision.placeBindId,
+      )) {
         await _mirrorPlaceAttachmentForEvent(
           eventId: refreshed.eventId,
           placeLocalId: decision.placeBindId!,
@@ -459,6 +467,17 @@ class V2ResolverOrchestrator {
   bool _isUnresolvedState(String resolverState) {
     return resolverState == 'geotag_unresolved' ||
         resolverState == 'review_required';
+  }
+
+  bool _shouldMirrorPlaceAttachment({
+    required String? placeBindKind,
+    required String? placeBindId,
+  }) {
+    // Only local place bindings are valid attachment ids for the
+    // place-bound media upload lane.
+    return placeBindKind == 'trip_place_local' &&
+        placeBindId != null &&
+        placeBindId.isNotEmpty;
   }
 
   Future<void> _persistCandidates({

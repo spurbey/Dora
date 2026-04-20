@@ -167,8 +167,7 @@ class MediaRepository {
     if (mediaIds.isEmpty) {
       return 0;
     }
-    final queued =
-        await _db.mediaDao.enqueueManyForUpload(mediaIds);
+    final queued = await _db.mediaDao.enqueueManyForUpload(mediaIds);
     if (queued > 0) {
       await _queueWorker.startIfIdle();
     }
@@ -176,6 +175,8 @@ class MediaRepository {
   }
 
   Future<List<String>> _mediaIdsForTrip(String tripLocalId) async {
+    // Trip publish should enqueue only editor-style place reviews for the
+    // place-bound upload worker. Live-capture media uses the V2 publish path.
     final rows = await _db.customSelect(
       '''
       SELECT DISTINCT m.id AS id
@@ -184,26 +185,19 @@ class MediaRepository {
       WHERE ma.detached_at IS NULL
         AND m.deleted_at IS NULL
         AND m.upload_state = 'local_only'
-        AND (
-          (ma.target_kind = 'trip' AND ma.target_local_id = ?)
-          OR (ma.target_kind = 'place' AND ma.target_local_id IN (
-            SELECT id FROM places WHERE trip_id = ?
-          ))
-          OR (ma.target_kind = 'trip_event' AND ma.target_local_id IN (
-            SELECT event_id FROM event_journal WHERE trip_local_id = ?
-          ))
+        AND ma.target_kind = 'place'
+        AND ma.role = 'review'
+        AND ma.target_local_id IN (
+          SELECT id FROM places WHERE trip_id = ?
         )
       ''',
       variables: [
-        Variable<String>(tripLocalId),
-        Variable<String>(tripLocalId),
         Variable<String>(tripLocalId),
       ],
       readsFrom: {
         _db.media,
         _db.mediaAttachments,
         _db.places,
-        _db.eventJournal,
       },
     ).get();
     return rows.map((r) => r.read<String>('id')).toList(growable: false);
@@ -258,7 +252,8 @@ class MediaRepository {
       try {
         await _mediaUploader.deleteMedia(mediaId: mediaId);
       } catch (error) {
-        debugPrint('[MEDIA_UPLOAD] remote delete failed mediaId=$mediaId $error');
+        debugPrint(
+            '[MEDIA_UPLOAD] remote delete failed mediaId=$mediaId $error');
       }
 
       final placeAttachments = await _db.mediaAttachmentsDao.listForMedia(
@@ -324,4 +319,3 @@ class MediaRepository {
     return copied.path;
   }
 }
-

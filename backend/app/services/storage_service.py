@@ -214,6 +214,7 @@ class StorageService:
         allowed_types: Optional[list[str]] = None,
         max_size_mb: int = 10,
         contents: Optional[bytes] = None,
+        object_key: Optional[str] = None,
     ) -> str:
         """
         Upload file to Supabase Storage.
@@ -261,12 +262,13 @@ class StorageService:
                 detail="Uploaded file is empty"
             )
         
-        # Generate unique filename
-        ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        unique_filename = f"{uuid4()}.{ext}"
-        
-        # Construct file path
-        file_path = f"{user_id}/{unique_filename}"
+        # Construct file path.
+        if object_key is not None and object_key.strip():
+            file_path = object_key.strip()
+        else:
+            ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+            unique_filename = f"{uuid4()}.{ext}"
+            file_path = f"{user_id}/{unique_filename}"
         
         try:
             # Upload to Supabase Storage

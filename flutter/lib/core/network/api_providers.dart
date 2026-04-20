@@ -61,6 +61,11 @@ final advisoryApiProvider = Provider<AdvisoryApi>((ref) {
   return AdvisoryApi(client.dio, standardSerializers);
 });
 
+final openApiStoriesApiProvider = Provider<StoriesApi>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return StoriesApi(client.dio, standardSerializers);
+});
+
 final liveTrackingApiProvider = Provider<LiveTrackingApi>((ref) {
   final client = ref.watch(apiClientProvider);
   final authService = ref.watch(authServiceProvider);

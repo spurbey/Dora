@@ -41,7 +41,7 @@ class CameraFab extends ConsumerWidget {
       SnackBar(
         content: Text(
           result.destination == CaptureDestination.storyDraft
-              ? 'Saved as story draft'
+              ? 'Story publish started'
               : result.attachedToTrip
                   ? 'Attached to ${result.tripName ?? 'active trip'}'
                   : 'Saved to Vault',

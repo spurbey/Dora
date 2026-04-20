@@ -20,6 +20,7 @@ import 'package:dora_api/src/api/metadata_api.dart';
 import 'package:dora_api/src/api/places_api.dart';
 import 'package:dora_api/src/api/routes_api.dart';
 import 'package:dora_api/src/api/search_api.dart';
+import 'package:dora_api/src/api/stories_api.dart';
 import 'package:dora_api/src/api/trips_api.dart';
 import 'package:dora_api/src/api/users_api.dart';
 
@@ -141,6 +142,12 @@ class DoraApi {
   /// by doing that all interceptors will not be executed
   SearchApi getSearchApi() {
     return SearchApi(dio, serializers);
+  }
+
+  /// Get StoriesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  StoriesApi getStoriesApi() {
+    return StoriesApi(dio, serializers);
   }
 
   /// Get TripsApi instance, base route and serializer can be overridden by a given but be careful,

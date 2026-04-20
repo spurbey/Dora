@@ -27,6 +27,13 @@ class Stories extends Table {
   DateTimeColumn get expiresAt => dateTime().nullable()();
   TextColumn get visibility => text().withDefault(const Constant('draft'))();
   IntColumn get viewCount => integer().withDefault(const Constant(0))();
+  IntColumn get publishAttemptCount =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get lastErrorCode => text().nullable()();
+  TextColumn get lastErrorMessage => text().nullable()();
+  DateTimeColumn get publishRequestedAt => dateTime().nullable()();
+  DateTimeColumn get lastPublishAttemptAt => dateTime().nullable()();
+  DateTimeColumn get serverDeletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 

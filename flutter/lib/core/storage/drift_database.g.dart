@@ -4436,6 +4436,44 @@ class $StoriesTable extends Stories with TableInfo<$StoriesTable, StoryRow> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _publishAttemptCountMeta =
+      const VerificationMeta('publishAttemptCount');
+  @override
+  late final GeneratedColumn<int> publishAttemptCount = GeneratedColumn<int>(
+      'publish_attempt_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorMessageMeta =
+      const VerificationMeta('lastErrorMessage');
+  @override
+  late final GeneratedColumn<String> lastErrorMessage = GeneratedColumn<String>(
+      'last_error_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _publishRequestedAtMeta =
+      const VerificationMeta('publishRequestedAt');
+  @override
+  late final GeneratedColumn<DateTime> publishRequestedAt =
+      GeneratedColumn<DateTime>('publish_requested_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastPublishAttemptAtMeta =
+      const VerificationMeta('lastPublishAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> lastPublishAttemptAt =
+      GeneratedColumn<DateTime>('last_publish_attempt_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _serverDeletedAtMeta =
+      const VerificationMeta('serverDeletedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverDeletedAt =
+      GeneratedColumn<DateTime>('server_deleted_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -4460,6 +4498,12 @@ class $StoriesTable extends Stories with TableInfo<$StoriesTable, StoryRow> {
         expiresAt,
         visibility,
         viewCount,
+        publishAttemptCount,
+        lastErrorCode,
+        lastErrorMessage,
+        publishRequestedAt,
+        lastPublishAttemptAt,
+        serverDeletedAt,
         createdAt,
         updatedAt
       ];
@@ -4528,6 +4572,42 @@ class $StoriesTable extends Stories with TableInfo<$StoriesTable, StoryRow> {
       context.handle(_viewCountMeta,
           viewCount.isAcceptableOrUnknown(data['view_count']!, _viewCountMeta));
     }
+    if (data.containsKey('publish_attempt_count')) {
+      context.handle(
+          _publishAttemptCountMeta,
+          publishAttemptCount.isAcceptableOrUnknown(
+              data['publish_attempt_count']!, _publishAttemptCountMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('last_error_message')) {
+      context.handle(
+          _lastErrorMessageMeta,
+          lastErrorMessage.isAcceptableOrUnknown(
+              data['last_error_message']!, _lastErrorMessageMeta));
+    }
+    if (data.containsKey('publish_requested_at')) {
+      context.handle(
+          _publishRequestedAtMeta,
+          publishRequestedAt.isAcceptableOrUnknown(
+              data['publish_requested_at']!, _publishRequestedAtMeta));
+    }
+    if (data.containsKey('last_publish_attempt_at')) {
+      context.handle(
+          _lastPublishAttemptAtMeta,
+          lastPublishAttemptAt.isAcceptableOrUnknown(
+              data['last_publish_attempt_at']!, _lastPublishAttemptAtMeta));
+    }
+    if (data.containsKey('server_deleted_at')) {
+      context.handle(
+          _serverDeletedAtMeta,
+          serverDeletedAt.isAcceptableOrUnknown(
+              data['server_deleted_at']!, _serverDeletedAtMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -4569,6 +4649,20 @@ class $StoriesTable extends Stories with TableInfo<$StoriesTable, StoryRow> {
           .read(DriftSqlType.string, data['${effectivePrefix}visibility'])!,
       viewCount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}view_count'])!,
+      publishAttemptCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}publish_attempt_count'])!,
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      lastErrorMessage: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_error_message']),
+      publishRequestedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}publish_requested_at']),
+      lastPublishAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}last_publish_attempt_at']),
+      serverDeletedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_deleted_at']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -4593,6 +4687,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
   final DateTime? expiresAt;
   final String visibility;
   final int viewCount;
+  final int publishAttemptCount;
+  final String? lastErrorCode;
+  final String? lastErrorMessage;
+  final DateTime? publishRequestedAt;
+  final DateTime? lastPublishAttemptAt;
+  final DateTime? serverDeletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const StoryRow(
@@ -4606,6 +4706,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
       this.expiresAt,
       required this.visibility,
       required this.viewCount,
+      required this.publishAttemptCount,
+      this.lastErrorCode,
+      this.lastErrorMessage,
+      this.publishRequestedAt,
+      this.lastPublishAttemptAt,
+      this.serverDeletedAt,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -4627,6 +4733,22 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
     }
     map['visibility'] = Variable<String>(visibility);
     map['view_count'] = Variable<int>(viewCount);
+    map['publish_attempt_count'] = Variable<int>(publishAttemptCount);
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    if (!nullToAbsent || lastErrorMessage != null) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage);
+    }
+    if (!nullToAbsent || publishRequestedAt != null) {
+      map['publish_requested_at'] = Variable<DateTime>(publishRequestedAt);
+    }
+    if (!nullToAbsent || lastPublishAttemptAt != null) {
+      map['last_publish_attempt_at'] = Variable<DateTime>(lastPublishAttemptAt);
+    }
+    if (!nullToAbsent || serverDeletedAt != null) {
+      map['server_deleted_at'] = Variable<DateTime>(serverDeletedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4650,6 +4772,22 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
           : Value(expiresAt),
       visibility: Value(visibility),
       viewCount: Value(viewCount),
+      publishAttemptCount: Value(publishAttemptCount),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      lastErrorMessage: lastErrorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorMessage),
+      publishRequestedAt: publishRequestedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publishRequestedAt),
+      lastPublishAttemptAt: lastPublishAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPublishAttemptAt),
+      serverDeletedAt: serverDeletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverDeletedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4669,6 +4807,15 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
       expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
       visibility: serializer.fromJson<String>(json['visibility']),
       viewCount: serializer.fromJson<int>(json['viewCount']),
+      publishAttemptCount:
+          serializer.fromJson<int>(json['publishAttemptCount']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      lastErrorMessage: serializer.fromJson<String?>(json['lastErrorMessage']),
+      publishRequestedAt:
+          serializer.fromJson<DateTime?>(json['publishRequestedAt']),
+      lastPublishAttemptAt:
+          serializer.fromJson<DateTime?>(json['lastPublishAttemptAt']),
+      serverDeletedAt: serializer.fromJson<DateTime?>(json['serverDeletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4687,6 +4834,13 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
       'expiresAt': serializer.toJson<DateTime?>(expiresAt),
       'visibility': serializer.toJson<String>(visibility),
       'viewCount': serializer.toJson<int>(viewCount),
+      'publishAttemptCount': serializer.toJson<int>(publishAttemptCount),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'lastErrorMessage': serializer.toJson<String?>(lastErrorMessage),
+      'publishRequestedAt': serializer.toJson<DateTime?>(publishRequestedAt),
+      'lastPublishAttemptAt':
+          serializer.toJson<DateTime?>(lastPublishAttemptAt),
+      'serverDeletedAt': serializer.toJson<DateTime?>(serverDeletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4703,6 +4857,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
           Value<DateTime?> expiresAt = const Value.absent(),
           String? visibility,
           int? viewCount,
+          int? publishAttemptCount,
+          Value<String?> lastErrorCode = const Value.absent(),
+          Value<String?> lastErrorMessage = const Value.absent(),
+          Value<DateTime?> publishRequestedAt = const Value.absent(),
+          Value<DateTime?> lastPublishAttemptAt = const Value.absent(),
+          Value<DateTime?> serverDeletedAt = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       StoryRow(
@@ -4716,6 +4876,21 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
         expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
         visibility: visibility ?? this.visibility,
         viewCount: viewCount ?? this.viewCount,
+        publishAttemptCount: publishAttemptCount ?? this.publishAttemptCount,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        lastErrorMessage: lastErrorMessage.present
+            ? lastErrorMessage.value
+            : this.lastErrorMessage,
+        publishRequestedAt: publishRequestedAt.present
+            ? publishRequestedAt.value
+            : this.publishRequestedAt,
+        lastPublishAttemptAt: lastPublishAttemptAt.present
+            ? lastPublishAttemptAt.value
+            : this.lastPublishAttemptAt,
+        serverDeletedAt: serverDeletedAt.present
+            ? serverDeletedAt.value
+            : this.serverDeletedAt,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -4735,6 +4910,24 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
       visibility:
           data.visibility.present ? data.visibility.value : this.visibility,
       viewCount: data.viewCount.present ? data.viewCount.value : this.viewCount,
+      publishAttemptCount: data.publishAttemptCount.present
+          ? data.publishAttemptCount.value
+          : this.publishAttemptCount,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      lastErrorMessage: data.lastErrorMessage.present
+          ? data.lastErrorMessage.value
+          : this.lastErrorMessage,
+      publishRequestedAt: data.publishRequestedAt.present
+          ? data.publishRequestedAt.value
+          : this.publishRequestedAt,
+      lastPublishAttemptAt: data.lastPublishAttemptAt.present
+          ? data.lastPublishAttemptAt.value
+          : this.lastPublishAttemptAt,
+      serverDeletedAt: data.serverDeletedAt.present
+          ? data.serverDeletedAt.value
+          : this.serverDeletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4753,6 +4946,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
           ..write('expiresAt: $expiresAt, ')
           ..write('visibility: $visibility, ')
           ..write('viewCount: $viewCount, ')
+          ..write('publishAttemptCount: $publishAttemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('publishRequestedAt: $publishRequestedAt, ')
+          ..write('lastPublishAttemptAt: $lastPublishAttemptAt, ')
+          ..write('serverDeletedAt: $serverDeletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4771,6 +4970,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
       expiresAt,
       visibility,
       viewCount,
+      publishAttemptCount,
+      lastErrorCode,
+      lastErrorMessage,
+      publishRequestedAt,
+      lastPublishAttemptAt,
+      serverDeletedAt,
       createdAt,
       updatedAt);
   @override
@@ -4787,6 +4992,12 @@ class StoryRow extends DataClass implements Insertable<StoryRow> {
           other.expiresAt == this.expiresAt &&
           other.visibility == this.visibility &&
           other.viewCount == this.viewCount &&
+          other.publishAttemptCount == this.publishAttemptCount &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.lastErrorMessage == this.lastErrorMessage &&
+          other.publishRequestedAt == this.publishRequestedAt &&
+          other.lastPublishAttemptAt == this.lastPublishAttemptAt &&
+          other.serverDeletedAt == this.serverDeletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4802,6 +5013,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
   final Value<DateTime?> expiresAt;
   final Value<String> visibility;
   final Value<int> viewCount;
+  final Value<int> publishAttemptCount;
+  final Value<String?> lastErrorCode;
+  final Value<String?> lastErrorMessage;
+  final Value<DateTime?> publishRequestedAt;
+  final Value<DateTime?> lastPublishAttemptAt;
+  final Value<DateTime?> serverDeletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4816,6 +5033,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
     this.expiresAt = const Value.absent(),
     this.visibility = const Value.absent(),
     this.viewCount = const Value.absent(),
+    this.publishAttemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    this.publishRequestedAt = const Value.absent(),
+    this.lastPublishAttemptAt = const Value.absent(),
+    this.serverDeletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4831,6 +5054,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
     this.expiresAt = const Value.absent(),
     this.visibility = const Value.absent(),
     this.viewCount = const Value.absent(),
+    this.publishAttemptCount = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.lastErrorMessage = const Value.absent(),
+    this.publishRequestedAt = const Value.absent(),
+    this.lastPublishAttemptAt = const Value.absent(),
+    this.serverDeletedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4852,6 +5081,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
     Expression<DateTime>? expiresAt,
     Expression<String>? visibility,
     Expression<int>? viewCount,
+    Expression<int>? publishAttemptCount,
+    Expression<String>? lastErrorCode,
+    Expression<String>? lastErrorMessage,
+    Expression<DateTime>? publishRequestedAt,
+    Expression<DateTime>? lastPublishAttemptAt,
+    Expression<DateTime>? serverDeletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4867,6 +5102,15 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
       if (expiresAt != null) 'expires_at': expiresAt,
       if (visibility != null) 'visibility': visibility,
       if (viewCount != null) 'view_count': viewCount,
+      if (publishAttemptCount != null)
+        'publish_attempt_count': publishAttemptCount,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (lastErrorMessage != null) 'last_error_message': lastErrorMessage,
+      if (publishRequestedAt != null)
+        'publish_requested_at': publishRequestedAt,
+      if (lastPublishAttemptAt != null)
+        'last_publish_attempt_at': lastPublishAttemptAt,
+      if (serverDeletedAt != null) 'server_deleted_at': serverDeletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4884,6 +5128,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
       Value<DateTime?>? expiresAt,
       Value<String>? visibility,
       Value<int>? viewCount,
+      Value<int>? publishAttemptCount,
+      Value<String?>? lastErrorCode,
+      Value<String?>? lastErrorMessage,
+      Value<DateTime?>? publishRequestedAt,
+      Value<DateTime?>? lastPublishAttemptAt,
+      Value<DateTime?>? serverDeletedAt,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -4898,6 +5148,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
       expiresAt: expiresAt ?? this.expiresAt,
       visibility: visibility ?? this.visibility,
       viewCount: viewCount ?? this.viewCount,
+      publishAttemptCount: publishAttemptCount ?? this.publishAttemptCount,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      lastErrorMessage: lastErrorMessage ?? this.lastErrorMessage,
+      publishRequestedAt: publishRequestedAt ?? this.publishRequestedAt,
+      lastPublishAttemptAt: lastPublishAttemptAt ?? this.lastPublishAttemptAt,
+      serverDeletedAt: serverDeletedAt ?? this.serverDeletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4937,6 +5193,26 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
     if (viewCount.present) {
       map['view_count'] = Variable<int>(viewCount.value);
     }
+    if (publishAttemptCount.present) {
+      map['publish_attempt_count'] = Variable<int>(publishAttemptCount.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (lastErrorMessage.present) {
+      map['last_error_message'] = Variable<String>(lastErrorMessage.value);
+    }
+    if (publishRequestedAt.present) {
+      map['publish_requested_at'] =
+          Variable<DateTime>(publishRequestedAt.value);
+    }
+    if (lastPublishAttemptAt.present) {
+      map['last_publish_attempt_at'] =
+          Variable<DateTime>(lastPublishAttemptAt.value);
+    }
+    if (serverDeletedAt.present) {
+      map['server_deleted_at'] = Variable<DateTime>(serverDeletedAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4962,6 +5238,12 @@ class StoriesCompanion extends UpdateCompanion<StoryRow> {
           ..write('expiresAt: $expiresAt, ')
           ..write('visibility: $visibility, ')
           ..write('viewCount: $viewCount, ')
+          ..write('publishAttemptCount: $publishAttemptCount, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('lastErrorMessage: $lastErrorMessage, ')
+          ..write('publishRequestedAt: $publishRequestedAt, ')
+          ..write('lastPublishAttemptAt: $lastPublishAttemptAt, ')
+          ..write('serverDeletedAt: $serverDeletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -18273,6 +18555,12 @@ typedef $$StoriesTableCreateCompanionBuilder = StoriesCompanion Function({
   Value<DateTime?> expiresAt,
   Value<String> visibility,
   Value<int> viewCount,
+  Value<int> publishAttemptCount,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  Value<DateTime?> publishRequestedAt,
+  Value<DateTime?> lastPublishAttemptAt,
+  Value<DateTime?> serverDeletedAt,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -18288,6 +18576,12 @@ typedef $$StoriesTableUpdateCompanionBuilder = StoriesCompanion Function({
   Value<DateTime?> expiresAt,
   Value<String> visibility,
   Value<int> viewCount,
+  Value<int> publishAttemptCount,
+  Value<String?> lastErrorCode,
+  Value<String?> lastErrorMessage,
+  Value<DateTime?> publishRequestedAt,
+  Value<DateTime?> lastPublishAttemptAt,
+  Value<DateTime?> serverDeletedAt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -18331,6 +18625,29 @@ class $$StoriesTableFilterComposer
 
   ColumnFilters<int> get viewCount => $composableBuilder(
       column: $table.viewCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get publishAttemptCount => $composableBuilder(
+      column: $table.publishAttemptCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get publishRequestedAt => $composableBuilder(
+      column: $table.publishRequestedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastPublishAttemptAt => $composableBuilder(
+      column: $table.lastPublishAttemptAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverDeletedAt => $composableBuilder(
+      column: $table.serverDeletedAt,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -18379,6 +18696,30 @@ class $$StoriesTableOrderingComposer
   ColumnOrderings<int> get viewCount => $composableBuilder(
       column: $table.viewCount, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get publishAttemptCount => $composableBuilder(
+      column: $table.publishAttemptCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get publishRequestedAt => $composableBuilder(
+      column: $table.publishRequestedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastPublishAttemptAt => $composableBuilder(
+      column: $table.lastPublishAttemptAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverDeletedAt => $composableBuilder(
+      column: $table.serverDeletedAt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -18425,6 +18766,24 @@ class $$StoriesTableAnnotationComposer
   GeneratedColumn<int> get viewCount =>
       $composableBuilder(column: $table.viewCount, builder: (column) => column);
 
+  GeneratedColumn<int> get publishAttemptCount => $composableBuilder(
+      column: $table.publishAttemptCount, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorMessage => $composableBuilder(
+      column: $table.lastErrorMessage, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get publishRequestedAt => $composableBuilder(
+      column: $table.publishRequestedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPublishAttemptAt => $composableBuilder(
+      column: $table.lastPublishAttemptAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverDeletedAt => $composableBuilder(
+      column: $table.serverDeletedAt, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -18465,6 +18824,12 @@ class $$StoriesTableTableManager extends RootTableManager<
             Value<DateTime?> expiresAt = const Value.absent(),
             Value<String> visibility = const Value.absent(),
             Value<int> viewCount = const Value.absent(),
+            Value<int> publishAttemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            Value<DateTime?> publishRequestedAt = const Value.absent(),
+            Value<DateTime?> lastPublishAttemptAt = const Value.absent(),
+            Value<DateTime?> serverDeletedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -18480,6 +18845,12 @@ class $$StoriesTableTableManager extends RootTableManager<
             expiresAt: expiresAt,
             visibility: visibility,
             viewCount: viewCount,
+            publishAttemptCount: publishAttemptCount,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            publishRequestedAt: publishRequestedAt,
+            lastPublishAttemptAt: lastPublishAttemptAt,
+            serverDeletedAt: serverDeletedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -18495,6 +18866,12 @@ class $$StoriesTableTableManager extends RootTableManager<
             Value<DateTime?> expiresAt = const Value.absent(),
             Value<String> visibility = const Value.absent(),
             Value<int> viewCount = const Value.absent(),
+            Value<int> publishAttemptCount = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<String?> lastErrorMessage = const Value.absent(),
+            Value<DateTime?> publishRequestedAt = const Value.absent(),
+            Value<DateTime?> lastPublishAttemptAt = const Value.absent(),
+            Value<DateTime?> serverDeletedAt = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -18510,6 +18887,12 @@ class $$StoriesTableTableManager extends RootTableManager<
             expiresAt: expiresAt,
             visibility: visibility,
             viewCount: viewCount,
+            publishAttemptCount: publishAttemptCount,
+            lastErrorCode: lastErrorCode,
+            lastErrorMessage: lastErrorMessage,
+            publishRequestedAt: publishRequestedAt,
+            lastPublishAttemptAt: lastPublishAttemptAt,
+            serverDeletedAt: serverDeletedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

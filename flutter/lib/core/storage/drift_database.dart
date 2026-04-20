@@ -102,7 +102,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -723,6 +723,26 @@ class AppDatabase extends _$AppDatabase {
               'ON stories (center_lat, center_lng)',
             );
           }
+          if (from < 24) {
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN publish_attempt_count INTEGER NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN last_error_code TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN last_error_message TEXT',
+            );
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN publish_requested_at DATETIME',
+            );
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN last_publish_attempt_at DATETIME',
+            );
+            await customStatement(
+              'ALTER TABLE stories ADD COLUMN server_deleted_at DATETIME',
+            );
+          }
         },
       );
 
@@ -847,7 +867,6 @@ class AppDatabase extends _$AppDatabase {
     final rows = await customSelect('PRAGMA table_info($tableName)').get();
     return rows.any((row) => row.read<String>('name') == columnName);
   }
-
 
   Future<void> _backfillMediaUploadState() async {
     if (!await _tableExists('media') ||

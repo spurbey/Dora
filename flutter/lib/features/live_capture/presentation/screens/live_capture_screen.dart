@@ -34,7 +34,8 @@ import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/features/advisory/providers/advisory_providers.dart';
-import 'package:dora/features/live_capture/map/live_capture_map_controller.dart' show AdvisoryMapMarker;
+import 'package:dora/features/live_capture/map/live_capture_map_controller.dart'
+    show AdvisoryMapMarker;
 import 'package:dora/features/live_capture/presentation/widgets/advisory_active_card.dart';
 import 'package:dora/features/live_capture/presentation/widgets/advisory_side_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_detail_sheet.dart';
@@ -132,8 +133,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     if (widget.openSidePanel) {
       _sidePanelOpen = true;
     }
-    if (widget.advisoryFocusId != null &&
-        widget.advisoryFocusId!.isNotEmpty) {
+    if (widget.advisoryFocusId != null && widget.advisoryFocusId!.isNotEmpty) {
       _focusedAdvisoryId = widget.advisoryFocusId;
       _sidePanelOpen = true;
     }
@@ -337,13 +337,11 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                     onAdvisoryMarkerTap: (advisoryId) {
                       final list = insightsAsync?.asData?.value.insights;
                       if (list == null) return;
-                      final found = list
-                          .where((i) => i.id == advisoryId)
-                          .toList();
+                      final found =
+                          list.where((i) => i.id == advisoryId).toList();
                       if (found.isEmpty) return;
                       setState(() {
-                        _bottomSheetContent =
-                            AdvisoryPoiDetail(found.first);
+                        _bottomSheetContent = AdvisoryPoiDetail(found.first);
                       });
                     },
                   );
@@ -626,8 +624,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 child: LiveCaptureBottomDetailSheet(
                   localTripId: widget.tripId,
                   content: _bottomSheetContent!,
-                  onDismiss: () =>
-                      setState(() => _bottomSheetContent = null),
+                  onDismiss: () => setState(() => _bottomSheetContent = null),
                 ),
               ),
           ],
@@ -1169,7 +1166,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         _emitEffect(TransientEffectType.photoCaptured);
       }
       final destinationMsg = result.destination == CaptureDestination.storyDraft
-          ? 'Captured and saved as a story draft.'
+          ? 'Captured; story publish started.'
           : 'Captured locally.';
       final attachMsg = result.attachedToTrip
           ? ' Attached to ${result.tripName ?? 'active trip'}.'

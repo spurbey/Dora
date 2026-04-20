@@ -178,6 +178,9 @@ class Settings(BaseSettings):
     # V2 publish storage verification
     V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
 
+    # Stories moderation allow-list (comma-separated Supabase user UUIDs).
+    STORIES_MODERATOR_USER_IDS: str = ""
+
     @field_validator("DEBUG", mode="before")
     @classmethod
     def _coerce_debug(cls, value: object) -> object:

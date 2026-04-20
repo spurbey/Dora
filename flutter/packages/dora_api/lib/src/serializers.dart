@@ -77,6 +77,11 @@ import 'package:dora_api/src/model/search_result.dart';
 import 'package:dora_api/src/model/search_result_debug.dart';
 import 'package:dora_api/src/model/send_message_request.dart';
 import 'package:dora_api/src/model/send_message_response.dart';
+import 'package:dora_api/src/model/story_feed_response.dart';
+import 'package:dora_api/src/model/story_moderation_response.dart';
+import 'package:dora_api/src/model/story_mute_response.dart';
+import 'package:dora_api/src/model/story_report_request.dart';
+import 'package:dora_api/src/model/story_response.dart';
 import 'package:dora_api/src/model/toll_cost.dart';
 import 'package:dora_api/src/model/trip_component_detail_response.dart';
 import 'package:dora_api/src/model/trip_component_list_response.dart';
@@ -186,6 +191,11 @@ part 'serializers.g.dart';
   SearchResultDebug,
   SendMessageRequest,
   SendMessageResponse,
+  StoryFeedResponse,
+  StoryModerationResponse,
+  StoryMuteResponse,
+  StoryReportRequest,
+  StoryResponse,
   TollCost,
   TripComponentDetailResponse,
   TripComponentListResponse,

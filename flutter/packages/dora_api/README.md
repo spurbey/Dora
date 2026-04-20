@@ -131,6 +131,14 @@ Class | Method | HTTP request | Description
 [*RoutesApi*](doc/RoutesApi.md) | [**updateRouteMetadataApiV1RoutesRouteIdMetadataPatch**](doc/RoutesApi.md#updateroutemetadataapiv1routesrouteidmetadatapatch) | **PATCH** /api/v1/routes/{route_id}/metadata | Update Route Metadata
 [*RoutesApi*](doc/RoutesApi.md) | [**updateWaypointApiV1WaypointsWaypointIdPatch**](doc/RoutesApi.md#updatewaypointapiv1waypointswaypointidpatch) | **PATCH** /api/v1/waypoints/{waypoint_id} | Update Waypoint
 [*SearchApi*](doc/SearchApi.md) | [**searchPlacesApiV1SearchPlacesGet**](doc/SearchApi.md#searchplacesapiv1searchplacesget) | **GET** /api/v1/search/places | Search Places
+[*StoriesApi*](doc/StoriesApi.md) | [**deleteStoryApiV1StoriesStoryIdDelete**](doc/StoriesApi.md#deletestoryapiv1storiesstoryiddelete) | **DELETE** /api/v1/stories/{story_id} | Delete Story
+[*StoriesApi*](doc/StoriesApi.md) | [**getStoryApiV1StoriesStoryIdGet**](doc/StoriesApi.md#getstoryapiv1storiesstoryidget) | **GET** /api/v1/stories/{story_id} | Get Story
+[*StoriesApi*](doc/StoriesApi.md) | [**getStoryFeedApiV1StoriesFeedGet**](doc/StoriesApi.md#getstoryfeedapiv1storiesfeedget) | **GET** /api/v1/stories/feed | Get Story Feed
+[*StoriesApi*](doc/StoriesApi.md) | [**markStoryViewedApiV1StoriesStoryIdViewPost**](doc/StoriesApi.md#markstoryviewedapiv1storiesstoryidviewpost) | **POST** /api/v1/stories/{story_id}/view | Mark Story Viewed
+[*StoriesApi*](doc/StoriesApi.md) | [**moderationHideStoryApiV1StoriesStoryIdModerationHidePost**](doc/StoriesApi.md#moderationhidestoryapiv1storiesstoryidmoderationhidepost) | **POST** /api/v1/stories/{story_id}/moderation-hide | Moderation Hide Story
+[*StoriesApi*](doc/StoriesApi.md) | [**muteStoryAuthorApiV1StoriesAuthorsAuthorIdMutePost**](doc/StoriesApi.md#mutestoryauthorapiv1storiesauthorsauthoridmutepost) | **POST** /api/v1/stories/authors/{author_id}/mute | Mute Story Author
+[*StoriesApi*](doc/StoriesApi.md) | [**publishStoryApiV1StoriesPublishPost**](doc/StoriesApi.md#publishstoryapiv1storiespublishpost) | **POST** /api/v1/stories/publish | Publish Story
+[*StoriesApi*](doc/StoriesApi.md) | [**reportStoryApiV1StoriesStoryIdReportPost**](doc/StoriesApi.md#reportstoryapiv1storiesstoryidreportpost) | **POST** /api/v1/stories/{story_id}/report | Report Story
 [*TripsApi*](doc/TripsApi.md) | [**createTripApiV1TripsPost**](doc/TripsApi.md#createtripapiv1tripspost) | **POST** /api/v1/trips | Create Trip
 [*TripsApi*](doc/TripsApi.md) | [**deleteTripApiV1TripsTripIdDelete**](doc/TripsApi.md#deletetripapiv1tripstripiddelete) | **DELETE** /api/v1/trips/{trip_id} | Delete Trip
 [*TripsApi*](doc/TripsApi.md) | [**getTripApiV1TripsTripIdGet**](doc/TripsApi.md#gettripapiv1tripstripidget) | **GET** /api/v1/trips/{trip_id} | Get Trip
@@ -211,6 +219,11 @@ Class | Method | HTTP request | Description
  - [SearchResultDebug](doc/SearchResultDebug.md)
  - [SendMessageRequest](doc/SendMessageRequest.md)
  - [SendMessageResponse](doc/SendMessageResponse.md)
+ - [StoryFeedResponse](doc/StoryFeedResponse.md)
+ - [StoryModerationResponse](doc/StoryModerationResponse.md)
+ - [StoryMuteResponse](doc/StoryMuteResponse.md)
+ - [StoryReportRequest](doc/StoryReportRequest.md)
+ - [StoryResponse](doc/StoryResponse.md)
  - [TollCost](doc/TollCost.md)
  - [TripComponentDetailResponse](doc/TripComponentDetailResponse.md)
  - [TripComponentListResponse](doc/TripComponentListResponse.md)

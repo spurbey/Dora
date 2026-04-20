@@ -36,11 +36,14 @@ class FeatureFlags {
     'ENABLE_V2_LIVE_EDITOR_UI_CONTRACT',
     defaultValue: 'auto',
   );
-  static const String _enableAdvisoryPipelineOverride =
-      String.fromEnvironment(
+  static const String _enableAdvisoryPipelineOverride = String.fromEnvironment(
     'ADVISORY_PIPELINE',
     defaultValue: 'auto',
   );
+  static const String _enableStoriesPublishOverride =
+      String.fromEnvironment('ENABLE_STORIES_PUBLISH', defaultValue: 'auto');
+  static const String _enableStoriesFeedOverride =
+      String.fromEnvironment('ENABLE_STORIES_FEED', defaultValue: 'auto');
 
   static Future<void> initialize() async {
     await _remoteConfig.setConfigSettings(
@@ -61,6 +64,8 @@ class FeatureFlags {
       'enable_v2_backend_ingest': false,
       'enable_v2_live_editor_ui_contract': false,
       'enable_advisory_pipeline': false,
+      'enable_stories_publish': false,
+      'enable_stories_feed': false,
     });
 
     try {
@@ -140,6 +145,20 @@ class FeatureFlags {
     if (override != null) return override;
     if (!_initialized) return false;
     return _remoteConfig.getBool('enable_advisory_pipeline');
+  }
+
+  static bool get enableStoriesPublish {
+    final override = _parseOverride(_enableStoriesPublishOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_stories_publish');
+  }
+
+  static bool get enableStoriesFeed {
+    final override = _parseOverride(_enableStoriesFeedOverride);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_stories_feed');
   }
 
   static bool? _parseOverride(String value) {

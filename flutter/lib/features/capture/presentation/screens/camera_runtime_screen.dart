@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/navigation/navigation_observers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -23,6 +24,7 @@ import 'package:dora/features/capture/presentation/providers/active_live_session
 import 'package:dora/features/capture/presentation/providers/camera_runtime_controller.dart';
 import 'package:dora/features/capture/presentation/providers/capture_orchestrator_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
+import 'package:dora/features/stories/presentation/providers/stories_providers.dart';
 
 class CameraRuntimeScreen extends ConsumerStatefulWidget {
   const CameraRuntimeScreen({
@@ -747,6 +749,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
             CameraRuntimeEvent.persistDone,
           );
 
+      if (selected == CaptureDestination.storyDraft && result.storyId != null) {
+        unawaited(
+          ref
+              .read(storyPublishControllerProvider.notifier)
+              .publishLocalStory(result.storyId!, bestEffort: true),
+        );
+      }
+
       if (!mounted) return;
       context.pop<CapturePersistResult>(result);
     } catch (error) {
@@ -777,14 +787,15 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
               title: const Text('Save to Vault'),
               onTap: () => Navigator.of(context).pop(CaptureDestination.vault),
             ),
-            ListTile(
-              leading: const Icon(Icons.auto_stories_outlined),
-              title: const Text('Share as Story (Draft)'),
-              subtitle: const Text(
-                  'Story stays local draft until publish flow ships.'),
-              onTap: () =>
-                  Navigator.of(context).pop(CaptureDestination.storyDraft),
-            ),
+            if (FeatureFlags.enableStoriesPublish)
+              ListTile(
+                leading: const Icon(Icons.auto_stories_outlined),
+                title: const Text('Share as Story'),
+                subtitle:
+                    const Text('Publishes now; retries from Vault on failure.'),
+                onTap: () =>
+                    Navigator.of(context).pop(CaptureDestination.storyDraft),
+              ),
           ],
         ),
       ),

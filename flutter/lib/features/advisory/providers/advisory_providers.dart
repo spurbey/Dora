@@ -104,7 +104,7 @@ final activeAdvisoryProvider =
         (ref, localTripId) async {
   final insights = await ref.watch(advisoryInsightsProvider(localTripId).future);
   for (final ins in insights.insights) {
-    if (ins.status == 'pending') {
+    if (ins.status.name == "pending") {
       return ins;
     }
   }

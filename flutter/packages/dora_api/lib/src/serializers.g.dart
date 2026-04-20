@@ -82,6 +82,11 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(SearchResultDebug.serializer)
       ..add(SendMessageRequest.serializer)
       ..add(SendMessageResponse.serializer)
+      ..add(StoryFeedResponse.serializer)
+      ..add(StoryModerationResponse.serializer)
+      ..add(StoryMuteResponse.serializer)
+      ..add(StoryReportRequest.serializer)
+      ..add(StoryResponse.serializer)
       ..add(TollCost.serializer)
       ..add(TripComponentDetailResponse.serializer)
       ..add(TripComponentDetailResponseComponentTypeEnum.serializer)
@@ -181,6 +186,9 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(SearchResult)]),
           () => ListBuilder<SearchResult>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [const FullType(StoryResponse)]),
+          () => ListBuilder<StoryResponse>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => ListBuilder<String>())

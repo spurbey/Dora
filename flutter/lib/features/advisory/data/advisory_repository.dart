@@ -190,4 +190,79 @@ class AdvisoryRepository {
     debugPrint('[AdvisoryRepository] $status: $msg');
     return AdvisoryException(msg, statusCode: status);
   }
+
+  // ── Conversation (chat with Dora) ─────────────────────────────
+
+  Future<ConversationListResponse> listConversation(
+    String tripId, {
+    int limit = 50,
+    DateTime? before,
+  }) async {
+    try {
+      final resp = await _api
+          .listConversationMessagesApiV1TripsTripIdConversationMessagesGet(
+        tripId: tripId,
+        authorization: await _auth(),
+        limit: limit,
+        before: before,
+      );
+      final data = resp.data;
+      if (data == null) {
+        throw AdvisoryException('Empty conversation response');
+      }
+      return data;
+    } on DioException catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  Future<SendMessageResponse> sendConversationMessage(
+    String tripId,
+    String content,
+  ) async {
+    try {
+      final resp = await _api
+          .sendConversationMessageApiV1TripsTripIdConversationSendPost(
+        tripId: tripId,
+        authorization: await _auth(),
+        sendMessageRequest: SendMessageRequest(
+          (b) => b..content = content,
+        ),
+      );
+      final data = resp.data;
+      if (data == null) {
+        throw AdvisoryException('Empty send response');
+      }
+      return data;
+    } on DioException catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  Future<AnswerQuestionResponse> answerConversationQuestion(
+    String tripId,
+    String questionMessageId,
+    String answer, {
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final resp = await _api
+          .answerConversationQuestionApiV1TripsTripIdConversationAnswerPost(
+        tripId: tripId,
+        authorization: await _auth(),
+        answerQuestionRequest: AnswerQuestionRequest((b) {
+          b
+            ..questionMessageId = questionMessageId
+            ..answer = answer;
+        }),
+      );
+      final data = resp.data;
+      if (data == null) {
+        throw AdvisoryException('Empty answer response');
+      }
+      return data;
+    } on DioException catch (e) {
+      throw _wrap(e);
+    }
+  }
 }

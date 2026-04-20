@@ -256,5 +256,71 @@ class AdvisoryCache:
         )
 
 
+    # ------------------------------------------------------------------
+    # conversation cache (per-trip chat thread)
+    # ------------------------------------------------------------------
+    _CONV_TTL_SECONDS = 86400  # 24h
+    _CONV_MAX_TAIL = 30
+    _PENDING_Q_TTL_SECONDS = 600  # 10min
+
+    async def get_conversation_tail(self, trip_id: str) -> Optional[list[dict]]:
+        """Return cached tail of conversation messages or None on miss."""
+        raw = await self._cmd("GET", f"conversation:{trip_id}:messages")
+        if not raw:
+            return None
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, list) else None
+        except json.JSONDecodeError:
+            logger.warning("advisory_cache bad conversation JSON for %s", trip_id)
+            return None
+
+    async def set_conversation_tail(
+        self, trip_id: str, messages: list[dict]
+    ) -> None:
+        tail = messages[-self._CONV_MAX_TAIL:]
+        payload = json.dumps(tail, separators=(",", ":"), default=str)
+        await self._cmd(
+            "SET",
+            f"conversation:{trip_id}:messages",
+            payload,
+            "EX",
+            int(self._CONV_TTL_SECONDS),
+        )
+
+    async def append_conversation_message(
+        self, trip_id: str, message: dict
+    ) -> None:
+        """Append a message to the cached tail (best-effort).
+
+        Reads current tail, appends, trims to max, writes back. If cache is
+        empty/unavailable, skips silently — the DB is the source of truth
+        and the next GET will warm from there.
+        """
+        current = await self.get_conversation_tail(trip_id)
+        if current is None:
+            return  # next GET will warm from DB
+        current.append(message)
+        await self.set_conversation_tail(trip_id, current)
+
+    async def invalidate_conversation(self, trip_id: str) -> None:
+        await self._cmd("DEL", f"conversation:{trip_id}:messages")
+
+    async def get_pending_question(self, trip_id: str) -> Optional[dict]:
+        return await self._get_json(f"conversation:{trip_id}:pending_question")
+
+    async def set_pending_question(
+        self, trip_id: str, question_id: str, blocked_job_id: str
+    ) -> None:
+        await self._set_json(
+            f"conversation:{trip_id}:pending_question",
+            {"question_id": question_id, "blocked_job_id": blocked_job_id},
+            ttl_seconds=self._PENDING_Q_TTL_SECONDS,
+        )
+
+    async def clear_pending_question(self, trip_id: str) -> None:
+        await self._cmd("DEL", f"conversation:{trip_id}:pending_question")
+
+
 # Module-level singleton for convenience.
 advisory_cache = AdvisoryCache()

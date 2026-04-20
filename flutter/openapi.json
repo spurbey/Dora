@@ -3729,6 +3729,217 @@
         }
       }
     },
+    "/api/v1/trips/{trip_id}/conversation/messages": {
+      "get": {
+        "tags": [
+          "Advisory"
+        ],
+        "summary": "List Conversation Messages",
+        "operationId": "list_conversation_messages_api_v1_trips__trip_id__conversation_messages_get",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trip Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bearer token from Supabase Auth",
+              "title": "Authorization"
+            },
+            "description": "Bearer token from Supabase Auth"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{trip_id}/conversation/send": {
+      "post": {
+        "tags": [
+          "Advisory"
+        ],
+        "summary": "Send Conversation Message",
+        "operationId": "send_conversation_message_api_v1_trips__trip_id__conversation_send_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trip Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bearer token from Supabase Auth",
+              "title": "Authorization"
+            },
+            "description": "Bearer token from Supabase Auth"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendMessageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{trip_id}/conversation/answer": {
+      "post": {
+        "tags": [
+          "Advisory"
+        ],
+        "summary": "Answer Conversation Question",
+        "operationId": "answer_conversation_question_api_v1_trips__trip_id__conversation_answer_post",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trip Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bearer token from Supabase Auth",
+              "title": "Authorization"
+            },
+            "description": "Bearer token from Supabase Auth"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerQuestionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/trips/{trip_id}/sessions:start": {
       "post": {
         "tags": [
@@ -4872,6 +5083,56 @@
         "type": "object",
         "title": "AdvisoryStartRequest"
       },
+      "AnswerQuestionRequest": {
+        "properties": {
+          "question_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Question Message Id"
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Answer"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_message_id",
+          "answer"
+        ],
+        "title": "AnswerQuestionRequest"
+      },
+      "AnswerQuestionResponse": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/ConversationMessageResponse"
+          },
+          "resumed_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Resumed Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "resumed_job_id"
+        ],
+        "title": "AnswerQuestionResponse"
+      },
       "Body_upload_media_api_v1_media_upload_post": {
         "properties": {
           "file": {
@@ -4985,6 +5246,115 @@
         ],
         "title": "ComponentReorderResponse",
         "description": "Response for reorder operation."
+      },
+      "ConversationListResponse": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationMessageResponse"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "ConversationListResponse"
+      },
+      "ConversationMessageResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trip_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trip Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "message_type": {
+            "type": "string",
+            "title": "Message Type"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "message_metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Metadata"
+          },
+          "advisory_job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advisory Job Id"
+          },
+          "advisory_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advisory Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trip_id",
+          "user_id",
+          "role",
+          "message_type",
+          "created_at"
+        ],
+        "title": "ConversationMessageResponse"
       },
       "ExportAspectRatio": {
         "type": "string",
@@ -7325,6 +7695,51 @@
         ],
         "title": "SearchResultDebug",
         "description": "Debug information for result ranking (optional).\n\nAttributes:\n    source_score: Source weight score (0-1)\n    source_contribution: Contribution to final score\n    text_score: Text relevance score (0-1)\n    text_contribution: Contribution to final score\n    popularity_score: Popularity score (0-1)\n    popularity_contribution: Contribution to final score\n    freshness_score: Freshness score (0-1)\n    freshness_contribution: Contribution to final score\n    final_score: Total weighted score (0-1)\n    breakdown: Human-readable score calculation"
+      },
+      "SendMessageRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "reply_to_message_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply To Message Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "SendMessageRequest"
+      },
+      "SendMessageResponse": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/ConversationMessageResponse"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "job_id"
+        ],
+        "title": "SendMessageResponse"
       },
       "TripComponentDetailResponse": {
         "properties": {

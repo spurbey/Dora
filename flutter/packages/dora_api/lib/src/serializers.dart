@@ -28,12 +28,16 @@ import 'package:dora_api/src/model/advisory_job_type.dart';
 import 'package:dora_api/src/model/advisory_query_request.dart';
 import 'package:dora_api/src/model/advisory_source.dart';
 import 'package:dora_api/src/model/advisory_start_request.dart';
+import 'package:dora_api/src/model/answer_question_request.dart';
+import 'package:dora_api/src/model/answer_question_response.dart';
 import 'package:dora_api/src/model/app_schemas_auth_user_response.dart';
 import 'package:dora_api/src/model/app_schemas_user_user_response.dart';
 import 'package:dora_api/src/model/budget_per_person.dart';
 import 'package:dora_api/src/model/component_reorder_item.dart';
 import 'package:dora_api/src/model/component_reorder_request.dart';
 import 'package:dora_api/src/model/component_reorder_response.dart';
+import 'package:dora_api/src/model/conversation_list_response.dart';
+import 'package:dora_api/src/model/conversation_message_response.dart';
 import 'package:dora_api/src/model/export_aspect_ratio.dart';
 import 'package:dora_api/src/model/export_cancel_response.dart';
 import 'package:dora_api/src/model/export_create_request.dart';
@@ -71,6 +75,8 @@ import 'package:dora_api/src/model/route_update.dart';
 import 'package:dora_api/src/model/search_response.dart';
 import 'package:dora_api/src/model/search_result.dart';
 import 'package:dora_api/src/model/search_result_debug.dart';
+import 'package:dora_api/src/model/send_message_request.dart';
+import 'package:dora_api/src/model/send_message_response.dart';
 import 'package:dora_api/src/model/toll_cost.dart';
 import 'package:dora_api/src/model/trip_component_detail_response.dart';
 import 'package:dora_api/src/model/trip_component_list_response.dart';
@@ -131,12 +137,16 @@ part 'serializers.g.dart';
   AdvisoryQueryRequest,
   AdvisorySource,
   AdvisoryStartRequest,
+  AnswerQuestionRequest,
+  AnswerQuestionResponse,
   AppSchemasAuthUserResponse,
   AppSchemasUserUserResponse,
   BudgetPerPerson,
   ComponentReorderItem,
   ComponentReorderRequest,
   ComponentReorderResponse,
+  ConversationListResponse,
+  ConversationMessageResponse,
   ExportAspectRatio,
   ExportCancelResponse,
   ExportCreateRequest,
@@ -174,6 +184,8 @@ part 'serializers.g.dart';
   SearchResponse,
   SearchResult,
   SearchResultDebug,
+  SendMessageRequest,
+  SendMessageResponse,
   TollCost,
   TripComponentDetailResponse,
   TripComponentListResponse,

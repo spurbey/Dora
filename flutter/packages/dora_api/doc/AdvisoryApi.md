@@ -9,15 +9,63 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**answerConversationQuestionApiV1TripsTripIdConversationAnswerPost**](AdvisoryApi.md#answerconversationquestionapiv1tripstripidconversationanswerpost) | **POST** /api/v1/trips/{trip_id}/conversation/answer | Answer Conversation Question
 [**getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet**](AdvisoryApi.md#getadvisorystateapiv1tripstripidadvisorystateget) | **GET** /api/v1/trips/{trip_id}/advisory/state | Get Advisory State
 [**listAdvisoryInsightsApiV1TripsTripIdAdvisoryInsightsGet**](AdvisoryApi.md#listadvisoryinsightsapiv1tripstripidadvisoryinsightsget) | **GET** /api/v1/trips/{trip_id}/advisory/insights | List Advisory Insights
 [**listAdvisoryJobsApiV1TripsTripIdAdvisoryJobsGet**](AdvisoryApi.md#listadvisoryjobsapiv1tripstripidadvisoryjobsget) | **GET** /api/v1/trips/{trip_id}/advisory/jobs | List Advisory Jobs
+[**listConversationMessagesApiV1TripsTripIdConversationMessagesGet**](AdvisoryApi.md#listconversationmessagesapiv1tripstripidconversationmessagesget) | **GET** /api/v1/trips/{trip_id}/conversation/messages | List Conversation Messages
 [**pauseAdvisoryApiV1TripsTripIdAdvisoryPausePost**](AdvisoryApi.md#pauseadvisoryapiv1tripstripidadvisorypausepost) | **POST** /api/v1/trips/{trip_id}/advisory/pause | Pause Advisory
 [**queryAdvisoryApiV1TripsTripIdAdvisoryQueryPost**](AdvisoryApi.md#queryadvisoryapiv1tripstripidadvisoryquerypost) | **POST** /api/v1/trips/{trip_id}/advisory/query | Query Advisory
 [**recordAdvisoryActionApiV1AdvisoryAdvisoryIdActionPost**](AdvisoryApi.md#recordadvisoryactionapiv1advisoryadvisoryidactionpost) | **POST** /api/v1/advisory/{advisory_id}/action | Record Advisory Action
 [**resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost**](AdvisoryApi.md#resumeadvisoryapiv1tripstripidadvisoryresumepost) | **POST** /api/v1/trips/{trip_id}/advisory/resume | Resume Advisory
+[**sendConversationMessageApiV1TripsTripIdConversationSendPost**](AdvisoryApi.md#sendconversationmessageapiv1tripstripidconversationsendpost) | **POST** /api/v1/trips/{trip_id}/conversation/send | Send Conversation Message
 [**startAdvisoryApiV1TripsTripIdAdvisoryStartPost**](AdvisoryApi.md#startadvisoryapiv1tripstripidadvisorystartpost) | **POST** /api/v1/trips/{trip_id}/advisory/start | Start Advisory
 
+
+# **answerConversationQuestionApiV1TripsTripIdConversationAnswerPost**
+> AnswerQuestionResponse answerConversationQuestionApiV1TripsTripIdConversationAnswerPost(tripId, authorization, answerQuestionRequest)
+
+Answer Conversation Question
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getAdvisoryApi();
+final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final AnswerQuestionRequest answerQuestionRequest = ; // AnswerQuestionRequest | 
+
+try {
+    final response = api.answerConversationQuestionApiV1TripsTripIdConversationAnswerPost(tripId, authorization, answerQuestionRequest);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling AdvisoryApi->answerConversationQuestionApiV1TripsTripIdConversationAnswerPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **tripId** | **String**|  | 
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+ **answerQuestionRequest** | [**AnswerQuestionRequest**](AnswerQuestionRequest.md)|  | 
+
+### Return type
+
+[**AnswerQuestionResponse**](AnswerQuestionResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet**
 > JsonObject getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet(tripId, authorization)
@@ -152,6 +200,53 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**AdvisoryJobListResponse**](AdvisoryJobListResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listConversationMessagesApiV1TripsTripIdConversationMessagesGet**
+> ConversationListResponse listConversationMessagesApiV1TripsTripIdConversationMessagesGet(tripId, authorization, limit, before)
+
+List Conversation Messages
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getAdvisoryApi();
+final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final int limit = 56; // int | 
+final DateTime before = 2013-10-20T19:20:30+01:00; // DateTime | 
+
+try {
+    final response = api.listConversationMessagesApiV1TripsTripIdConversationMessagesGet(tripId, authorization, limit, before);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling AdvisoryApi->listConversationMessagesApiV1TripsTripIdConversationMessagesGet: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **tripId** | **String**|  | 
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+ **limit** | **int**|  | [optional] [default to 50]
+ **before** | **DateTime**|  | [optional] 
+
+### Return type
+
+[**ConversationListResponse**](ConversationListResponse.md)
 
 ### Authorization
 
@@ -342,6 +437,51 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **sendConversationMessageApiV1TripsTripIdConversationSendPost**
+> SendMessageResponse sendConversationMessageApiV1TripsTripIdConversationSendPost(tripId, authorization, sendMessageRequest)
+
+Send Conversation Message
+
+### Example
+```dart
+import 'package:dora_api/api.dart';
+
+final api = DoraApi().getAdvisoryApi();
+final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final SendMessageRequest sendMessageRequest = ; // SendMessageRequest | 
+
+try {
+    final response = api.sendConversationMessageApiV1TripsTripIdConversationSendPost(tripId, authorization, sendMessageRequest);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling AdvisoryApi->sendConversationMessageApiV1TripsTripIdConversationSendPost: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **tripId** | **String**|  | 
+ **authorization** | **String**| Bearer token from Supabase Auth | 
+ **sendMessageRequest** | [**SendMessageRequest**](SendMessageRequest.md)|  | 
+
+### Return type
+
+[**SendMessageResponse**](SendMessageResponse.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

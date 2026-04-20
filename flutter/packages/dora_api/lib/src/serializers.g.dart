@@ -21,6 +21,8 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(AdvisoryQueryRequest.serializer)
       ..add(AdvisorySource.serializer)
       ..add(AdvisoryStartRequest.serializer)
+      ..add(AnswerQuestionRequest.serializer)
+      ..add(AnswerQuestionResponse.serializer)
       ..add(AppSchemasAuthUserResponse.serializer)
       ..add(AppSchemasUserUserResponse.serializer)
       ..add(BudgetPerPerson.serializer)
@@ -28,6 +30,8 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(ComponentReorderItemComponentTypeEnum.serializer)
       ..add(ComponentReorderRequest.serializer)
       ..add(ComponentReorderResponse.serializer)
+      ..add(ConversationListResponse.serializer)
+      ..add(ConversationMessageResponse.serializer)
       ..add(ExportAspectRatio.serializer)
       ..add(ExportCancelResponse.serializer)
       ..add(ExportCreateRequest.serializer)
@@ -76,6 +80,8 @@ Serializers _$serializers = (Serializers().toBuilder()
       ..add(SearchResponse.serializer)
       ..add(SearchResult.serializer)
       ..add(SearchResultDebug.serializer)
+      ..add(SendMessageRequest.serializer)
+      ..add(SendMessageResponse.serializer)
       ..add(TollCost.serializer)
       ..add(TripComponentDetailResponse.serializer)
       ..add(TripComponentDetailResponseComponentTypeEnum.serializer)
@@ -149,6 +155,10 @@ Serializers _$serializers = (Serializers().toBuilder()
           const FullType(
               BuiltList, const [const FullType(ComponentReorderItem)]),
           () => ListBuilder<ComponentReorderItem>())
+      ..addBuilderFactory(
+          const FullType(
+              BuiltList, const [const FullType(ConversationMessageResponse)]),
+          () => ListBuilder<ConversationMessageResponse>())
       ..addBuilderFactory(
           const FullType(
               BuiltList, const [const FullType(ExportJobSummaryResponse)]),

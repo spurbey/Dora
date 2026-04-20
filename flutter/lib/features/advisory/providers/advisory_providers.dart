@@ -87,3 +87,98 @@ final advisoryActionNotifierProvider = StateNotifierProvider.family<
   final repo = ref.watch(advisoryRepositoryProvider);
   return AdvisoryActionNotifier(repo, ref, localTripId);
 });
+
+/// Per-trip conversation thread (Dora chat).
+final conversationMessagesProvider =
+    FutureProvider.family<ConversationListResponse, String>(
+        (ref, localTripId) async {
+  final serverTripId =
+      await ref.watch(serverTripIdProvider(localTripId).future);
+  final repo = ref.watch(advisoryRepositoryProvider);
+  return repo.listConversation(serverTripId, limit: 50);
+});
+
+/// First pending advisory not yet acted on (drives the floating card).
+final activeAdvisoryProvider =
+    FutureProvider.family<AdvisoryInsightResponse?, String>(
+        (ref, localTripId) async {
+  final insights = await ref.watch(advisoryInsightsProvider(localTripId).future);
+  for (final ins in insights.insights) {
+    if (ins.status == 'pending') {
+      return ins;
+    }
+  }
+  return null;
+});
+
+/// Latest unanswered Dora clarifying question in the thread.
+final pendingClarifyingQuestionProvider =
+    FutureProvider.family<ConversationMessageResponse?, String>(
+        (ref, localTripId) async {
+  final thread = await ref.watch(conversationMessagesProvider(localTripId).future);
+  final messages = thread.messages.toList();
+  ConversationMessageResponse? lastQuestion;
+  bool answered = false;
+  for (final m in messages) {
+    if (m.messageType == 'clarifying_question' && m.role == 'dora') {
+      lastQuestion = m;
+      answered = false;
+    } else if (m.messageType == 'user_response' && lastQuestion != null) {
+      answered = true;
+    }
+  }
+  return answered ? null : lastQuestion;
+});
+
+/// Send a user message to Dora; invalidates conversation on success.
+class ConversationSendNotifier extends StateNotifier<AsyncValue<void>> {
+  ConversationSendNotifier(this._repo, this._ref, this._localTripId)
+      : super(const AsyncValue.data(null));
+
+  final AdvisoryRepository _repo;
+  final Ref _ref;
+  final String _localTripId;
+
+  Future<SendMessageResponse?> send(String content) async {
+    state = const AsyncValue.loading();
+    try {
+      final serverTripId =
+          await _ref.read(serverTripIdProvider(_localTripId).future);
+      final resp = await _repo.sendConversationMessage(serverTripId, content);
+      _ref.invalidate(conversationMessagesProvider(_localTripId));
+      state = const AsyncValue.data(null);
+      return resp;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+
+  Future<AnswerQuestionResponse?> answer(
+    String questionMessageId,
+    String answer,
+  ) async {
+    state = const AsyncValue.loading();
+    try {
+      final serverTripId =
+          await _ref.read(serverTripIdProvider(_localTripId).future);
+      final resp = await _repo.answerConversationQuestion(
+        serverTripId,
+        questionMessageId,
+        answer,
+      );
+      _ref.invalidate(conversationMessagesProvider(_localTripId));
+      state = const AsyncValue.data(null);
+      return resp;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+}
+
+final conversationSendNotifierProvider = StateNotifierProvider.family<
+    ConversationSendNotifier, AsyncValue<void>, String>((ref, localTripId) {
+  final repo = ref.watch(advisoryRepositoryProvider);
+  return ConversationSendNotifier(repo, ref, localTripId);
+});

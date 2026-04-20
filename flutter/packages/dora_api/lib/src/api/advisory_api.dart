@@ -17,7 +17,12 @@ import 'package:dora_api/src/model/advisory_job_list_response.dart';
 import 'package:dora_api/src/model/advisory_job_response.dart';
 import 'package:dora_api/src/model/advisory_query_request.dart';
 import 'package:dora_api/src/model/advisory_start_request.dart';
+import 'package:dora_api/src/model/answer_question_request.dart';
+import 'package:dora_api/src/model/answer_question_response.dart';
+import 'package:dora_api/src/model/conversation_list_response.dart';
 import 'package:dora_api/src/model/http_validation_error.dart';
+import 'package:dora_api/src/model/send_message_request.dart';
+import 'package:dora_api/src/model/send_message_response.dart';
 
 class AdvisoryApi {
 
@@ -26,6 +31,106 @@ class AdvisoryApi {
   final Serializers _serializers;
 
   const AdvisoryApi(this._dio, this._serializers);
+
+  /// Answer Conversation Question
+  /// 
+  ///
+  /// Parameters:
+  /// * [tripId] 
+  /// * [authorization] - Bearer token from Supabase Auth
+  /// * [answerQuestionRequest] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [AnswerQuestionResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<AnswerQuestionResponse>> answerConversationQuestionApiV1TripsTripIdConversationAnswerPost({ 
+    required String tripId,
+    required String authorization,
+    required AnswerQuestionRequest answerQuestionRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/trips/{trip_id}/conversation/answer'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        r'authorization': authorization,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(AnswerQuestionRequest);
+      _bodyData = _serializers.serialize(answerQuestionRequest, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    AnswerQuestionResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(AnswerQuestionResponse),
+      ) as AnswerQuestionResponse;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<AnswerQuestionResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
 
   /// Get Advisory State
   /// Return sanitized brain state for debugging.  Gated: requires owner + settings.EXPOSE_ADVISORY_STATE_ENDPOINT.
@@ -276,6 +381,94 @@ class AdvisoryApi {
     }
 
     return Response<AdvisoryJobListResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// List Conversation Messages
+  /// 
+  ///
+  /// Parameters:
+  /// * [tripId] 
+  /// * [authorization] - Bearer token from Supabase Auth
+  /// * [limit] 
+  /// * [before] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [ConversationListResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<ConversationListResponse>> listConversationMessagesApiV1TripsTripIdConversationMessagesGet({ 
+    required String tripId,
+    required String authorization,
+    int? limit = 50,
+    DateTime? before,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/trips/{trip_id}/conversation/messages'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{
+        r'authorization': authorization,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{
+      if (limit != null) r'limit': encodeQueryParameter(_serializers, limit, const FullType(int)),
+      r'before': encodeQueryParameter(_serializers, before, const FullType(DateTime)),
+    };
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    ConversationListResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(ConversationListResponse),
+      ) as ConversationListResponse;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<ConversationListResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -585,6 +778,106 @@ class AdvisoryApi {
     );
 
     return _response;
+  }
+
+  /// Send Conversation Message
+  /// 
+  ///
+  /// Parameters:
+  /// * [tripId] 
+  /// * [authorization] - Bearer token from Supabase Auth
+  /// * [sendMessageRequest] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [SendMessageResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<SendMessageResponse>> sendConversationMessageApiV1TripsTripIdConversationSendPost({ 
+    required String tripId,
+    required String authorization,
+    required SendMessageRequest sendMessageRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/api/v1/trips/{trip_id}/conversation/send'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        r'authorization': authorization,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(SendMessageRequest);
+      _bodyData = _serializers.serialize(sendMessageRequest, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    SendMessageResponse? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(SendMessageResponse),
+      ) as SendMessageResponse;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<SendMessageResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
   }
 
   /// Start Advisory

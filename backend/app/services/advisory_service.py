@@ -55,6 +55,7 @@ class AdvisoryService:
         job_type: str,
         query_text: str | None = None,
         trigger_payload: dict | None = None,
+        parent_message_id: UUID | None = None,
     ) -> AdvisoryJob:
         trip = self._get_trip_for_owner(trip_id=trip_id, user_id=user_id)
 
@@ -101,6 +102,7 @@ class AdvisoryService:
             job_type=job_type,
             request_hash=request_hash,
             query_text=query_text,
+            parent_message_id=parent_message_id,
             scrape_plan={"trigger_payload": trigger_payload} if trigger_payload else None,
             retry_count=0,
             max_retries=3,

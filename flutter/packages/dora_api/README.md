@@ -50,12 +50,13 @@ import 'package:dora_api/dora_api.dart';
 final api = DoraApi().getAdvisoryApi();
 final String tripId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
 final String authorization = authorization_example; // String | Bearer token from Supabase Auth
+final AnswerQuestionRequest answerQuestionRequest = ; // AnswerQuestionRequest | 
 
 try {
-    final response = await api.getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet(tripId, authorization);
+    final response = await api.answerConversationQuestionApiV1TripsTripIdConversationAnswerPost(tripId, authorization, answerQuestionRequest);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling AdvisoryApi->getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet: $e\n");
+    print("Exception when calling AdvisoryApi->answerConversationQuestionApiV1TripsTripIdConversationAnswerPost: $e\n");
 }
 
 ```
@@ -66,13 +67,16 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**answerConversationQuestionApiV1TripsTripIdConversationAnswerPost**](doc/AdvisoryApi.md#answerconversationquestionapiv1tripstripidconversationanswerpost) | **POST** /api/v1/trips/{trip_id}/conversation/answer | Answer Conversation Question
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet**](doc/AdvisoryApi.md#getadvisorystateapiv1tripstripidadvisorystateget) | **GET** /api/v1/trips/{trip_id}/advisory/state | Get Advisory State
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**listAdvisoryInsightsApiV1TripsTripIdAdvisoryInsightsGet**](doc/AdvisoryApi.md#listadvisoryinsightsapiv1tripstripidadvisoryinsightsget) | **GET** /api/v1/trips/{trip_id}/advisory/insights | List Advisory Insights
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**listAdvisoryJobsApiV1TripsTripIdAdvisoryJobsGet**](doc/AdvisoryApi.md#listadvisoryjobsapiv1tripstripidadvisoryjobsget) | **GET** /api/v1/trips/{trip_id}/advisory/jobs | List Advisory Jobs
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**listConversationMessagesApiV1TripsTripIdConversationMessagesGet**](doc/AdvisoryApi.md#listconversationmessagesapiv1tripstripidconversationmessagesget) | **GET** /api/v1/trips/{trip_id}/conversation/messages | List Conversation Messages
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**pauseAdvisoryApiV1TripsTripIdAdvisoryPausePost**](doc/AdvisoryApi.md#pauseadvisoryapiv1tripstripidadvisorypausepost) | **POST** /api/v1/trips/{trip_id}/advisory/pause | Pause Advisory
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**queryAdvisoryApiV1TripsTripIdAdvisoryQueryPost**](doc/AdvisoryApi.md#queryadvisoryapiv1tripstripidadvisoryquerypost) | **POST** /api/v1/trips/{trip_id}/advisory/query | Query Advisory
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**recordAdvisoryActionApiV1AdvisoryAdvisoryIdActionPost**](doc/AdvisoryApi.md#recordadvisoryactionapiv1advisoryadvisoryidactionpost) | **POST** /api/v1/advisory/{advisory_id}/action | Record Advisory Action
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost**](doc/AdvisoryApi.md#resumeadvisoryapiv1tripstripidadvisoryresumepost) | **POST** /api/v1/trips/{trip_id}/advisory/resume | Resume Advisory
+[*AdvisoryApi*](doc/AdvisoryApi.md) | [**sendConversationMessageApiV1TripsTripIdConversationSendPost**](doc/AdvisoryApi.md#sendconversationmessageapiv1tripstripidconversationsendpost) | **POST** /api/v1/trips/{trip_id}/conversation/send | Send Conversation Message
 [*AdvisoryApi*](doc/AdvisoryApi.md) | [**startAdvisoryApiV1TripsTripIdAdvisoryStartPost**](doc/AdvisoryApi.md#startadvisoryapiv1tripstripidadvisorystartpost) | **POST** /api/v1/trips/{trip_id}/advisory/start | Start Advisory
 [*AuthenticationApi*](doc/AuthenticationApi.md) | [**getCurrentUserInfoApiV1AuthMeGet**](doc/AuthenticationApi.md#getcurrentuserinfoapiv1authmeget) | **GET** /api/v1/auth/me | Get Current User Info
 [*ComponentsApi*](doc/ComponentsApi.md) | [**getComponentDetailsApiV1TripsTripIdComponentsComponentIdGet**](doc/ComponentsApi.md#getcomponentdetailsapiv1tripstripidcomponentscomponentidget) | **GET** /api/v1/trips/{trip_id}/components/{component_id} | Get component details
@@ -158,12 +162,16 @@ Class | Method | HTTP request | Description
  - [AdvisoryQueryRequest](doc/AdvisoryQueryRequest.md)
  - [AdvisorySource](doc/AdvisorySource.md)
  - [AdvisoryStartRequest](doc/AdvisoryStartRequest.md)
+ - [AnswerQuestionRequest](doc/AnswerQuestionRequest.md)
+ - [AnswerQuestionResponse](doc/AnswerQuestionResponse.md)
  - [AppSchemasAuthUserResponse](doc/AppSchemasAuthUserResponse.md)
  - [AppSchemasUserUserResponse](doc/AppSchemasUserUserResponse.md)
  - [BudgetPerPerson](doc/BudgetPerPerson.md)
  - [ComponentReorderItem](doc/ComponentReorderItem.md)
  - [ComponentReorderRequest](doc/ComponentReorderRequest.md)
  - [ComponentReorderResponse](doc/ComponentReorderResponse.md)
+ - [ConversationListResponse](doc/ConversationListResponse.md)
+ - [ConversationMessageResponse](doc/ConversationMessageResponse.md)
  - [ExportAspectRatio](doc/ExportAspectRatio.md)
  - [ExportCancelResponse](doc/ExportCancelResponse.md)
  - [ExportCreateRequest](doc/ExportCreateRequest.md)
@@ -201,6 +209,8 @@ Class | Method | HTTP request | Description
  - [SearchResponse](doc/SearchResponse.md)
  - [SearchResult](doc/SearchResult.md)
  - [SearchResultDebug](doc/SearchResultDebug.md)
+ - [SendMessageRequest](doc/SendMessageRequest.md)
+ - [SendMessageResponse](doc/SendMessageResponse.md)
  - [TollCost](doc/TollCost.md)
  - [TripComponentDetailResponse](doc/TripComponentDetailResponse.md)
  - [TripComponentListResponse](doc/TripComponentListResponse.md)

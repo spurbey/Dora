@@ -21,6 +21,20 @@ from app.schemas.advisory import (
     AdvisoryQueryRequest,
     AdvisoryStartRequest,
 )
+from app.schemas.advisory_conversation import (
+    AnswerQuestionRequest,
+    AnswerQuestionResponse,
+    ConversationListResponse,
+    ConversationMessageResponse,
+    SendMessageRequest,
+    SendMessageResponse,
+)
+from app.services import conversation_service
+from app.services.advisory_cache import advisory_cache
+from app.models.advisory_job import AdvisoryJob
+from app.models.advisory_conversation_message import AdvisoryConversationMessage
+from datetime import datetime
+from sqlalchemy.orm.attributes import flag_modified
 from app.config import settings
 from app.models.trip import Trip
 from app.models.trip_advisory_state import TripAdvisoryState
@@ -272,3 +286,164 @@ async def get_advisory_state(
         "paused_at": brain.paused_at,
         "brightdata_call_count": brain.brightdata_call_count,
     }
+
+
+# ──────────────────────────────────────────────────────────────────
+# Conversation endpoints (Dora chat thread)
+# ──────────────────────────────────────────────────────────────────
+
+def _verify_trip_owner(db: Session, trip_id: UUID, user: User) -> Trip:
+    trip = db.query(Trip).filter(Trip.id == trip_id).one_or_none()
+    if trip is None or trip.user_id != user.id:
+        raise HTTPException(status_code=404, detail="trip_not_found")
+    return trip
+
+
+@router.get(
+    "/trips/{trip_id}/conversation/messages",
+    response_model=ConversationListResponse,
+)
+async def list_conversation_messages(
+    trip_id: UUID,
+    limit: int = Query(50, ge=1, le=100),
+    before: Optional[datetime] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verify_trip_owner(db, trip_id, current_user)
+    messages, has_more = await conversation_service.list_messages(
+        db, trip_id, limit=limit, before=before
+    )
+    return ConversationListResponse(
+        messages=[_serialize_message(m) for m in messages],
+        has_more=has_more,
+    )
+
+
+@router.post(
+    "/trips/{trip_id}/conversation/send",
+    response_model=SendMessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_conversation_message(
+    trip_id: UUID,
+    request: SendMessageRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verify_trip_owner(db, trip_id, current_user)
+
+    # Persist user_query message
+    user_msg = await conversation_service.persist_message(
+        db,
+        trip_id=trip_id,
+        user_id=current_user.id,
+        role="user",
+        message_type="user_query",
+        content=request.content,
+    )
+
+    # Create on_demand advisory job linked to this message
+    service = AdvisoryService(db)
+    job = service.create_advisory_job(
+        user_id=current_user.id,
+        trip_id=trip_id,
+        job_type="on_demand",
+        query_text=request.content,
+        parent_message_id=user_msg.id,
+    )
+
+    return SendMessageResponse(
+        message=_serialize_message(user_msg),
+        job_id=job.id,
+    )
+
+
+@router.post(
+    "/trips/{trip_id}/conversation/answer",
+    response_model=AnswerQuestionResponse,
+)
+async def answer_conversation_question(
+    trip_id: UUID,
+    request: AnswerQuestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _verify_trip_owner(db, trip_id, current_user)
+
+    question = (
+        db.query(AdvisoryConversationMessage)
+        .filter(
+            AdvisoryConversationMessage.id == request.question_message_id,
+            AdvisoryConversationMessage.trip_id == trip_id,
+            AdvisoryConversationMessage.message_type == "clarifying_question",
+        )
+        .one_or_none()
+    )
+    if question is None:
+        raise HTTPException(status_code=404, detail="question_not_found")
+
+    blocked_job_id = (question.message_metadata or {}).get("blocked_job_id")
+    if not blocked_job_id:
+        raise HTTPException(status_code=409, detail="question_not_answerable")
+
+    job = (
+        db.query(AdvisoryJob)
+        .filter(AdvisoryJob.id == blocked_job_id, AdvisoryJob.trip_id == trip_id)
+        .one_or_none()
+    )
+    if job is None:
+        raise HTTPException(status_code=404, detail="blocked_job_not_found")
+
+    # Persist user_response
+    user_msg = await conversation_service.persist_message(
+        db,
+        trip_id=trip_id,
+        user_id=current_user.id,
+        role="user",
+        message_type="user_response",
+        content=request.answer,
+        message_metadata={
+            "answered_question_id": str(question.id),
+            **(request.metadata or {}),
+        },
+    )
+
+    # Patch job: resume with clarified filters
+    plan = dict(job.scrape_plan or {})
+    plan["clarified_filters"] = {
+        "answer": request.answer,
+        "metadata": request.metadata or {},
+    }
+    plan["clarified"] = True
+    job.scrape_plan = plan
+    flag_modified(job, "scrape_plan")
+    job.status = "queued"
+    job.stage = "reddit_scrape"
+    job.retry_count = 0
+    db.commit()
+
+    await advisory_cache.clear_pending_question(str(trip_id))
+
+    return AnswerQuestionResponse(
+        message=_serialize_message(user_msg),
+        resumed_job_id=job.id,
+    )
+
+
+def _serialize_message(m) -> ConversationMessageResponse:
+    """Serialize either an ORM model or a cached dict to the response schema."""
+    if isinstance(m, dict):
+        return ConversationMessageResponse(**m)
+    return ConversationMessageResponse(
+        id=m.id,
+        trip_id=m.trip_id,
+        user_id=m.user_id,
+        role=m.role,
+        message_type=m.message_type,
+        content=m.content,
+        message_metadata=m.message_metadata,
+        advisory_job_id=m.advisory_job_id,
+        advisory_id=m.advisory_id,
+        created_at=m.created_at,
+    )

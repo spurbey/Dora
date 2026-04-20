@@ -48,6 +48,7 @@ from app.models.trip_advisory import TripAdvisory
 from app.models.advisory_user_action import AdvisoryUserAction
 from app.models.trip_advisory_state import TripAdvisoryState
 from app.models.user_metadata import UserMetadata
+from app.models.advisory_conversation_message import AdvisoryConversationMessage
 
 __all__ = [
     "User",
@@ -81,4 +82,5 @@ __all__ = [
     "AdvisoryUserAction",
     "TripAdvisoryState",
     "UserMetadata",
+    "AdvisoryConversationMessage",
 ]

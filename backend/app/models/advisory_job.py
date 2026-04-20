@@ -88,6 +88,12 @@ class AdvisoryJob(Base):
         nullable=True,
         comment="Raw NL query for on_demand jobs",
     )
+    parent_message_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("advisory_conversation_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Conversation message that triggered this job (on_demand only)",
+    )
     parsed_filters = Column(
         JSONB,
         nullable=True,

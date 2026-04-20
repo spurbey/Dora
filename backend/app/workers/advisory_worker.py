@@ -345,6 +345,36 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
     subs = ["IndiaTravel", "solotravel", "travel"]
     keywords = extract_keywords(question, city_names)
 
+    # Load conversation tail for LLM context on on_demand jobs
+    conversation_context: list[dict] = []
+    if job.job_type == "on_demand":
+        try:
+            from app.services.advisory_cache import advisory_cache as _cache
+            from app.models.advisory_conversation_message import AdvisoryConversationMessage
+            tail = await _cache.get_conversation_tail(str(job.trip_id))
+            if tail is None:
+                rows = (
+                    db.query(AdvisoryConversationMessage)
+                    .filter(AdvisoryConversationMessage.trip_id == job.trip_id)
+                    .order_by(AdvisoryConversationMessage.created_at.desc())
+                    .limit(10)
+                    .all()
+                )
+                rows.reverse()
+                tail = [m.to_dict() for m in rows]
+                if tail:
+                    await _cache.set_conversation_tail(str(job.trip_id), tail)
+            conversation_context = [
+                {
+                    "role": m.get("role"),
+                    "type": m.get("message_type"),
+                    "content": m.get("content", ""),
+                }
+                for m in (tail or [])[-10:]
+            ]
+        except Exception:  # noqa: BLE001
+            logger.warning("conversation context load failed", exc_info=True)
+
     plan.update(
         {
             "cities": city_names,
@@ -354,6 +384,7 @@ async def _stage_route_segmentation(db: Session, job: AdvisoryJob) -> None:
             "subreddits": subs,
             "max_pages": 8,
             "max_depth": 2,
+            "conversation_context": conversation_context,
         }
     )
     job.scrape_plan = plan
@@ -859,6 +890,41 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         if should_push:
             pushed_count += 1
     db.commit()
+
+    # Append advisory_suggestion messages to the conversation thread for
+    # every advisory produced by this job (both cycle and non-cycle paths).
+    try:
+        from app.services import conversation_service
+        delivered = (
+            db.query(TripAdvisory)
+            .filter(TripAdvisory.advisory_job_id == job.id)
+            .all()
+        )
+        for adv in delivered:
+            await conversation_service.persist_message(
+                db,
+                trip_id=job.trip_id,
+                user_id=job.user_id,
+                role="dora",
+                message_type="advisory_suggestion",
+                content=adv.body,
+                message_metadata={
+                    "advisory_id": str(adv.id),
+                    "category": adv.category,
+                    "title": adv.title,
+                    "place_name": adv.place_name,
+                    "place_lat": adv.place_lat,
+                    "place_lng": adv.place_lng,
+                    "confidence": adv.confidence_score,
+                },
+                advisory_job_id=job.id,
+                advisory_id=adv.id,
+            )
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "conversation_message append failed for job %s", job.id, exc_info=True
+        )
+
     logger.info(
         "[ADVISORY_STAGE] delivery done. created=%d pushed=%d (throttle: %d/%d this hour)",
         created_count,

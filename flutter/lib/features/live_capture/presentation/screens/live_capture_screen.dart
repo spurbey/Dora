@@ -69,9 +69,13 @@ class LiveCaptureScreen extends ConsumerStatefulWidget {
     super.key,
     required this.tripId,
     this.previewState,
+    this.advisoryFocusId,
+    this.openSidePanel = false,
   });
 
   final String tripId;
+  final String? advisoryFocusId;
+  final bool openSidePanel;
   final LiveCaptureShellState? previewState;
 
   @override
@@ -124,6 +128,15 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
     );
     _effectController = StreamController<TransientEffect>.broadcast();
+    // Honor deep-link extras: open side panel / focus a specific advisory.
+    if (widget.openSidePanel) {
+      _sidePanelOpen = true;
+    }
+    if (widget.advisoryFocusId != null &&
+        widget.advisoryFocusId!.isNotEmpty) {
+      _focusedAdvisoryId = widget.advisoryFocusId;
+      _sidePanelOpen = true;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _entranceCtrl.forward();

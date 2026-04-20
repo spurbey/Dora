@@ -72,15 +72,23 @@ class LiveTrackingDeepLinkBootstrap {
     // Advisory notifications: branch on `type` first (domain discriminator),
     // then use `action` for navigation intent within that domain.
     final type = _normalizedString(payload['type']);
-    if (advisoryEnabled() && (type == 'advisory' || type == 'advisory_paused')) {
+    if (advisoryEnabled() &&
+        (type == 'advisory' ||
+            type == 'advisory_paused' ||
+            type == 'advisory_clarifying')) {
       final tripIdentity = extractTripIdentity(payload);
       if (tripIdentity == null) return;
       final intentKey = _intentKey(payload, tripIdentity);
       if (!_handledIntentKeys.add(intentKey)) return;
       final localTripId = await _resolveLocalTripId(tripIdentity);
       if (localTripId == null || localTripId.isEmpty) return;
-      // Route to advisory debug screen (will become advisory inbox in final UI).
-      _navigateToRoute('/trip/$localTripId/advisory');
+      // Open the live capture screen with the advisory side panel focused
+      // on the specific advisory_id from the push payload (if present).
+      final advisoryId = _normalizedString(payload['advisory_id']);
+      final query = advisoryId != null
+          ? '?advisoryFocus=${Uri.encodeQueryComponent(advisoryId)}&openSidePanel=1'
+          : '?openSidePanel=1';
+      _navigateToRoute('/trips/$localTripId/live$query');
       return;
     }
 

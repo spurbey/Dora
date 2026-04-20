@@ -77,8 +77,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/trip/:id/advisory',
-        redirect: (_, state) =>
-            Routes.liveCapturePath(state.pathParameters['id']!),
+        redirect: (_, state) {
+          final id = state.pathParameters['id']!;
+          final query = state.uri.query;
+          final suffix =
+              query.isEmpty ? '?openSidePanel=1' : '?$query&openSidePanel=1';
+          return '${Routes.liveCapturePath(id)}$suffix';
+        },
       ),
       GoRoute(
         path: Routes.editor,
@@ -90,6 +95,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: Routes.liveCapture,
         builder: (context, state) => LiveCaptureScreen(
           tripId: state.pathParameters['id']!,
+          advisoryFocusId: state.uri.queryParameters['advisoryFocus'],
+          openSidePanel: state.uri.queryParameters['openSidePanel'] == '1',
         ),
       ),
       GoRoute(

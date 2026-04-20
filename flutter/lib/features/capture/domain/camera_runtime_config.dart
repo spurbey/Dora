@@ -3,6 +3,7 @@
 /// Keep these centralized so we can tune behavior per device class without
 /// changing state-machine logic.
 const Duration kCameraInitTimeout = Duration(seconds: 5);
+const Duration kCameraInitRetryDelay = Duration(milliseconds: 500);
 const Duration kStartRecordingTimeout = Duration(seconds: 3);
 const Duration kStopRecordingTimeout = Duration(seconds: 5);
 const Duration kPersistTimeout = Duration(seconds: 10);

@@ -5,6 +5,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -46,6 +47,8 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   DateTime? _recordingStartedAt;
   StreamSubscription<AudioInterruptionEvent>? _audioInterruptionSub;
   bool _resumeProbeInFlight = false;
+  bool _initRetryUsed = false;
+  bool _orientationLocked = false;
 
   CameraInitialMode get _initialMode => widget.args.initialMode;
 
@@ -78,6 +81,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     _recordingMaxTimer?.cancel();
     _recordingStorageTimer?.cancel();
     _audioInterruptionSub?.cancel();
+    unawaited(_unlockRecordingOrientation());
     unawaited(
       ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
             CameraRuntimeEvent.dispose,
@@ -87,11 +91,9 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _bootstrap() async {
-    final controller = ref.read(cameraRuntimeControllerProvider.notifier);
-    await controller.dispatch(CameraRuntimeEvent.initStart);
-    _startInitWatchdog();
     unawaited(_runJanitor());
     await _configureAudioInterruptionHandling();
+    await _attemptInit(resetRetry: true);
   }
 
   Future<void> _runJanitor() async {
@@ -126,12 +128,42 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
       if (!mounted) return;
       final runtime = ref.read(cameraRuntimeControllerProvider);
       if (runtime.phase == CameraRuntimePhase.initializing) {
+        if (!_initRetryUsed) {
+          _initRetryUsed = true;
+          await ref
+              .read(cameraRuntimeControllerProvider.notifier)
+              .forceTier3Reset(
+                reason: 'init_watchdog_retry',
+              );
+          if (!mounted) return;
+          await Future<void>.delayed(kCameraInitRetryDelay);
+          if (!mounted) return;
+          await _attemptInit(resetRetry: false);
+          return;
+        }
         await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
               CameraRuntimeEvent.initFail,
               message: 'Camera initialization timed out',
             );
       }
     });
+  }
+
+  Future<void> _attemptInit({required bool resetRetry}) async {
+    final status = await Permission.camera.status;
+    if (!status.isGranted) {
+      ref
+          .read(cameraRuntimeControllerProvider.notifier)
+          .setPermissionDenied(message: 'Camera permission denied');
+      return;
+    }
+    if (resetRetry) {
+      _initRetryUsed = false;
+    }
+    await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+          CameraRuntimeEvent.initStart,
+        );
+    _startInitWatchdog();
   }
 
   @override
@@ -213,10 +245,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
             reason: 'background>=${kBackgroundTier2Threshold.inSeconds}s',
           );
       if (!mounted) return;
-      await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-            CameraRuntimeEvent.initStart,
-          );
-      _startInitWatchdog();
+      await _attemptInit(resetRetry: true);
       return;
     }
 
@@ -245,10 +274,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
               reason: 'resume_probe_failed',
             );
         if (!mounted) return;
-        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-              CameraRuntimeEvent.initStart,
-            );
-        _startInitWatchdog();
+        await _attemptInit(resetRetry: true);
       }
     } finally {
       _resumeProbeInFlight = false;
@@ -328,10 +354,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
                       .read(cameraRuntimeControllerProvider.notifier)
                       .forceTier3Reset(reason: 'retry_pressed');
                   if (!mounted) return;
-                  await ref
-                      .read(cameraRuntimeControllerProvider.notifier)
-                      .dispatch(CameraRuntimeEvent.initStart);
-                  _startInitWatchdog();
+                  await _attemptInit(resetRetry: true);
                 },
               ),
           ],
@@ -404,12 +427,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
       onPhotoMode: (_) {
         if (runtime.phase == CameraRuntimePhase.initializing) {
           _initWatchdog?.cancel();
+          _initRetryUsed = false;
           unawaited(controller.dispatch(CameraRuntimeEvent.initSuccess));
         }
       },
       onVideoMode: (_) {
         if (runtime.phase == CameraRuntimePhase.initializing) {
           _initWatchdog?.cancel();
+          _initRetryUsed = false;
           unawaited(controller.dispatch(CameraRuntimeEvent.initSuccess));
         }
       },
@@ -465,6 +490,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
           CameraRuntimeEvent.recordStart,
         );
+    await _lockRecordingOrientation();
     _recordingStartedAt = DateTime.now().toUtc();
     _recordingMaxTimer?.cancel();
     _recordingMaxTimer = Timer(kDefaultRecordingMaxDuration, () {
@@ -497,6 +523,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     } catch (error) {
       _recordingStorageTimer?.cancel();
       _recordingMaxTimer?.cancel();
+      await _unlockRecordingOrientation();
       ref
           .read(cameraRuntimeControllerProvider.notifier)
           .setError('Failed to start recording: $error');
@@ -531,7 +558,35 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
       ref
           .read(cameraRuntimeControllerProvider.notifier)
           .setError('Failed to stop recording: $error');
+    } finally {
+      await _unlockRecordingOrientation();
     }
+  }
+
+  Future<void> _lockRecordingOrientation() async {
+    if (_orientationLocked || !mounted) {
+      return;
+    }
+    final orientation = MediaQuery.of(context).orientation;
+    final preferred = orientation == Orientation.portrait
+        ? const <DeviceOrientation>[
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+          ]
+        : const <DeviceOrientation>[
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ];
+    await SystemChrome.setPreferredOrientations(preferred);
+    _orientationLocked = true;
+  }
+
+  Future<void> _unlockRecordingOrientation() async {
+    if (!_orientationLocked) {
+      return;
+    }
+    await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[]);
+    _orientationLocked = false;
   }
 
   Future<void> _toggleMode() async {

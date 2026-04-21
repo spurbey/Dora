@@ -64,8 +64,8 @@ subprojects {
         }
     }
 
-    // Special-case sentry_flutter + mapbox_maps_flutter: keep Java/Kotlin at 1.8 to match their build.gradle.
-    if (name == "sentry_flutter" || name == "mapbox_maps_flutter") {
+    // Special-case plugins that still target Java/Kotlin 1.8 in their own Gradle config.
+    if (name == "sentry_flutter" || name == "mapbox_maps_flutter" || name == "camerawesome") {
         plugins.withId("com.android.library") {
             extensions.configure<LibraryExtension> {
                 compileOptions {
@@ -87,10 +87,10 @@ subprojects {
         }
     }
 
-    // flutter_image_compress_common explicitly targets Java/Kotlin 11.
+    // Plugins that explicitly target Java/Kotlin 11.
     // Keep both toolchains aligned to avoid:
     // "Inconsistent JVM Target Compatibility Between Java and Kotlin Tasks".
-    if (name == "flutter_image_compress_common") {
+    if (name == "flutter_image_compress_common" || name == "disk_space_plus") {
         plugins.withId("com.android.library") {
             extensions.configure<LibraryExtension> {
                 compileOptions {

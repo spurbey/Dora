@@ -1,25 +1,19 @@
 """
-Google Maps scraper — BrightData Scraping Browser (CDP) backend.
+Google Maps scraper for advisory POI extraction.
 
-The BrightData Scraping Browser provides a cloud-hosted Chromium with proxy
-rotation and anti-bot defenses built in. We connect via Playwright's
-`connect_over_cdp`, which keeps the scraper fully async and avoids managing
-a local Chromium profile (unlike the scraper_lean prototype).
+Runtime modes:
+1. BrightData CDP (default): connect_over_cdp to remote browser.
+2. Local persistent Chromium: launch_persistent_context with a durable profile.
 
 Two public entry points are used by the advisory worker:
 
     async scrape_gmaps_search(query, location=None, max_pois=20)
-        → list[POISearchResult]
+        -> list[POISearchResult]
 
-    async scrape_gmaps_reviews(place_url, limit=4)
-        → list[Review]
+    async scrape_gmaps_reviews(place_name, limit=4)
+        -> list[Review]
 
-Both functions return an empty list on any failure; they never raise into
-the caller. Errors are logged and the cycle falls through to Reddit-only.
-
-Cost governance (max 4 reviews/POI, 15 reviews/cycle, 50 BrightData calls per
-trip) is enforced at the advisory worker layer, not here — this module is
-a dumb pipe.
+Both functions return an empty list on failures and never raise to the caller.
 """
 
 from __future__ import annotations
@@ -27,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -34,7 +29,6 @@ from typing import AsyncIterator, Optional
 
 try:
     from playwright.async_api import (
-        Browser,
         BrowserContext,
         Page,
         TimeoutError as PlaywrightTimeoutError,
@@ -42,7 +36,7 @@ try:
     )
 except ImportError:  # pragma: no cover — playwright absent in minimal envs
     async_playwright = None  # type: ignore[assignment]
-    Browser = BrowserContext = Page = None  # type: ignore[assignment]
+    BrowserContext = Page = None  # type: ignore[assignment]
 
     class PlaywrightTimeoutError(Exception):  # type: ignore[no-redef]
         pass
@@ -52,9 +46,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-# Global semaphore — cap concurrent BrightData sessions across the worker.
-# BrightData charges per request; parallel browser instances don't speed
-# up a single cycle meaningfully for our volume.
+# Global semaphore — cap concurrent scraper browser sessions across the worker.
+# Parallel browser instances do not materially improve one advisory cycle.
 _SESSION_SEMAPHORE = asyncio.Semaphore(2)
 
 # Navigation timeouts (ms).
@@ -149,15 +142,21 @@ def _search_url(query: str, location: Optional[str] = None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _use_local_browser() -> bool:
+def is_gmaps_local_runtime() -> bool:
     return bool(settings.ADVISORY_GMAPS_LOCAL_DEBUG)
 
 
-def _scraper_runtime_ready() -> bool:
+def is_gmaps_runtime_enabled() -> bool:
     if async_playwright is None:
         logger.warning("playwright.async_api unavailable - gmaps_scraper disabled")
         return False
-    if _use_local_browser():
+    if is_gmaps_local_runtime():
+        profile_dir = (settings.ADVISORY_GMAPS_LOCAL_PROFILE_DIR or "").strip()
+        if not profile_dir:
+            logger.warning(
+                "ADVISORY_GMAPS_LOCAL_PROFILE_DIR empty - gmaps local runtime disabled"
+            )
+            return False
         return True
     ep = (settings.BRIGHTDATA_WS_ENDPOINT or "").strip()
     if not ep:
@@ -166,37 +165,51 @@ def _scraper_runtime_ready() -> bool:
 
 
 @contextlib.asynccontextmanager
-async def _open_browser() -> AsyncIterator[Browser]:
-    """Open browser session (BrightData CDP by default, local Chromium in debug mode)."""
-    ep = settings.BRIGHTDATA_WS_ENDPOINT or ""
-    use_local = _use_local_browser()
+async def _open_page() -> AsyncIterator[Page]:
+    """Open one page in either local persistent or BrightData runtime."""
+    use_local = is_gmaps_local_runtime()
     slow_mo_ms = max(0, int(settings.ADVISORY_GMAPS_LOCAL_SLOWMO_MS or 0))
     async with async_playwright() as pw:  # type: ignore[misc]
         if use_local:
-            browser = await pw.chromium.launch(
+            profile_dir = os.path.abspath(settings.ADVISORY_GMAPS_LOCAL_PROFILE_DIR)
+            os.makedirs(profile_dir, exist_ok=True)
+            launch_args = ["--disable-blink-features=AutomationControlled"]
+            if hasattr(os, "geteuid") and os.geteuid() == 0:
+                # Needed when Chromium runs as root inside Docker.
+                launch_args.append("--no-sandbox")
+            context = await pw.chromium.launch_persistent_context(
+                user_data_dir=profile_dir,
                 headless=bool(settings.ADVISORY_GMAPS_LOCAL_HEADLESS),
                 slow_mo=slow_mo_ms,
+                locale="en-US",
+                viewport={"width": 1280, "height": 1800},
+                args=launch_args,
             )
+            page = context.pages[0] if context.pages else await context.new_page()
             logger.info(
-                "gmaps scraper runtime=local_chromium headless=%s slow_mo_ms=%s",
+                "gmaps scraper runtime=local_persistent profile=%s headless=%s slow_mo_ms=%s",
+                profile_dir,
                 bool(settings.ADVISORY_GMAPS_LOCAL_HEADLESS),
                 slow_mo_ms,
             )
+            try:
+                yield page
+            finally:
+                await context.close()
         else:
+            ep = settings.BRIGHTDATA_WS_ENDPOINT or ""
             browser = await pw.chromium.connect_over_cdp(ep)
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 1800},
+                locale="en-US",
+            )
+            page = await context.new_page()
             logger.debug("gmaps scraper runtime=brightdata_cdp")
-        try:
-            yield browser
-        finally:
-            await browser.close()
-
-async def _new_page(browser: Browser) -> Page:
-    ctx = await browser.new_context(
-        viewport={"width": 1280, "height": 1800},
-        locale="en-US",
-    )
-    page = await ctx.new_page()
-    return page
+            try:
+                yield page
+            finally:
+                await context.close()
+                await browser.close()
 
 
 async def _dismiss_consent(page: Page) -> None:
@@ -427,7 +440,7 @@ async def scrape_gmaps_search(
     """Return up to `max_pois` POIs for `query` (+ optional `location` suffix)."""
     if not query.strip():
         return []
-    if not _scraper_runtime_ready():
+    if not is_gmaps_runtime_enabled():
         logger.warning("gmaps runtime unavailable — scrape_gmaps_search no-op")
         return []
 
@@ -435,18 +448,14 @@ async def scrape_gmaps_search(
     async with _SESSION_SEMAPHORE:
         for attempt in range(1, attempts + 1):
             try:
-                async with _open_browser() as browser:
-                    page = await _new_page(browser)
-                    try:
-                        if not await _search_from_maps_home(page, query, location):
-                            return []
-                        pois = await _extract_search_cards(page, max_pois=max_pois)
-                        if pois:
-                            return pois
-                        single = await _extract_single_place_result(page)
-                        return [single] if single else []
-                    finally:
-                        await page.context.close()
+                async with _open_page() as page:
+                    if not await _search_from_maps_home(page, query, location):
+                        return []
+                    pois = await _extract_search_cards(page, max_pois=max_pois)
+                    if pois:
+                        return pois
+                    single = await _extract_single_place_result(page)
+                    return [single] if single else []
             except Exception as exc:  # noqa: BLE001
                 if attempt < attempts and _is_retriable_scrape_error(exc):
                     backoff_s = 1.0 * attempt
@@ -629,7 +638,7 @@ async def scrape_gmaps_reviews(
     """
     if not place_name or not place_name.strip():
         return []
-    if not _scraper_runtime_ready():
+    if not is_gmaps_runtime_enabled():
         logger.warning("gmaps runtime unavailable — scrape_gmaps_reviews no-op")
         return []
 
@@ -639,26 +648,22 @@ async def scrape_gmaps_reviews(
     async with _SESSION_SEMAPHORE:
         for attempt in range(1, attempts + 1):
             try:
-                async with _open_browser() as browser:
-                    page = await _new_page(browser)
-                    try:
-                        if not await _search_navigate_to_place(page, place_name):
-                            if attempt < attempts:
-                                await asyncio.sleep(0.8 * attempt)
-                                continue
-                            logger.info("gmaps place not found for %r", place_name)
-                            return []
-                        if not await _open_reviews_tab(page):
-                            if attempt < attempts:
-                                await asyncio.sleep(0.8 * attempt)
-                                continue
-                            logger.info("gmaps reviews tab not found for %r", place_name)
-                            return []
-                        await page.wait_for_timeout(800)
-                        reviews = await _extract_visible_reviews(page)
-                        return reviews[:effective_limit]
-                    finally:
-                        await page.context.close()
+                async with _open_page() as page:
+                    if not await _search_navigate_to_place(page, place_name):
+                        if attempt < attempts:
+                            await asyncio.sleep(0.8 * attempt)
+                            continue
+                        logger.info("gmaps place not found for %r", place_name)
+                        return []
+                    if not await _open_reviews_tab(page):
+                        if attempt < attempts:
+                            await asyncio.sleep(0.8 * attempt)
+                            continue
+                        logger.info("gmaps reviews tab not found for %r", place_name)
+                        return []
+                    await page.wait_for_timeout(800)
+                    reviews = await _extract_visible_reviews(page)
+                    return reviews[:effective_limit]
             except Exception as exc:  # noqa: BLE001
                 if attempt < attempts and _is_retriable_scrape_error(exc):
                     backoff_s = 1.0 * attempt

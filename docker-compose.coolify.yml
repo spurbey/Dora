@@ -18,6 +18,10 @@ x-backend-env: &backend_env
   OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b:free}
   BRIGHTDATA_WS_ENDPOINT: ${BRIGHTDATA_WS_ENDPOINT:-}
   BRIGHTDATA_AUTH: ${BRIGHTDATA_AUTH:-}
+  ADVISORY_GMAPS_LOCAL_DEBUG: ${ADVISORY_GMAPS_LOCAL_DEBUG:-false}
+  ADVISORY_GMAPS_LOCAL_HEADLESS: ${ADVISORY_GMAPS_LOCAL_HEADLESS:-false}
+  ADVISORY_GMAPS_LOCAL_SLOWMO_MS: ${ADVISORY_GMAPS_LOCAL_SLOWMO_MS:-0}
+  ADVISORY_GMAPS_LOCAL_PROFILE_DIR: ${ADVISORY_GMAPS_LOCAL_PROFILE_DIR:-/app/.gmaps_profile}
   UPSTASH_REDIS_URL: ${UPSTASH_REDIS_URL:-}
   UPSTASH_REDIS_TOKEN: ${UPSTASH_REDIS_TOKEN:-}
   EXPOSE_ADVISORY_STATE_ENDPOINT: ${EXPOSE_ADVISORY_STATE_ENDPOINT:-false}
@@ -99,9 +103,15 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
-    command: python -m app.workers.advisory_worker
+    user: "0:0"
+    command: sh -lc "mkdir -p /app/.gmaps_profile && xvfb-run -a -s '-screen 0 1280x1800x24' python -m app.workers.advisory_worker"
     environment:
       <<: *backend_env
+      ADVISORY_GMAPS_LOCAL_DEBUG: ${ADVISORY_GMAPS_LOCAL_DEBUG:-true}
+      ADVISORY_GMAPS_LOCAL_HEADLESS: ${ADVISORY_GMAPS_LOCAL_HEADLESS:-false}
+      ADVISORY_GMAPS_LOCAL_PROFILE_DIR: ${ADVISORY_GMAPS_LOCAL_PROFILE_DIR:-/app/.gmaps_profile}
+    volumes:
+      - gmaps_profile:/app/.gmaps_profile
 
   advisory_cycle_worker:
     build:
@@ -140,3 +150,4 @@ services:
 
 volumes:
   render_artifacts:
+  gmaps_profile:

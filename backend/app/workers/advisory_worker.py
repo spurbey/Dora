@@ -455,15 +455,22 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
     """GMaps POI search + targeted review fetches.
 
     Only runs for location_trigger (cycle) jobs with a resolved target.
-    Enforces BRIGHTDATA_MAX_CALLS_PER_TRIP atomically via the brain. On
-    missing config or cap breach we skip cleanly — Reddit-only advisories
-    still fire downstream.
+    Enforces BRIGHTDATA_MAX_CALLS_PER_TRIP only when BrightData runtime is used.
+    On missing scraper runtime config or cap breach we skip cleanly — Reddit-only
+    advisories still fire downstream.
     """
     result = job.result_summary or {}
 
-    if not settings.BRIGHTDATA_WS_ENDPOINT:
+    from app.services.scrapers.gmaps_scraper import (
+        is_gmaps_local_runtime,
+        is_gmaps_runtime_enabled,
+        scrape_gmaps_reviews,
+        scrape_gmaps_search,
+    )
+
+    if not is_gmaps_runtime_enabled():
         logger.info(
-            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (no BRIGHTDATA_WS_ENDPOINT)",
+            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (gmaps runtime unavailable)",
             job.id,
         )
         result["gmaps"] = {"status": "skipped_no_config", "pois": []}
@@ -497,24 +504,21 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
     intent = " ".join(activity_focus[:2]) if activity_focus else "things to do"
     query = f"{intent} in {target.locality}"
 
-    # Budget: account for 1 search call + up to 4 review fetches.
-    new_count = brain_svc.try_increment_brightdata(job.trip_id, n=5)
-    if new_count is None:
-        logger.warning(
-            "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (brightdata cap reached)",
-            job.id,
-        )
-        result["gmaps"] = {"status": "skipped_cap", "pois": []}
-        job.result_summary = result
-        flag_modified(job, "result_summary")
-        db.commit()
-        return
+    if not is_gmaps_local_runtime():
+        # Budget: account for 1 search call + up to 4 review fetches.
+        new_count = brain_svc.try_increment_brightdata(job.trip_id, n=5)
+        if new_count is None:
+            logger.warning(
+                "[ADVISORY_STAGE] gmaps_scrape job_id=%s skipped (brightdata cap reached)",
+                job.id,
+            )
+            result["gmaps"] = {"status": "skipped_cap", "pois": []}
+            job.result_summary = result
+            flag_modified(job, "result_summary")
+            db.commit()
+            return
 
     _heartbeat(db, job)
-    from app.services.scrapers.gmaps_scraper import (
-        scrape_gmaps_reviews,
-        scrape_gmaps_search,
-    )
     pois = await scrape_gmaps_search(query, location=None, max_pois=20)
 
     # Weather snapshot for the target centroid at advisory time.

@@ -131,6 +131,7 @@ class Settings(BaseSettings):
     ADVISORY_GMAPS_LOCAL_DEBUG: bool = False
     ADVISORY_GMAPS_LOCAL_HEADLESS: bool = False
     ADVISORY_GMAPS_LOCAL_SLOWMO_MS: int = 0
+    ADVISORY_GMAPS_LOCAL_PROFILE_DIR: str = "/app/.gmaps_profile"
 
     # Upstash Redis (advisory session cache)
     UPSTASH_REDIS_URL: Optional[str] = None

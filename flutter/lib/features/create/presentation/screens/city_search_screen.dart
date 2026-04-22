@@ -95,9 +95,7 @@ class _CitySearchScreenState extends ConsumerState<CitySearchScreen> {
                 ),
               ),
               onChanged: (query) {
-                ref
-                    .read(citySearchControllerProvider.notifier)
-                    .search(query);
+                ref.read(citySearchControllerProvider.notifier).search(query);
                 setState(() {});
               },
             ),
@@ -204,8 +202,13 @@ class _CitySearchScreenState extends ConsumerState<CitySearchScreen> {
     final editor = editorState.valueOrNull;
 
     final now = DateTime.now();
-    final nextOrder =
-        (editor?.places.length ?? 0) + (editor?.routes.length ?? 0);
+    final places = editor?.places ?? const <Place>[];
+    final nextOrder = places.isEmpty
+        ? 0
+        : places
+                .map((place) => place.orderIndex)
+                .reduce((a, b) => a > b ? a : b) +
+            1;
 
     final city = Place(
       id: const Uuid().v4(),
@@ -220,9 +223,7 @@ class _CitySearchScreenState extends ConsumerState<CitySearchScreen> {
       syncStatus: 'pending',
     );
 
-    ref
-        .read(editorControllerProvider(widget.tripId).notifier)
-        .addPlace(city);
+    ref.read(editorControllerProvider(widget.tripId).notifier).addPlace(city);
 
     Navigator.of(context).pop();
   }

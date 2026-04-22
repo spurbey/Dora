@@ -111,7 +111,7 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
     }
     final editor =
         ref.read(editorControllerProvider(widget.tripId)).valueOrNull;
-    final orderIndex = editor?.places.length ?? 0;
+    final orderIndex = _nextOrderIndex(editor?.places ?? const <Place>[]);
     final currentCoordinates = AppLatLng(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -137,7 +137,7 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
     }
     final editor =
         ref.read(editorControllerProvider(widget.tripId)).valueOrNull;
-    final orderIndex = editor?.places.length ?? 0;
+    final orderIndex = _nextOrderIndex(editor?.places ?? const <Place>[]);
     final coordinates =
         _searchOrigin ?? _resolveEditorOrigin() ?? _defaultSearchOrigin;
 
@@ -389,7 +389,9 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
               result: result,
               distanceLabel: _distanceLabel(result),
               onAdd: () {
-                final orderIndex = editorState.valueOrNull?.places.length ?? 0;
+                final orderIndex = _nextOrderIndex(
+                  editorState.valueOrNull?.places ?? const <Place>[],
+                );
                 final place =
                     ref.read(placeRepositoryProvider).createFromSearchResult(
                           tripId: widget.tripId,
@@ -443,6 +445,19 @@ class _PlaceSearchScreenState extends ConsumerState<PlaceSearchScreen> {
   }
 
   double _degToRad(double degree) => degree * (math.pi / 180);
+
+  int _nextOrderIndex(List<Place> places) {
+    if (places.isEmpty) {
+      return 0;
+    }
+    var maxOrder = places.first.orderIndex;
+    for (final place in places.skip(1)) {
+      if (place.orderIndex > maxOrder) {
+        maxOrder = place.orderIndex;
+      }
+    }
+    return maxOrder + 1;
+  }
 }
 
 class _QuickActionChip extends StatelessWidget {

@@ -141,7 +141,34 @@ class EditorController extends _$EditorController {
   }
 
   void selectRoute(String id) {
-    enterRouteStudio(id);
+    final current = state.valueOrNull;
+    if (current == null) {
+      return;
+    }
+    state = AsyncData(current.copyWith(
+      selectedItemId: id,
+      selectedItemType: 'route',
+      routeStudioActive: false,
+      bottomPanelExpanded: true,
+      mode: EditorMode.editItem,
+    ));
+    try {
+      final route = current.routes.firstWhere((r) => r.id == id);
+      if (route.coordinates.length >= 2) {
+        final coords = route.coordinates;
+        final minLat = coords.map((c) => c.latitude).reduce(min);
+        final maxLat = coords.map((c) => c.latitude).reduce(max);
+        final minLon = coords.map((c) => c.longitude).reduce(min);
+        final maxLon = coords.map((c) => c.longitude).reduce(max);
+        current.mapController?.fitBounds(
+          AppLatLngBounds(
+            southwest: AppLatLng(latitude: minLat, longitude: minLon),
+            northeast: AppLatLng(latitude: maxLat, longitude: maxLon),
+          ),
+          padding: const EdgeInsets.all(80),
+        );
+      }
+    } catch (_) {}
   }
 
   void enterRouteStudio(String routeId) {
@@ -363,6 +390,49 @@ class EditorController extends _$EditorController {
     }
   }
 
+  void reorderPlacesByGlobalSlots(Map<String, int> slotByPlaceId) {
+    final current = state.valueOrNull;
+    if (current == null || current.places.isEmpty || slotByPlaceId.isEmpty) {
+      return;
+    }
+
+    final previousById = {
+      for (final place in current.places) place.id: place,
+    };
+    final updated = current.places.map((place) {
+      final slot = slotByPlaceId[place.id];
+      if (slot == null) {
+        return place;
+      }
+      return place.copyWith(
+        orderIndex: slot,
+        dayNumber: (slot ~/ 5) + 1,
+      );
+    }).toList()
+      ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+    state = AsyncData(current.copyWith(places: updated));
+
+    final changedPlaces = updated.where((place) {
+      final previous = previousById[place.id];
+      if (previous == null) {
+        return true;
+      }
+      return previous.orderIndex != place.orderIndex ||
+          previous.dayNumber != place.dayNumber;
+    }).toList(growable: false);
+
+    if (changedPlaces.isEmpty) {
+      return;
+    }
+    unawaited(Future(() async {
+      final repository = ref.read(placeRepositoryProvider);
+      for (final place in changedPlaces) {
+        await repository.updatePlace(place);
+      }
+    }));
+  }
+
   void addRoute(Route route) {
     final current = state.valueOrNull;
     if (current == null) {
@@ -433,7 +503,7 @@ class EditorController extends _$EditorController {
     Future(() => ref.read(routeRepositoryProvider).deleteRoute(id));
   }
 
-  void toggleRouteEditMode(String _routeId) {
+  void toggleRouteEditMode(String routeId) {
     final current = state.valueOrNull;
     if (current == null) return;
     final newMode = current.mode == EditorMode.editRoute

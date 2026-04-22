@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,14 +24,15 @@ import 'package:dora/features/create/domain/editor_mode.dart';
 import 'package:dora/features/create/domain/editor_state.dart';
 import 'package:dora/features/create/domain/place.dart';
 import 'package:dora/features/create/domain/route.dart' as create_route;
+import 'package:dora/features/create/domain/unified_timeline_entry.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
+import 'package:dora/features/create/presentation/providers/unified_timeline_provider.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/create/presentation/providers/map_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/create/presentation/providers/place_media_provider.dart';
-import 'package:dora/features/create/presentation/widgets/bottom_detail_panel.dart';
 import 'package:dora/features/create/presentation/widgets/city_detail_form.dart';
 import 'package:dora/features/create/presentation/widgets/editor_header.dart';
 import 'package:dora/features/create/presentation/widgets/map_canvas.dart';
@@ -44,7 +46,6 @@ import 'package:dora/features/create/presentation/widgets/timeline_sidebar.dart'
 import 'package:dora/features/create/presentation/widgets/media_attachment_viewer.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_review_panel.dart';
-import 'package:dora/features/live_tracking/v2/compiler/v2_captured_storyline_panel.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
@@ -66,7 +67,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   AppLatLng? _deviceCenter;
   bool _didAutoCenterOnDevice = false;
   AppMarker? _mediaFocusMarker;
+  AppMarker? _selectionFocusMarker;
   String? _mediaFocusPlaceId;
+  String? _selectedLiveEntryId;
+  String? _selectedUnifiedEntryId;
+  final DraggableScrollableController _detailSheetController =
+      DraggableScrollableController();
+  bool _detailSheetAttached = false;
+  bool _lastFocusMode = false;
   final Set<String> _v2ReviewActionsInFlight = <String>{};
   bool _didTriggerV2EditorOpenRecovery = false;
   static const _defaultEditorCenter = AppLatLng(
@@ -87,6 +95,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _detailSheetController.dispose();
     super.dispose();
   }
 
@@ -115,10 +124,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
 
     ref.listen(editorControllerProvider(widget.tripId), (prev, next) {
       final prevMode = prev?.valueOrNull?.mode;
-      final nextMode = next.valueOrNull?.mode;
+      final nextEditor = next.valueOrNull;
+      final nextMode = nextEditor?.mode;
 
-      _maybeCenterMapOnDevice(next.valueOrNull);
-      _syncMediaFocusWithSelection(next.valueOrNull);
+      _maybeCenterMapOnDevice(nextEditor);
+      _syncMediaFocusWithSelection(nextEditor);
 
       if (nextMode == EditorMode.addPlace && prevMode != EditorMode.addPlace) {
         _openPlaceSearch();
@@ -126,6 +136,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
 
       if (nextMode == EditorMode.addCity && prevMode != EditorMode.addCity) {
         _openCitySearch();
+      }
+
+      final selectedType = nextEditor?.selectedItemType;
+      final selectedId = nextEditor?.selectedItemId;
+      if (selectedId != null && selectedType != null) {
+        final mapped = '$selectedType:$selectedId';
+        if (mounted &&
+            (_selectedUnifiedEntryId != mapped ||
+                _selectedLiveEntryId != null)) {
+          setState(() {
+            _selectedLiveEntryId = null;
+            _selectionFocusMarker = null;
+            _selectedUnifiedEntryId = mapped;
+          });
+        }
+      } else if (mounted &&
+          _selectedLiveEntryId == null &&
+          _selectedUnifiedEntryId != null) {
+        setState(() {
+          _selectedUnifiedEntryId = null;
+          _selectionFocusMarker = null;
+        });
       }
     });
 
@@ -159,8 +191,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             ),
           ),
         );
-        final v2TimelineGroupsAsync =
-            ref.watch(v2TimelineGroupsProvider(widget.tripId));
+        final unifiedTimelineAsync =
+            ref.watch(unifiedTimelineProvider(widget.tripId));
         final v2RouteProjectionAsync =
             ref.watch(v2RouteProjectionProvider(widget.tripId));
         final claimedSegmentKeysAsync =
@@ -169,6 +201,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId));
         final v2InboxAsync =
             ref.watch(v2UnresolvedInboxProvider(widget.tripId));
+        final unifiedEntries =
+            unifiedTimelineAsync.valueOrNull ?? const <UnifiedTimelineEntry>[];
         final controller =
             ref.read(editorControllerProvider(widget.tripId).notifier);
         final (syncStatusLabel, syncStatusColor) = _resolveHeaderSyncStatus(
@@ -188,6 +222,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         final markers = [
           ...mapState.markers,
           if (_mediaFocusMarker != null) _mediaFocusMarker!,
+          if (_selectionFocusMarker != null) _selectionFocusMarker!,
         ];
         final routes = [...mapState.routes];
         final routeSegments = v2RouteProjectionAsync.valueOrNull ??
@@ -212,21 +247,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           );
         }
 
-        final selectedName = _getSelectedItemName(editor);
-        final selectedIcon = _getSelectedItemIcon(editor);
         final selectedPlaceId =
             editor.selectedItemType == 'place' ? editor.selectedItemId : null;
-        final pendingMediaCount = selectedPlaceId == null
-            ? 0
-            : ref
-                .watch(placePendingUploadCountProvider(selectedPlaceId))
-                .maybeWhen(
-                  data: (count) => count,
-                  orElse: () => 0,
-                );
+        final activeEntry = _resolveActiveEntry(
+          editor: editor,
+          entries: unifiedEntries,
+        );
+        final focusMode = activeEntry != null &&
+            !editor.routeStudioActive &&
+            !_isAnyRouteMode(editor.mode);
+        _detailSheetAttached = false;
+        _syncDetailSheetWithSelection(focusMode);
 
         final showFab = !isWide &&
-            !editor.bottomPanelExpanded &&
             !editor.routeStudioActive &&
             !_isAnyRouteMode(editor.mode);
 
@@ -252,45 +285,38 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                     onNameChanged: controller.updateTripName,
                     onExport: _openExportStudio,
                     onMore: _openTripActionsMenu,
+                    trailingAction: _buildLiveCaptureHeaderAction(
+                      trackingRuntimeAsync: trackingRuntimeAsync,
+                    ),
                   ),
                   if (syncCallout != null) _buildSyncCallout(syncCallout),
-                  _buildLiveCaptureEntryCard(
-                    trackingRuntimeAsync: trackingRuntimeAsync,
-                    syncStatusAsync: syncStatusAsync,
-                  ),
-                  _buildV2UnresolvedReviewInbox(
-                    editor: editor,
-                    inboxAsync: v2InboxAsync,
-                  ),
                   Expanded(
                     child: isWide
                         ? _buildWideLayout(
                             editor,
-                            markers,
-                            routes,
-                            controller,
-                            initialCenter,
-                            initialZoom,
-                            selectedName,
-                            selectedIcon,
-                            pendingMediaCount,
-                            selectedPlaceId,
-                            useV2ReviewLane,
-                            v2TimelineGroupsAsync,
+                            entries: unifiedEntries,
+                            activeEntry: activeEntry,
+                            inboxAsync: v2InboxAsync,
+                            focusMode: focusMode,
+                            markers: markers,
+                            routes: routes,
+                            controller: controller,
+                            initialCenter: initialCenter,
+                            initialZoom: initialZoom,
+                            selectedPlaceId: selectedPlaceId,
                           )
                         : _buildMobileLayout(
                             editor,
-                            markers,
-                            routes,
-                            controller,
-                            initialCenter,
-                            initialZoom,
-                            selectedName,
-                            selectedIcon,
-                            pendingMediaCount,
-                            selectedPlaceId,
-                            useV2ReviewLane,
-                            v2TimelineGroupsAsync,
+                            entries: unifiedEntries,
+                            activeEntry: activeEntry,
+                            inboxAsync: v2InboxAsync,
+                            focusMode: focusMode,
+                            markers: markers,
+                            routes: routes,
+                            controller: controller,
+                            initialCenter: initialCenter,
+                            initialZoom: initialZoom,
+                            selectedPlaceId: selectedPlaceId,
                           ),
                   ),
                 ],
@@ -300,8 +326,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                 ? _buildMobileFab(
                     editor,
                     controller,
-                    useV2ReviewLane,
-                    v2TimelineGroupsAsync,
+                    unifiedEntries,
                   )
                 : null,
             floatingActionButtonLocation:
@@ -315,59 +340,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   Widget _buildMobileFab(
     EditorState editor,
     EditorController controller,
-    bool useV2Projection,
-    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
+    List<UnifiedTimelineEntry> entries,
   ) {
     return FloatingActionButton(
       onPressed: () => _showTimelineSheet(
         editor,
         controller,
-        useV2Projection,
-        v2TimelineGroupsAsync,
+        entries,
       ),
       backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
       child: const Icon(Icons.timeline),
     );
-  }
-
-  String? _getSelectedItemName(EditorState editor) {
-    if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
-      try {
-        final place =
-            editor.places.firstWhere((p) => p.id == editor.selectedItemId);
-        if (place.placeType == 'city') {
-          return '${place.name} (City)';
-        }
-        return place.name;
-      } catch (_) {
-        return null;
-      }
-    }
-    if (editor.selectedItemType == 'route' && editor.selectedItemId != null) {
-      try {
-        final route =
-            editor.routes.firstWhere((r) => r.id == editor.selectedItemId);
-        return route.name ?? 'Route';
-      } catch (_) {
-        return 'Route';
-      }
-    }
-    return null;
-  }
-
-  IconData? _getSelectedItemIcon(EditorState editor) {
-    if (editor.selectedItemType == 'place' && editor.selectedItemId != null) {
-      try {
-        final place =
-            editor.places.firstWhere((p) => p.id == editor.selectedItemId);
-        return place.placeType == 'city' ? Icons.location_city : Icons.place;
-      } catch (_) {
-        return Icons.place;
-      }
-    }
-    if (editor.selectedItemType == 'route') return Icons.route;
-    return null;
   }
 
   bool _isAnyRouteMode(EditorMode mode) =>
@@ -515,220 +499,606 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     );
   }
 
-  Widget _buildLiveCaptureEntryCard({
+  Widget _buildLiveCaptureHeaderAction({
     required AsyncValue<LiveTrackingRuntimeSnapshot> trackingRuntimeAsync,
-    required AsyncValue<EditorSyncStatus> syncStatusAsync,
   }) {
-    final subtitle = trackingRuntimeAsync.when(
-      data: _liveTrackingSubtitle,
-      loading: () => 'Checking tracking state...',
-      error: (_, __) =>
-          'Tracking state unavailable. Open live capture to retry.',
-    );
     final runtimeState = trackingRuntimeAsync.valueOrNull?.state ??
         LiveTrackingRuntimeState.planned;
-    final blockedCount =
-        syncStatusAsync.valueOrNull?.snapshot.blockedItems ?? 0;
-
     final stateLabel = switch (runtimeState) {
-      LiveTrackingRuntimeState.active => 'Active',
+      LiveTrackingRuntimeState.active => 'Live',
       LiveTrackingRuntimeState.paused => 'Paused',
       LiveTrackingRuntimeState.ended => 'Ended',
       LiveTrackingRuntimeState.planned => 'Ready',
     };
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.xs,
-        AppSpacing.md,
-        AppSpacing.sm,
+    return TextButton.icon(
+      onPressed: () => context.push(Routes.liveCapturePath(widget.tripId)),
+      icon: const Icon(Icons.radio_button_checked, size: 14),
+      label: Text(
+        stateLabel,
+        style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700),
       ),
-      child: Container(
-        key: const ValueKey('editorLiveCaptureEntryCard'),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.accent.withValues(alpha: 0.12),
-              AppColors.surface,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: AppRadius.borderLg,
-          border: Border.all(
-            color: blockedCount > 0
-                ? AppColors.warning.withValues(alpha: 0.45)
-                : AppColors.divider,
-          ),
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.accent,
+        backgroundColor: AppColors.accent.withValues(alpha: 0.12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Live Capture',
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Wrap(
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      _buildPillChip(
-                        icon: Icons.wifi_tethering,
-                        label: stateLabel,
-                      ),
-                      if (blockedCount > 0)
-                        _buildPillChip(
-                          icon: Icons.error_outline,
-                          label: '$blockedCount blocked',
-                          tint: AppColors.warning,
-                        ),
-                    ],
-                  ),
-                ],
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 6,
+        ),
+        minimumSize: Size.zero,
+      ),
+    );
+  }
+
+  UnifiedTimelineEntry? _resolveActiveEntry({
+    required EditorState editor,
+    required List<UnifiedTimelineEntry> entries,
+  }) {
+    if (_selectedLiveEntryId != null) {
+      for (final entry in entries) {
+        if (entry.id == _selectedLiveEntryId) {
+          return entry;
+        }
+      }
+    }
+    final selectedType = editor.selectedItemType;
+    final selectedId = editor.selectedItemId;
+    if (selectedType != null && selectedId != null) {
+      final target = '$selectedType:$selectedId';
+      for (final entry in entries) {
+        if (entry.id == target) {
+          return entry;
+        }
+      }
+    }
+    if (_selectedUnifiedEntryId != null) {
+      for (final entry in entries) {
+        if (entry.id == _selectedUnifiedEntryId) {
+          return entry;
+        }
+      }
+    }
+    return null;
+  }
+
+  void _syncDetailSheetWithSelection(bool hasSelection) {
+    if (_lastFocusMode == hasSelection) {
+      return;
+    }
+    _lastFocusMode = hasSelection;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_detailSheetAttached) {
+        return;
+      }
+      final targetSize = hasSelection ? 0.1 : 0.0;
+      try {
+        final current = _detailSheetController.size;
+        if ((current - targetSize).abs() < 0.01) {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+      unawaited(
+        _detailSheetController.animateTo(
+          targetSize,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
+  }
+
+  void _clearUnifiedSelection() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedLiveEntryId = null;
+      _selectedUnifiedEntryId = null;
+      _selectionFocusMarker = null;
+    });
+  }
+
+  void _selectUnifiedEntry({
+    required UnifiedTimelineEntry entry,
+    required EditorController controller,
+  }) {
+    _clearMediaFocus();
+    switch (entry) {
+      case final UnifiedPlaceTimelineEntry placeEntry:
+        setState(() {
+          _selectedLiveEntryId = null;
+          _selectionFocusMarker = null;
+          _selectedUnifiedEntryId = entry.id;
+        });
+        controller.selectPlace(placeEntry.place.id);
+      case final UnifiedRouteTimelineEntry routeEntry:
+        setState(() {
+          _selectedLiveEntryId = null;
+          _selectionFocusMarker = null;
+          _selectedUnifiedEntryId = entry.id;
+        });
+        controller.selectRoute(routeEntry.route.id);
+      case final UnifiedLiveEventTimelineEntry liveEntry:
+        controller.deselectAll();
+        final marker = AppMarker(
+          id: '_event_focus_${liveEntry.event.entryId}',
+          position: liveEntry.event.anchorPosition,
+          title: liveEntry.event.title,
+          color: AppColors.warning,
+          markerType: 'live_event',
+          label: 'E',
+        );
+        setState(() {
+          _selectionFocusMarker = marker;
+          _selectedUnifiedEntryId = entry.id;
+          _selectedLiveEntryId = entry.id;
+        });
+        final mapController = ref
+            .read(editorControllerProvider(widget.tripId))
+            .valueOrNull
+            ?.mapController;
+        if (mapController != null) {
+          unawaited(
+            mapController.flyTo(
+              liveEntry.event.anchorPosition,
+              zoom: 14,
+              duration: const Duration(milliseconds: 650),
+            ),
+          );
+        }
+    }
+  }
+
+  void _onUnifiedReorder({
+    required int oldIndex,
+    required int newIndex,
+    required List<UnifiedTimelineEntry> entries,
+    required EditorController controller,
+  }) {
+    if (oldIndex < 0 || oldIndex >= entries.length) {
+      return;
+    }
+    final moved = entries[oldIndex];
+    if (moved is! UnifiedPlaceTimelineEntry) {
+      return;
+    }
+    final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (targetIndex < 0 || targetIndex >= entries.length) {
+      return;
+    }
+
+    final reordered = List<UnifiedTimelineEntry>.from(entries)
+      ..removeAt(oldIndex)
+      ..insert(targetIndex, moved);
+    final slotByPlaceId = <String, int>{};
+    for (var index = 0; index < reordered.length; index++) {
+      final entry = reordered[index];
+      if (entry is UnifiedPlaceTimelineEntry) {
+        slotByPlaceId[entry.place.id] = index;
+      }
+    }
+    if (slotByPlaceId.isEmpty) {
+      return;
+    }
+    controller.reorderPlacesByGlobalSlots(slotByPlaceId);
+    setState(() {
+      _selectedUnifiedEntryId = moved.id;
+      _selectedLiveEntryId = null;
+    });
+  }
+
+  Widget _buildResolverDockOverlay({
+    required EditorState editor,
+    required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
+  }) {
+    final dockWidth = MediaQuery.of(context).size.width * 0.82;
+    return Positioned(
+      top: AppSpacing.md,
+      right: AppSpacing.md,
+      child: SizedBox(
+        width: dockWidth > 320 ? 320 : dockWidth,
+        child: inboxAsync.when(
+          data: (items) {
+            if (items.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return V2UnresolvedReviewPanel(
+              items: items,
+              interactive: true,
+              onReviewInEditor: null,
+              busyEventIds: _v2ReviewActionsInFlight,
+              maxBodyHeight: 300,
+              onItemTap: (item) => _focusLiveEventFromResolver(
+                eventId: item.eventId,
+                controller:
+                    ref.read(editorControllerProvider(widget.tripId).notifier),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            FilledButton.icon(
-              key: const ValueKey('editorOpenLiveCaptureButton'),
-              onPressed: () =>
-                  context.push(Routes.liveCapturePath(widget.tripId)),
-              icon: const Icon(Icons.map_outlined),
-              label: const Text('Open'),
-            ),
-          ],
+              onAcceptCandidate: (eventId, candidate) => unawaited(
+                _runV2ReviewAction(
+                  eventId: eventId,
+                  action: () async {
+                    await ref
+                        .read(v2UnresolvedReviewControllerProvider)
+                        .acceptCandidate(
+                          eventId: eventId,
+                          candidate: candidate,
+                        );
+                    return true;
+                  },
+                  successMessage: 'Capture bound to place.',
+                ),
+              ),
+              onAddPlace: (eventId) => unawaited(
+                _runV2ReviewAction(
+                  eventId: eventId,
+                  action: () => _assignV2ManualPlace(
+                    eventId: eventId,
+                    editor: editor,
+                  ),
+                  successMessage: 'Capture bound to selected place.',
+                ),
+              ),
+              onKeepGeotag: (eventId) => unawaited(
+                _runV2ReviewAction(
+                  eventId: eventId,
+                  action: () async {
+                    await ref
+                        .read(v2UnresolvedReviewControllerProvider)
+                        .keepGeotag(eventId: eventId);
+                    return true;
+                  },
+                  successMessage: 'Capture kept as geotag.',
+                ),
+              ),
+              title: 'Review inbox',
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
         ),
       ),
     );
   }
 
-  Widget _buildPillChip({
-    required IconData icon,
-    required String label,
-    Color? tint,
+  void _focusLiveEventFromResolver({
+    required String eventId,
+    required EditorController controller,
   }) {
-    final chipTint = tint ?? AppColors.accent;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+    final entries =
+        ref.read(v2TimelineProjectionProvider(widget.tripId)).valueOrNull ??
+            const <V2TimelineProjectionEntry>[];
+    V2TimelineProjectionEntry? matched;
+    for (final entry in entries) {
+      if (entry.sourceKind == 'event' && entry.sourceId == eventId) {
+        matched = entry;
+        break;
+      }
+    }
+    if (matched == null) {
+      return;
+    }
+    _selectUnifiedEntry(
+      entry: UnifiedLiveEventTimelineEntry(
+        event: matched,
+        mediaCount: _mediaCountFromPayload(matched.renderPayloadJson),
+        displayOrder: matched.displayOrder,
       ),
-      decoration: BoxDecoration(
-        color: chipTint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      controller: controller,
+    );
+  }
+
+  int _mediaCountFromPayload(String? payloadJson) {
+    if (payloadJson == null || payloadJson.trim().isEmpty) {
+      return 0;
+    }
+    try {
+      final decoded = jsonDecode(payloadJson);
+      if (decoded is! Map<String, dynamic>) {
+        return 0;
+      }
+      final media = decoded['media'];
+      if (media is List) {
+        return media.length;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  Widget _buildUnifiedDetailSheet({
+    required EditorState editor,
+    required UnifiedTimelineEntry? entry,
+    required EditorController controller,
+    required ScrollController scrollController,
+  }) {
+    if (entry == null) {
+      return const SizedBox.shrink();
+    }
+
+    final title = switch (entry) {
+      UnifiedPlaceTimelineEntry(:final place) => place.name,
+      UnifiedRouteTimelineEntry(:final route) => route.name ?? 'Route',
+      UnifiedLiveEventTimelineEntry(:final event) => event.title,
+    };
+
+    final subtitle = switch (entry) {
+      UnifiedPlaceTimelineEntry(:final place) =>
+        place.placeType == 'city' ? 'City' : 'Place',
+      UnifiedRouteTimelineEntry() => 'Route',
+      UnifiedLiveEventTimelineEntry(:final event) =>
+        event.subtitle ?? event.bucketType,
+    };
+
+    return Material(
+      color: AppColors.card,
+      borderRadius: AppRadius.sheetTop,
+      child: ListView(
+        controller: scrollController,
+        padding: EdgeInsets.zero,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: chipTint,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.h3.copyWith(fontSize: 16),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    controller.deselectAll();
+                    _clearUnifiedSelection();
+                  },
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.divider),
+          _buildUnifiedDetailContent(
+            entry: entry,
+            editor: editor,
+            controller: controller,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildV2UnresolvedReviewInbox({
+  Widget _buildUnifiedDetailContent({
+    required UnifiedTimelineEntry entry,
     required EditorState editor,
-    required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
+    required EditorController controller,
   }) {
-    return inboxAsync.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return V2UnresolvedReviewPanel(
-          items: items,
-          interactive: true,
-          onReviewInEditor: null,
-          busyEventIds: _v2ReviewActionsInFlight,
-          onAcceptCandidate: (eventId, candidate) => unawaited(
-            _runV2ReviewAction(
-              eventId: eventId,
-              action: () async {
-                await ref
-                    .read(v2UnresolvedReviewControllerProvider)
-                    .acceptCandidate(
-                      eventId: eventId,
-                      candidate: candidate,
-                    );
-                return true;
-              },
-              successMessage: 'Capture bound to place.',
-            ),
-          ),
-          onAddPlace: (eventId) => unawaited(
-            _runV2ReviewAction(
-              eventId: eventId,
-              action: () => _assignV2ManualPlace(
-                eventId: eventId,
-                editor: editor,
-              ),
-              successMessage: 'Capture bound to selected place.',
-            ),
-          ),
-          onKeepGeotag: (eventId) => unawaited(
-            _runV2ReviewAction(
-              eventId: eventId,
-              action: () async {
-                await ref
-                    .read(v2UnresolvedReviewControllerProvider)
-                    .keepGeotag(eventId: eventId);
-                return true;
-              },
-              successMessage: 'Capture kept as geotag.',
-            ),
-          ),
-          title: 'Needs review',
+    switch (entry) {
+      case final UnifiedPlaceTimelineEntry placeEntry:
+        final place = placeEntry.place;
+        final placeMedia = ref.watch(placeMediaProvider(place.id)).maybeWhen(
+              data: (items) => items,
+              orElse: () => const <MediaItem>[],
+            );
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.58,
+          child: place.placeType == 'city'
+              ? CityDetailForm(
+                  city: place,
+                  onSave: controller.updatePlace,
+                  onDelete: () {
+                    controller.removePlace(place.id);
+                    _clearUnifiedSelection();
+                  },
+                )
+              : PlaceDetailForm(
+                  place: place,
+                  onSave: controller.updatePlace,
+                  onDelete: () {
+                    controller.removePlace(place.id);
+                    _clearUnifiedSelection();
+                  },
+                  onManageMedia: () => context
+                      .push(Routes.mediaUploadPath(widget.tripId, place.id)),
+                  onMediaPreviewTap: placeMedia.isEmpty
+                      ? null
+                      : (item) => _openMediaAttachmentViewer(
+                            place: place,
+                            mediaItems: placeMedia,
+                            initialMedia: item,
+                            controller: controller,
+                          ),
+                  onViewMediaGallery: placeMedia.isEmpty
+                      ? null
+                      : () => _openMediaAttachmentViewer(
+                            place: place,
+                            mediaItems: placeMedia,
+                            initialMedia: placeMedia.first,
+                            controller: controller,
+                          ),
+                  mediaItems: placeMedia,
+                ),
         );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-    );
+      case final UnifiedRouteTimelineEntry routeEntry:
+        final route = routeEntry.route;
+        return Padding(
+          padding: AppSpacing.allMd,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                routeEntry.startPlaceName != null ||
+                        routeEntry.endPlaceName != null
+                    ? '${routeEntry.startPlaceName ?? '?'} -> ${routeEntry.endPlaceName ?? '?'}'
+                    : 'Route details',
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  if (route.distance != null)
+                    _buildMetaChip('${route.distance!.toStringAsFixed(1)} km'),
+                  if (route.duration != null)
+                    _buildMetaChip('${route.duration} min'),
+                  _buildMetaChip(route.transportMode),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => controller.enterRouteStudio(route.id),
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: const Text('Open Route Studio'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _openRouteDetailsSheet(editor, controller, route),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit Details'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      controller.removeRoute(route.id);
+                      _clearUnifiedSelection();
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      case final UnifiedLiveEventTimelineEntry liveEntry:
+        final event = liveEntry.event;
+        return Padding(
+          padding: AppSpacing.allMd,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                event.title,
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                event.subtitle ?? event.bucketType,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _buildMetaChip(_formatTime(event.capturedAt)),
+                  _buildMetaChip(event.bucketType),
+                  if (liveEntry.mediaCount > 0)
+                    _buildMetaChip('${liveEntry.mediaCount} media'),
+                  if (event.placeBindName != null &&
+                      event.placeBindName!.trim().isNotEmpty)
+                    _buildMetaChip(event.placeBindName!.trim()),
+                ],
+              ),
+              if (event.bucketType == 'needs_review') ...[
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => unawaited(
+                        _runV2ReviewAction(
+                          eventId: event.sourceId,
+                          action: () => _assignV2ManualPlace(
+                            eventId: event.sourceId,
+                            editor: editor,
+                          ),
+                          successMessage: 'Capture bound to selected place.',
+                        ),
+                      ),
+                      child: const Text('Add place manually'),
+                    ),
+                    TextButton(
+                      onPressed: () => unawaited(
+                        _runV2ReviewAction(
+                          eventId: event.sourceId,
+                          action: () async {
+                            await ref
+                                .read(v2UnresolvedReviewControllerProvider)
+                                .keepGeotag(eventId: event.sourceId);
+                            return true;
+                          },
+                          successMessage: 'Capture kept as geotag.',
+                        ),
+                      ),
+                      child: const Text('Keep as geotag'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+    }
   }
 
-  String _liveTrackingSubtitle(LiveTrackingRuntimeSnapshot snapshot) {
-    final lastPoint = snapshot.lastPointAt;
-    switch (snapshot.state) {
-      case LiveTrackingRuntimeState.active:
-        if (lastPoint != null) {
-          return 'Active. Last point at ${_formatTime(lastPoint)}.';
-        }
-        return 'Active. Waiting for first location sample.';
-      case LiveTrackingRuntimeState.paused:
-        if (lastPoint != null) {
-          return 'Paused. Last point at ${_formatTime(lastPoint)}.';
-        }
-        return 'Paused. Resume when you continue moving.';
-      case LiveTrackingRuntimeState.ended:
-        return 'Session ended. Start a new session to continue capture.';
-      case LiveTrackingRuntimeState.planned:
-        return 'Not started. Start tracking to capture route progress.';
-    }
+  Widget _buildMetaChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   String _formatTime(DateTime value) {
@@ -819,19 +1189,52 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     required String eventId,
     required EditorState editor,
   }) async {
-    final places = editor.places.toList();
+    final beforePlaceIds = editor.places.map((place) => place.id).toSet();
+    _clearMediaFocus();
+    await context.push(Routes.placeSearchPath(widget.tripId));
+    if (mounted) {
+      ref
+          .read(editorControllerProvider(widget.tripId).notifier)
+          .setMode(EditorMode.view);
+    }
+
+    final latestEditor =
+        ref.read(editorControllerProvider(widget.tripId)).valueOrNull;
+    final latestPlaces =
+        latestEditor?.places.toList() ?? editor.places.toList();
+    final newPlaces = latestPlaces
+        .where((place) => !beforePlaceIds.contains(place.id))
+        .toList(growable: false);
+
+    Place? selectedPlace;
+    if (newPlaces.length == 1) {
+      selectedPlace = newPlaces.first;
+    } else {
+      selectedPlace = await _promptManualPlaceSelection(latestPlaces);
+    }
+
+    if (selectedPlace == null) {
+      return false;
+    }
+    await ref.read(v2UnresolvedReviewControllerProvider).assignManualPlace(
+          eventId: eventId,
+          placeId: selectedPlace.id,
+          placeName: selectedPlace.name,
+        );
+    return true;
+  }
+
+  Future<Place?> _promptManualPlaceSelection(List<Place> places) async {
     if (places.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'No places or cities available. Add one in the editor first.',
-            ),
+            content: Text('No place available to bind yet.'),
             duration: Duration(seconds: 2),
           ),
         );
       }
-      return false;
+      return null;
     }
 
     final selectedPlaceId = await showModalBottomSheet<String>(
@@ -862,27 +1265,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         );
       },
     );
-
     if (selectedPlaceId == null || selectedPlaceId.trim().isEmpty) {
-      return false;
+      return null;
     }
-
-    Place? selectedPlace;
     for (final place in places) {
       if (place.id == selectedPlaceId) {
-        selectedPlace = place;
-        break;
+        return place;
       }
     }
-    if (selectedPlace == null) {
-      return false;
-    }
-    await ref.read(v2UnresolvedReviewControllerProvider).assignManualPlace(
-          eventId: eventId,
-          placeId: selectedPlace.id,
-          placeName: selectedPlace.name,
-        );
-    return true;
+    return null;
   }
 
   Future<void> _resolveDeviceCenter() async {
@@ -1216,61 +1607,39 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     }
   }
 
-  Widget? _buildCapturedStorylinePanel({
-    required bool useV2Projection,
-    required AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
-  }) {
-    if (!useV2Projection || v2TimelineGroupsAsync == null) {
-      return null;
-    }
-    return v2TimelineGroupsAsync.when(
-      data: (groups) {
-        if (groups.isEmpty) {
-          return null;
-        }
-        return V2CapturedStorylinePanel(groups: groups);
-      },
-      loading: () => null,
-      error: (_, __) => null,
-    );
-  }
-
   Widget _buildWideLayout(
-    EditorState editor,
-    List<AppMarker> markers,
-    List<AppRoute> routes,
-    EditorController controller,
-    AppLatLng initialCenter,
-    double initialZoom,
-    String? selectedName,
-    IconData? selectedIcon,
-    int pendingMediaCount,
+    EditorState editor, {
+    required List<UnifiedTimelineEntry> entries,
+    required UnifiedTimelineEntry? activeEntry,
+    required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
+    required bool focusMode,
+    required List<AppMarker> markers,
+    required List<AppRoute> routes,
+    required EditorController controller,
+    required AppLatLng initialCenter,
+    required double initialZoom,
     String? selectedPlaceId,
-    bool useV2Projection,
-    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
-  ) {
+  }) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
     final hideTimeline = inRouteStudio || inRouteCreation;
-    final showPanel =
-        !inRouteStudio && !inRouteCreation && editor.selectedItemId != null;
+    final showDetails = !inRouteStudio && !inRouteCreation;
     return Row(
       children: [
         if (!hideTimeline)
           TimelineSidebar(
-            places: editor.places,
-            routes: editor.routes,
-            selectedItemId: editor.selectedItemId,
-            selectedItemType: editor.selectedItemType,
-            onItemTap: (id, type) {
-              _clearMediaFocus();
-              if (type == 'place') {
-                controller.handlePlaceTap(id);
-              } else {
-                controller.selectRoute(id);
-              }
-            },
-            onReorder: controller.reorderPlaces,
+            entries: entries,
+            selectedEntryId: _selectedUnifiedEntryId,
+            onEntryTap: (entry) => _selectUnifiedEntry(
+              entry: entry,
+              controller: controller,
+            ),
+            onReorder: (oldIndex, newIndex) => _onUnifiedReorder(
+              oldIndex: oldIndex,
+              newIndex: newIndex,
+              entries: entries,
+              controller: controller,
+            ),
             onAddPlace: () {
               _clearMediaFocus();
               controller.setMode(EditorMode.addPlace);
@@ -1283,10 +1652,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
               _clearMediaFocus();
               controller.startDrawingRoute();
             },
-            capturedStorylinePanel: _buildCapturedStorylinePanel(
-              useV2Projection: useV2Projection,
-              v2TimelineGroupsAsync: v2TimelineGroupsAsync,
-            ),
           ),
         Expanded(
           child: Stack(
@@ -1306,6 +1671,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                 onMapTap: (position) {
                   _clearMediaFocus();
                   controller.handleMapTap(position);
+                  _clearUnifiedSelection();
                 },
                 onRouteTap: (routeId) {
                   _clearMediaFocus();
@@ -1320,21 +1686,43 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                           Routes.mediaUploadPath(
                               widget.tripId, selectedPlaceId),
                         ),
+                showToolPanel: !focusMode,
               ),
-              if (showPanel)
+              if (focusMode)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.08),
+                    ),
+                  ),
+                ),
+              if (!focusMode && !inRouteStudio && !inRouteCreation)
+                _buildResolverDockOverlay(
+                  editor: editor,
+                  inboxAsync: inboxAsync,
+                ),
+              if (showDetails)
                 Positioned(
-                  left: 0,
-                  right: 0,
+                  left: 12,
+                  right: 12,
                   bottom: 0,
-                  child: BottomDetailPanel(
-                    expanded: editor.bottomPanelExpanded,
-                    onToggle: controller.toggleBottomPanel,
-                    selectedItemName: selectedName,
-                    selectedItemIcon: selectedIcon,
-                    statusText: pendingMediaCount > 0
-                        ? '$pendingMediaCount upload(s) pending'
-                        : null,
-                    child: _buildDetailContent(editor, controller),
+                  top: 0,
+                  child: DraggableScrollableSheet(
+                    controller: _detailSheetController,
+                    initialChildSize: 0.0,
+                    minChildSize: 0.0,
+                    maxChildSize: 0.72,
+                    snap: true,
+                    snapSizes: const [0.0, 0.08, 0.72],
+                    builder: (context, scrollController) {
+                      _detailSheetAttached = true;
+                      return _buildUnifiedDetailSheet(
+                        editor: editor,
+                        entry: activeEntry,
+                        controller: controller,
+                        scrollController: scrollController,
+                      );
+                    },
                   ),
                 ),
               // Route creation strip
@@ -1361,23 +1749,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   }
 
   Widget _buildMobileLayout(
-    EditorState editor,
-    List<AppMarker> markers,
-    List<AppRoute> routes,
-    EditorController controller,
-    AppLatLng initialCenter,
-    double initialZoom,
-    String? selectedName,
-    IconData? selectedIcon,
-    int pendingMediaCount,
+    EditorState editor, {
+    required List<UnifiedTimelineEntry> entries,
+    required UnifiedTimelineEntry? activeEntry,
+    required AsyncValue<List<V2UnresolvedInboxItem>> inboxAsync,
+    required bool focusMode,
+    required List<AppMarker> markers,
+    required List<AppRoute> routes,
+    required EditorController controller,
+    required AppLatLng initialCenter,
+    required double initialZoom,
     String? selectedPlaceId,
-    bool useV2Projection,
-    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
-  ) {
+  }) {
     final inRouteStudio = editor.routeStudioActive;
     final inRouteCreation = _isAnyRouteMode(editor.mode);
-    final showPanel =
-        !inRouteStudio && !inRouteCreation && editor.selectedItemId != null;
+    final showDetails = !inRouteStudio && !inRouteCreation;
     return Stack(
       children: [
         MapCanvas(
@@ -1395,6 +1781,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           onMapTap: (position) {
             _clearMediaFocus();
             controller.handleMapTap(position);
+            _clearUnifiedSelection();
           },
           onRouteTap: (routeId) {
             _clearMediaFocus();
@@ -1408,21 +1795,43 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
               : () => context.push(
                     Routes.mediaUploadPath(widget.tripId, selectedPlaceId),
                   ),
+          showToolPanel: !focusMode,
         ),
-        if (showPanel)
+        if (focusMode)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+        if (!focusMode && !inRouteStudio && !inRouteCreation)
+          _buildResolverDockOverlay(
+            editor: editor,
+            inboxAsync: inboxAsync,
+          ),
+        if (showDetails)
           Positioned(
-            left: 0,
-            right: 0,
+            left: 8,
+            right: 8,
             bottom: 0,
-            child: BottomDetailPanel(
-              expanded: editor.bottomPanelExpanded,
-              onToggle: controller.toggleBottomPanel,
-              selectedItemName: selectedName,
-              selectedItemIcon: selectedIcon,
-              statusText: pendingMediaCount > 0
-                  ? '$pendingMediaCount upload(s) pending'
-                  : null,
-              child: _buildDetailContent(editor, controller),
+            top: 0,
+            child: DraggableScrollableSheet(
+              controller: _detailSheetController,
+              initialChildSize: 0.0,
+              minChildSize: 0.0,
+              maxChildSize: 0.76,
+              snap: true,
+              snapSizes: const [0.0, 0.1, 0.76],
+              builder: (context, scrollController) {
+                _detailSheetAttached = true;
+                return _buildUnifiedDetailSheet(
+                  editor: editor,
+                  entry: activeEntry,
+                  controller: controller,
+                  scrollController: scrollController,
+                );
+              },
             ),
           ),
         // Route creation strip
@@ -1448,8 +1857,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
   void _showTimelineSheet(
     EditorState editor,
     EditorController controller,
-    bool useV2Projection,
-    AsyncValue<List<V2TimelineDayGroup>>? v2TimelineGroupsAsync,
+    List<UnifiedTimelineEntry> entries,
   ) {
     showModalBottomSheet(
       context: context,
@@ -1481,20 +1889,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             Expanded(
               child: TimelineSidebar(
                 width: double.infinity,
-                places: editor.places,
-                routes: editor.routes,
-                selectedItemId: editor.selectedItemId,
-                selectedItemType: editor.selectedItemType,
-                onItemTap: (id, type) {
+                entries: entries,
+                selectedEntryId: _selectedUnifiedEntryId,
+                onEntryTap: (entry) {
                   Navigator.pop(context);
-                  _clearMediaFocus();
-                  if (type == 'place') {
-                    controller.handlePlaceTap(id);
-                  } else {
-                    controller.selectRoute(id);
-                  }
+                  _selectUnifiedEntry(
+                    entry: entry,
+                    controller: controller,
+                  );
                 },
-                onReorder: controller.reorderPlaces,
+                onReorder: (oldIndex, newIndex) => _onUnifiedReorder(
+                  oldIndex: oldIndex,
+                  newIndex: newIndex,
+                  entries: entries,
+                  controller: controller,
+                ),
                 onAddPlace: () {
                   Navigator.pop(context);
                   _clearMediaFocus();
@@ -1510,10 +1919,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                   _clearMediaFocus();
                   controller.startDrawingRoute();
                 },
-                capturedStorylinePanel: _buildCapturedStorylinePanel(
-                  useV2Projection: useV2Projection,
-                  v2TimelineGroupsAsync: v2TimelineGroupsAsync,
-                ),
               ),
             ),
           ],
@@ -1669,62 +2074,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(result.message)),
     );
-  }
-
-  Widget? _buildDetailContent(
-    EditorState editor,
-    EditorController controller,
-  ) {
-    // Route creation is handled by RouteCreationStrip — not BottomDetailPanel
-    final type = editor.selectedItemType;
-    final id = editor.selectedItemId;
-    final places = editor.places;
-
-    if (type == 'place' && id != null) {
-      try {
-        final place = places.firstWhere((item) => item.id == id);
-        if (place.placeType == 'city') {
-          return CityDetailForm(
-            city: place,
-            onSave: controller.updatePlace,
-            onDelete: () => controller.removePlace(place.id),
-          );
-        }
-        final placeMedia = ref.watch(placeMediaProvider(place.id)).maybeWhen(
-              data: (items) => items,
-              orElse: () => const <MediaItem>[],
-            );
-        return PlaceDetailForm(
-          place: place,
-          onSave: controller.updatePlace,
-          onDelete: () => controller.removePlace(place.id),
-          onManageMedia: () =>
-              context.push(Routes.mediaUploadPath(widget.tripId, place.id)),
-          onMediaPreviewTap: placeMedia.isEmpty
-              ? null
-              : (item) => _openMediaAttachmentViewer(
-                    place: place,
-                    mediaItems: placeMedia,
-                    initialMedia: item,
-                    controller: controller,
-                  ),
-          onViewMediaGallery: placeMedia.isEmpty
-              ? null
-              : () => _openMediaAttachmentViewer(
-                    place: place,
-                    mediaItems: placeMedia,
-                    initialMedia: placeMedia.first,
-                    controller: controller,
-                  ),
-          mediaItems: placeMedia,
-        );
-      } catch (_) {
-        return null;
-      }
-    }
-
-    // Routes are handled by Route Studio control strip — not BottomDetailPanel
-    return null;
   }
 
   Widget _buildRouteCreationStrip(

@@ -26,6 +26,7 @@ class MapCanvas extends StatelessWidget {
     this.showMediaTool = false,
     this.onMediaTap,
     this.onCurrentLocationTap,
+    this.showToolPanel = true,
   });
 
   final AppLatLng initialCenter;
@@ -42,6 +43,7 @@ class MapCanvas extends StatelessWidget {
   final bool showMediaTool;
   final VoidCallback? onMediaTap;
   final VoidCallback? onCurrentLocationTap;
+  final bool showToolPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -60,17 +62,18 @@ class MapCanvas extends StatelessWidget {
           showUserLocation: true,
         ),
         // Floating tool panel — top right
-        Positioned(
-          top: AppSpacing.md,
-          right: AppSpacing.md,
-          child: FloatingToolPanel(
-            currentMode: mode,
-            onToolSelected: onModeChanged,
-            showMediaTool: showMediaTool,
-            onMediaTap: onMediaTap,
-            onCurrentLocationTap: onCurrentLocationTap,
+        if (showToolPanel)
+          Positioned(
+            top: AppSpacing.md,
+            right: AppSpacing.md,
+            child: FloatingToolPanel(
+              currentMode: mode,
+              onToolSelected: onModeChanged,
+              showMediaTool: showMediaTool,
+              onMediaTap: onMediaTap,
+              onCurrentLocationTap: onCurrentLocationTap,
+            ),
           ),
-        ),
       ],
     );
   }

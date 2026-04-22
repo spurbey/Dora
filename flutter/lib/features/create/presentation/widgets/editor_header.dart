@@ -14,6 +14,7 @@ class EditorHeader extends StatefulWidget {
     required this.onNameChanged,
     required this.onExport,
     required this.onMore,
+    this.trailingAction,
   });
 
   final String tripName;
@@ -23,6 +24,7 @@ class EditorHeader extends StatefulWidget {
   final ValueChanged<String> onNameChanged;
   final VoidCallback onExport;
   final VoidCallback onMore;
+  final Widget? trailingAction;
 
   @override
   State<EditorHeader> createState() => _EditorHeaderState();
@@ -113,6 +115,10 @@ class _EditorHeaderState extends State<EditorHeader> {
             onPressed: widget.onExport,
             icon: const Icon(Icons.ios_share),
           ),
+          if (widget.trailingAction != null) ...[
+            const SizedBox(width: AppSpacing.xs),
+            widget.trailingAction!,
+          ],
           IconButton(
             onPressed: widget.onMore,
             icon: const Icon(Icons.more_vert),

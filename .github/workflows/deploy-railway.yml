@@ -1,8 +1,6 @@
-name: Deploy to Railway
+name: Deploy to Railway (Legacy Manual)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Only one deploy at a time — queue newer pushes behind the running one.

@@ -1,0 +1,142 @@
+x-backend-env: &backend_env
+  APP_NAME: ${APP_NAME:-Dora API}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  DEBUG: ${DEBUG:-false}
+  SECRET_KEY: ${SECRET_KEY}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SUPABASE_URL: ${SUPABASE_URL}
+  SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+  SUPABASE_DB_URL: ${SUPABASE_DB_URL}
+  SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+  TEST_DATABASE_URL: ${TEST_DATABASE_URL:-}
+  FOURSQUARE_API_KEY: ${FOURSQUARE_API_KEY}
+  MAPBOX_API_KEY: ${MAPBOX_API_KEY}
+  V2_STORAGE_BUCKET: ${V2_STORAGE_BUCKET:-photos}
+
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b:free}
+  BRIGHTDATA_WS_ENDPOINT: ${BRIGHTDATA_WS_ENDPOINT:-}
+  BRIGHTDATA_AUTH: ${BRIGHTDATA_AUTH:-}
+  UPSTASH_REDIS_URL: ${UPSTASH_REDIS_URL:-}
+  UPSTASH_REDIS_TOKEN: ${UPSTASH_REDIS_TOKEN:-}
+  EXPOSE_ADVISORY_STATE_ENDPOINT: ${EXPOSE_ADVISORY_STATE_ENDPOINT:-false}
+
+  RENDER_BACKEND: ${RENDER_BACKEND:-local}
+  RENDERER_URL: http://renderer:3100
+  RENDERER_SHARED_SECRET: ${RENDERER_SHARED_SECRET}
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  AWS_WORKER_ROLE_ARN: ${AWS_WORKER_ROLE_ARN:-}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  LAMBDA_FUNCTION_NAME: ${LAMBDA_FUNCTION_NAME:-}
+  LAMBDA_SERVE_URL: ${LAMBDA_SERVE_URL:-}
+  LAMBDA_OUTPUT_BUCKET: ${LAMBDA_OUTPUT_BUCKET:-}
+
+  EXPORT_WORKER_POLL_SECONDS: ${EXPORT_WORKER_POLL_SECONDS:-2.0}
+  EXPORT_WORKER_STALE_SECONDS: ${EXPORT_WORKER_STALE_SECONDS:-1200}
+  EXPORT_RENDER_POLL_SECONDS: ${EXPORT_RENDER_POLL_SECONDS:-3.0}
+  EXPORT_MAX_CONCURRENT_PER_USER: ${EXPORT_MAX_CONCURRENT_PER_USER:-2}
+  EXPORT_GLOBAL_QUEUE_CAP: ${EXPORT_GLOBAL_QUEUE_CAP:-50}
+  EXPORT_FREE_TIER_MAX_QUALITY: ${EXPORT_FREE_TIER_MAX_QUALITY:-720p}
+  EXPORT_FREE_TIER_MAX_DURATION_SEC: ${EXPORT_FREE_TIER_MAX_DURATION_SEC:-15}
+  EXPORT_SHARE_BASE_URL: ${EXPORT_SHARE_BASE_URL:-}
+
+  ADVISORY_WORKER_POLL_SECONDS: ${ADVISORY_WORKER_POLL_SECONDS:-5.0}
+  ADVISORY_WORKER_STALE_SECONDS: ${ADVISORY_WORKER_STALE_SECONDS:-900}
+  ADVISORY_CYCLE_POLL_SECONDS: ${ADVISORY_CYCLE_POLL_SECONDS:-30.0}
+  ADVISORY_CYCLE_BATCH_SIZE: ${ADVISORY_CYCLE_BATCH_SIZE:-50}
+  ADVISORY_CYCLE_PROCESSING_TIMEOUT_SECONDS: ${ADVISORY_CYCLE_PROCESSING_TIMEOUT_SECONDS:-120}
+  ADVISORY_IGNORE_TTL_SECONDS: ${ADVISORY_IGNORE_TTL_SECONDS:-3600}
+
+x-renderer-env: &renderer_env
+  PORT: 3100
+  RENDER_BACKEND: ${RENDER_BACKEND:-local}
+  RENDER_OUTPUT_DIR: /render_artifacts
+  RENDERER_SHARED_SECRET: ${RENDERER_SHARED_SECRET}
+  RENDERER_MAPBOX_TOKEN: ${RENDERER_MAPBOX_TOKEN:-}
+  RENDERER_MAP_STYLE: ${RENDERER_MAP_STYLE:-mapbox/navigation-night-v1}
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  LAMBDA_FUNCTION_NAME: ${LAMBDA_FUNCTION_NAME:-}
+  LAMBDA_SERVE_URL: ${LAMBDA_SERVE_URL:-}
+  LAMBDA_OUTPUT_BUCKET: ${LAMBDA_OUTPUT_BUCKET:-}
+  LAMBDA_MEMORY_MB: ${LAMBDA_MEMORY_MB:-2048}
+  LAMBDA_TIMEOUT_SECONDS: ${LAMBDA_TIMEOUT_SECONDS:-900}
+  LAMBDA_DISK_MB: ${LAMBDA_DISK_MB:-2048}
+  LAMBDA_ARCHITECTURE: ${LAMBDA_ARCHITECTURE:-arm64}
+  LAMBDA_SITE_NAME: ${LAMBDA_SITE_NAME:-dora-classic}
+  LAMBDA_FRAMES_PER_LAMBDA: ${LAMBDA_FRAMES_PER_LAMBDA:-200}
+
+services:
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      <<: *backend_env
+      PORT: 8000
+    expose:
+      - "8000"
+    depends_on:
+      - renderer
+
+  export_worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: python -m app.workers.export_worker
+    environment:
+      <<: *backend_env
+      RENDER_OUTPUT_DIR: /render_artifacts
+    volumes:
+      - render_artifacts:/render_artifacts
+    depends_on:
+      - renderer
+
+  advisory_worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: python -m app.workers.advisory_worker
+    environment:
+      <<: *backend_env
+
+  advisory_cycle_worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: python -m app.workers.advisory_cycle_worker
+    environment:
+      <<: *backend_env
+
+  advisory_ignore_sweep_worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: python -m app.workers.advisory_ignore_sweep_worker
+    environment:
+      <<: *backend_env
+
+  story_retention_worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: python -m app.workers.story_retention_worker
+    environment:
+      <<: *backend_env
+
+  renderer:
+    build:
+      context: ./video-renderer
+    restart: unless-stopped
+    environment:
+      <<: *renderer_env
+    expose:
+      - "3100"
+    volumes:
+      - render_artifacts:/render_artifacts
+
+volumes:
+  render_artifacts:

@@ -6,8 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+ARG REQUIREMENTS_FILE=requirements.txt
+COPY ${REQUIREMENTS_FILE} ./requirements.selected.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.selected.txt
 
 FROM python:3.11-slim
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser

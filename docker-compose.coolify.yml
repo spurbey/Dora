@@ -77,6 +77,8 @@ services:
   api:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.runtime.txt
     restart: unless-stopped
     environment:
       <<: *backend_env
@@ -89,6 +91,8 @@ services:
   export_worker:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.runtime.txt
     restart: unless-stopped
     command: python -m app.workers.export_worker
     environment:
@@ -102,6 +106,8 @@ services:
   advisory_worker:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.advisory.txt
     restart: unless-stopped
     user: "0:0"
     command: sh -lc "mkdir -p /app/.gmaps_profile && xvfb-run -a -s '-screen 0 1280x1800x24' python -m app.workers.advisory_worker"
@@ -116,6 +122,8 @@ services:
   advisory_cycle_worker:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.runtime.txt
     restart: unless-stopped
     command: python -m app.workers.advisory_cycle_worker
     environment:
@@ -124,6 +132,8 @@ services:
   advisory_ignore_sweep_worker:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.runtime.txt
     restart: unless-stopped
     command: python -m app.workers.advisory_ignore_sweep_worker
     environment:
@@ -132,6 +142,8 @@ services:
   story_retention_worker:
     build:
       context: ./backend
+      args:
+        REQUIREMENTS_FILE: requirements.runtime.txt
     restart: unless-stopped
     command: python -m app.workers.story_retention_worker
     environment:

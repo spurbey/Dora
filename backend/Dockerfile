@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g \
     libwebp7 \
     xvfb \
+    xauth \
     ca-certificates \
     fonts-liberation \
     libasound2 \

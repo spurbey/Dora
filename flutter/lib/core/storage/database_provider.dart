@@ -4,6 +4,7 @@ import 'package:dora/core/storage/daos/media_attachments_dao.dart';
 import 'package:dora/core/storage/daos/media_dao.dart';
 import 'package:dora/core/storage/daos/stories_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/route_segment_claim_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
@@ -81,6 +82,12 @@ final v2RouteProjectionLocalDaoProvider =
     Provider<RouteProjectionLocalDao>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return RouteProjectionLocalDao(db);
+});
+
+final v2RouteSegmentClaimLocalDaoProvider =
+    Provider<RouteSegmentClaimLocalDao>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return RouteSegmentClaimLocalDao(db);
 });
 
 final v2TimelineCompileCursorDaoProvider =

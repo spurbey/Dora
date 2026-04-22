@@ -12,6 +12,10 @@ import 'package:drift/drift.dart';
   name: 'timeline_projection_local_trip_captured_session_idx',
   columns: {#tripLocalId, #capturedAt, #sessionId},
 )
+@TableIndex(
+  name: 'timeline_projection_local_trip_display_order_idx',
+  columns: {#tripLocalId, #displayOrder},
+)
 @DataClassName('TimelineProjectionLocalRow')
 class TimelineProjectionLocal extends Table {
   @override
@@ -35,6 +39,7 @@ class TimelineProjectionLocal extends Table {
   TextColumn get title => text()();
   TextColumn get subtitle => text().nullable()();
   TextColumn get syncChipState => text()();
+  RealColumn get displayOrder => real().nullable()();
   TextColumn get routeSegmentKey => text().nullable()();
   RealColumn get routeDistanceM => real().nullable()();
   TextColumn get renderPayloadJson => text().nullable()();

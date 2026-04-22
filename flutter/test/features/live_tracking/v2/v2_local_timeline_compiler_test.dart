@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
 
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_point_journal_dao.dart';
@@ -156,7 +157,7 @@ void main() {
       final entries = await projectionRepository.listTimelineEntries('trip-1');
       final segments = await projectionRepository.listRouteSegments('trip-1');
       final cursor = await projectionRepository.getCursor('trip-1');
-      expect(entries.length, 3);
+      expect(entries.length, 2);
       expect(segments.length, 1);
       expect(cursor, isNotNull);
 
@@ -174,6 +175,11 @@ void main() {
       expect(routeEntry.routeSegmentKey, isNotNull);
       expect(routeEntry.routeDistanceM, isNotNull);
       expect(routeEntry.routeDistanceM!, lessThanOrEqualTo(100.0));
+      final routePayload = jsonDecode(routeEntry.renderPayloadJson!);
+      expect(routePayload, isA<Map<String, dynamic>>());
+      final mediaList = (routePayload as Map<String, dynamic>)['media'];
+      expect(mediaList, isA<List<dynamic>>());
+      expect((mediaList as List<dynamic>).length, 1);
     });
 
     test('incremental compile updates rows and watermarks', () async {

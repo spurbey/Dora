@@ -177,6 +177,9 @@ class Settings(BaseSettings):
 
     # V2 publish storage verification
     V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
+    V2_ROUTE_MAP_MATCH_ENABLED: bool = True
+    V2_ROUTE_MAP_MATCH_TIMEOUT_SECONDS: float = 2.0
+    V2_ROUTE_MAP_MATCH_PROFILE: str = "mapbox/driving"
 
     # Stories moderation allow-list (comma-separated Supabase user UUIDs).
     STORIES_MODERATOR_USER_IDS: str = ""

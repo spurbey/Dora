@@ -68,6 +68,18 @@ abstract class LiveTrackingApi {
     required int schemaVersion,
   });
 
+  Future<Map<String, dynamic>> getTimelineV2({
+    required String tripId,
+    String? cursor,
+    int limit = 200,
+  });
+
+  Future<Map<String, dynamic>> getRouteV2({
+    required String tripId,
+    String? cursor,
+    int limitSegments = 20,
+  });
+
   // ─── Media Upload ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> uploadTrackingMediaBinary({
@@ -417,6 +429,38 @@ class DioLiveTrackingApi implements LiveTrackingApi {
         'schema_version': schemaVersion,
       },
       options: _v2IdempotentOptions(idempotencyKey),
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getTimelineV2({
+    required String tripId,
+    String? cursor,
+    int limit = 200,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      _v2Path('/trips/$tripId/timeline'),
+      queryParameters: <String, dynamic>{
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+    return _asJsonMap(response.data);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getRouteV2({
+    required String tripId,
+    String? cursor,
+    int limitSegments = 20,
+  }) async {
+    final response = await _dio.get<dynamic>(
+      _v2Path('/trips/$tripId/route'),
+      queryParameters: <String, dynamic>{
+        'limit_segments': limitSegments,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
     );
     return _asJsonMap(response.data);
   }

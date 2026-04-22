@@ -20,6 +20,7 @@ class V2TimelineProjectionEntry {
     required this.title,
     required this.subtitle,
     required this.syncChipState,
+    required this.displayOrder,
     required this.routeSegmentKey,
     required this.routeDistanceM,
     required this.renderPayloadJson,
@@ -45,6 +46,7 @@ class V2TimelineProjectionEntry {
   final String title;
   final String? subtitle;
   final String syncChipState;
+  final double displayOrder;
   final String? routeSegmentKey;
   final double? routeDistanceM;
   final String? renderPayloadJson;

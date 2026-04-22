@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Optional
 from uuid import UUID
 
+import httpx
 from fastapi import HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, func, or_
@@ -32,6 +33,7 @@ from app.models.trip_route_projection_v2 import TripRouteProjectionV2
 from app.models.trip_route_raw_point import TripRouteRawPoint
 from app.models.trip_session_raw import TripSessionRaw
 from app.models.trip_timeline_projection_v2 import TripTimelineProjectionV2
+from app.config import settings
 from app.services.v2_storage_service import V2StorageService
 from app.utils.geo import haversine_distance
 
@@ -55,6 +57,7 @@ ROUTE_ASSOCIATION_THRESHOLD_M = 100.0
 ROUTE_ASSOCIATION_PRIMARY_WINDOW_SECONDS = 3 * 60
 ROUTE_ASSOCIATION_FALLBACK_WINDOW_SECONDS = 10 * 60
 ROUTE_ASSOCIATION_CANDIDATE_CAP = 20
+MAP_MATCH_MAX_POINTS = 100
 PUBLISH_MANIFEST_OPERATION_KIND = "trip_publish"
 TERMINAL_MANIFEST_STATUSES = {"committed", "failed_terminal", "idempotency_conflict"}
 ACTIVE_PUBLISH_STATUSES = {"started", "failed_retryable"}
@@ -1403,6 +1406,97 @@ class LiveTrackingV2Service:
         if (time.monotonic() - started_monotonic) * 1000 > MAX_PROJECTION_COMPILE_MS:
             raise TimeoutError("projection compile exceeded the 10s timeout")
 
+    def _map_match_points(
+        self,
+        *,
+        points: list[_SessionPoint],
+    ) -> tuple[list[_SessionPoint], str, float]:
+        if len(points) < 2:
+            return points, "raw_fallback", 0.0
+        if not settings.V2_ROUTE_MAP_MATCH_ENABLED:
+            return points, "raw_fallback", 0.0
+        token = getattr(settings, "MAPBOX_ACCESS_TOKEN", None) or getattr(settings, "MAPBOX_API_KEY", None)
+        if not token:
+            return points, "raw_fallback", 0.0
+
+        sampled = self._sample_points_for_map_match(points)
+        if len(sampled) < 2:
+            return points, "raw_fallback", 0.0
+        coords = ";".join(f"{point.longitude:.6f},{point.latitude:.6f}" for point in sampled)
+        url = f"https://api.mapbox.com/matching/v5/{settings.V2_ROUTE_MAP_MATCH_PROFILE}/{coords}"
+        params = {
+            "access_token": token,
+            "geometries": "geojson",
+            "overview": "full",
+            "steps": "false",
+            "tidy": "true",
+        }
+
+        try:
+            with httpx.Client(timeout=settings.V2_ROUTE_MAP_MATCH_TIMEOUT_SECONDS) as client:
+                response = client.get(url, params=params)
+                response.raise_for_status()
+                payload = response.json()
+        except Exception:
+            return points, "raw_fallback", 0.0
+
+        matchings = payload.get("matchings") if isinstance(payload, dict) else None
+        if not isinstance(matchings, list) or not matchings:
+            return points, "raw_fallback", 0.0
+        first = matchings[0]
+        geometry = first.get("geometry") if isinstance(first, dict) else None
+        coordinates = geometry.get("coordinates") if isinstance(geometry, dict) else None
+        if not isinstance(coordinates, list) or len(coordinates) < 2:
+            return points, "raw_fallback", 0.0
+
+        start = points[0].captured_at
+        end = points[-1].captured_at
+        duration_seconds = max((end - start).total_seconds(), 1.0)
+        matched_points: list[_SessionPoint] = []
+        for idx, coordinate in enumerate(coordinates):
+            if not isinstance(coordinate, list) or len(coordinate) < 2:
+                continue
+            longitude = float(coordinate[0])
+            latitude = float(coordinate[1])
+            ratio = idx / max(len(coordinates) - 1, 1)
+            captured_at = start + timedelta(seconds=duration_seconds * ratio)
+            matched_points.append(
+                _SessionPoint(
+                    captured_at=captured_at,
+                    latitude=latitude,
+                    longitude=longitude,
+                    point_seq=idx + 1,
+                )
+            )
+        if len(matched_points) < 2:
+            return points, "raw_fallback", 0.0
+        confidence = first.get("confidence") if isinstance(first, dict) else None
+        try:
+            parsed_confidence = float(confidence) if confidence is not None else 0.5
+        except (TypeError, ValueError):
+            parsed_confidence = 0.5
+        return matched_points, "mapbox_map_match", max(0.0, min(parsed_confidence, 1.0))
+
+    @staticmethod
+    def _sample_points_for_map_match(points: list[_SessionPoint]) -> list[_SessionPoint]:
+        if len(points) <= MAP_MATCH_MAX_POINTS:
+            return points
+        sampled: list[_SessionPoint] = []
+        last_index = len(points) - 1
+        for slot in range(MAP_MATCH_MAX_POINTS):
+            ratio = slot / max(MAP_MATCH_MAX_POINTS - 1, 1)
+            index = int(round(ratio * last_index))
+            sampled.append(points[index])
+        deduped: list[_SessionPoint] = []
+        previous_key: tuple[float, float] | None = None
+        for point in sampled:
+            key = (point.latitude, point.longitude)
+            if previous_key == key:
+                continue
+            deduped.append(point)
+            previous_key = key
+        return deduped if len(deduped) >= 2 else points[:MAP_MATCH_MAX_POINTS]
+
     def _compile_trip_projection(self, *, trip_id: UUID, user_id: UUID) -> datetime:
         started = time.monotonic()
         compiled_at = self._utcnow()
@@ -1461,9 +1555,13 @@ class LiveTrackingV2Service:
             session_points[session.session_server_id] = raw_points
             if not raw_points:
                 continue
+            matched_points, segment_source, segment_confidence = self._map_match_points(
+                points=raw_points,
+            )
+            points_for_projection = matched_points if len(matched_points) >= 2 else raw_points
             segment_key = f"session:{session.client_session_id}"
             session_segment_key[session.session_server_id] = segment_key
-            simplified, simplified_flag = self._simplify_points(raw_points, ROUTE_MAX_POINTS_RETURNED)
+            simplified, simplified_flag = self._simplify_points(points_for_projection, ROUTE_MAX_POINTS_RETURNED)
             geometry_points: list[dict[str, Any]] = []
             for point_index, point in enumerate(simplified):
                 if point_index % 500 == 0:
@@ -1485,7 +1583,11 @@ class LiveTrackingV2Service:
                     ended_at=raw_points[-1].captured_at,
                     point_count=len(simplified),
                     raw_point_count=len(raw_points),
-                    geometry_json={"points": geometry_points},
+                    geometry_json={
+                        "points": geometry_points,
+                        "source": segment_source,
+                        "confidence": segment_confidence,
+                    },
                     is_simplified=simplified_flag,
                     compiler_version=ROUTE_COMPILER_VERSION,
                     compiled_at=compiled_at,
@@ -1664,6 +1766,7 @@ class LiveTrackingV2Service:
                 {
                     "entry_id": row.entry_id,
                     "entry_kind": row.entry_kind,
+                    "session_server_id": row.session_server_id,
                     "source_server_id": row.source_server_id,
                     "captured_at": row.captured_at,
                     "bucket_type": row.bucket_type,
@@ -1754,6 +1857,8 @@ class LiveTrackingV2Service:
                     "point_count": len(simplified),
                     "raw_point_count": row.raw_point_count,
                     "is_simplified": bool(row.is_simplified or response_simplified),
+                    "source": (row.geometry_json or {}).get("source"),
+                    "confidence": (row.geometry_json or {}).get("confidence"),
                     "points": [
                         {
                             "latitude": point.latitude,

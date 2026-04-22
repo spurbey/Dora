@@ -163,6 +163,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             ref.watch(v2TimelineGroupsProvider(widget.tripId));
         final v2RouteProjectionAsync =
             ref.watch(v2RouteProjectionProvider(widget.tripId));
+        final claimedSegmentKeysAsync =
+            ref.watch(v2ClaimedRouteSegmentKeysProvider(widget.tripId));
         final trackingRuntimeAsync =
             ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId));
         final v2InboxAsync =
@@ -190,8 +192,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
         final routes = [...mapState.routes];
         final routeSegments = v2RouteProjectionAsync.valueOrNull ??
             const <V2RouteProjectionSegment>[];
+        final claimedSegmentKeys =
+            claimedSegmentKeysAsync.valueOrNull ?? const <String>{};
         for (final segment in routeSegments) {
           if (segment.geometry.length < 2) {
+            continue;
+          }
+          if (claimedSegmentKeys.contains(segment.segmentKey)) {
             continue;
           }
           routes.add(
@@ -223,8 +230,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
             !editor.routeStudioActive &&
             !_isAnyRouteMode(editor.mode);
 
-        return WillPopScope(
-          onWillPop: () => _handleBack(editor.saving),
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) {
+              return;
+            }
+            unawaited(_attemptLeaveEditor(editor.saving));
+          },
           child: Scaffold(
             body: SafeArea(
               child: Column(
@@ -233,11 +246,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                     tripName: editor.trip.name,
                     syncStatusLabel: syncStatusLabel,
                     syncStatusColor: syncStatusColor,
-                    onBack: () => _handleBack(editor.saving).then((value) {
-                      if (value && mounted) {
-                        context.go(Routes.trips);
-                      }
-                    }),
+                    onBack: () {
+                      unawaited(_attemptLeaveEditor(editor.saving));
+                    },
                     onNameChanged: controller.updateTripName,
                     onExport: _openExportStudio,
                     onMore: _openTripActionsMenu,
@@ -468,7 +479,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     await context.push(Routes.mediaUploadPath(widget.tripId, placeId));
   }
 
-
   Widget _buildSyncCallout(_EditorSyncCallout callout) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -659,12 +669,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
           onAcceptCandidate: (eventId, candidate) => unawaited(
             _runV2ReviewAction(
               eventId: eventId,
-              action: () => ref
-                  .read(v2UnresolvedReviewControllerProvider)
-                  .acceptCandidate(
-                    eventId: eventId,
-                    candidate: candidate,
-                  ),
+              action: () async {
+                await ref
+                    .read(v2UnresolvedReviewControllerProvider)
+                    .acceptCandidate(
+                      eventId: eventId,
+                      candidate: candidate,
+                    );
+                return true;
+              },
               successMessage: 'Capture bound to place.',
             ),
           ),
@@ -675,15 +688,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
                 eventId: eventId,
                 editor: editor,
               ),
-              successMessage: 'Capture review updated.',
+              successMessage: 'Capture bound to selected place.',
             ),
           ),
           onKeepGeotag: (eventId) => unawaited(
             _runV2ReviewAction(
               eventId: eventId,
-              action: () => ref
-                  .read(v2UnresolvedReviewControllerProvider)
-                  .keepGeotag(eventId: eventId),
+              action: () async {
+                await ref
+                    .read(v2UnresolvedReviewControllerProvider)
+                    .keepGeotag(eventId: eventId);
+                return true;
+              },
               successMessage: 'Capture kept as geotag.',
             ),
           ),
@@ -757,7 +773,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
 
   Future<void> _runV2ReviewAction({
     required String eventId,
-    required Future<void> Function() action,
+    required Future<bool> Function() action,
     required String successMessage,
   }) async {
     if (!mounted || _v2ReviewActionsInFlight.contains(eventId)) {
@@ -767,7 +783,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       _v2ReviewActionsInFlight.add(eventId);
     });
     try {
-      await action();
+      final applied = await action();
+      if (!applied) {
+        return;
+      }
       if (!mounted) {
         return;
       }
@@ -796,18 +815,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     }
   }
 
-  Future<void> _assignV2ManualPlace({
+  Future<bool> _assignV2ManualPlace({
     required String eventId,
     required EditorState editor,
   }) async {
-    final places =
-        editor.places.where((place) => place.placeType != 'city').toList();
+    final places = editor.places.toList();
     if (places.isEmpty) {
-      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
-            eventId: eventId,
-            fromManualAddCancel: true,
-          );
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No places or cities available. Add one in the editor first.',
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return false;
     }
 
     final selectedPlaceId = await showModalBottomSheet<String>(
@@ -840,11 +864,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
     );
 
     if (selectedPlaceId == null || selectedPlaceId.trim().isEmpty) {
-      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
-            eventId: eventId,
-            fromManualAddCancel: true,
-          );
-      return;
+      return false;
     }
 
     Place? selectedPlace;
@@ -855,17 +875,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       }
     }
     if (selectedPlace == null) {
-      await ref.read(v2UnresolvedReviewControllerProvider).keepGeotag(
-            eventId: eventId,
-            fromManualAddCancel: true,
-          );
-      return;
+      return false;
     }
     await ref.read(v2UnresolvedReviewControllerProvider).assignManualPlace(
           eventId: eventId,
           placeId: selectedPlace.id,
           placeName: selectedPlace.name,
         );
+    return true;
   }
 
   Future<void> _resolveDeviceCenter() async {
@@ -1555,6 +1572,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen>
       ),
     );
     return result ?? false;
+  }
+
+  Future<void> _attemptLeaveEditor(bool saving) async {
+    final shouldLeave = await _handleBack(saving);
+    if (!mounted || !shouldLeave) {
+      return;
+    }
+    context.go(Routes.trips);
   }
 
   void _openExportStudio() {

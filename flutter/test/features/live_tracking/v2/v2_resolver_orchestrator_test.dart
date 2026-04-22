@@ -30,6 +30,7 @@ void main() {
       );
       resolverClient = _FakeResolverClient();
       orchestrator = V2ResolverOrchestrator(
+        database: database,
         eventRepository: eventRepository,
         resolverRepository: resolverRepository,
         resolverClient: resolverClient,
@@ -129,7 +130,7 @@ void main() {
     });
 
     test(
-        'acceptCandidate does not mirror provider poi ids to place attachments',
+        'acceptCandidate canonicalizes provider poi to local place and mirrors attachments',
         () async {
       final now = DateTime.utc(2026, 4, 11, 10, 0);
       await eventRepository.upsertEvent(
@@ -169,12 +170,25 @@ void main() {
         ),
       );
 
+      final updatedEvent =
+          await eventRepository.getEventById('event-provider-poi');
+      expect(updatedEvent, isNotNull);
+      expect(updatedEvent!.placeBindKind, 'trip_place_local');
+      expect(updatedEvent.placeBindId, isNotNull);
+      expect(updatedEvent.placeBindId, isNot('provider:poi:123'));
+
+      final boundPlace = await database.placeDao.getPlaceById(
+        updatedEvent.placeBindId!,
+      );
+      expect(boundPlace, isNotNull);
+      expect(boundPlace!.name, 'Provider POI');
+
       final mirrored = await database.mediaAttachmentsDao.listForTarget(
         targetKind: 'place',
-        targetLocalId: 'provider:poi:123',
+        targetLocalId: updatedEvent.placeBindId!,
         role: 'review',
       );
-      expect(mirrored, isEmpty);
+      expect(mirrored, hasLength(1));
     });
 
     test('assignManualPlace mirrors to place attachments for local place ids',

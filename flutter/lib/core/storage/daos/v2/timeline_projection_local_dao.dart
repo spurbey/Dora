@@ -17,6 +17,10 @@ class TimelineProjectionLocalDao extends DatabaseAccessor<AppDatabase>
             ..where((row) => row.tripLocalId.equals(tripLocalId))
             ..orderBy([
               (row) => OrderingTerm(
+                    expression: row.displayOrder,
+                    mode: OrderingMode.desc,
+                  ),
+              (row) => OrderingTerm(
                     expression: row.capturedAt,
                     mode: OrderingMode.desc,
                   ),
@@ -29,6 +33,10 @@ class TimelineProjectionLocalDao extends DatabaseAccessor<AppDatabase>
       (select(timelineProjectionLocal)
             ..where((row) => row.tripLocalId.equals(tripLocalId))
             ..orderBy([
+              (row) => OrderingTerm(
+                    expression: row.displayOrder,
+                    mode: OrderingMode.desc,
+                  ),
               (row) => OrderingTerm(
                     expression: row.capturedAt,
                     mode: OrderingMode.desc,
@@ -99,5 +107,136 @@ class TimelineProjectionLocalDao extends DatabaseAccessor<AppDatabase>
           ..where(timelineProjectionLocal.tripLocalId.equals(tripLocalId)))
         .getSingle();
     return row.read(timelineProjectionLocal.entryId.count()) ?? 0;
+  }
+
+  Future<Map<String, double>> listDisplayOrderByEntryIdForTrip(
+    String tripLocalId,
+  ) async {
+    final rows = await (selectOnly(timelineProjectionLocal)
+          ..addColumns([
+            timelineProjectionLocal.entryId,
+            timelineProjectionLocal.displayOrder,
+          ])
+          ..where(timelineProjectionLocal.tripLocalId.equals(tripLocalId)))
+        .get();
+    final mapped = <String, double>{};
+    for (final row in rows) {
+      final entryId = row.read<String>(timelineProjectionLocal.entryId);
+      final displayOrder =
+          row.read<double>(timelineProjectionLocal.displayOrder);
+      if (entryId == null || displayOrder == null) {
+        continue;
+      }
+      mapped[entryId] = displayOrder;
+    }
+    return mapped;
+  }
+
+  Future<Map<String, double>> listDisplayOrderByEntryIdForTripFromCapturedAt({
+    required String tripLocalId,
+    required DateTime fromCapturedAt,
+  }) async {
+    final rows = await (selectOnly(timelineProjectionLocal)
+          ..addColumns([
+            timelineProjectionLocal.entryId,
+            timelineProjectionLocal.displayOrder,
+          ])
+          ..where(
+            timelineProjectionLocal.tripLocalId.equals(tripLocalId) &
+                timelineProjectionLocal.capturedAt
+                    .isBiggerOrEqualValue(fromCapturedAt.toUtc()),
+          ))
+        .get();
+    final mapped = <String, double>{};
+    for (final row in rows) {
+      final entryId = row.read<String>(timelineProjectionLocal.entryId);
+      final displayOrder =
+          row.read<double>(timelineProjectionLocal.displayOrder);
+      if (entryId == null || displayOrder == null) {
+        continue;
+      }
+      mapped[entryId] = displayOrder;
+    }
+    return mapped;
+  }
+
+  Future<bool> updateDisplayOrder({
+    required String tripLocalId,
+    required String entryId,
+    required double displayOrder,
+  }) async {
+    final updatedRows = await (update(timelineProjectionLocal)
+          ..where(
+            (row) =>
+                row.tripLocalId.equals(tripLocalId) &
+                row.entryId.equals(entryId),
+          ))
+        .write(
+      TimelineProjectionLocalCompanion(
+        displayOrder: Value(displayOrder),
+      ),
+    );
+    return updatedRows > 0;
+  }
+
+  Future<double?> minDisplayOrderGapForTrip(String tripLocalId) async {
+    final rows = await (selectOnly(timelineProjectionLocal)
+          ..addColumns([timelineProjectionLocal.displayOrder])
+          ..where(
+            timelineProjectionLocal.tripLocalId.equals(tripLocalId) &
+                timelineProjectionLocal.displayOrder.isNotNull(),
+          )
+          ..orderBy([
+            OrderingTerm(
+              expression: timelineProjectionLocal.displayOrder,
+              mode: OrderingMode.asc,
+            ),
+          ]))
+        .get();
+    if (rows.length < 2) {
+      return null;
+    }
+    var minGap = double.infinity;
+    double? previous;
+    for (final row in rows) {
+      final current = row.read<double>(timelineProjectionLocal.displayOrder);
+      if (current == null) {
+        continue;
+      }
+      if (previous != null) {
+        final gap = (current - previous).abs();
+        if (gap < minGap) {
+          minGap = gap;
+        }
+      }
+      previous = current;
+    }
+    return minGap.isFinite ? minGap : null;
+  }
+
+  Future<void> normalizeDisplayOrderForTrip(
+    String tripLocalId, {
+    double step = 1000.0,
+  }) async {
+    final rows = await listEntriesForTrip(tripLocalId);
+    if (rows.isEmpty) {
+      return;
+    }
+    final ascending = rows.toList(growable: false).reversed.toList();
+    await batch((batch) {
+      for (var index = 0; index < ascending.length; index++) {
+        final row = ascending[index];
+        final normalized = (index + 1) * step;
+        batch.update(
+          timelineProjectionLocal,
+          TimelineProjectionLocalCompanion(
+            displayOrder: Value(normalized),
+          ),
+          where: (table) =>
+              table.tripLocalId.equals(tripLocalId) &
+              table.entryId.equals(row.entryId),
+        );
+      }
+    });
   }
 }

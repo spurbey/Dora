@@ -36,6 +36,7 @@ from app.models.user_device_token import UserDeviceToken
 from app.models.trip_tracking_event import TripTrackingEvent
 from app.models.trip_tracking_event_media import TripTrackingEventMedia
 from app.models.trip_location_point import TripLocationPoint
+from app.models.trip_tracking_session import TripTrackingSession
 from app.models.trip_session_raw import TripSessionRaw
 from app.models.trip_event_raw import TripEventRaw
 from app.models.trip_media_raw import TripMediaRaw
@@ -71,6 +72,7 @@ __all__ = [
     "TripTrackingEvent",
     "TripTrackingEventMedia",
     "TripLocationPoint",
+    "TripTrackingSession",
     "TripSessionRaw",
     "TripEventRaw",
     "TripMediaRaw",

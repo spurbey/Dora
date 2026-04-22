@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
+import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
 import 'package:dora/features/profile/presentation/providers/profile_provider.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
@@ -37,6 +38,22 @@ TripsRepository tripsRepository(TripsRepositoryRef ref) {
     authService,
     liveTrackingApi,
     enqueueEditorMediaForPublish: mediaRepository.enqueueMediaForTripPublish,
+    materializeEditorGraphForPublish: (tripId) async {
+      final placeRepository = ref.read(placeRepositoryProvider);
+      final routeRepository = ref.read(routeRepositoryProvider);
+
+      final places = await placeRepository.getPlaces(tripId)
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      for (final place in places) {
+        await placeRepository.ensureRemotePlaceId(place.id);
+      }
+
+      final routes = await routeRepository.getRoutes(tripId)
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      for (final route in routes) {
+        await routeRepository.ensureRemoteRouteId(route.id);
+      }
+    },
   );
 }
 

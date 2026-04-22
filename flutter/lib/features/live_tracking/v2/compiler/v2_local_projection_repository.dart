@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 
@@ -10,6 +11,9 @@ import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 
 class V2LocalProjectionRepository {
+  static const int displayOrderNormalizeEvery = 200;
+  static const double displayOrderMinGapThreshold = 1e-6;
+
   const V2LocalProjectionRepository({
     required TimelineProjectionLocalDao timelineDao,
     required RouteProjectionLocalDao routeDao,
@@ -122,6 +126,111 @@ class V2LocalProjectionRepository {
   Future<int> countTimelineEntries(String tripId) =>
       _timelineDao.countEntriesForTrip(tripId);
 
+  Future<Map<String, double>> listDisplayOrderByEntryIdForTrip(String tripId) =>
+      _timelineDao.listDisplayOrderByEntryIdForTrip(tripId);
+
+  Future<Map<String, double>> listDisplayOrderByEntryIdForTripFromCapturedAt({
+    required String tripId,
+    required DateTime fromCapturedAt,
+  }) =>
+      _timelineDao.listDisplayOrderByEntryIdForTripFromCapturedAt(
+        tripLocalId: tripId,
+        fromCapturedAt: fromCapturedAt,
+      );
+
+  Future<bool> updateEntryDisplayOrder({
+    required String tripId,
+    required String entryId,
+    required double displayOrder,
+    int? reorderOperationCount,
+  }) async {
+    final didUpdate = await _timelineDao.updateDisplayOrder(
+      tripLocalId: tripId,
+      entryId: entryId,
+      displayOrder: displayOrder,
+    );
+    if (!didUpdate) {
+      return false;
+    }
+
+    var shouldNormalize = reorderOperationCount != null &&
+        reorderOperationCount >= displayOrderNormalizeEvery;
+    if (!shouldNormalize) {
+      final minGap = await _timelineDao.minDisplayOrderGapForTrip(tripId);
+      shouldNormalize = minGap != null && minGap <= displayOrderMinGapThreshold;
+    }
+    if (shouldNormalize) {
+      await _timelineDao.normalizeDisplayOrderForTrip(tripId);
+    }
+    return true;
+  }
+
+  Future<void> normalizeDisplayOrderForTrip(String tripId) =>
+      _timelineDao.normalizeDisplayOrderForTrip(tripId);
+
+  Future<double?> computeMidpointDisplayOrder({
+    required String tripId,
+    String? previousEntryId,
+    String? nextEntryId,
+  }) async {
+    final orderMap =
+        await _timelineDao.listDisplayOrderByEntryIdForTrip(tripId);
+    final previous = previousEntryId == null ? null : orderMap[previousEntryId];
+    final next = nextEntryId == null ? null : orderMap[nextEntryId];
+    if (previous != null && next != null) {
+      return (previous + next) / 2.0;
+    }
+    if (previous != null) {
+      return previous + 1000.0;
+    }
+    if (next != null) {
+      return next - 1000.0;
+    }
+    if (orderMap.isEmpty) {
+      return null;
+    }
+    final values = orderMap.values.toList(growable: false);
+    final minValue = values.reduce(math.min);
+    return minValue - 1000.0;
+  }
+
+  Future<void> upsertFromServerProjection({
+    required String tripId,
+    required List<TimelineProjectionLocalCompanion> timelineRows,
+    required List<RouteProjectionLocalCompanion> routeRows,
+  }) async {
+    final existingDisplayOrderByEntryId =
+        await _timelineDao.listDisplayOrderByEntryIdForTrip(tripId);
+
+    TimelineProjectionLocalCompanion withPreservedDisplayOrder(
+      TimelineProjectionLocalCompanion row,
+    ) {
+      final entryId = row.entryId.present ? row.entryId.value : null;
+      if (entryId == null) {
+        return row;
+      }
+      final preservedDisplayOrder = existingDisplayOrderByEntryId[entryId];
+      if (preservedDisplayOrder == null) {
+        return row;
+      }
+      return row.copyWith(
+        displayOrder: Value(preservedDisplayOrder),
+      );
+    }
+
+    final normalizedTimelineRows =
+        timelineRows.map(withPreservedDisplayOrder).toList(growable: false);
+
+    await _timelineDao.replaceAllEntriesForTrip(
+      tripLocalId: tripId,
+      rows: normalizedTimelineRows,
+    );
+    await _routeDao.replaceAllSegmentsForTrip(
+      tripLocalId: tripId,
+      rows: routeRows,
+    );
+  }
+
   V2TimelineProjectionEntry _mapTimelineRow(TimelineProjectionLocalRow row) {
     return V2TimelineProjectionEntry(
       entryId: row.entryId,
@@ -142,6 +251,8 @@ class V2LocalProjectionRepository {
       title: row.title,
       subtitle: row.subtitle,
       syncChipState: row.syncChipState,
+      displayOrder: row.displayOrder ??
+          row.capturedAt.toUtc().millisecondsSinceEpoch.toDouble(),
       routeSegmentKey: row.routeSegmentKey,
       routeDistanceM: row.routeDistanceM,
       renderPayloadJson: row.renderPayloadJson,

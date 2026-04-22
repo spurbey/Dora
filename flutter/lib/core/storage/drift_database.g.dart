@@ -10811,6 +10811,422 @@ class ResolverAttemptJournalCompanion
   }
 }
 
+class $RouteSegmentClaimLocalTable extends RouteSegmentClaimLocal
+    with TableInfo<$RouteSegmentClaimLocalTable, RouteSegmentClaimLocalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RouteSegmentClaimLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tripLocalIdMeta =
+      const VerificationMeta('tripLocalId');
+  @override
+  late final GeneratedColumn<String> tripLocalId = GeneratedColumn<String>(
+      'trip_local_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _manualRouteIdMeta =
+      const VerificationMeta('manualRouteId');
+  @override
+  late final GeneratedColumn<String> manualRouteId = GeneratedColumn<String>(
+      'manual_route_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _routeSegmentKeyMeta =
+      const VerificationMeta('routeSegmentKey');
+  @override
+  late final GeneratedColumn<String> routeSegmentKey = GeneratedColumn<String>(
+      'route_segment_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _claimSourceMeta =
+      const VerificationMeta('claimSource');
+  @override
+  late final GeneratedColumn<String> claimSource = GeneratedColumn<String>(
+      'claim_source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _confidenceMeta =
+      const VerificationMeta('confidence');
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+      'confidence', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        tripLocalId,
+        manualRouteId,
+        routeSegmentKey,
+        claimSource,
+        confidence,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'route_segment_claim_local';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<RouteSegmentClaimLocalRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('trip_local_id')) {
+      context.handle(
+          _tripLocalIdMeta,
+          tripLocalId.isAcceptableOrUnknown(
+              data['trip_local_id']!, _tripLocalIdMeta));
+    } else if (isInserting) {
+      context.missing(_tripLocalIdMeta);
+    }
+    if (data.containsKey('manual_route_id')) {
+      context.handle(
+          _manualRouteIdMeta,
+          manualRouteId.isAcceptableOrUnknown(
+              data['manual_route_id']!, _manualRouteIdMeta));
+    } else if (isInserting) {
+      context.missing(_manualRouteIdMeta);
+    }
+    if (data.containsKey('route_segment_key')) {
+      context.handle(
+          _routeSegmentKeyMeta,
+          routeSegmentKey.isAcceptableOrUnknown(
+              data['route_segment_key']!, _routeSegmentKeyMeta));
+    } else if (isInserting) {
+      context.missing(_routeSegmentKeyMeta);
+    }
+    if (data.containsKey('claim_source')) {
+      context.handle(
+          _claimSourceMeta,
+          claimSource.isAcceptableOrUnknown(
+              data['claim_source']!, _claimSourceMeta));
+    } else if (isInserting) {
+      context.missing(_claimSourceMeta);
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+          _confidenceMeta,
+          confidence.isAcceptableOrUnknown(
+              data['confidence']!, _confidenceMeta));
+    } else if (isInserting) {
+      context.missing(_confidenceMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey =>
+      {tripLocalId, manualRouteId, routeSegmentKey};
+  @override
+  RouteSegmentClaimLocalRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RouteSegmentClaimLocalRow(
+      tripLocalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trip_local_id'])!,
+      manualRouteId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}manual_route_id'])!,
+      routeSegmentKey: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}route_segment_key'])!,
+      claimSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}claim_source'])!,
+      confidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}confidence'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RouteSegmentClaimLocalTable createAlias(String alias) {
+    return $RouteSegmentClaimLocalTable(attachedDatabase, alias);
+  }
+}
+
+class RouteSegmentClaimLocalRow extends DataClass
+    implements Insertable<RouteSegmentClaimLocalRow> {
+  final String tripLocalId;
+  final String manualRouteId;
+  final String routeSegmentKey;
+  final String claimSource;
+  final double confidence;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const RouteSegmentClaimLocalRow(
+      {required this.tripLocalId,
+      required this.manualRouteId,
+      required this.routeSegmentKey,
+      required this.claimSource,
+      required this.confidence,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['trip_local_id'] = Variable<String>(tripLocalId);
+    map['manual_route_id'] = Variable<String>(manualRouteId);
+    map['route_segment_key'] = Variable<String>(routeSegmentKey);
+    map['claim_source'] = Variable<String>(claimSource);
+    map['confidence'] = Variable<double>(confidence);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RouteSegmentClaimLocalCompanion toCompanion(bool nullToAbsent) {
+    return RouteSegmentClaimLocalCompanion(
+      tripLocalId: Value(tripLocalId),
+      manualRouteId: Value(manualRouteId),
+      routeSegmentKey: Value(routeSegmentKey),
+      claimSource: Value(claimSource),
+      confidence: Value(confidence),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RouteSegmentClaimLocalRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RouteSegmentClaimLocalRow(
+      tripLocalId: serializer.fromJson<String>(json['tripLocalId']),
+      manualRouteId: serializer.fromJson<String>(json['manualRouteId']),
+      routeSegmentKey: serializer.fromJson<String>(json['routeSegmentKey']),
+      claimSource: serializer.fromJson<String>(json['claimSource']),
+      confidence: serializer.fromJson<double>(json['confidence']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tripLocalId': serializer.toJson<String>(tripLocalId),
+      'manualRouteId': serializer.toJson<String>(manualRouteId),
+      'routeSegmentKey': serializer.toJson<String>(routeSegmentKey),
+      'claimSource': serializer.toJson<String>(claimSource),
+      'confidence': serializer.toJson<double>(confidence),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  RouteSegmentClaimLocalRow copyWith(
+          {String? tripLocalId,
+          String? manualRouteId,
+          String? routeSegmentKey,
+          String? claimSource,
+          double? confidence,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      RouteSegmentClaimLocalRow(
+        tripLocalId: tripLocalId ?? this.tripLocalId,
+        manualRouteId: manualRouteId ?? this.manualRouteId,
+        routeSegmentKey: routeSegmentKey ?? this.routeSegmentKey,
+        claimSource: claimSource ?? this.claimSource,
+        confidence: confidence ?? this.confidence,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  RouteSegmentClaimLocalRow copyWithCompanion(
+      RouteSegmentClaimLocalCompanion data) {
+    return RouteSegmentClaimLocalRow(
+      tripLocalId:
+          data.tripLocalId.present ? data.tripLocalId.value : this.tripLocalId,
+      manualRouteId: data.manualRouteId.present
+          ? data.manualRouteId.value
+          : this.manualRouteId,
+      routeSegmentKey: data.routeSegmentKey.present
+          ? data.routeSegmentKey.value
+          : this.routeSegmentKey,
+      claimSource:
+          data.claimSource.present ? data.claimSource.value : this.claimSource,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RouteSegmentClaimLocalRow(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('manualRouteId: $manualRouteId, ')
+          ..write('routeSegmentKey: $routeSegmentKey, ')
+          ..write('claimSource: $claimSource, ')
+          ..write('confidence: $confidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(tripLocalId, manualRouteId, routeSegmentKey,
+      claimSource, confidence, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RouteSegmentClaimLocalRow &&
+          other.tripLocalId == this.tripLocalId &&
+          other.manualRouteId == this.manualRouteId &&
+          other.routeSegmentKey == this.routeSegmentKey &&
+          other.claimSource == this.claimSource &&
+          other.confidence == this.confidence &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RouteSegmentClaimLocalCompanion
+    extends UpdateCompanion<RouteSegmentClaimLocalRow> {
+  final Value<String> tripLocalId;
+  final Value<String> manualRouteId;
+  final Value<String> routeSegmentKey;
+  final Value<String> claimSource;
+  final Value<double> confidence;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const RouteSegmentClaimLocalCompanion({
+    this.tripLocalId = const Value.absent(),
+    this.manualRouteId = const Value.absent(),
+    this.routeSegmentKey = const Value.absent(),
+    this.claimSource = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RouteSegmentClaimLocalCompanion.insert({
+    required String tripLocalId,
+    required String manualRouteId,
+    required String routeSegmentKey,
+    required String claimSource,
+    required double confidence,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : tripLocalId = Value(tripLocalId),
+        manualRouteId = Value(manualRouteId),
+        routeSegmentKey = Value(routeSegmentKey),
+        claimSource = Value(claimSource),
+        confidence = Value(confidence),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<RouteSegmentClaimLocalRow> custom({
+    Expression<String>? tripLocalId,
+    Expression<String>? manualRouteId,
+    Expression<String>? routeSegmentKey,
+    Expression<String>? claimSource,
+    Expression<double>? confidence,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tripLocalId != null) 'trip_local_id': tripLocalId,
+      if (manualRouteId != null) 'manual_route_id': manualRouteId,
+      if (routeSegmentKey != null) 'route_segment_key': routeSegmentKey,
+      if (claimSource != null) 'claim_source': claimSource,
+      if (confidence != null) 'confidence': confidence,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RouteSegmentClaimLocalCompanion copyWith(
+      {Value<String>? tripLocalId,
+      Value<String>? manualRouteId,
+      Value<String>? routeSegmentKey,
+      Value<String>? claimSource,
+      Value<double>? confidence,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return RouteSegmentClaimLocalCompanion(
+      tripLocalId: tripLocalId ?? this.tripLocalId,
+      manualRouteId: manualRouteId ?? this.manualRouteId,
+      routeSegmentKey: routeSegmentKey ?? this.routeSegmentKey,
+      claimSource: claimSource ?? this.claimSource,
+      confidence: confidence ?? this.confidence,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tripLocalId.present) {
+      map['trip_local_id'] = Variable<String>(tripLocalId.value);
+    }
+    if (manualRouteId.present) {
+      map['manual_route_id'] = Variable<String>(manualRouteId.value);
+    }
+    if (routeSegmentKey.present) {
+      map['route_segment_key'] = Variable<String>(routeSegmentKey.value);
+    }
+    if (claimSource.present) {
+      map['claim_source'] = Variable<String>(claimSource.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RouteSegmentClaimLocalCompanion(')
+          ..write('tripLocalId: $tripLocalId, ')
+          ..write('manualRouteId: $manualRouteId, ')
+          ..write('routeSegmentKey: $routeSegmentKey, ')
+          ..write('claimSource: $claimSource, ')
+          ..write('confidence: $confidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SessionCommitJobTable extends SessionCommitJob
     with TableInfo<$SessionCommitJobTable, SessionCommitJobRow> {
   @override
@@ -14038,6 +14454,12 @@ class $TimelineProjectionLocalTable extends TimelineProjectionLocal
   late final GeneratedColumn<String> syncChipState = GeneratedColumn<String>(
       'sync_chip_state', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _displayOrderMeta =
+      const VerificationMeta('displayOrder');
+  @override
+  late final GeneratedColumn<double> displayOrder = GeneratedColumn<double>(
+      'display_order', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _routeSegmentKeyMeta =
       const VerificationMeta('routeSegmentKey');
   @override
@@ -14088,6 +14510,7 @@ class $TimelineProjectionLocalTable extends TimelineProjectionLocal
         title,
         subtitle,
         syncChipState,
+        displayOrder,
         routeSegmentKey,
         routeDistanceM,
         renderPayloadJson,
@@ -14225,6 +14648,12 @@ class $TimelineProjectionLocalTable extends TimelineProjectionLocal
     } else if (isInserting) {
       context.missing(_syncChipStateMeta);
     }
+    if (data.containsKey('display_order')) {
+      context.handle(
+          _displayOrderMeta,
+          displayOrder.isAcceptableOrUnknown(
+              data['display_order']!, _displayOrderMeta));
+    }
     if (data.containsKey('route_segment_key')) {
       context.handle(
           _routeSegmentKeyMeta,
@@ -14305,6 +14734,8 @@ class $TimelineProjectionLocalTable extends TimelineProjectionLocal
           .read(DriftSqlType.string, data['${effectivePrefix}subtitle']),
       syncChipState: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}sync_chip_state'])!,
+      displayOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}display_order']),
       routeSegmentKey: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}route_segment_key']),
       routeDistanceM: attachedDatabase.typeMapping.read(
@@ -14344,6 +14775,7 @@ class TimelineProjectionLocalRow extends DataClass
   final String title;
   final String? subtitle;
   final String syncChipState;
+  final double? displayOrder;
   final String? routeSegmentKey;
   final double? routeDistanceM;
   final String? renderPayloadJson;
@@ -14368,6 +14800,7 @@ class TimelineProjectionLocalRow extends DataClass
       required this.title,
       this.subtitle,
       required this.syncChipState,
+      this.displayOrder,
       this.routeSegmentKey,
       this.routeDistanceM,
       this.renderPayloadJson,
@@ -14404,6 +14837,9 @@ class TimelineProjectionLocalRow extends DataClass
       map['subtitle'] = Variable<String>(subtitle);
     }
     map['sync_chip_state'] = Variable<String>(syncChipState);
+    if (!nullToAbsent || displayOrder != null) {
+      map['display_order'] = Variable<double>(displayOrder);
+    }
     if (!nullToAbsent || routeSegmentKey != null) {
       map['route_segment_key'] = Variable<String>(routeSegmentKey);
     }
@@ -14448,6 +14884,9 @@ class TimelineProjectionLocalRow extends DataClass
           ? const Value.absent()
           : Value(subtitle),
       syncChipState: Value(syncChipState),
+      displayOrder: displayOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(displayOrder),
       routeSegmentKey: routeSegmentKey == null && nullToAbsent
           ? const Value.absent()
           : Value(routeSegmentKey),
@@ -14484,6 +14923,7 @@ class TimelineProjectionLocalRow extends DataClass
       title: serializer.fromJson<String>(json['title']),
       subtitle: serializer.fromJson<String?>(json['subtitle']),
       syncChipState: serializer.fromJson<String>(json['syncChipState']),
+      displayOrder: serializer.fromJson<double?>(json['displayOrder']),
       routeSegmentKey: serializer.fromJson<String?>(json['routeSegmentKey']),
       routeDistanceM: serializer.fromJson<double?>(json['routeDistanceM']),
       renderPayloadJson:
@@ -14514,6 +14954,7 @@ class TimelineProjectionLocalRow extends DataClass
       'title': serializer.toJson<String>(title),
       'subtitle': serializer.toJson<String?>(subtitle),
       'syncChipState': serializer.toJson<String>(syncChipState),
+      'displayOrder': serializer.toJson<double?>(displayOrder),
       'routeSegmentKey': serializer.toJson<String?>(routeSegmentKey),
       'routeDistanceM': serializer.toJson<double?>(routeDistanceM),
       'renderPayloadJson': serializer.toJson<String?>(renderPayloadJson),
@@ -14541,6 +14982,7 @@ class TimelineProjectionLocalRow extends DataClass
           String? title,
           Value<String?> subtitle = const Value.absent(),
           String? syncChipState,
+          Value<double?> displayOrder = const Value.absent(),
           Value<String?> routeSegmentKey = const Value.absent(),
           Value<double?> routeDistanceM = const Value.absent(),
           Value<String?> renderPayloadJson = const Value.absent(),
@@ -14568,6 +15010,8 @@ class TimelineProjectionLocalRow extends DataClass
         title: title ?? this.title,
         subtitle: subtitle.present ? subtitle.value : this.subtitle,
         syncChipState: syncChipState ?? this.syncChipState,
+        displayOrder:
+            displayOrder.present ? displayOrder.value : this.displayOrder,
         routeSegmentKey: routeSegmentKey.present
             ? routeSegmentKey.value
             : this.routeSegmentKey,
@@ -14618,6 +15062,9 @@ class TimelineProjectionLocalRow extends DataClass
       syncChipState: data.syncChipState.present
           ? data.syncChipState.value
           : this.syncChipState,
+      displayOrder: data.displayOrder.present
+          ? data.displayOrder.value
+          : this.displayOrder,
       routeSegmentKey: data.routeSegmentKey.present
           ? data.routeSegmentKey.value
           : this.routeSegmentKey,
@@ -14656,6 +15103,7 @@ class TimelineProjectionLocalRow extends DataClass
           ..write('title: $title, ')
           ..write('subtitle: $subtitle, ')
           ..write('syncChipState: $syncChipState, ')
+          ..write('displayOrder: $displayOrder, ')
           ..write('routeSegmentKey: $routeSegmentKey, ')
           ..write('routeDistanceM: $routeDistanceM, ')
           ..write('renderPayloadJson: $renderPayloadJson, ')
@@ -14685,6 +15133,7 @@ class TimelineProjectionLocalRow extends DataClass
         title,
         subtitle,
         syncChipState,
+        displayOrder,
         routeSegmentKey,
         routeDistanceM,
         renderPayloadJson,
@@ -14713,6 +15162,7 @@ class TimelineProjectionLocalRow extends DataClass
           other.title == this.title &&
           other.subtitle == this.subtitle &&
           other.syncChipState == this.syncChipState &&
+          other.displayOrder == this.displayOrder &&
           other.routeSegmentKey == this.routeSegmentKey &&
           other.routeDistanceM == this.routeDistanceM &&
           other.renderPayloadJson == this.renderPayloadJson &&
@@ -14740,6 +15190,7 @@ class TimelineProjectionLocalCompanion
   final Value<String> title;
   final Value<String?> subtitle;
   final Value<String> syncChipState;
+  final Value<double?> displayOrder;
   final Value<String?> routeSegmentKey;
   final Value<double?> routeDistanceM;
   final Value<String?> renderPayloadJson;
@@ -14765,6 +15216,7 @@ class TimelineProjectionLocalCompanion
     this.title = const Value.absent(),
     this.subtitle = const Value.absent(),
     this.syncChipState = const Value.absent(),
+    this.displayOrder = const Value.absent(),
     this.routeSegmentKey = const Value.absent(),
     this.routeDistanceM = const Value.absent(),
     this.renderPayloadJson = const Value.absent(),
@@ -14791,6 +15243,7 @@ class TimelineProjectionLocalCompanion
     required String title,
     this.subtitle = const Value.absent(),
     required String syncChipState,
+    this.displayOrder = const Value.absent(),
     this.routeSegmentKey = const Value.absent(),
     this.routeDistanceM = const Value.absent(),
     this.renderPayloadJson = const Value.absent(),
@@ -14830,6 +15283,7 @@ class TimelineProjectionLocalCompanion
     Expression<String>? title,
     Expression<String>? subtitle,
     Expression<String>? syncChipState,
+    Expression<double>? displayOrder,
     Expression<String>? routeSegmentKey,
     Expression<double>? routeDistanceM,
     Expression<String>? renderPayloadJson,
@@ -14856,6 +15310,7 @@ class TimelineProjectionLocalCompanion
       if (title != null) 'title': title,
       if (subtitle != null) 'subtitle': subtitle,
       if (syncChipState != null) 'sync_chip_state': syncChipState,
+      if (displayOrder != null) 'display_order': displayOrder,
       if (routeSegmentKey != null) 'route_segment_key': routeSegmentKey,
       if (routeDistanceM != null) 'route_distance_m': routeDistanceM,
       if (renderPayloadJson != null) 'render_payload_json': renderPayloadJson,
@@ -14884,6 +15339,7 @@ class TimelineProjectionLocalCompanion
       Value<String>? title,
       Value<String?>? subtitle,
       Value<String>? syncChipState,
+      Value<double?>? displayOrder,
       Value<String?>? routeSegmentKey,
       Value<double?>? routeDistanceM,
       Value<String?>? renderPayloadJson,
@@ -14909,6 +15365,7 @@ class TimelineProjectionLocalCompanion
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
       syncChipState: syncChipState ?? this.syncChipState,
+      displayOrder: displayOrder ?? this.displayOrder,
       routeSegmentKey: routeSegmentKey ?? this.routeSegmentKey,
       routeDistanceM: routeDistanceM ?? this.routeDistanceM,
       renderPayloadJson: renderPayloadJson ?? this.renderPayloadJson,
@@ -14975,6 +15432,9 @@ class TimelineProjectionLocalCompanion
     if (syncChipState.present) {
       map['sync_chip_state'] = Variable<String>(syncChipState.value);
     }
+    if (displayOrder.present) {
+      map['display_order'] = Variable<double>(displayOrder.value);
+    }
     if (routeSegmentKey.present) {
       map['route_segment_key'] = Variable<String>(routeSegmentKey.value);
     }
@@ -15017,6 +15477,7 @@ class TimelineProjectionLocalCompanion
           ..write('title: $title, ')
           ..write('subtitle: $subtitle, ')
           ..write('syncChipState: $syncChipState, ')
+          ..write('displayOrder: $displayOrder, ')
           ..write('routeSegmentKey: $routeSegmentKey, ')
           ..write('routeDistanceM: $routeDistanceM, ')
           ..write('renderPayloadJson: $renderPayloadJson, ')
@@ -16448,6 +16909,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ResolverCandidateJournalTable(this);
   late final $ResolverAttemptJournalTable resolverAttemptJournal =
       $ResolverAttemptJournalTable(this);
+  late final $RouteSegmentClaimLocalTable routeSegmentClaimLocal =
+      $RouteSegmentClaimLocalTable(this);
   late final $SessionCommitJobTable sessionCommitJob =
       $SessionCommitJobTable(this);
   late final $SessionCommitMediaItemTable sessionCommitMediaItem =
@@ -16530,6 +16993,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index resolverAttemptJournalStartedIdx = Index(
       'resolver_attempt_journal_started_idx',
       'CREATE INDEX resolver_attempt_journal_started_idx ON resolver_attempt_journal (started_at)');
+  late final Index routeSegmentClaimLocalTripSegmentIdx = Index(
+      'route_segment_claim_local_trip_segment_idx',
+      'CREATE INDEX route_segment_claim_local_trip_segment_idx ON route_segment_claim_local (trip_local_id, route_segment_key)');
+  late final Index routeSegmentClaimLocalTripManualRouteIdx = Index(
+      'route_segment_claim_local_trip_manual_route_idx',
+      'CREATE INDEX route_segment_claim_local_trip_manual_route_idx ON route_segment_claim_local (trip_local_id, manual_route_id)');
   late final Index sessionCommitJobStateRetryIdx = Index(
       'session_commit_job_state_retry_idx',
       'CREATE INDEX session_commit_job_state_retry_idx ON session_commit_job (job_state, next_retry_at)');
@@ -16560,6 +17029,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index timelineProjectionLocalTripCapturedSessionIdx = Index(
       'timeline_projection_local_trip_captured_session_idx',
       'CREATE INDEX timeline_projection_local_trip_captured_session_idx ON timeline_projection_local (trip_local_id, captured_at, session_id)');
+  late final Index timelineProjectionLocalTripDisplayOrderIdx = Index(
+      'timeline_projection_local_trip_display_order_idx',
+      'CREATE INDEX timeline_projection_local_trip_display_order_idx ON timeline_projection_local (trip_local_id, display_order)');
   late final Index routeProjectionLocalTripStartedIdx = Index(
       'route_projection_local_trip_started_idx',
       'CREATE INDEX route_projection_local_trip_started_idx ON route_projection_local (trip_local_id, started_at)');
@@ -16589,6 +17061,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ResolverCandidateJournalDao(this as AppDatabase);
   late final ResolverAttemptJournalDao resolverAttemptJournalDao =
       ResolverAttemptJournalDao(this as AppDatabase);
+  late final RouteSegmentClaimLocalDao routeSegmentClaimLocalDao =
+      RouteSegmentClaimLocalDao(this as AppDatabase);
   late final SessionCommitJobDao sessionCommitJobDao =
       SessionCommitJobDao(this as AppDatabase);
   late final SessionCommitMediaItemDao sessionCommitMediaItemDao =
@@ -16622,6 +17096,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         eventJournal,
         resolverCandidateJournal,
         resolverAttemptJournal,
+        routeSegmentClaimLocal,
         sessionCommitJob,
         sessionCommitMediaItem,
         sessionCommitChunk,
@@ -16653,6 +17128,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         resolverCandidateJournalEventVersionTieIdx,
         resolverAttemptJournalEventAttemptIdx,
         resolverAttemptJournalStartedIdx,
+        routeSegmentClaimLocalTripSegmentIdx,
+        routeSegmentClaimLocalTripManualRouteIdx,
         sessionCommitJobStateRetryIdx,
         sessionCommitJobSessionIdx,
         sessionCommitJobTripCreatedIdx,
@@ -16663,6 +17140,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         timelineProjectionLocalTripCapturedIdx,
         timelineProjectionLocalTripBucketCapturedIdx,
         timelineProjectionLocalTripCapturedSessionIdx,
+        timelineProjectionLocalTripDisplayOrderIdx,
         routeProjectionLocalTripStartedIdx,
         routeProjectionLocalTripSessionStartedIdx,
         timelineCompileCursorUpdatedIdx
@@ -21425,6 +21903,219 @@ typedef $$ResolverAttemptJournalTableProcessedTableManager
         ),
         ResolverAttemptJournalRow,
         PrefetchHooks Function()>;
+typedef $$RouteSegmentClaimLocalTableCreateCompanionBuilder
+    = RouteSegmentClaimLocalCompanion Function({
+  required String tripLocalId,
+  required String manualRouteId,
+  required String routeSegmentKey,
+  required String claimSource,
+  required double confidence,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$RouteSegmentClaimLocalTableUpdateCompanionBuilder
+    = RouteSegmentClaimLocalCompanion Function({
+  Value<String> tripLocalId,
+  Value<String> manualRouteId,
+  Value<String> routeSegmentKey,
+  Value<String> claimSource,
+  Value<double> confidence,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$RouteSegmentClaimLocalTableFilterComposer
+    extends Composer<_$AppDatabase, $RouteSegmentClaimLocalTable> {
+  $$RouteSegmentClaimLocalTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get manualRouteId => $composableBuilder(
+      column: $table.manualRouteId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get claimSource => $composableBuilder(
+      column: $table.claimSource, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RouteSegmentClaimLocalTableOrderingComposer
+    extends Composer<_$AppDatabase, $RouteSegmentClaimLocalTable> {
+  $$RouteSegmentClaimLocalTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get manualRouteId => $composableBuilder(
+      column: $table.manualRouteId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get claimSource => $composableBuilder(
+      column: $table.claimSource, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RouteSegmentClaimLocalTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RouteSegmentClaimLocalTable> {
+  $$RouteSegmentClaimLocalTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tripLocalId => $composableBuilder(
+      column: $table.tripLocalId, builder: (column) => column);
+
+  GeneratedColumn<String> get manualRouteId => $composableBuilder(
+      column: $table.manualRouteId, builder: (column) => column);
+
+  GeneratedColumn<String> get routeSegmentKey => $composableBuilder(
+      column: $table.routeSegmentKey, builder: (column) => column);
+
+  GeneratedColumn<String> get claimSource => $composableBuilder(
+      column: $table.claimSource, builder: (column) => column);
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RouteSegmentClaimLocalTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RouteSegmentClaimLocalTable,
+    RouteSegmentClaimLocalRow,
+    $$RouteSegmentClaimLocalTableFilterComposer,
+    $$RouteSegmentClaimLocalTableOrderingComposer,
+    $$RouteSegmentClaimLocalTableAnnotationComposer,
+    $$RouteSegmentClaimLocalTableCreateCompanionBuilder,
+    $$RouteSegmentClaimLocalTableUpdateCompanionBuilder,
+    (
+      RouteSegmentClaimLocalRow,
+      BaseReferences<_$AppDatabase, $RouteSegmentClaimLocalTable,
+          RouteSegmentClaimLocalRow>
+    ),
+    RouteSegmentClaimLocalRow,
+    PrefetchHooks Function()> {
+  $$RouteSegmentClaimLocalTableTableManager(
+      _$AppDatabase db, $RouteSegmentClaimLocalTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RouteSegmentClaimLocalTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RouteSegmentClaimLocalTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RouteSegmentClaimLocalTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> tripLocalId = const Value.absent(),
+            Value<String> manualRouteId = const Value.absent(),
+            Value<String> routeSegmentKey = const Value.absent(),
+            Value<String> claimSource = const Value.absent(),
+            Value<double> confidence = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RouteSegmentClaimLocalCompanion(
+            tripLocalId: tripLocalId,
+            manualRouteId: manualRouteId,
+            routeSegmentKey: routeSegmentKey,
+            claimSource: claimSource,
+            confidence: confidence,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String tripLocalId,
+            required String manualRouteId,
+            required String routeSegmentKey,
+            required String claimSource,
+            required double confidence,
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RouteSegmentClaimLocalCompanion.insert(
+            tripLocalId: tripLocalId,
+            manualRouteId: manualRouteId,
+            routeSegmentKey: routeSegmentKey,
+            claimSource: claimSource,
+            confidence: confidence,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RouteSegmentClaimLocalTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $RouteSegmentClaimLocalTable,
+        RouteSegmentClaimLocalRow,
+        $$RouteSegmentClaimLocalTableFilterComposer,
+        $$RouteSegmentClaimLocalTableOrderingComposer,
+        $$RouteSegmentClaimLocalTableAnnotationComposer,
+        $$RouteSegmentClaimLocalTableCreateCompanionBuilder,
+        $$RouteSegmentClaimLocalTableUpdateCompanionBuilder,
+        (
+          RouteSegmentClaimLocalRow,
+          BaseReferences<_$AppDatabase, $RouteSegmentClaimLocalTable,
+              RouteSegmentClaimLocalRow>
+        ),
+        RouteSegmentClaimLocalRow,
+        PrefetchHooks Function()>;
 typedef $$SessionCommitJobTableCreateCompanionBuilder
     = SessionCommitJobCompanion Function({
   required String jobId,
@@ -22809,6 +23500,7 @@ typedef $$TimelineProjectionLocalTableCreateCompanionBuilder
   required String title,
   Value<String?> subtitle,
   required String syncChipState,
+  Value<double?> displayOrder,
   Value<String?> routeSegmentKey,
   Value<double?> routeDistanceM,
   Value<String?> renderPayloadJson,
@@ -22836,6 +23528,7 @@ typedef $$TimelineProjectionLocalTableUpdateCompanionBuilder
   Value<String> title,
   Value<String?> subtitle,
   Value<String> syncChipState,
+  Value<double?> displayOrder,
   Value<String?> routeSegmentKey,
   Value<double?> routeDistanceM,
   Value<String?> renderPayloadJson,
@@ -22909,6 +23602,9 @@ class $$TimelineProjectionLocalTableFilterComposer
 
   ColumnFilters<String> get syncChipState => $composableBuilder(
       column: $table.syncChipState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get displayOrder => $composableBuilder(
+      column: $table.displayOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get routeSegmentKey => $composableBuilder(
       column: $table.routeSegmentKey,
@@ -22999,6 +23695,10 @@ class $$TimelineProjectionLocalTableOrderingComposer
       column: $table.syncChipState,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get displayOrder => $composableBuilder(
+      column: $table.displayOrder,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get routeSegmentKey => $composableBuilder(
       column: $table.routeSegmentKey,
       builder: (column) => ColumnOrderings(column));
@@ -23082,6 +23782,9 @@ class $$TimelineProjectionLocalTableAnnotationComposer
   GeneratedColumn<String> get syncChipState => $composableBuilder(
       column: $table.syncChipState, builder: (column) => column);
 
+  GeneratedColumn<double> get displayOrder => $composableBuilder(
+      column: $table.displayOrder, builder: (column) => column);
+
   GeneratedColumn<String> get routeSegmentKey => $composableBuilder(
       column: $table.routeSegmentKey, builder: (column) => column);
 
@@ -23147,6 +23850,7 @@ class $$TimelineProjectionLocalTableTableManager extends RootTableManager<
             Value<String> title = const Value.absent(),
             Value<String?> subtitle = const Value.absent(),
             Value<String> syncChipState = const Value.absent(),
+            Value<double?> displayOrder = const Value.absent(),
             Value<String?> routeSegmentKey = const Value.absent(),
             Value<double?> routeDistanceM = const Value.absent(),
             Value<String?> renderPayloadJson = const Value.absent(),
@@ -23173,6 +23877,7 @@ class $$TimelineProjectionLocalTableTableManager extends RootTableManager<
             title: title,
             subtitle: subtitle,
             syncChipState: syncChipState,
+            displayOrder: displayOrder,
             routeSegmentKey: routeSegmentKey,
             routeDistanceM: routeDistanceM,
             renderPayloadJson: renderPayloadJson,
@@ -23199,6 +23904,7 @@ class $$TimelineProjectionLocalTableTableManager extends RootTableManager<
             required String title,
             Value<String?> subtitle = const Value.absent(),
             required String syncChipState,
+            Value<double?> displayOrder = const Value.absent(),
             Value<String?> routeSegmentKey = const Value.absent(),
             Value<double?> routeDistanceM = const Value.absent(),
             Value<String?> renderPayloadJson = const Value.absent(),
@@ -23225,6 +23931,7 @@ class $$TimelineProjectionLocalTableTableManager extends RootTableManager<
             title: title,
             subtitle: subtitle,
             syncChipState: syncChipState,
+            displayOrder: displayOrder,
             routeSegmentKey: routeSegmentKey,
             routeDistanceM: routeDistanceM,
             renderPayloadJson: renderPayloadJson,
@@ -23910,6 +24617,9 @@ class $AppDatabaseManager {
   $$ResolverAttemptJournalTableTableManager get resolverAttemptJournal =>
       $$ResolverAttemptJournalTableTableManager(
           _db, _db.resolverAttemptJournal);
+  $$RouteSegmentClaimLocalTableTableManager get routeSegmentClaimLocal =>
+      $$RouteSegmentClaimLocalTableTableManager(
+          _db, _db.routeSegmentClaimLocal);
   $$SessionCommitJobTableTableManager get sessionCommitJob =>
       $$SessionCommitJobTableTableManager(_db, _db.sessionCommitJob);
   $$SessionCommitMediaItemTableTableManager get sessionCommitMediaItem =>

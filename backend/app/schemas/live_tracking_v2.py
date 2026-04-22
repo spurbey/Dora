@@ -155,6 +155,7 @@ class V2PublishCommitResponse(BaseModel):
 class V2TimelineEntryResponse(BaseModel):
     entry_id: str
     entry_kind: str
+    session_server_id: UUID
     source_server_id: UUID
     captured_at: datetime
     bucket_type: str
@@ -193,6 +194,8 @@ class V2RouteSegmentResponse(BaseModel):
     point_count: int
     raw_point_count: int
     is_simplified: bool
+    source: Optional[str] = None
+    confidence: Optional[float] = None
     points: list[V2RoutePointResponse] = Field(default_factory=list)
 
 

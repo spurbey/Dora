@@ -16,6 +16,7 @@ import 'package:dora/core/storage/daos/stories_dao.dart';
 import 'package:dora/core/storage/daos/trip_dao.dart';
 import 'package:dora/core/storage/daos/user_trips_dao.dart';
 import 'package:dora/core/storage/daos/v2/event_journal_dao.dart';
+import 'package:dora/core/storage/daos/v2/route_segment_claim_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/route_projection_local_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_attempt_journal_dao.dart';
 import 'package:dora/core/storage/daos/v2/resolver_candidate_journal_dao.dart';
@@ -36,6 +37,7 @@ import 'package:dora/core/storage/tables/stories_table.dart';
 import 'package:dora/core/storage/tables/trips_table.dart';
 import 'package:dora/core/storage/tables/user_trips_table.dart';
 import 'package:dora/core/storage/tables/v2/event_journal_table.dart';
+import 'package:dora/core/storage/tables/v2/route_segment_claim_local_table.dart';
 import 'package:dora/core/storage/tables/v2/route_projection_local_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_attempt_journal_table.dart';
 import 'package:dora/core/storage/tables/v2/resolver_candidate_journal_table.dart';
@@ -67,6 +69,7 @@ part 'drift_database.g.dart';
     EventJournal,
     ResolverCandidateJournal,
     ResolverAttemptJournal,
+    RouteSegmentClaimLocal,
     SessionCommitJob,
     SessionCommitMediaItem,
     SessionCommitChunk,
@@ -89,6 +92,7 @@ part 'drift_database.g.dart';
     EventJournalDao,
     ResolverCandidateJournalDao,
     ResolverAttemptJournalDao,
+    RouteSegmentClaimLocalDao,
     SessionCommitJobDao,
     SessionCommitMediaItemDao,
     SessionCommitChunkDao,
@@ -102,7 +106,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -560,15 +564,21 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               '''
-              CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_captured_session_idx
-              ON timeline_projection_local (trip_local_id, captured_at DESC, session_id)
-              ''',
+            CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_captured_session_idx
+            ON timeline_projection_local (trip_local_id, captured_at DESC, session_id)
+            ''',
             );
             await customStatement(
               '''
-              CREATE UNIQUE INDEX IF NOT EXISTS timeline_projection_local_trip_source_unique_idx
-              ON timeline_projection_local (trip_local_id, source_kind, source_id)
-              ''',
+            CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_display_order_idx
+            ON timeline_projection_local (trip_local_id, display_order DESC)
+            ''',
+            );
+            await customStatement(
+              '''
+            CREATE UNIQUE INDEX IF NOT EXISTS timeline_projection_local_trip_source_unique_idx
+            ON timeline_projection_local (trip_local_id, source_kind, source_id)
+            ''',
             );
             await customStatement(
               '''
@@ -584,9 +594,22 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               '''
-              CREATE INDEX IF NOT EXISTS timeline_compile_cursor_updated_idx
-              ON timeline_compile_cursor (updated_at)
-              ''',
+            CREATE INDEX IF NOT EXISTS timeline_compile_cursor_updated_idx
+            ON timeline_compile_cursor (updated_at)
+            ''',
+            );
+            await m.createTable(routeSegmentClaimLocal);
+            await customStatement(
+              '''
+            CREATE INDEX IF NOT EXISTS route_segment_claim_local_trip_segment_idx
+            ON route_segment_claim_local (trip_local_id, route_segment_key)
+            ''',
+            );
+            await customStatement(
+              '''
+            CREATE INDEX IF NOT EXISTS route_segment_claim_local_trip_manual_route_idx
+            ON route_segment_claim_local (trip_local_id, manual_route_id)
+            ''',
             );
           }
           if (from < 20) {
@@ -741,6 +764,34 @@ class AppDatabase extends _$AppDatabase {
             );
             await customStatement(
               'ALTER TABLE stories ADD COLUMN server_deleted_at DATETIME',
+            );
+          }
+          if (from < 25) {
+            await _addColumnIfMissing(
+              tableName: 'timeline_projection_local',
+              columnName: 'display_order',
+              definition: 'REAL',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS timeline_projection_local_trip_display_order_idx
+              ON timeline_projection_local (trip_local_id, display_order DESC)
+              ''',
+            );
+            if (!await _tableExists('route_segment_claim_local')) {
+              await m.createTable(routeSegmentClaimLocal);
+            }
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_segment_claim_local_trip_segment_idx
+              ON route_segment_claim_local (trip_local_id, route_segment_key)
+              ''',
+            );
+            await customStatement(
+              '''
+              CREATE INDEX IF NOT EXISTS route_segment_claim_local_trip_manual_route_idx
+              ON route_segment_claim_local (trip_local_id, manual_route_id)
+              ''',
             );
           }
         },

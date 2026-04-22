@@ -40,8 +40,8 @@ class V2LocalTimelineCompiler {
         _routePointRepository = routePointRepository,
         _now = now ?? DateTime.now;
 
-  static const int compilerVersion = 1;
-  static const int projectionSchemaVersion = 1;
+  static const int compilerVersion = 2;
+  static const int projectionSchemaVersion = 2;
   static const double routeAssociationThresholdM = 100.0;
 
   final AppDatabase _database;
@@ -219,11 +219,20 @@ class V2LocalTimelineCompiler {
         list.sort((a, b) => a.media.capturedAt.compareTo(b.media.capturedAt));
       }
 
+      final existingDisplayOrderByEntryId = requiresFullRebuild
+          ? await _projectionRepository.listDisplayOrderByEntryIdForTrip(tripId)
+          : await _projectionRepository
+              .listDisplayOrderByEntryIdForTripFromCapturedAt(
+              tripId: tripId,
+              fromCapturedAt: dirtyFrom!,
+            );
+
       final timelineRows = _buildTimelineRows(
         events: events,
         mediaByEvent: mediaByEvent,
         sessionById: sessionById,
         routeBySession: routeBySession,
+        existingDisplayOrderByEntryId: existingDisplayOrderByEntryId,
         now: now,
       );
 
@@ -713,13 +722,18 @@ class V2LocalTimelineCompiler {
     required Map<String, List<_LiveCaptureMedia>> mediaByEvent,
     required Map<String, SessionJournalRow> sessionById,
     required Map<String, V2RouteProjectionSegment> routeBySession,
+    required Map<String, double> existingDisplayOrderByEntryId,
     required DateTime now,
   }) {
     final rows = <TimelineProjectionLocalCompanion>[];
+    final handledEventIds = <String>{};
     for (final event in events) {
+      handledEventIds.add(event.eventId);
       final session = sessionById[event.sessionId];
       final routeSegment = routeBySession[event.sessionId];
       final bucket = _bucketForResolverState(event.resolverState);
+      final mediaItems =
+          mediaByEvent[event.eventId] ?? const <_LiveCaptureMedia>[];
       final routeAssociation = _resolveRouteAssociation(
         routeSegment: routeSegment,
         anchor: AppLatLng(
@@ -748,6 +762,10 @@ class V2LocalTimelineCompiler {
           title: _titleForEvent(event),
           subtitle: Value(_subtitleForEvent(event)),
           syncChipState: _syncChipStateForSession(session),
+          displayOrder: Value(
+            existingDisplayOrderByEntryId['event:${event.eventId}'] ??
+                event.capturedAt.toUtc().millisecondsSinceEpoch.toDouble(),
+          ),
           routeSegmentKey: Value(routeAssociation.segmentKey),
           routeDistanceM: Value(routeAssociation.distanceM),
           renderPayloadJson: Value(
@@ -756,6 +774,23 @@ class V2LocalTimelineCompiler {
                 'resolver_state': event.resolverState,
                 'payload_json': event.payloadJson,
                 'geotag_final_reason': event.geotagFinalReason,
+                'media': mediaItems
+                    .map(
+                      (entry) => <String, dynamic>{
+                        'media_id': entry.media.id,
+                        'media_type': entry.media.mediaType,
+                        'local_uri': entry.media.localUri,
+                        'upload_state': entry.media.uploadState,
+                        'captured_at':
+                            entry.media.capturedAt.toUtc().toIso8601String(),
+                        'mime_type': entry.media.mimeType,
+                        'bytes_size': entry.media.bytesSize,
+                        'width_px': entry.media.widthPx,
+                        'height_px': entry.media.heightPx,
+                        'duration_ms': entry.media.durationMs,
+                      },
+                    )
+                    .toList(growable: false),
               },
             ),
           ),
@@ -763,42 +798,46 @@ class V2LocalTimelineCompiler {
           compilerVersion: compilerVersion,
         ),
       );
+    }
 
-      final mediaItems =
-          mediaByEvent[event.eventId] ?? const <_LiveCaptureMedia>[];
-      for (final entry in mediaItems) {
-        final media = entry.media;
+    for (final entry in mediaByEvent.entries) {
+      if (handledEventIds.contains(entry.key)) {
+        continue;
+      }
+      for (final orphan in entry.value) {
+        final media = orphan.media;
         rows.add(
           TimelineProjectionLocalCompanion.insert(
             entryId: 'media:${media.id}',
-            tripLocalId: entry.tripLocalId,
-            sessionId: entry.sessionId,
+            tripLocalId: orphan.tripLocalId,
+            sessionId: orphan.sessionId,
             capturedAt: media.capturedAt.toUtc(),
             sourceKind: 'media',
             sourceId: media.id,
             eventType: media.mediaType,
-            bucketType: bucket,
-            placeBindKind: Value(event.placeBindKind),
-            placeBindId: Value(event.placeBindId),
-            placeBindName: Value(event.placeBindName),
-            decisionSource: Value(event.decisionSource),
-            manualLock: Value(event.manualLock),
-            anchorLatitude: event.latitude,
-            anchorLongitude: event.longitude,
+            bucketType: 'on_route',
             title: _titleForMedia(media),
             subtitle: Value(_subtitleForMedia(media)),
-            syncChipState: _syncChipStateForSession(session),
-            routeSegmentKey: Value(routeAssociation.segmentKey),
-            routeDistanceM: Value(routeAssociation.distanceM),
+            syncChipState:
+                _syncChipStateForSession(sessionById[orphan.sessionId]),
+            displayOrder: Value(
+              existingDisplayOrderByEntryId['media:${media.id}'] ??
+                  media.capturedAt.toUtc().millisecondsSinceEpoch.toDouble(),
+            ),
+            routeSegmentKey: const Value.absent(),
+            routeDistanceM: const Value.absent(),
             renderPayloadJson: Value(
               jsonEncode(
                 <String, dynamic>{
-                  'event_id': entry.eventId,
+                  'event_id': orphan.eventId,
                   'local_uri': media.localUri,
                   'upload_state': media.uploadState,
+                  'orphan_media': true,
                 },
               ),
             ),
+            anchorLatitude: 0,
+            anchorLongitude: 0,
             compiledAt: now,
             compilerVersion: compilerVersion,
           ),
@@ -928,8 +967,7 @@ class V2LocalTimelineCompiler {
     DateTime? fromCapturedAt,
   }) async {
     final variables = <Variable<Object>>[Variable<String>(tripId)];
-    final sql = StringBuffer()
-      ..write('''
+    final sql = StringBuffer()..write('''
         SELECT
           m.*,
           ma.target_local_id AS attachment_event_id,

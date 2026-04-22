@@ -18,6 +18,7 @@ import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart'
 
 class V2ResolverOrchestrator {
   V2ResolverOrchestrator({
+    required AppDatabase database,
     required V2EventJournalRepository eventRepository,
     required V2ResolverJournalRepository resolverRepository,
     required V2ResolverClient resolverClient,
@@ -26,6 +27,7 @@ class V2ResolverOrchestrator {
     Uuid? uuid,
     DateTime Function()? now,
   })  : _eventRepository = eventRepository,
+        _database = database,
         _resolverRepository = resolverRepository,
         _resolverClient = resolverClient,
         _mediaAttachmentsDao = mediaAttachmentsDao,
@@ -34,6 +36,7 @@ class V2ResolverOrchestrator {
         _now = now ?? DateTime.now;
 
   final V2EventJournalRepository _eventRepository;
+  final AppDatabase _database;
   final V2ResolverJournalRepository _resolverRepository;
   final V2ResolverClient _resolverClient;
   final MediaAttachmentsDao? _mediaAttachmentsDao;
@@ -92,25 +95,31 @@ class V2ResolverOrchestrator {
       return;
     }
     final now = _now().toUtc();
+    final canonicalBinding = await _canonicalizeProviderPoiBinding(
+      event: event,
+      providerPlaceId: candidate.providerPlaceId,
+      providerPlaceName: candidate.name,
+      now: now,
+    );
     await _eventRepository.updateResolverOutcome(
       eventId: eventId,
       resolverState: 'place_bound',
       decisionSource: 'user_accept_candidate',
       manualLock: 1,
-      placeBindKind: 'provider_poi',
-      placeBindId: candidate.providerPlaceId,
-      placeBindName: candidate.name,
+      placeBindKind: canonicalBinding.bindKind,
+      placeBindId: canonicalBinding.bindId,
+      placeBindName: canonicalBinding.bindName,
       geotagFinalReason: null,
       resolvedAt: now,
       updatedAt: now,
     );
     if (_shouldMirrorPlaceAttachment(
-      placeBindKind: 'provider_poi',
-      placeBindId: candidate.providerPlaceId,
+      placeBindKind: canonicalBinding.bindKind,
+      placeBindId: canonicalBinding.bindId,
     )) {
       await _mirrorPlaceAttachmentForEvent(
         eventId: eventId,
-        placeLocalId: candidate.providerPlaceId!,
+        placeLocalId: canonicalBinding.bindId!,
         now: now,
       );
     }
@@ -395,25 +404,33 @@ class V2ResolverOrchestrator {
         candidates: candidates,
       );
       final now = _now().toUtc();
+      final canonicalBinding = await _canonicalizeProviderPoiBinding(
+        event: refreshed,
+        providerPlaceId: decision.placeBindKind == 'provider_poi'
+            ? decision.placeBindId
+            : null,
+        providerPlaceName: decision.placeBindName,
+        now: now,
+      );
       await _eventRepository.updateResolverOutcome(
         eventId: refreshed.eventId,
         resolverState: decision.resolverState,
         decisionSource: decision.decisionSource,
-        placeBindKind: decision.placeBindKind,
-        placeBindId: decision.placeBindId,
-        placeBindName: decision.placeBindName,
+        placeBindKind: canonicalBinding.bindKind,
+        placeBindId: canonicalBinding.bindId,
+        placeBindName: canonicalBinding.bindName,
         geotagFinalReason: decision.geotagFinalReason,
         candidateSetVersion: candidateVersion,
         resolvedAt: decision.resolverState == 'place_bound' ? now : null,
         updatedAt: now,
       );
       if (_shouldMirrorPlaceAttachment(
-        placeBindKind: decision.placeBindKind,
-        placeBindId: decision.placeBindId,
+        placeBindKind: canonicalBinding.bindKind,
+        placeBindId: canonicalBinding.bindId,
       )) {
         await _mirrorPlaceAttachmentForEvent(
           eventId: refreshed.eventId,
-          placeLocalId: decision.placeBindId!,
+          placeLocalId: canonicalBinding.bindId!,
           now: now,
         );
       }
@@ -467,6 +484,168 @@ class V2ResolverOrchestrator {
   bool _isUnresolvedState(String resolverState) {
     return resolverState == 'geotag_unresolved' ||
         resolverState == 'review_required';
+  }
+
+  Future<_CanonicalPlaceBinding> _canonicalizeProviderPoiBinding({
+    required EventJournalRow event,
+    required String? providerPlaceId,
+    required String? providerPlaceName,
+    required DateTime now,
+  }) async {
+    if (providerPlaceId == null || providerPlaceId.trim().isEmpty) {
+      return _CanonicalPlaceBinding(
+        bindKind: null,
+        bindId: null,
+        bindName: providerPlaceName,
+      );
+    }
+    final normalizedProviderPlaceId = providerPlaceId.trim();
+
+    final existingLocalBinding = await _findExistingTripPlaceBindingForProvider(
+      tripLocalId: event.tripLocalId,
+      providerPlaceId: normalizedProviderPlaceId,
+    );
+    if (existingLocalBinding != null) {
+      return _CanonicalPlaceBinding(
+        bindKind: 'trip_place_local',
+        bindId: existingLocalBinding.placeLocalId,
+        bindName: existingLocalBinding.placeName ?? providerPlaceName,
+      );
+    }
+
+    final displayOrder = await _displayOrderForEvent(
+      tripLocalId: event.tripLocalId,
+      eventId: event.eventId,
+      fallbackCapturedAt: event.capturedAt,
+    );
+    final orderIndex = await _countTimelineEntriesBeforeDisplayOrder(
+      tripLocalId: event.tripLocalId,
+      displayOrder: displayOrder,
+    );
+    final placeLocalId = _uuid.v4();
+    final trimmedName = providerPlaceName?.trim();
+    final placeName = (trimmedName == null || trimmedName.isEmpty)
+        ? 'Captured place'
+        : trimmedName;
+
+    await _database.into(_database.places).insertOnConflictUpdate(
+          PlacesCompanion.insert(
+            id: placeLocalId,
+            tripId: event.tripLocalId,
+            name: placeName,
+            coordinates: AppLatLng(
+              latitude: event.latitude,
+              longitude: event.longitude,
+            ),
+            orderIndex: orderIndex,
+            dayNumber: Value((orderIndex ~/ 5) + 1),
+            placeType: const Value('place'),
+            localUpdatedAt: now,
+            serverUpdatedAt: now,
+            syncStatus: 'pending',
+          ),
+        );
+    return _CanonicalPlaceBinding(
+      bindKind: 'trip_place_local',
+      bindId: placeLocalId,
+      bindName: placeName,
+    );
+  }
+
+  Future<_ExistingTripPlaceBinding?> _findExistingTripPlaceBindingForProvider({
+    required String tripLocalId,
+    required String providerPlaceId,
+  }) async {
+    final rows = await _database.customSelect(
+      '''
+      SELECT e.place_bind_id AS place_local_id, p.name AS place_name
+      FROM event_journal e
+      INNER JOIN resolver_candidate_journal c ON c.event_id = e.event_id
+      INNER JOIN places p
+        ON p.id = e.place_bind_id
+       AND p.trip_id = e.trip_local_id
+      WHERE e.trip_local_id = ?
+        AND e.place_bind_kind = 'trip_place_local'
+        AND e.place_bind_id IS NOT NULL
+        AND c.provider_place_id = ?
+      ORDER BY COALESCE(e.resolved_at, e.updated_at) DESC
+      LIMIT 1
+      ''',
+      variables: <Variable<Object>>[
+        Variable<String>(tripLocalId),
+        Variable<String>(providerPlaceId),
+      ],
+      readsFrom: {
+        _database.eventJournal,
+        _database.resolverCandidateJournal,
+        _database.places,
+      },
+    ).get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    final placeLocalId = rows.first.read<String?>('place_local_id');
+    if (placeLocalId == null || placeLocalId.isEmpty) {
+      return null;
+    }
+    return _ExistingTripPlaceBinding(
+      placeLocalId: placeLocalId,
+      placeName: rows.first.read<String?>('place_name'),
+    );
+  }
+
+  Future<double> _displayOrderForEvent({
+    required String tripLocalId,
+    required String eventId,
+    required DateTime fallbackCapturedAt,
+  }) async {
+    final rows = await _database.customSelect(
+      '''
+      SELECT display_order
+      FROM timeline_projection_local
+      WHERE trip_local_id = ?
+        AND entry_id = ?
+      LIMIT 1
+      ''',
+      variables: <Variable<Object>>[
+        Variable<String>(tripLocalId),
+        Variable<String>('event:$eventId'),
+      ],
+      readsFrom: {
+        _database.timelineProjectionLocal,
+      },
+    ).get();
+    final existing =
+        rows.isEmpty ? null : rows.first.read<double?>('display_order');
+    if (existing != null) {
+      return existing;
+    }
+    return fallbackCapturedAt.toUtc().millisecondsSinceEpoch.toDouble();
+  }
+
+  Future<int> _countTimelineEntriesBeforeDisplayOrder({
+    required String tripLocalId,
+    required double displayOrder,
+  }) async {
+    final row = await _database.customSelect(
+      '''
+      SELECT COUNT(1) AS count_before
+      FROM timeline_projection_local
+      WHERE trip_local_id = ?
+        AND COALESCE(
+          display_order,
+          CAST(strftime('%s', captured_at) AS REAL) * 1000.0
+        ) < ?
+      ''',
+      variables: <Variable<Object>>[
+        Variable<String>(tripLocalId),
+        Variable<double>(displayOrder),
+      ],
+      readsFrom: {
+        _database.timelineProjectionLocal,
+      },
+    ).getSingle();
+    return row.read<int>('count_before');
   }
 
   bool _shouldMirrorPlaceAttachment({
@@ -570,4 +749,26 @@ class V2ResolverOrchestrator {
       errorMessage: errorMessage,
     );
   }
+}
+
+class _CanonicalPlaceBinding {
+  const _CanonicalPlaceBinding({
+    required this.bindKind,
+    required this.bindId,
+    required this.bindName,
+  });
+
+  final String? bindKind;
+  final String? bindId;
+  final String? bindName;
+}
+
+class _ExistingTripPlaceBinding {
+  const _ExistingTripPlaceBinding({
+    required this.placeLocalId,
+    required this.placeName,
+  });
+
+  final String placeLocalId;
+  final String? placeName;
 }

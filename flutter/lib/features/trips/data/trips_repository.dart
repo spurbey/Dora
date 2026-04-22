@@ -3,13 +3,16 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 import 'package:dora/core/storage/drift_database.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
 import 'package:dora/features/trips/data/models/user_trip.dart';
 import 'package:dora/features/trips/data/trips_api.dart';
 
@@ -46,13 +49,16 @@ class TripsRepository {
     this._authService,
     this._liveTrackingApi, {
     Future<void> Function(String tripId)? enqueueEditorMediaForPublish,
-  }) : _enqueueEditorMediaForPublish = enqueueEditorMediaForPublish;
+    Future<void> Function(String tripId)? materializeEditorGraphForPublish,
+  })  : _enqueueEditorMediaForPublish = enqueueEditorMediaForPublish,
+        _materializeEditorGraphForPublish = materializeEditorGraphForPublish;
 
   final AppDatabase _db;
   final TripsApi _api;
   final AuthService _authService;
   final LiveTrackingApi _liveTrackingApi;
   final Future<void> Function(String tripId)? _enqueueEditorMediaForPublish;
+  final Future<void> Function(String tripId)? _materializeEditorGraphForPublish;
 
   static const int _pageSize = 50;
 
@@ -256,13 +262,25 @@ class TripsRepository {
         message: _humanizeError(e),
       );
     }
+    try {
+      await _materializeEditorGraphForPublish?.call(id);
+    } catch (e) {
+      return TripPublishActionResult(
+        ok: false,
+        message: 'Save failed. ${_humanizeError(e)}',
+      );
+    }
     final mediaManifest = await _buildMediaManifest(snapshot.mediaRows);
     final mediaManifestPayload =
         mediaManifest.map((item) => item.toManifestPayload()).toList();
     final mediaManifestDigest = _sha256Hex(
       _canonicalJson(mediaManifestPayload),
     );
-    final publishJobId = 'save_${const Uuid().v4()}';
+    final previousPublishState = await _db.tripPublishStateDao.getState(id);
+    final publishJobId = _resolvePublishJobIdForSave(
+      previousPublishState: previousPublishState,
+      fallbackJobId: 'save_${const Uuid().v4()}',
+    );
     final now = DateTime.now().toUtc();
     await _upsertTripPublishState(
       id,
@@ -289,8 +307,7 @@ class TripsRepository {
           'payload_bytes': snapshot.payloadBytes,
           if (snapshot.startedAt != null)
             'started_at': _isoUtc(snapshot.startedAt!),
-          if (snapshot.endedAt != null)
-            'ended_at': _isoUtc(snapshot.endedAt!),
+          if (snapshot.endedAt != null) 'ended_at': _isoUtc(snapshot.endedAt!),
         },
         mediaManifest: mediaManifestPayload,
         mediaManifestDigest: mediaManifestDigest,
@@ -350,6 +367,10 @@ class TripsRepository {
         publishToken: publishToken,
         clientJobId: publishJobId,
         schemaVersion: _v2PublishSchemaVersion,
+      );
+      await _mirrorServerProjectionAfterCommit(
+        localTripId: id,
+        remoteTripId: remoteTripId,
       );
 
       await _upsertTripPublishState(
@@ -502,8 +523,7 @@ class TripsRepository {
               ),
             ))
           .go();
-      await (_db.delete(_db.media)
-            ..where((m) => m.ownerUserId.equals(userId)))
+      await (_db.delete(_db.media)..where((m) => m.ownerUserId.equals(userId)))
           .go();
       await (_db.delete(_db.trips)..where((t) => t.userId.equals(userId))).go();
     });
@@ -703,6 +723,346 @@ class TripsRepository {
   Future<String?> _currentSnapshotDigest(String tripLocalId) async {
     final snapshot = await _buildSnapshotPayload(tripLocalId);
     return snapshot.snapshotDigest;
+  }
+
+  V2LocalProjectionRepository _projectionRepository() {
+    return V2LocalProjectionRepository(
+      timelineDao: _db.timelineProjectionLocalDao,
+      routeDao: _db.routeProjectionLocalDao,
+      cursorDao: _db.timelineCompileCursorDao,
+    );
+  }
+
+  Future<void> _mirrorServerProjectionAfterCommit({
+    required String localTripId,
+    required String remoteTripId,
+  }) async {
+    final timelinePayload = await _fetchServerTimeline(remoteTripId);
+    final routePayload = await _fetchServerRoute(remoteTripId);
+    final compilerVersion = _asInt(timelinePayload['compiler_version']) ?? 1;
+    final compiledAt =
+        _asDateTime(timelinePayload['compiled_at']) ?? DateTime.now().toUtc();
+
+    final timelineRows = _buildTimelineRowsFromServer(
+      localTripId: localTripId,
+      timelinePayload: timelinePayload,
+      compilerVersion: compilerVersion,
+      compiledAt: compiledAt,
+    );
+    final routeRows = _buildRouteRowsFromServer(
+      localTripId: localTripId,
+      routePayload: routePayload,
+      compilerVersion:
+          _asInt(routePayload['compiler_version']) ?? compilerVersion,
+      compiledAt: _asDateTime(routePayload['compiled_at']) ?? compiledAt,
+    );
+    await _projectionRepository().upsertFromServerProjection(
+      tripId: localTripId,
+      timelineRows: timelineRows,
+      routeRows: routeRows,
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchServerTimeline(String remoteTripId) async {
+    final allEntries = <Map<String, dynamic>>[];
+    String? cursor;
+    DateTime? compiledAt;
+    int? compilerVersion;
+    for (;;) {
+      final page = await _liveTrackingApi.getTimelineV2(
+        tripId: remoteTripId,
+        cursor: cursor,
+        limit: 200,
+      );
+      final pageEntries = page['entries'];
+      if (pageEntries is List) {
+        allEntries.addAll(
+          pageEntries.whereType<Map>().map(
+                (entry) => entry.map(
+                  (key, value) => MapEntry(key.toString(), value),
+                ),
+              ),
+        );
+      }
+      cursor = _asString(page['next_cursor']);
+      compiledAt = _asDateTime(page['compiled_at']) ?? compiledAt;
+      compilerVersion = _asInt(page['compiler_version']) ?? compilerVersion;
+      final hasMore = page['has_more'] == true;
+      if (!hasMore || cursor == null || cursor.isEmpty) {
+        break;
+      }
+    }
+    return <String, dynamic>{
+      'entries': allEntries,
+      'compiled_at': compiledAt?.toUtc().toIso8601String(),
+      'compiler_version': compilerVersion ?? 1,
+    };
+  }
+
+  Future<Map<String, dynamic>> _fetchServerRoute(String remoteTripId) async {
+    final allSegments = <Map<String, dynamic>>[];
+    String? cursor;
+    DateTime? compiledAt;
+    int? compilerVersion;
+    for (;;) {
+      final page = await _liveTrackingApi.getRouteV2(
+        tripId: remoteTripId,
+        cursor: cursor,
+        limitSegments: 20,
+      );
+      final pageSegments = page['segments'];
+      if (pageSegments is List) {
+        allSegments.addAll(
+          pageSegments.whereType<Map>().map(
+                (segment) => segment.map(
+                  (key, value) => MapEntry(key.toString(), value),
+                ),
+              ),
+        );
+      }
+      cursor = _asString(page['next_cursor']);
+      compiledAt = _asDateTime(page['compiled_at']) ?? compiledAt;
+      compilerVersion = _asInt(page['compiler_version']) ?? compilerVersion;
+      final hasMore = page['has_more'] == true;
+      if (!hasMore || cursor == null || cursor.isEmpty) {
+        break;
+      }
+    }
+    return <String, dynamic>{
+      'segments': allSegments,
+      'compiled_at': compiledAt?.toUtc().toIso8601String(),
+      'compiler_version': compilerVersion ?? 1,
+    };
+  }
+
+  List<TimelineProjectionLocalCompanion> _buildTimelineRowsFromServer({
+    required String localTripId,
+    required Map<String, dynamic> timelinePayload,
+    required int compilerVersion,
+    required DateTime compiledAt,
+  }) {
+    final entries = timelinePayload['entries'];
+    if (entries is! List) {
+      return const <TimelineProjectionLocalCompanion>[];
+    }
+    final rows = <TimelineProjectionLocalCompanion>[];
+    for (final rawEntry in entries.whereType<Map>()) {
+      final entry = rawEntry.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final entryId = _asString(entry['entry_id']);
+      final sourceId = _asString(entry['source_server_id']);
+      final capturedAt = _asDateTime(entry['captured_at']);
+      final anchorLat = _asDouble(entry['anchor_latitude']);
+      final anchorLon = _asDouble(entry['anchor_longitude']);
+      final sessionServerId = _asString(entry['session_server_id']);
+      if (entryId == null ||
+          sourceId == null ||
+          capturedAt == null ||
+          anchorLat == null ||
+          anchorLon == null) {
+        continue;
+      }
+      final entryKind = _asString(entry['entry_kind']) ?? 'event';
+      final renderPayload = entry['render_payload_json'];
+      final eventTypeFromPayload =
+          renderPayload is Map ? _asString(renderPayload['event_type']) : null;
+      rows.add(
+        TimelineProjectionLocalCompanion.insert(
+          entryId: entryId,
+          tripLocalId: localTripId,
+          sessionId: sessionServerId ?? 'server_projection',
+          capturedAt: capturedAt.toUtc(),
+          sourceKind: entryKind,
+          sourceId: sourceId,
+          eventType: eventTypeFromPayload ?? entryKind,
+          bucketType: _asString(entry['bucket_type']) ?? 'on_route',
+          placeBindKind: Value(
+            _asString(entry['place_bind_id']) == null
+                ? null
+                : 'trip_place_remote',
+          ),
+          placeBindId: Value(_asString(entry['place_bind_id'])),
+          placeBindName: Value(_asString(entry['place_bind_name'])),
+          decisionSource: Value(_asString(entry['decision_source'])),
+          manualLock: Value(entry['manual_lock'] == true ? 1 : 0),
+          anchorLatitude: anchorLat,
+          anchorLongitude: anchorLon,
+          title: _asString(entry['title']) ?? 'Capture',
+          subtitle: Value(_asString(entry['subtitle'])),
+          syncChipState: 'committed',
+          displayOrder:
+              Value(capturedAt.toUtc().millisecondsSinceEpoch.toDouble()),
+          routeSegmentKey: Value(_asString(entry['route_segment_key'])),
+          routeDistanceM: Value(_asDouble(entry['route_distance_m'])),
+          renderPayloadJson: Value(_jsonOrNull(renderPayload)),
+          compiledAt: compiledAt.toUtc(),
+          compilerVersion: compilerVersion,
+        ),
+      );
+    }
+    return rows;
+  }
+
+  List<RouteProjectionLocalCompanion> _buildRouteRowsFromServer({
+    required String localTripId,
+    required Map<String, dynamic> routePayload,
+    required int compilerVersion,
+    required DateTime compiledAt,
+  }) {
+    final segments = routePayload['segments'];
+    if (segments is! List) {
+      return const <RouteProjectionLocalCompanion>[];
+    }
+    final rows = <RouteProjectionLocalCompanion>[];
+    for (final rawSegment in segments.whereType<Map>()) {
+      final segment = rawSegment.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final segmentKey = _asString(segment['segment_key']);
+      final sessionId = _asString(segment['session_server_id']);
+      final startedAt = _asDateTime(segment['started_at']);
+      final endedAt = _asDateTime(segment['ended_at']);
+      final pointsRaw = segment['points'];
+      if (segmentKey == null ||
+          sessionId == null ||
+          startedAt == null ||
+          endedAt == null ||
+          pointsRaw is! List) {
+        continue;
+      }
+      final geometry = <AppLatLng>[];
+      for (final point in pointsRaw.whereType<Map>()) {
+        final lat = _asDouble(point['latitude']);
+        final lon = _asDouble(point['longitude']);
+        if (lat == null || lon == null) {
+          continue;
+        }
+        geometry.add(AppLatLng(latitude: lat, longitude: lon));
+      }
+      if (geometry.length < 2) {
+        continue;
+      }
+      var minLat = geometry.first.latitude;
+      var maxLat = geometry.first.latitude;
+      var minLon = geometry.first.longitude;
+      var maxLon = geometry.first.longitude;
+      for (final point in geometry.skip(1)) {
+        minLat = math.min(minLat, point.latitude);
+        maxLat = math.max(maxLat, point.latitude);
+        minLon = math.min(minLon, point.longitude);
+        maxLon = math.max(maxLon, point.longitude);
+      }
+
+      rows.add(
+        RouteProjectionLocalCompanion.insert(
+          segmentKey: segmentKey,
+          tripLocalId: localTripId,
+          sessionId: sessionId,
+          startedAt: startedAt.toUtc(),
+          endedAt: endedAt.toUtc(),
+          pointsCount: _asInt(segment['point_count']) ?? geometry.length,
+          distanceM: _pathDistanceMeters(geometry),
+          bboxMinLat: minLat,
+          bboxMinLon: minLon,
+          bboxMaxLat: maxLat,
+          bboxMaxLon: maxLon,
+          geometryJson: jsonEncode(
+            geometry
+                .map(
+                  (point) => <String, dynamic>{
+                    'lat': point.latitude,
+                    'lon': point.longitude,
+                  },
+                )
+                .toList(growable: false),
+          ),
+          updatedAt: compiledAt.toUtc(),
+          compilerVersion: compilerVersion,
+        ),
+      );
+    }
+    return rows;
+  }
+
+  double _pathDistanceMeters(List<AppLatLng> points) {
+    if (points.length < 2) {
+      return 0;
+    }
+    var distance = 0.0;
+    for (var i = 1; i < points.length; i += 1) {
+      distance += _haversineMeters(points[i - 1], points[i]);
+    }
+    return distance;
+  }
+
+  double _haversineMeters(AppLatLng a, AppLatLng b) {
+    const radiusM = 6371000.0;
+    final dLat = _degToRad(b.latitude - a.latitude);
+    final dLon = _degToRad(b.longitude - a.longitude);
+    final lat1 = _degToRad(a.latitude);
+    final lat2 = _degToRad(b.latitude);
+    final h = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+    final c = 2 * math.atan2(math.sqrt(h), math.sqrt(1 - h));
+    return radiusM * c;
+  }
+
+  double _degToRad(double deg) => deg * math.pi / 180.0;
+
+  DateTime? _asDateTime(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is DateTime) {
+      return value.toUtc();
+    }
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value)?.toUtc();
+    }
+    return null;
+  }
+
+  String? _asString(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return int.tryParse(value.toString());
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    return double.tryParse(value.toString());
+  }
+
+  String? _jsonOrNull(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return jsonEncode(value);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<_TripSnapshotPayload> _buildSnapshotPayload(String tripLocalId) async {
@@ -1161,11 +1521,95 @@ class TripsRepository {
       value == null ? null : _isoUtc(value);
 
   String _humanizeError(Object error) {
+    if (error is DioException) {
+      return _humanizeDioError(error);
+    }
     final raw = error.toString();
-    if (raw.isEmpty) {
+    if (raw.trim().isEmpty) {
       return 'Please retry.';
     }
+    final normalized = raw.toLowerCase();
+    if (normalized.contains('bucket not found')) {
+      return 'Media storage bucket was not found. '
+          'Configure the bucket and retry save.';
+    }
     return raw;
+  }
+
+  String _humanizeDioError(DioException error) {
+    final statusCode = error.response?.statusCode;
+    final errorCode = _extractErrorCode(error.response?.data);
+    final detail = _extractErrorDetail(error.response?.data);
+    final normalizedDetail = detail.toLowerCase();
+
+    if (statusCode == 409 && errorCode == 'active_publish_exists') {
+      return 'A previous save is already active for this trip. '
+          'Retry save to resume the same publish attempt.';
+    }
+    if (statusCode == 409 && errorCode == 'idempotency_conflict') {
+      return 'Save request conflicted with an existing publish attempt. '
+          'Retry after the current save settles.';
+    }
+    if (normalizedDetail.contains('bucket not found')) {
+      return 'Media storage bucket was not found. '
+          'Configure the bucket and retry save.';
+    }
+    if (statusCode != null) {
+      return 'Request failed (status $statusCode): $detail';
+    }
+    return error.message ?? detail;
+  }
+
+  String _extractErrorCode(Object? payload) {
+    if (payload is Map) {
+      final detail = payload['detail'];
+      if (detail is Map) {
+        final code = detail['error_code'];
+        if (code is String && code.trim().isNotEmpty) {
+          return code.trim();
+        }
+      }
+      final code = payload['error_code'];
+      if (code is String && code.trim().isNotEmpty) {
+        return code.trim();
+      }
+    }
+    return '';
+  }
+
+  String _extractErrorDetail(Object? payload) {
+    if (payload is Map) {
+      final detail = payload['detail'];
+      if (detail is String && detail.trim().isNotEmpty) {
+        return detail.trim();
+      }
+      if (detail is Map) {
+        final message = detail['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+    }
+    if (payload is String && payload.trim().isNotEmpty) {
+      return payload.trim();
+    }
+    return 'Unknown backend error';
+  }
+
+  String _resolvePublishJobIdForSave({
+    required TripPublishStateRow? previousPublishState,
+    required String fallbackJobId,
+  }) {
+    final state = previousPublishState?.publishState;
+    final existingJobId = previousPublishState?.publishJobId?.trim();
+    final canResumeExisting = (state == kPublishStatePublishing ||
+            state == kPublishStateFailedRetryable) &&
+        existingJobId != null &&
+        existingJobId.isNotEmpty;
+    if (canResumeExisting) {
+      return existingJobId;
+    }
+    return fallbackJobId;
   }
 
   Future<void> _upsertTripPublishState(

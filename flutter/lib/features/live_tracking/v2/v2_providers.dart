@@ -9,6 +9,8 @@ import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_projection_repository.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_local_timeline_compiler.dart';
 import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_route_segment_claim_projector.dart';
+import 'package:dora/features/live_tracking/v2/compiler/v2_route_segment_claim_repository.dart';
 import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_models.dart';
 import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_orchestrator.dart';
 import 'package:dora/features/live_tracking/v2/commit/v2_session_commit_repository.dart';
@@ -73,6 +75,7 @@ final v2ResolverDecisionReducerProvider =
 
 final v2ResolverOrchestratorProvider = Provider<V2ResolverOrchestrator>((ref) {
   return V2ResolverOrchestrator(
+    database: ref.watch(appDatabaseProvider),
     eventRepository: ref.watch(v2EventJournalRepositoryProvider),
     resolverRepository: ref.watch(v2ResolverJournalRepositoryProvider),
     resolverClient: ref.watch(v2ResolverClientProvider),
@@ -87,6 +90,22 @@ final v2LocalProjectionRepositoryProvider =
     timelineDao: ref.watch(v2TimelineProjectionLocalDaoProvider),
     routeDao: ref.watch(v2RouteProjectionLocalDaoProvider),
     cursorDao: ref.watch(v2TimelineCompileCursorDaoProvider),
+  );
+});
+
+final v2RouteSegmentClaimRepositoryProvider =
+    Provider<V2RouteSegmentClaimRepository>((ref) {
+  return V2RouteSegmentClaimRepository(
+    claimDao: ref.watch(v2RouteSegmentClaimLocalDaoProvider),
+  );
+});
+
+final v2RouteSegmentClaimProjectorProvider =
+    Provider<V2RouteSegmentClaimProjector>((ref) {
+  return V2RouteSegmentClaimProjector(
+    database: ref.watch(appDatabaseProvider),
+    projectionRepository: ref.watch(v2LocalProjectionRepositoryProvider),
+    claimRepository: ref.watch(v2RouteSegmentClaimRepositoryProvider),
   );
 });
 
@@ -141,39 +160,139 @@ final v2ProjectionRefreshSignalProvider =
     '''
     SELECT
       (SELECT MAX(updated_at)
+       FROM event_journal
+       WHERE trip_local_id = ?) AS max_event_updated_at,
+      (SELECT COUNT(1)
+       FROM event_journal
+       WHERE trip_local_id = ?) AS event_count,
+      (SELECT MAX(updated_at)
        FROM session_journal
-       WHERE trip_local_id = ?
-         AND control_state = 'sealed') AS max_sealed_session_updated_at,
-      (SELECT GROUP_CONCAT(session_id, '|')
+       WHERE trip_local_id = ?) AS max_session_updated_at,
+      (SELECT COUNT(1)
        FROM session_journal
-       WHERE trip_local_id = ?
-         AND control_state = 'sealed') AS sealed_session_ids
+       WHERE trip_local_id = ?) AS session_count,
+      (SELECT MAX(captured_at)
+       FROM route_point_journal
+       WHERE trip_local_id = ?) AS max_point_captured_at,
+      (SELECT COUNT(1)
+       FROM route_point_journal
+       WHERE trip_local_id = ?) AS point_count,
+      (SELECT MAX(m.updated_at)
+       FROM media m
+       INNER JOIN media_attachments ma ON ma.media_id = m.id
+       INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+       WHERE ma.target_kind = 'trip_event'
+         AND ma.role = 'capture'
+         AND ma.detached_at IS NULL
+         AND m.deleted_at IS NULL
+         AND e.trip_local_id = ?) AS max_media_updated_at,
+      (SELECT COUNT(1)
+       FROM media m
+       INNER JOIN media_attachments ma ON ma.media_id = m.id
+       INNER JOIN event_journal e ON e.event_id = ma.target_local_id
+       WHERE ma.target_kind = 'trip_event'
+         AND ma.role = 'capture'
+          AND ma.detached_at IS NULL
+          AND m.deleted_at IS NULL
+          AND e.trip_local_id = ?) AS media_count,
+      (SELECT MAX(rc.created_at)
+       FROM resolver_candidate_journal rc
+       INNER JOIN event_journal e ON e.event_id = rc.event_id
+       WHERE e.trip_local_id = ?) AS max_resolver_candidate_created_at,
+      (SELECT COUNT(1)
+       FROM resolver_candidate_journal rc
+       INNER JOIN event_journal e ON e.event_id = rc.event_id
+       WHERE e.trip_local_id = ?) AS resolver_candidate_count,
+      (SELECT MAX(COALESCE(ra.finished_at, ra.started_at))
+       FROM resolver_attempt_journal ra
+       INNER JOIN event_journal e ON e.event_id = ra.event_id
+       WHERE e.trip_local_id = ?) AS max_resolver_attempt_updated_at,
+      (SELECT COUNT(1)
+       FROM resolver_attempt_journal ra
+       INNER JOIN event_journal e ON e.event_id = ra.event_id
+       WHERE e.trip_local_id = ?) AS resolver_attempt_count
     ''',
     variables: [
       Variable<String>(tripId),
       Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
     ],
     readsFrom: {
+      db.eventJournal,
       db.sessionJournal,
+      db.routePointJournal,
+      db.media,
+      db.mediaAttachments,
+      db.resolverCandidateJournal,
+      db.resolverAttemptJournal,
     },
   );
 
   return query
       .watchSingle()
       .map((row) {
-        final maxSealedUpdatedAt =
-            row.data['max_sealed_session_updated_at']?.toString() ?? '';
-        final sealedSessionIds =
-            row.data['sealed_session_ids']?.toString() ?? '';
-        if (maxSealedUpdatedAt.isEmpty && sealedSessionIds.isEmpty) {
+        final maxEventUpdatedAt =
+            row.data['max_event_updated_at']?.toString() ?? '';
+        final eventCount = row.data['event_count']?.toString() ?? '0';
+        final maxSessionUpdatedAt =
+            row.data['max_session_updated_at']?.toString() ?? '';
+        final sessionCount = row.data['session_count']?.toString() ?? '0';
+        final maxPointCapturedAt =
+            row.data['max_point_captured_at']?.toString() ?? '';
+        final pointCount = row.data['point_count']?.toString() ?? '0';
+        final maxMediaUpdatedAt =
+            row.data['max_media_updated_at']?.toString() ?? '';
+        final mediaCount = row.data['media_count']?.toString() ?? '0';
+        final maxResolverCandidateCreatedAt =
+            row.data['max_resolver_candidate_created_at']?.toString() ?? '';
+        final resolverCandidateCount =
+            row.data['resolver_candidate_count']?.toString() ?? '0';
+        final maxResolverAttemptUpdatedAt =
+            row.data['max_resolver_attempt_updated_at']?.toString() ?? '';
+        final resolverAttemptCount =
+            row.data['resolver_attempt_count']?.toString() ?? '0';
+        if (maxEventUpdatedAt.isEmpty &&
+            maxSessionUpdatedAt.isEmpty &&
+            maxPointCapturedAt.isEmpty &&
+            maxMediaUpdatedAt.isEmpty &&
+            maxResolverCandidateCreatedAt.isEmpty &&
+            maxResolverAttemptUpdatedAt.isEmpty &&
+            eventCount == '0' &&
+            sessionCount == '0' &&
+            pointCount == '0' &&
+            mediaCount == '0' &&
+            resolverCandidateCount == '0' &&
+            resolverAttemptCount == '0') {
           return 0;
         }
-        return Object.hash(maxSealedUpdatedAt, sealedSessionIds);
+        return Object.hash(
+          maxEventUpdatedAt,
+          eventCount,
+          maxSessionUpdatedAt,
+          sessionCount,
+          maxPointCapturedAt,
+          pointCount,
+          maxMediaUpdatedAt,
+          mediaCount,
+          maxResolverCandidateCreatedAt,
+          resolverCandidateCount,
+          maxResolverAttemptUpdatedAt,
+          resolverAttemptCount,
+        );
       })
       .distinct()
       .transform(
         const _TrailingDebounceStreamTransformer<int>(
-          Duration(milliseconds: 300),
+          Duration(milliseconds: 1500),
         ),
       );
 });
@@ -183,15 +302,31 @@ final v2ProjectionCompileDriverProvider =
   final compiler = ref.watch(v2LocalTimelineCompilerProvider);
   final refreshStream = ref.watch(v2ProjectionRefreshSignalProvider(tripId));
   var disposed = false;
+  var compileInFlight = false;
+  var compileQueued = false;
 
   Future<void> runCompile({String? reason}) async {
     if (disposed) {
       return;
     }
+    if (compileInFlight) {
+      compileQueued = true;
+      return;
+    }
+    compileInFlight = true;
+    var nextReason = reason;
     try {
-      await compiler.compileTrip(tripId: tripId, reason: reason);
-    } catch (_) {
-      // Keep projection watchers alive even if one compile run fails.
+      do {
+        compileQueued = false;
+        try {
+          await compiler.compileTrip(tripId: tripId, reason: nextReason);
+        } catch (_) {
+          // Keep projection watchers alive even if one compile run fails.
+        }
+        nextReason = 'local_source_refresh';
+      } while (!disposed && compileQueued);
+    } finally {
+      compileInFlight = false;
     }
   }
 
@@ -200,11 +335,105 @@ final v2ProjectionCompileDriverProvider =
       if (signal == 0) {
         return;
       }
-      unawaited(runCompile(reason: 'sealed_session_refresh'));
+      unawaited(runCompile(reason: 'local_source_refresh'));
     },
     onError: (_, __) {
       // No-op: compile remains best-effort for provider consumers.
     },
+  );
+  ref.onDispose(() async {
+    disposed = true;
+    await sub.cancel();
+  });
+});
+
+final v2RouteSegmentClaimRefreshSignalProvider =
+    Provider.autoDispose.family<Stream<int>, String>((ref, tripId) {
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.customSelect(
+    '''
+    SELECT
+      (SELECT MAX(local_updated_at)
+       FROM routes
+       WHERE trip_id = ?) AS max_route_updated_at,
+      (SELECT COUNT(1)
+       FROM routes
+       WHERE trip_id = ?) AS route_count,
+      (SELECT MAX(updated_at)
+       FROM route_projection_local
+       WHERE trip_local_id = ?) AS max_segment_updated_at,
+      (SELECT COUNT(1)
+       FROM route_projection_local
+       WHERE trip_local_id = ?) AS segment_count
+    ''',
+    variables: [
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+      Variable<String>(tripId),
+    ],
+    readsFrom: {
+      db.routes,
+      db.routeProjectionLocal,
+    },
+  );
+
+  return query
+      .watchSingle()
+      .map((row) {
+        final maxRouteUpdatedAt =
+            row.data['max_route_updated_at']?.toString() ?? '';
+        final routeCount = row.data['route_count']?.toString() ?? '0';
+        final maxSegmentUpdatedAt =
+            row.data['max_segment_updated_at']?.toString() ?? '';
+        final segmentCount = row.data['segment_count']?.toString() ?? '0';
+        if (maxRouteUpdatedAt.isEmpty &&
+            maxSegmentUpdatedAt.isEmpty &&
+            routeCount == '0' &&
+            segmentCount == '0') {
+          return 0;
+        }
+        return Object.hash(
+          maxRouteUpdatedAt,
+          routeCount,
+          maxSegmentUpdatedAt,
+          segmentCount,
+        );
+      })
+      .distinct()
+      .transform(
+        const _TrailingDebounceStreamTransformer<int>(
+          Duration(milliseconds: 600),
+        ),
+      );
+});
+
+final v2RouteSegmentClaimCompileDriverProvider =
+    Provider.autoDispose.family<void, String>((ref, tripId) {
+  final projector = ref.watch(v2RouteSegmentClaimProjectorProvider);
+  final refreshStream =
+      ref.watch(v2RouteSegmentClaimRefreshSignalProvider(tripId));
+  var disposed = false;
+
+  Future<void> runProjector() async {
+    if (disposed) {
+      return;
+    }
+    try {
+      await projector.projectTripClaims(tripId);
+    } catch (_) {
+      // Keep claim projection best-effort to avoid interrupting map/timeline.
+    }
+  }
+
+  final sub = refreshStream.listen(
+    (signal) {
+      if (signal == 0) {
+        return;
+      }
+      unawaited(runProjector());
+    },
+    onError: (_, __) {},
   );
   ref.onDispose(() async {
     disposed = true;
@@ -230,6 +459,13 @@ final v2RouteProjectionProvider =
   ref.watch(v2ProjectionCompileDriverProvider(tripId));
   final repository = ref.watch(v2LocalProjectionRepositoryProvider);
   return repository.watchRouteSegments(tripId);
+});
+
+final v2ClaimedRouteSegmentKeysProvider =
+    StreamProvider.autoDispose.family<Set<String>, String>((ref, tripId) {
+  ref.watch(v2RouteSegmentClaimCompileDriverProvider(tripId));
+  final repository = ref.watch(v2RouteSegmentClaimRepositoryProvider);
+  return repository.watchClaimedSegmentKeys(tripId);
 });
 
 final v2TimelineGroupsProvider = Provider.autoDispose
@@ -269,7 +505,7 @@ List<V2TimelineDayGroup> _groupTimelineByDayAndSession(
   for (final day in sortedDays) {
     final dayEntries = byDay[day]!
       ..sort(
-        (a, b) => b.capturedAt.compareTo(a.capturedAt),
+        (a, b) => b.displayOrder.compareTo(a.displayOrder),
       );
     final bySession = <String, List<V2TimelineProjectionEntry>>{};
     for (final entry in dayEntries) {
@@ -279,8 +515,15 @@ List<V2TimelineDayGroup> _groupTimelineByDayAndSession(
     }
     final sortedSessionIds = bySession.keys.toList()
       ..sort((a, b) {
-        final aTop = bySession[a]!.first.capturedAt;
         final bTop = bySession[b]!.first.capturedAt;
+        final aTop = bySession[a]!.first.capturedAt;
+        final byOrder = bySession[b]!
+            .first
+            .displayOrder
+            .compareTo(bySession[a]!.first.displayOrder);
+        if (byOrder != 0) {
+          return byOrder;
+        }
         return bTop.compareTo(aTop);
       });
     final sessions = sortedSessionIds

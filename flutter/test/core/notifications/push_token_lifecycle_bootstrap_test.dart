@@ -145,6 +145,24 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }
 
   @override
+  Future<Map<String, dynamic>> getTimelineV2({
+    required String tripId,
+    String? cursor,
+    int limit = 200,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Map<String, dynamic>> getRouteV2({
+    required String tripId,
+    String? cursor,
+    int limitSegments = 20,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Map<String, dynamic>> uploadTrackingMediaBinary({
     required String tripId,
     required String filePath,
@@ -161,7 +179,6 @@ class _FakeLiveTrackingApi implements LiveTrackingApi {
   }) {
     throw UnimplementedError();
   }
-
 }
 
 class _FakePushTokenClient implements PushTokenClient {

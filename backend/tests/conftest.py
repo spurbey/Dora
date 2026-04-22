@@ -22,6 +22,7 @@ import pytest
 from uuid import uuid4
 
 os.environ.setdefault("V2_STORAGE_REQUIRE_EXISTENCE_CHECK", "false")
+os.environ.setdefault("V2_ROUTE_MAP_MATCH_ENABLED", "false")
 
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient

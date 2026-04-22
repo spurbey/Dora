@@ -22,7 +22,7 @@ final userTripsApiProvider = AutoDisposeProvider<TripsApi>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef UserTripsApiRef = AutoDisposeProviderRef<TripsApi>;
-String _$tripsRepositoryHash() => r'e53087286bc79e566ee6d8cd8432ef9a39f7fff9';
+String _$tripsRepositoryHash() => r'366a477d71ca6c4ac5c1470be3879997371a74c6';
 
 /// See also [tripsRepository].
 @ProviderFor(tripsRepository)

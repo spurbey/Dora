@@ -25,14 +25,20 @@ class V2StorageService:
     """Issue deterministic upload targets without coupling callers to Supabase URLs."""
 
     STORAGE_PROVIDER = "supabase"
-    BUCKET = "tracking-v2"
+    DEFAULT_BUCKET = "photos"
 
-    def __init__(self, require_existence_check: Optional[bool] = None):
+    def __init__(
+        self,
+        require_existence_check: Optional[bool] = None,
+        bucket: Optional[str] = None,
+    ):
         self.require_existence_check = (
             settings.V2_STORAGE_REQUIRE_EXISTENCE_CHECK
             if require_existence_check is None
             else bool(require_existence_check)
         )
+        resolved_bucket = (bucket or settings.V2_STORAGE_BUCKET).strip()
+        self.bucket = resolved_bucket if resolved_bucket else self.DEFAULT_BUCKET
         self._storage_service: Optional[StorageService] = None
 
     def build_upload_target(
@@ -44,12 +50,12 @@ class V2StorageService:
         client_media_id: str,
     ) -> V2UploadTarget:
         object_key = f"{user_id}/{trip_id}/{session_commit_token}/{client_media_id}"
-        storage_ref = f"storage://{self.STORAGE_PROVIDER}/{self.BUCKET}/{object_key}"
+        storage_ref = f"storage://{self.STORAGE_PROVIDER}/{self.bucket}/{object_key}"
         return V2UploadTarget(
             client_media_id=client_media_id,
             storage_provider=self.STORAGE_PROVIDER,
             storage_ref=storage_ref,
-            bucket=self.BUCKET,
+            bucket=self.bucket,
             object_key=object_key,
         )
 

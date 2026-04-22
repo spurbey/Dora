@@ -176,6 +176,7 @@ class Settings(BaseSettings):
     EXPOSE_ADVISORY_STATE_ENDPOINT: bool = False
 
     # V2 publish storage verification
+    V2_STORAGE_BUCKET: str = "photos"
     V2_STORAGE_REQUIRE_EXISTENCE_CHECK: bool = True
     V2_ROUTE_MAP_MATCH_ENABLED: bool = True
     V2_ROUTE_MAP_MATCH_TIMEOUT_SECONDS: float = 2.0

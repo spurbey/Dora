@@ -37,6 +37,17 @@ jobs:
         --dart-define=MAPBOX_TOKEN=${{ secrets.MAPBOX_TOKEN }}
         --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
         --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN_FLUTTER }}
+        --dart-define=ORS_API_KEY=${{ secrets.ORS_API_KEY }}
+        --dart-define=ENABLE_LIVE_SYSTEM_V2=true
+        --dart-define=ENABLE_V2_LOCAL_JOURNAL=true
+        --dart-define=ENABLE_V2_LOCAL_COMPILER=true
+        --dart-define=ENABLE_V2_LIVE_EDITOR_UI_CONTRACT=true
+        --dart-define=ADVISORY_PIPELINE=true
+        --dart-define=ENABLE_V2_SESSION_COMMIT_WORKER=false
+        --dart-define=ENABLE_V2_TRIP_PUBLISH_WORKER=false
+        --dart-define=ENABLE_V2_BACKEND_INGEST=false
+        --dart-define=ENABLE_STORIES_PUBLISH=true
+        --dart-define=ENABLE_STORIES_FEED=true
 
     steps:
       - uses: actions/checkout@v4

@@ -3,14 +3,16 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import 'package:dora/core/auth/auth_service.dart';
+import 'package:dora/core/network/api_client.dart';
 import 'package:dora/features/stories/data/models/story_models.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
 class StoriesApi {
-  StoriesApi(this._api, this._authService);
+  StoriesApi(this._api, this._authService, this._apiClient);
 
   final openapi.StoriesApi _api;
   final AuthService _authService;
+  final ApiClient _apiClient;
 
   Future<String> _authHeader() async {
     final token = await _authService.getAccessToken();
@@ -59,19 +61,26 @@ class StoriesApi {
     int limit = 20,
   }) async {
     try {
-      final response = await _api.getStoryFeedApiV1StoriesFeedGet(
-        authorization: await _authHeader(),
-        radiusKm: radius.wireValue,
-        lat: lat,
-        lng: lng,
-        cursor: cursor,
-        limit: limit,
+      final response = await _apiClient.dio.get<Map<String, dynamic>>(
+        '/api/v1/stories/feed',
+        queryParameters: <String, dynamic>{
+          if (lat != null) 'lat': lat,
+          if (lng != null) 'lng': lng,
+          'radius_km': radius.wireValue,
+          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+          'limit': limit,
+        },
+        options: Options(
+          headers: <String, String>{
+            'authorization': await _authHeader(),
+          },
+        ),
       );
       final payload = response.data;
       if (payload == null) {
         throw StoriesApiException('Empty feed response', statusCode: 502);
       }
-      return StoryFeedPage.fromApi(payload);
+      return StoryFeedPage.fromJson(payload);
     } on DioException catch (error) {
       throw _wrap(error);
     }

@@ -18,7 +18,8 @@ import 'package:dora/features/stories/data/stories_api.dart';
 final storiesApiProvider = Provider<StoriesApi>((ref) {
   final openApi = ref.watch(openApiStoriesApiProvider);
   final authService = ref.watch(authServiceProvider);
-  return StoriesApi(openApi, authService);
+  final apiClient = ref.watch(apiClientProvider);
+  return StoriesApi(openApi, authService, apiClient);
 });
 
 final storyHideStoreProvider = Provider<StoryHideStore>((ref) {

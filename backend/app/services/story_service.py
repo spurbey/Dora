@@ -274,7 +274,7 @@ class StoryService:
         filtered: list[tuple[Story, Optional[float], bool]] = []
         for row in rows:
             is_own = row.author_user_id == user_id
-            if row.author_user_id in muted_author_ids:
+            if not is_own and row.author_user_id in muted_author_ids:
                 continue
             distance_km: Optional[float] = None
             if not is_own and radius_km is not None:

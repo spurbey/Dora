@@ -138,14 +138,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.verified_user_outlined,
                 title: 'Privacy Policy',
                 onTap: () =>
-                    _openUrl('https://doraapp.netlify.app/privacy_policy.html'),
+                    _openUrl('https://doratravelapp.netlify.app/privacy_policy.html'),
               ),
               const _SectionDivider(),
               SettingsListItem(
                 icon: Icons.gavel_outlined,
                 title: 'Terms of Service',
                 onTap: () => _openUrl(
-                    'https://doraapp.netlify.app/terms_conditions.html'),
+                    'https://doratravelapp.netlify.app/terms_conditions.html'),
               ),
               const _SectionDivider(),
               SettingsListItem(

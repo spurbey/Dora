@@ -8,11 +8,11 @@ Scope: Dora Android release to Google Play Closed Testing (first rollout path)
 
 - Package/bundle ID: `com.dora.travel`
 - OAuth mobile callback: `com.dora.travel://login-callback/`
-- Legal base URL: `https://doraapp.netlify.app`
-- Privacy URL: `https://doraapp.netlify.app/privacy_policy.html`
-- Terms URL: `https://doraapp.netlify.app/terms_conditions.html`
-- Support URL: `https://doraapp.netlify.app/support.html`
-- Account deletion URL: `https://doraapp.netlify.app/delete_account.html`
+- Legal base URL: `https://doratravelapp.netlify.app`
+- Privacy URL: `https://doratravelapp.netlify.app/privacy_policy.html`
+- Terms URL: `https://doratravelapp.netlify.app/terms_conditions.html`
+- Support URL: `https://doratravelapp.netlify.app/support.html`
+- Account deletion URL: `https://doratravelapp.netlify.app/delete_account.html`
 - Play first rollout strategy: Closed Testing
 
 ## 2. Preflight Checklist (Before Build)

@@ -15,7 +15,7 @@ How to use:
 
 Completed in repo:
 - Account deletion flow is implemented in-app (Settings > Delete Account) and wired to backend delete endpoint.
-- Public legal/support pages are published at `https://doraapp.netlify.app/`:
+- Public legal/support pages are published at `https://doratravelapp.netlify.app/`:
   - `privacy_policy.html`
   - `terms_conditions.html`
   - `support.html`
@@ -144,7 +144,7 @@ Evidence:
   - `backend/app/api/v1/users.py`
   - `backend/app/services/user_service.py`
   - `backend/tests/test_users.py`
-- [x] Deletion support page: `https://doraapp.netlify.app/delete_account.html`
+- [x] Deletion support page: `https://doratravelapp.netlify.app/delete_account.html`
 
 ---
 
@@ -185,10 +185,10 @@ Evidence:
 
 Evidence:
 - [x] Policy URLs
-  - `https://doraapp.netlify.app/privacy_policy.html`
-  - `https://doraapp.netlify.app/terms_conditions.html`
-  - `https://doraapp.netlify.app/support.html`
-  - `https://doraapp.netlify.app/delete_account.html`
+  - `https://doratravelapp.netlify.app/privacy_policy.html`
+  - `https://doratravelapp.netlify.app/terms_conditions.html`
+  - `https://doratravelapp.netlify.app/support.html`
+  - `https://doratravelapp.netlify.app/delete_account.html`
 - [ ] Console screenshots (Play + App Store privacy sections)
 
 ---
@@ -297,10 +297,10 @@ Evidence:
 - [ ] Auth smoke-test video (Android):
 - [ ] Account deletion smoke-test video:
 - [x] Policy URL list:
-  - `https://doraapp.netlify.app/privacy_policy.html`
-  - `https://doraapp.netlify.app/terms_conditions.html`
-  - `https://doraapp.netlify.app/support.html`
-  - `https://doraapp.netlify.app/delete_account.html`
+  - `https://doratravelapp.netlify.app/privacy_policy.html`
+  - `https://doratravelapp.netlify.app/terms_conditions.html`
+  - `https://doratravelapp.netlify.app/support.html`
+  - `https://doratravelapp.netlify.app/delete_account.html`
 - [ ] Play Closed Testing release URL:
 - [ ] Play Console evidence screenshots:
   - Data Safety
@@ -310,4 +310,3 @@ Evidence:
 - [ ] Play Console submission link (if production rollout is attempted):
 - [ ] App Store submission link:
 - [ ] Final sign-off note link:
-

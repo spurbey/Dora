@@ -28,7 +28,7 @@ class ExportStudioScreen extends ConsumerStatefulWidget {
 
 class _ExportStudioScreenState extends ConsumerState<ExportStudioScreen> {
   static final Uri _supportUrl =
-      Uri.parse('https://doraapp.netlify.app/support.html');
+      Uri.parse('https://doratravelapp.netlify.app/support.html');
 
   _ExportPhase _phase = _ExportPhase.configure;
   ExportTemplate _selectedTemplate = ExportTemplate.classic;

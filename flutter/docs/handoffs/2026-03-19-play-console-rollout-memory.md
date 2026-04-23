@@ -12,7 +12,7 @@ Context: Android first release via Google Play Closed Testing, Shorebird-enabled
 - App type: `App`
 - Monetization at creation: `Free`
 - Default language: `en-US`
-- Legal base URL: `https://doraapp.netlify.app`
+- Legal base URL: `https://doratravelapp.netlify.app`
 
 ---
 
@@ -77,8 +77,8 @@ Current submission indicates:
   - App activity: App interactions, In-app search history, Other user-generated content, Other actions
   - Device or other IDs
 - Security practice: `Data is encrypted in transit`
-- Account deletion URL set: `https://doraapp.netlify.app/delete_account.html`
-- Privacy policy URL set: `https://doraapp.netlify.app/privacy_policy.html`
+- Account deletion URL set: `https://doratravelapp.netlify.app/delete_account.html`
+- Privacy policy URL set: `https://doratravelapp.netlify.app/privacy_policy.html`
 
 Important note for future agents:
 - Keep this declaration strictly synced with actual runtime SDK/data behavior.
@@ -147,4 +147,3 @@ Operational note:
 - Confirm internal tester can see Exports UI and submit export job.
 - Confirm no unresolved red policy blockers in Play Console.
 - Confirm release notes, tester group, and rollout state are recorded.
-

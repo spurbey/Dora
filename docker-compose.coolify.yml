@@ -113,6 +113,8 @@ services:
       context: ./backend
       args:
         REQUIREMENTS_FILE: requirements.advisory.txt
+        INSTALL_BROWSER_DEPS: "true"
+        INSTALL_PLAYWRIGHT: "true"
     restart: unless-stopped
     user: "0:0"
     command: sh -lc "mkdir -p /app/.gmaps_profile && xvfb-run -a -s '-screen 0 1280x1800x24' python -m app.workers.advisory_worker"

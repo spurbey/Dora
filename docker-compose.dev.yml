@@ -26,7 +26,11 @@ services:
       - renderer
 
   advisory_worker:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        INSTALL_BROWSER_DEPS: "true"
+        INSTALL_PLAYWRIGHT: "true"
     command: python -m app.workers.advisory_worker
     env_file: backend/.env
     depends_on:

@@ -20,7 +20,27 @@ class StoriesStrip extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: LinearProgressIndicator(minHeight: 2),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (error, _) => Padding(
+        padding: AppSpacing.horizontalMd,
+        child: Row(
+          children: [
+            const Icon(Icons.auto_stories_outlined,
+                size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Stories unavailable',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  ref.read(storyFeedControllerProvider.notifier).refresh(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
       data: (state) {
         if (state.items.isEmpty) {
           return const SizedBox.shrink();

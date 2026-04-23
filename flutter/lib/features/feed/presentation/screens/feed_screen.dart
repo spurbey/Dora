@@ -12,6 +12,7 @@ import 'package:dora/features/feed/presentation/widgets/empty_state.dart';
 import 'package:dora/features/feed/presentation/widgets/ongoing_trip_banner.dart';
 import 'package:dora/features/feed/presentation/widgets/search_bar_widget.dart';
 import 'package:dora/features/feed/presentation/widgets/trip_card.dart';
+import 'package:dora/features/stories/presentation/providers/stories_providers.dart';
 import 'package:dora/features/stories/presentation/widgets/stories_strip.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 import 'package:dora/shared/widgets/loading_indicator.dart';
@@ -31,7 +32,12 @@ class FeedScreen extends ConsumerWidget {
           onRetry: () => ref.read(feedControllerProvider.notifier).refresh(),
         ),
         data: (state) => RefreshIndicator(
-          onRefresh: () => ref.read(feedControllerProvider.notifier).refresh(),
+          onRefresh: () async {
+            await Future.wait<void>([
+              ref.read(feedControllerProvider.notifier).refresh(),
+              ref.read(storyFeedControllerProvider.notifier).refresh(),
+            ]);
+          },
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               final metrics = notification.metrics;

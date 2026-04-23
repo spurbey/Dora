@@ -41,6 +41,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Disk usage before cleanup
+        if: inputs.platform == 'android'
+        run: df -h
+
+      - name: Free disk space (Android)
+        if: inputs.platform == 'android'
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+          df -h
+
       - name: Setup Shorebird
         if: inputs.use_shorebird
         uses: shorebirdtech/setup-shorebird@v1
@@ -85,7 +95,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
-        run: shorebird release android --verbose --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
+        run: shorebird release android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       - name: Shorebird patch Android
         if: inputs.platform == 'android' && inputs.use_shorebird && inputs.patch
@@ -95,7 +105,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
-        run: shorebird patch android --verbose --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
+        run: shorebird patch android --flutter-version=3.38.9 ${{ env.DART_DEFINES }}
 
       # --- iOS ---
       - name: Build iOS (Flutter)

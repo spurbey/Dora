@@ -12,7 +12,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/navigation/navigation_observers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -641,12 +640,17 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   Future<void> _pickFromGallery() async {
     final runtime = ref.read(cameraRuntimeControllerProvider);
     if (!runtime.canCapture) return;
-    final permission = await Permission.photos.request();
-    if (!permission.isGranted && !permission.isLimited) {
-      _showMessage('Gallery permission is required.');
+    XFile? picked;
+    try {
+      picked = await ImagePicker().pickMedia();
+    } on PlatformException catch (error) {
+      if (_isGalleryPermissionError(error)) {
+        _showMessage('Gallery access denied. Allow Photos permission.');
+        return;
+      }
+      _showMessage('Could not open gallery.');
       return;
     }
-    final picked = await ImagePicker().pickMedia();
     if (picked == null || picked.path.trim().isEmpty) {
       return;
     }
@@ -666,6 +670,16 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
       path: picked.path,
       kind: kind,
     );
+  }
+
+  bool _isGalleryPermissionError(PlatformException error) {
+    final code = error.code.toLowerCase();
+    final message = (error.message ?? '').toLowerCase();
+    return code.contains('permission') ||
+        code.contains('access_denied') ||
+        message.contains('permission') ||
+        message.contains('denied') ||
+        message.contains('photos');
   }
 
   Future<void> _onMediaCaptureEvent(dynamic event) async {
@@ -787,15 +801,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
               title: const Text('Save to Vault'),
               onTap: () => Navigator.of(context).pop(CaptureDestination.vault),
             ),
-            if (FeatureFlags.enableStoriesPublish)
-              ListTile(
-                leading: const Icon(Icons.auto_stories_outlined),
-                title: const Text('Share as Story'),
-                subtitle:
-                    const Text('Publishes now; retries from Vault on failure.'),
-                onTap: () =>
-                    Navigator.of(context).pop(CaptureDestination.storyDraft),
-              ),
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('Share as Story'),
+              subtitle:
+                  const Text('Publishes now; retries from Vault on failure.'),
+              onTap: () =>
+                  Navigator.of(context).pop(CaptureDestination.storyDraft),
+            ),
           ],
         ),
       ),

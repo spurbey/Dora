@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dora/core/navigation/routes.dart';
-import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
@@ -50,10 +49,8 @@ class FeedScreen extends ConsumerWidget {
                 SearchBarWidget(
                   onTap: () => context.push(Routes.search),
                 ),
-                if (FeatureFlags.enableStoriesFeed) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  const StoriesStrip(),
-                ],
+                const SizedBox(height: AppSpacing.md),
+                const StoriesStrip(),
                 const SizedBox(height: AppSpacing.md),
                 if (state.activeTrip != null)
                   Padding(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -87,16 +88,23 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
 
   Future<CameraCaptureResult> _run(CaptureKind kind) async {
     final permissions = const MediaPermissions();
-    final permissionState = kind == CaptureKind.gallery
-        ? await permissions.ensureGalleryPermission()
-        : await permissions.ensureCameraPermission();
-    if (permissionState != MediaPermissionState.granted) {
+    if (kind != CaptureKind.gallery) {
+      final permissionState = await permissions.ensureCameraPermission();
+      if (permissionState != MediaPermissionState.granted) {
+        return const CameraCaptureResult(
+          kind: CameraCaptureResultKind.permissionDenied,
+        );
+      }
+    }
+
+    _PickedMedia? picked;
+    try {
+      picked = await _pickMedia(kind);
+    } on _MediaPickPermissionDenied {
       return const CameraCaptureResult(
         kind: CameraCaptureResultKind.permissionDenied,
       );
     }
-
-    final picked = await _pickMedia(kind);
     if (picked == null) {
       return const CameraCaptureResult.cancelled();
     }
@@ -125,47 +133,64 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
   }
 
   Future<_PickedMedia?> _pickMedia(CaptureKind kind) async {
-    final picker = ImagePicker();
-    switch (kind) {
-      case CaptureKind.photo:
-        final file = await picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 92,
-        );
-        return file == null
-            ? null
-            : _PickedMedia(
-                file: File(file.path),
-                mediaType: 'photo',
-                mimeType: _guessMime(file.path),
-              );
-      case CaptureKind.video:
-        final file = await picker.pickVideo(
-          source: ImageSource.camera,
-          maxDuration: const Duration(minutes: 3),
-        );
-        return file == null
-            ? null
-            : _PickedMedia(
-                file: File(file.path),
-                mediaType: 'video',
-                mimeType: _guessMime(file.path),
-              );
-      case CaptureKind.gallery:
-        final file = await picker.pickMedia(imageQuality: 92);
-        if (file == null) {
-          return null;
-        }
-        final lower = file.path.toLowerCase();
-        final isVideo = lower.endsWith('.mp4') ||
-            lower.endsWith('.mov') ||
-            lower.endsWith('.m4v');
-        return _PickedMedia(
-          file: File(file.path),
-          mediaType: isVideo ? 'video' : 'photo',
-          mimeType: _guessMime(file.path),
-        );
+    try {
+      final picker = ImagePicker();
+      switch (kind) {
+        case CaptureKind.photo:
+          final file = await picker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 92,
+          );
+          return file == null
+              ? null
+              : _PickedMedia(
+                  file: File(file.path),
+                  mediaType: 'photo',
+                  mimeType: _guessMime(file.path),
+                );
+        case CaptureKind.video:
+          final file = await picker.pickVideo(
+            source: ImageSource.camera,
+            maxDuration: const Duration(minutes: 3),
+          );
+          return file == null
+              ? null
+              : _PickedMedia(
+                  file: File(file.path),
+                  mediaType: 'video',
+                  mimeType: _guessMime(file.path),
+                );
+        case CaptureKind.gallery:
+          final file = await picker.pickMedia(imageQuality: 92);
+          if (file == null) {
+            return null;
+          }
+          final lower = file.path.toLowerCase();
+          final isVideo = lower.endsWith('.mp4') ||
+              lower.endsWith('.mov') ||
+              lower.endsWith('.m4v');
+          return _PickedMedia(
+            file: File(file.path),
+            mediaType: isVideo ? 'video' : 'photo',
+            mimeType: _guessMime(file.path),
+          );
+      }
+    } on PlatformException catch (error) {
+      if (_isPickerPermissionError(error)) {
+        throw const _MediaPickPermissionDenied();
+      }
+      rethrow;
     }
+  }
+
+  bool _isPickerPermissionError(PlatformException error) {
+    final code = error.code.toLowerCase();
+    final message = (error.message ?? '').toLowerCase();
+    return code.contains('permission') ||
+        code.contains('access_denied') ||
+        message.contains('permission') ||
+        message.contains('denied') ||
+        message.contains('photos');
   }
 
   Future<CameraCaptureResult> _writeTripAttached({
@@ -292,4 +317,8 @@ class _PickedMedia {
   final File file;
   final String mediaType;
   final String? mimeType;
+}
+
+class _MediaPickPermissionDenied implements Exception {
+  const _MediaPickPermissionDenied();
 }

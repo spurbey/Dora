@@ -65,6 +65,7 @@ final storyFeedControllerProvider =
 
 class StoryFeedController extends AsyncNotifier<StoryFeedState> {
   static const int _pageSize = 20;
+  static const StoryRadiusFilter _defaultRadius = StoryRadiusFilter.all;
 
   StoriesApi get _api => ref.read(storiesApiProvider);
   StoryHideStore get _hideStore => ref.read(storyHideStoreProvider);
@@ -73,13 +74,13 @@ class StoryFeedController extends AsyncNotifier<StoryFeedState> {
   Future<StoryFeedState> build() async {
     final hiddenIds = await _hideStore.loadHiddenStoryIds();
     final page = await _fetchPage(
-      radius: StoryRadiusFilter.fiveKm,
+      radius: _defaultRadius,
       hiddenIds: hiddenIds,
       cursor: null,
     );
     return StoryFeedState(
       items: page.items,
-      radius: StoryRadiusFilter.fiveKm,
+      radius: _defaultRadius,
       hiddenIds: hiddenIds,
       nextCursor: page.nextCursor,
       isLoadingMore: false,
@@ -91,9 +92,11 @@ class StoryFeedController extends AsyncNotifier<StoryFeedState> {
     if (current != null && current.radius == radius) {
       return;
     }
-    state = const AsyncLoading();
     final hiddenIds =
         current?.hiddenIds ?? await _hideStore.loadHiddenStoryIds();
+    if (current == null) {
+      state = const AsyncLoading();
+    }
     try {
       final page = await _fetchPage(
         radius: radius,
@@ -109,16 +112,22 @@ class StoryFeedController extends AsyncNotifier<StoryFeedState> {
         ),
       );
     } catch (error, stack) {
-      state = AsyncError(error, stack);
+      if (current != null) {
+        state = AsyncData(current);
+      } else {
+        state = AsyncError(error, stack);
+      }
     }
   }
 
   Future<void> refresh() async {
     final current = state.valueOrNull;
-    final radius = current?.radius ?? StoryRadiusFilter.fiveKm;
+    final radius = current?.radius ?? _defaultRadius;
     final hiddenIds =
         current?.hiddenIds ?? await _hideStore.loadHiddenStoryIds();
-    state = const AsyncLoading();
+    if (current == null) {
+      state = const AsyncLoading();
+    }
     try {
       final page = await _fetchPage(
         radius: radius,
@@ -134,7 +143,11 @@ class StoryFeedController extends AsyncNotifier<StoryFeedState> {
         ),
       );
     } catch (error, stack) {
-      state = AsyncError(error, stack);
+      if (current != null) {
+        state = AsyncData(current);
+      } else {
+        state = AsyncError(error, stack);
+      }
     }
   }
 
@@ -160,8 +173,8 @@ class StoryFeedController extends AsyncNotifier<StoryFeedState> {
           isLoadingMore: false,
         ),
       );
-    } catch (error, stack) {
-      state = AsyncError(error, stack);
+    } catch (error) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
     }
   }
 

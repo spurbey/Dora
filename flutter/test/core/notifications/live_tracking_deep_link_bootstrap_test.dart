@@ -7,6 +7,74 @@ import 'package:dora/core/notifications/live_tracking_deep_link_bootstrap.dart';
 
 void main() {
   group('LiveTrackingDeepLinkBootstrap', () {
+    test('routes advisory payload to live screen with focused side panel',
+        () async {
+      final opened = StreamController<Map<String, dynamic>>();
+      addTearDown(opened.close);
+      final routes = <String>[];
+
+      final bootstrap = LiveTrackingDeepLinkBootstrap(
+        openedPayloads: opened.stream,
+        loadInitialPayload: () async => null,
+        resolveLocalTripId: (tripIdentity) async =>
+            tripIdentity == 'remote-trip-advisory'
+                ? 'local-trip-advisory'
+                : null,
+        resolveSessionState: (localTripId) async => null,
+        navigateToRoute: routes.add,
+        advisoryEnabledResolver: () => true,
+      );
+      bootstrap.start();
+      addTearDown(bootstrap.dispose);
+
+      opened.add(<String, dynamic>{
+        'type': 'advisory',
+        'trip_id': 'remote-trip-advisory',
+        'advisory_id': 'adv-123',
+        'message_id': 'advisory-message-1',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        routes,
+        <String>[
+          '/trips/local-trip-advisory/live?advisoryFocus=adv-123&openSidePanel=1',
+        ],
+      );
+    });
+
+    test('routes advisory payload without advisory_id to live side panel',
+        () async {
+      final opened = StreamController<Map<String, dynamic>>();
+      addTearDown(opened.close);
+      final routes = <String>[];
+
+      final bootstrap = LiveTrackingDeepLinkBootstrap(
+        openedPayloads: opened.stream,
+        loadInitialPayload: () async => null,
+        resolveLocalTripId: (tripIdentity) async => 'local-trip-advisory',
+        resolveSessionState: (localTripId) async => null,
+        navigateToRoute: routes.add,
+        advisoryEnabledResolver: () => true,
+      );
+      bootstrap.start();
+      addTearDown(bootstrap.dispose);
+
+      opened.add(<String, dynamic>{
+        'type': 'advisory_paused',
+        'trip_id': 'remote-trip-advisory',
+        'message_id': 'advisory-message-2',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        routes,
+        <String>[
+          '/trips/local-trip-advisory/live?openSidePanel=1',
+        ],
+      );
+    });
+
     test('routes to live for active session payload', () async {
       final opened = StreamController<Map<String, dynamic>>();
       addTearDown(opened.close);

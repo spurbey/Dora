@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dora/core/auth/auth_service.dart';
 import 'package:dora/core/network/live_tracking_api.dart';
 
 class _CaptureAdapter implements HttpClientAdapter {
@@ -162,6 +163,26 @@ class _CaptureAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class _SequenceAuthTokenProvider implements AuthTokenProvider {
+  _SequenceAuthTokenProvider(this._tokens);
+
+  final List<String?> _tokens;
+  int _cursor = 0;
+
+  @override
+  Future<String?> getAccessToken() async {
+    if (_cursor >= _tokens.length) {
+      return _tokens.isEmpty ? null : _tokens.last;
+    }
+    return _tokens[_cursor++];
+  }
+
+  @override
+  Future<String?> refreshAccessToken({bool force = false}) async {
+    return getAccessToken();
+  }
+}
+
 void main() {
   group('DioLiveTrackingApi', () {
     test('uses expected endpoints for media + push token APIs', () async {
@@ -222,11 +243,50 @@ void main() {
       expect(
         paths,
         <String>[
-          '/api/v1/trips/trip-1/tracking/media:upload',
-          '/api/v1/trips/trip-1/tracking/media:batch',
+          '/api/v1/trips/trip-1/tracking/media/upload',
+          '/api/v1/trips/trip-1/tracking/media/batch',
           '/api/v1/notifications/device-tokens/register',
           '/api/v1/notifications/device-tokens/deactivate',
         ],
+      );
+    });
+
+    test('deactivate uses cached auth header when provider has signed out',
+        () async {
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8000'));
+      final adapter = _CaptureAdapter();
+      dio.httpClientAdapter = adapter;
+      final api = DioLiveTrackingApi(
+        dio,
+        authTokenProvider: _SequenceAuthTokenProvider(<String?>[
+          'token-abc',
+          null,
+        ]),
+      );
+      final now = DateTime.utc(2026, 3, 23, 10);
+
+      await api.registerDeviceToken(
+        idempotencyKey: 'idem-auth-1',
+        clientEventId: 'evt-auth-1',
+        platform: 'android',
+        pushToken: 'push-token-auth-1',
+        seenAt: now,
+      );
+      await api.deactivateDeviceToken(
+        idempotencyKey: 'idem-auth-2',
+        clientEventId: 'evt-auth-2',
+        pushToken: 'push-token-auth-1',
+        deactivatedAt: now,
+      );
+
+      expect(adapter.captured, hasLength(2));
+      expect(
+        adapter.captured.first.headers['Authorization'],
+        'Bearer token-abc',
+      );
+      expect(
+        adapter.captured.last.headers['Authorization'],
+        'Bearer token-abc',
       );
     });
 

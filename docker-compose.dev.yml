@@ -25,6 +25,27 @@ services:
       - db
       - renderer
 
+  advisory_worker:
+    build: ./backend
+    command: python -m app.workers.advisory_worker
+    env_file: backend/.env
+    depends_on:
+      - db
+
+  advisory_cycle_worker:
+    build: ./backend
+    command: python -m app.workers.advisory_cycle_worker
+    env_file: backend/.env
+    depends_on:
+      - db
+
+  advisory_ignore_worker:
+    build: ./backend
+    command: python -m app.workers.advisory_ignore_sweep_worker
+    env_file: backend/.env
+    depends_on:
+      - db
+
   renderer:
     build: ./video-renderer
     command: npm run dev

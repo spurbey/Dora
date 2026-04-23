@@ -19,17 +19,20 @@ class LiveTrackingDeepLinkBootstrap {
     required NotificationPayloadTripResolver resolveLocalTripId,
     required NotificationPayloadSessionResolver resolveSessionState,
     required NotificationRouteNavigator navigateToRoute,
+    bool Function()? advisoryEnabledResolver,
   })  : _openedPayloads = openedPayloads,
         _loadInitialPayload = loadInitialPayload,
         _resolveLocalTripId = resolveLocalTripId,
         _resolveSessionState = resolveSessionState,
-        _navigateToRoute = navigateToRoute;
+        _navigateToRoute = navigateToRoute,
+        _advisoryEnabledResolver = advisoryEnabledResolver ?? advisoryEnabled;
 
   final Stream<Map<String, dynamic>> _openedPayloads;
   final NotificationPayloadLoader _loadInitialPayload;
   final NotificationPayloadTripResolver _resolveLocalTripId;
   final NotificationPayloadSessionResolver _resolveSessionState;
   final NotificationRouteNavigator _navigateToRoute;
+  final bool Function() _advisoryEnabledResolver;
 
   StreamSubscription<Map<String, dynamic>>? _openedSub;
   final Set<String> _handledIntentKeys = <String>{};
@@ -72,7 +75,7 @@ class LiveTrackingDeepLinkBootstrap {
     // Advisory notifications: branch on `type` first (domain discriminator),
     // then use `action` for navigation intent within that domain.
     final type = _normalizedString(payload['type']);
-    if (advisoryEnabled() &&
+    if (_advisoryEnabledResolver() &&
         (type == 'advisory' ||
             type == 'advisory_paused' ||
             type == 'advisory_clarifying')) {

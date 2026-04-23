@@ -123,6 +123,7 @@ class DioLiveTrackingApi implements LiveTrackingApi {
 
   final Dio _dio;
   final AuthTokenProvider? _authTokenProvider;
+  String _lastKnownAuthorizationHeader = '';
 
   static const String _apiV2Prefix = '/api/v2';
 
@@ -263,22 +264,29 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     return value;
   }
 
-  Future<String> _authorizationHeader() async {
+  Future<String> _authorizationHeader(
+      {bool allowCachedFallback = false}) async {
     final authTokenProvider = _authTokenProvider;
     if (authTokenProvider != null) {
       final token = await authTokenProvider.getAccessToken();
       if (token != null && token.isNotEmpty) {
-        if (token.toLowerCase().startsWith('bearer ')) {
-          return token;
-        }
-        return 'Bearer $token';
+        final normalized =
+            token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
+        _lastKnownAuthorizationHeader = normalized;
+        return normalized;
       }
     }
 
     final header = _dio.options.headers['Authorization'] ??
         _dio.options.headers['authorization'];
     if (header is String && header.trim().isNotEmpty) {
-      return header.trim();
+      final normalized = header.trim();
+      _lastKnownAuthorizationHeader = normalized;
+      return normalized;
+    }
+
+    if (allowCachedFallback && _lastKnownAuthorizationHeader.isNotEmpty) {
+      return _lastKnownAuthorizationHeader;
     }
 
     return '';
@@ -560,7 +568,11 @@ class DioLiveTrackingApi implements LiveTrackingApi {
     required String pushToken,
     DateTime? deactivatedAt,
   }) async {
-    final authorization = await _authorizationHeader();
+    // Logout deactivation can race auth teardown; reuse the most recent
+    // bearer header as a best-effort fallback for this one call.
+    final authorization = await _authorizationHeader(
+      allowCachedFallback: true,
+    );
     final response = await _dio.post<dynamic>(
       '/api/v1/notifications/device-tokens/deactivate',
       data: <String, dynamic>{

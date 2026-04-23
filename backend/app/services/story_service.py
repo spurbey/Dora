@@ -55,6 +55,10 @@ class StoryService:
     def _now(self) -> datetime:
         return datetime.now(timezone.utc)
 
+    @property
+    def _stories_bucket(self) -> str:
+        return settings.STORIES_STORAGE_BUCKET.strip() or "stories"
+
     def _moderator_id_set(self) -> set[str]:
         raw = settings.STORIES_MODERATOR_USER_IDS.strip()
         if not raw:
@@ -180,7 +184,7 @@ class StoryService:
         storage = self._get_storage_service()
         media_url = await storage.upload_file(
             file=file,
-            bucket="stories",
+            bucket=self._stories_bucket,
             user_id=user_id,
             allowed_types=list(allowed_types),
             max_size_mb=100,
@@ -193,7 +197,7 @@ class StoryService:
         if media_type == "photo":
             # For MVP, generate canonical thumbnail URL from source photo.
             thumbnail_url = storage.get_thumbnail_url(
-                bucket="stories",
+                bucket=self._stories_bucket,
                 file_path=object_path,
                 width=360,
                 height=640,
@@ -447,12 +451,12 @@ class StoryService:
             if storage is None:
                 storage = self._get_storage_service()
             try:
-                storage.delete_file("stories", row.storage_object_path)
+                storage.delete_file(self._stories_bucket, row.storage_object_path)
             except Exception:
                 pass
             if row.thumbnail_object_path:
                 try:
-                    storage.delete_file("stories", row.thumbnail_object_path)
+                    storage.delete_file(self._stories_bucket, row.thumbnail_object_path)
                 except Exception:
                     pass
             row.media_purged_at = now

@@ -1166,7 +1166,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         _emitEffect(TransientEffectType.photoCaptured);
       }
       final destinationMsg = result.destination == CaptureDestination.storyDraft
-          ? 'Captured; story publish started.'
+          ? 'Captured; story draft saved and publish queued.'
           : 'Captured locally.';
       final attachMsg = result.attachedToTrip
           ? ' Attached to ${result.tripName ?? 'active trip'}.'

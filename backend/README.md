@@ -124,6 +124,8 @@ Key variables:
   - `APP_NAME`, `DEBUG`, `ENVIRONMENT`, `SECRET_KEY`, `ALLOWED_ORIGINS`, `SENTRY_DSN`
 - Supabase
   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  - `V2_STORAGE_BUCKET` (default `photos`)
+  - `STORIES_STORAGE_BUCKET` (default `stories`)
 - External APIs
   - `FOURSQUARE_API_KEY`, `MAPBOX_API_KEY`
 - Export/renderer

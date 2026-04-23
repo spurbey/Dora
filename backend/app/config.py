@@ -182,6 +182,7 @@ class Settings(BaseSettings):
     V2_ROUTE_MAP_MATCH_ENABLED: bool = True
     V2_ROUTE_MAP_MATCH_TIMEOUT_SECONDS: float = 2.0
     V2_ROUTE_MAP_MATCH_PROFILE: str = "mapbox/driving"
+    STORIES_STORAGE_BUCKET: str = "stories"
 
     # Stories moderation allow-list (comma-separated Supabase user UUIDs).
     STORIES_MODERATOR_USER_IDS: str = ""

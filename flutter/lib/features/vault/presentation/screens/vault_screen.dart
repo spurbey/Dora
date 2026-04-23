@@ -231,13 +231,23 @@ class _VaultStoryCard extends ConsumerWidget {
           if (canPublish)
             TextButton(
               onPressed: () async {
-                await ref
-                    .read(storyPublishControllerProvider.notifier)
-                    .publishLocalStory(item.story.id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Story publish started')),
-                  );
+                try {
+                  await ref
+                      .read(storyPublishControllerProvider.notifier)
+                      .publishLocalStory(item.story.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Story published')),
+                    );
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Story publish failed. See error below.'),
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Publish'),

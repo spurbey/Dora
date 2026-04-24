@@ -233,4 +233,5 @@ LiveCaptureScreen (5 stacked layers via Stack)
 
 - [02-database-schema.md](./02-database-schema.md) — table definitions, indexes, constraints
 - [03-implementation-status.md](./03-implementation-status.md) — what's built, what's pending, how to test
+- [04-current-server-behavior-baseline.md](./04-current-server-behavior-baseline.md) — server-validated runtime behavior and prioritized gaps
 - [../scraping/hosted-chromium-cdp-setup.md](../scraping/hosted-chromium-cdp-setup.md) — EC2 Chrome CDP runbook

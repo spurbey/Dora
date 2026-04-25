@@ -843,6 +843,15 @@ class TripBrainService:
 
         Never called with network IO outstanding — caller must finish all
         scraping / LLM work and assemble metadata first.
+
+        IMPORTANT — transaction boundary:
+            We deliberately do NOT use ``begin_nested`` (savepoint) here.
+            Earlier prod runs showed cycle jobs churning every 2 minutes
+            because the savepoint committed but the outer transaction was
+            then rolled back at session-close, undoing cadence advancement.
+            We now run the UPDATE in the outer transaction the session
+            already autobegun, then commit explicitly. Callers in cycle
+            worker / advisory worker do not commit after, by contract.
         """
         valid = {"delivered", "no_pick", "failed", "no_target", "off_route"}
         if outcome not in valid:
@@ -855,130 +864,130 @@ class TripBrainService:
         brain = self.ensure_brain(trip_id, trip.user_id)
         cadence = int(brain.cadence_seconds or 3600)
         locality_key = target.locality_key if target else None
-        tx_ctx = self.db.begin_nested if self.db.in_transaction() else self.db.begin
 
         if outcome == "delivered":
             if not locality_key:
                 raise ValueError("delivered outcome requires target.locality_key")
             new_pois = [p for p in (poi_place_ids or []) if p]
-            # recent_categories bumping — atomically.
-            with tx_ctx():
-                self.db.execute(
-                    text(
-                        """
-                        UPDATE trip_advisory_state
-                        SET
-                            advised_locality_keys = CASE
-                                WHEN NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
-                                 AND COALESCE(array_length(COALESCE(advised_locality_keys, '{}'::text[]), 1), 0)
-                                      < :max_localities
-                                THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
-                                ELSE COALESCE(advised_locality_keys, '{}'::text[])
-                            END,
-                            advised_poi_place_ids = (
-                                SELECT ARRAY(
-                                    SELECT DISTINCT unnest(
-                                        COALESCE(advised_poi_place_ids, '{}'::text[])
-                                        || CAST(:new_pois AS text[])
-                                    )
+            self.db.execute(
+                text(
+                    """
+                    UPDATE trip_advisory_state
+                    SET
+                        advised_locality_keys = CASE
+                            WHEN NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
+                             AND COALESCE(array_length(COALESCE(advised_locality_keys, '{}'::text[]), 1), 0)
+                                  < :max_localities
+                            THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
+                            ELSE COALESCE(advised_locality_keys, '{}'::text[])
+                        END,
+                        advised_poi_place_ids = (
+                            SELECT ARRAY(
+                                SELECT DISTINCT unnest(
+                                    COALESCE(advised_poi_place_ids, '{}'::text[])
+                                    || CAST(:new_pois AS text[])
                                 )
-                            ),
-                            no_pick_attempts = COALESCE(no_pick_attempts, '{}'::jsonb) - :key,
-                            recent_categories = CAST(:new_recent AS jsonb),
-                            last_cycle_at = now(),
-                            next_eligible_at = now()
-                                + make_interval(secs => :cadence),
-                            updated_at = now()
-                        WHERE trip_id = :trip_id
-                        """
-                    ),
-                    {
-                        "trip_id": str(trip_id),
-                        "key": locality_key,
-                        "new_pois": "{" + ",".join(new_pois) + "}",
-                        "cadence": cadence,
-                        "max_localities": settings.MAX_ADVISED_LOCALITIES_PER_TRIP,
-                        "new_recent": json.dumps(
-                            self._bump_categories(
-                                dict(brain.recent_categories or {}),
-                                categories_delivered or [],
                             )
                         ),
-                    },
-                )
+                        no_pick_attempts = COALESCE(no_pick_attempts, '{}'::jsonb) - :key,
+                        recent_categories = CAST(:new_recent AS jsonb),
+                        last_cycle_at = now(),
+                        next_eligible_at = now()
+                            + make_interval(secs => :cadence),
+                        updated_at = now()
+                    WHERE trip_id = :trip_id
+                    """
+                ),
+                {
+                    "trip_id": str(trip_id),
+                    "key": locality_key,
+                    "new_pois": "{" + ",".join(new_pois) + "}",
+                    "cadence": cadence,
+                    "max_localities": settings.MAX_ADVISED_LOCALITIES_PER_TRIP,
+                    "new_recent": json.dumps(
+                        self._bump_categories(
+                            dict(brain.recent_categories or {}),
+                            categories_delivered or [],
+                        )
+                    ),
+                },
+            )
 
         elif outcome == "no_pick":
             if not locality_key:
                 raise ValueError("no_pick outcome requires target.locality_key")
             budget = settings.ADVISORY_NO_PICK_RETRY_BUDGET
-            with tx_ctx():
-                current_attempt = self.db.execute(
-                    text(
-                        """
-                        SELECT COALESCE(
-                            (COALESCE(no_pick_attempts, '{}'::jsonb)->>:key)::int,
-                            0
-                        ) AS attempts
-                        FROM trip_advisory_state
-                        WHERE trip_id = :trip_id
-                        FOR UPDATE
-                        """
-                    ),
-                    {"trip_id": str(trip_id), "key": locality_key},
-                ).scalar_one()
-                next_attempt = int(current_attempt) + 1
-                self.db.execute(
-                    text(
-                        """
-                        UPDATE trip_advisory_state
-                        SET
-                            no_pick_attempts = jsonb_set(
-                                COALESCE(no_pick_attempts, '{}'::jsonb),
-                                ARRAY[:key],
-                                to_jsonb(:next_attempt),
-                                true
-                            ),
-                            advised_locality_keys = CASE
-                                WHEN :next_attempt >= :budget
-                                 AND NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
-                                THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
-                                ELSE COALESCE(advised_locality_keys, '{}'::text[])
-                            END,
-                            last_cycle_at = now(),
-                            next_eligible_at = now()
-                                + make_interval(secs => :cadence),
-                            updated_at = now()
-                        WHERE trip_id = :trip_id
-                        """
-                    ),
-                    {
-                        "trip_id": str(trip_id),
-                        "key": locality_key,
-                        "next_attempt": next_attempt,
-                        "budget": budget,
-                        "cadence": cadence,
-                    },
-                )
+            current_attempt = self.db.execute(
+                text(
+                    """
+                    SELECT COALESCE(
+                        (COALESCE(no_pick_attempts, '{}'::jsonb)->>:key)::int,
+                        0
+                    ) AS attempts
+                    FROM trip_advisory_state
+                    WHERE trip_id = :trip_id
+                    FOR UPDATE
+                    """
+                ),
+                {"trip_id": str(trip_id), "key": locality_key},
+            ).scalar_one()
+            next_attempt = int(current_attempt) + 1
+            self.db.execute(
+                text(
+                    """
+                    UPDATE trip_advisory_state
+                    SET
+                        no_pick_attempts = jsonb_set(
+                            COALESCE(no_pick_attempts, '{}'::jsonb),
+                            ARRAY[:key],
+                            to_jsonb(:next_attempt),
+                            true
+                        ),
+                        advised_locality_keys = CASE
+                            WHEN :next_attempt >= :budget
+                             AND NOT (:key = ANY(COALESCE(advised_locality_keys, '{}'::text[])))
+                            THEN array_append(COALESCE(advised_locality_keys, '{}'::text[]), :key)
+                            ELSE COALESCE(advised_locality_keys, '{}'::text[])
+                        END,
+                        last_cycle_at = now(),
+                        next_eligible_at = now()
+                            + make_interval(secs => :cadence),
+                        updated_at = now()
+                    WHERE trip_id = :trip_id
+                    """
+                ),
+                {
+                    "trip_id": str(trip_id),
+                    "key": locality_key,
+                    "next_attempt": next_attempt,
+                    "budget": budget,
+                    "cadence": cadence,
+                },
+            )
 
         else:  # failed | no_target | off_route — retry backoff, no memory flip
-            with tx_ctx():
-                self.db.execute(
-                    text(
-                        """
-                        UPDATE trip_advisory_state
-                        SET last_cycle_at = now(),
-                            next_eligible_at = now()
-                                + make_interval(secs => :backoff),
-                            updated_at = now()
-                        WHERE trip_id = :trip_id
-                        """
-                    ),
-                    {
-                        "trip_id": str(trip_id),
-                        "backoff": settings.ADVISORY_RETRY_BACKOFF_SECONDS,
-                    },
-                )
+            self.db.execute(
+                text(
+                    """
+                    UPDATE trip_advisory_state
+                    SET last_cycle_at = now(),
+                        next_eligible_at = now()
+                            + make_interval(secs => :backoff),
+                        updated_at = now()
+                    WHERE trip_id = :trip_id
+                    """
+                ),
+                {
+                    "trip_id": str(trip_id),
+                    "backoff": settings.ADVISORY_RETRY_BACKOFF_SECONDS,
+                },
+            )
 
+        # Critical: commit the outer transaction. Without this, callers that
+        # use a session context manager (`with SessionLocal() as db:`) get
+        # the entire transaction rolled back at scope exit — which is exactly
+        # what was producing the every-2-min cycle churn.
+        self.db.commit()
         await advisory_cache.invalidate_brain(str(trip_id))
         return (
             self.db.query(TripAdvisoryState)

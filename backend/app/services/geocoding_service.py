@@ -57,38 +57,50 @@ def _build_locality_key(
 
 
 def _extract_from_features(features: list[dict]) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Pick locality / region / country from Mapbox feature hierarchy.
+    """Pick city-scope locality / region / country from Mapbox features.
 
-    Mapbox places the most-specific match first. The `place_type` field
-    identifies the level of each feature and context entries have `id`
-    prefixes like "place.xxx", "region.xxx", "country.xxx".
+    Strategy: scan all features + their `context` arrays, building a map
+    keyed by Mapbox layer type ("place", "locality", "region", "country").
+    Then pick `place` (city/town) for the locality slot, falling back to
+    `locality` then `neighborhood` only when no `place` exists at all.
+
+    Why: Mapbox sometimes tags landmarks (e.g., "Parliament Of India")
+    under the `locality` layer even when the actual city is sitting in
+    the context array. Taking the first locality-flavored hit produced
+    user-facing advisories about "things to do in Parliament Of India".
     """
-    locality: Optional[str] = None
-    region: Optional[str] = None
-    country: Optional[str] = None
+    by_layer: dict[str, str] = {}
 
     for feat in features:
-        ptypes = set(feat.get("place_type") or [])
+        ptypes = feat.get("place_type") or []
         name = feat.get("text") or feat.get("place_name")
-        if "locality" in ptypes or "place" in ptypes or "neighborhood" in ptypes:
-            if not locality:
-                locality = name
-        elif "region" in ptypes:
-            if not region:
-                region = name
-        elif "country" in ptypes:
-            if not country:
-                country = feat.get("properties", {}).get("short_code") or name
-        # Also walk context for missing pieces.
+        for ptype in ptypes:
+            if name and ptype not in by_layer:
+                # Country prefers short_code from properties when available.
+                if ptype == "country":
+                    short = (feat.get("properties") or {}).get("short_code")
+                    by_layer[ptype] = short or name
+                else:
+                    by_layer[ptype] = name
         for ctx in feat.get("context") or []:
             cid = (ctx.get("id") or "").split(".")[0]
             cname = ctx.get("text")
-            if cid in ("place", "locality", "neighborhood") and not locality:
-                locality = cname
-            elif cid == "region" and not region:
-                region = cname
-            elif cid == "country" and not country:
-                country = ctx.get("short_code") or cname
+            if not cid or not cname or cid in by_layer:
+                continue
+            if cid == "country":
+                by_layer[cid] = ctx.get("short_code") or cname
+            else:
+                by_layer[cid] = cname
+
+    # Strict preference: `place` is the city/town. Fall back to wider /
+    # narrower scopes only if `place` is genuinely absent.
+    locality = (
+        by_layer.get("place")
+        or by_layer.get("locality")
+        or by_layer.get("neighborhood")
+    )
+    region = by_layer.get("region")
+    country = by_layer.get("country")
 
     return locality, region, country
 
@@ -109,9 +121,14 @@ async def reverse_geocode(lat: float, lng: float) -> Optional[GeocodeResult]:
         return None
 
     url = MAPBOX_REVERSE_URL.format(lng=lng, lat=lat)
+    # Request city-scope and wider only. We deliberately omit `locality` and
+    # `neighborhood` from the types filter because Mapbox occasionally tags
+    # landmarks (e.g. "Parliament Of India") under those layers and we don't
+    # want the advisory pipeline keying off a building name. If `place` is
+    # absent (rare — open country, ocean), we accept the empty result.
     params = {
         "access_token": token,
-        "types": "place,locality,region,country,neighborhood",
+        "types": "place,region,country",
         "limit": 1,
     }
 

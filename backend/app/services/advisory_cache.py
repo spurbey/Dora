@@ -208,9 +208,12 @@ class AdvisoryCache:
 
     # ------------------------------------------------------------------
     # geocode cache
+    #   v2: 2026-04-25 — schema flip from "locality-may-be-building" to
+    #   strict-city-scope. v1 entries cached pre-flip would yield names like
+    #   "Parliament Of India" so we changed the prefix to invalidate them.
     # ------------------------------------------------------------------
     def geocode_key(self, lat: float, lng: float) -> str:
-        return f"geocode:{_bucket(lat)}:{_bucket(lng)}"
+        return f"geocode:v2:{_bucket(lat)}:{_bucket(lng)}"
 
     async def get_geocode(self, lat: float, lng: float) -> Optional[dict]:
         return await self._get_json(self.geocode_key(lat, lng))

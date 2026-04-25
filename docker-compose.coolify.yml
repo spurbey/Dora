@@ -16,7 +16,10 @@ x-backend-env: &backend_env
   STORIES_STORAGE_BUCKET: ${STORIES_STORAGE_BUCKET:-stories}
 
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-  OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-120b:free}
+  # Default to DeepSeek V4 Flash (released 2026-04-24). app.services.llm
+  # falls back to gpt-oss-120b:free automatically if the primary 5xx's.
+  OPENROUTER_MODEL: ${OPENROUTER_MODEL:-deepseek/deepseek-v4-flash}
+  LLM_BUDGET_DAILY_USD: ${LLM_BUDGET_DAILY_USD:-5.0}
   BRIGHTDATA_WS_ENDPOINT: ${BRIGHTDATA_WS_ENDPOINT:-}
   BRIGHTDATA_AUTH: ${BRIGHTDATA_AUTH:-}
   ADVISORY_GMAPS_LOCAL_DEBUG: ${ADVISORY_GMAPS_LOCAL_DEBUG:-false}

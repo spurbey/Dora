@@ -124,7 +124,12 @@ class Settings(BaseSettings):
 
     # Advisory external services (optional — worker skips stages if missing)
     OPENROUTER_API_KEY: Optional[str] = None
-    OPENROUTER_MODEL: str = "openai/gpt-oss-120b:free"
+    # Primary model: DeepSeek V4 Flash (released 2026-04-24). Fast, $0.14/$0.28
+    # per M tokens, 1M context, hybrid attention. Falls back to gpt-oss-120b:free
+    # automatically inside `app.services.llm.chat_json` on 5xx / parse failures.
+    OPENROUTER_MODEL: str = "deepseek/deepseek-v4-flash"
+    # Informational only — no enforcement yet, just lets us audit cost over time.
+    LLM_BUDGET_DAILY_USD: float = 5.0
     BRIGHTDATA_WS_ENDPOINT: Optional[str] = None
     # Debug-only switch to run backend gmaps scraper against local Chromium
     # instead of BrightData CDP. Keep disabled in normal operation.

@@ -35,14 +35,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 _LLM_TIMEOUT_SECONDS = 15.0
 
 # -- tuning constants -------------------------------------------------------
@@ -431,46 +429,26 @@ def _llm_prompt(
 
 
 async def _call_openrouter(messages: list[dict]) -> Optional[LLMPickResponse]:
-    if not settings.OPENROUTER_API_KEY:
-        logger.info("OPENROUTER_API_KEY not set — ranker skipping LLM call")
-        return None
-    payload = {
-        "model": settings.OPENROUTER_MODEL,
-        "messages": messages,
-        "temperature": 0.2,
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "llm_pick_response",
-                "strict": True,
-                "schema": LLMPickResponse.model_json_schema(),
-            },
-        },
-    }
-    headers = {
-        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    try:
-        async with httpx.AsyncClient(timeout=_LLM_TIMEOUT_SECONDS) as client:
-            resp = await client.post(
-                OPENROUTER_CHAT_URL, json=payload, headers=headers
-            )
-    except (httpx.HTTPError, OSError) as exc:
-        logger.warning("ranker openrouter http error: %s", exc)
-        return None
-    if resp.status_code != 200:
-        logger.warning(
-            "ranker openrouter non-200: %s %s", resp.status_code, resp.text[:200]
-        )
+    """Ranker LLM call — delegates to shared `app.services.llm.chat_json`.
+
+    The shared wrapper handles primary-model + fallback-model retry and
+    structured logging. We just adapt the parsed dict back into our
+    Pydantic response shape (or None on failure).
+    """
+    from app.services.llm import chat_json
+
+    parsed = await chat_json(
+        messages=messages,
+        schema=LLMPickResponse.model_json_schema(),
+        timeout_seconds=_LLM_TIMEOUT_SECONDS,
+        label="ranker",
+    )
+    if parsed is None:
         return None
     try:
-        body = resp.json()
-        content = body["choices"][0]["message"]["content"]
-        parsed = json.loads(content) if isinstance(content, str) else content
         return LLMPickResponse.model_validate(parsed)
-    except (KeyError, ValueError, ValidationError, TypeError) as exc:
-        logger.warning("ranker openrouter parse error: %s", exc)
+    except ValidationError as exc:
+        logger.warning("ranker llm output validation failed: %s", exc)
         return None
 
 

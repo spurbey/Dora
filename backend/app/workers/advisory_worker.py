@@ -28,15 +28,51 @@ from app.models.place import TripPlace
 from app.services.trip_brain_service import TripBrainService, TargetContext
 
 
+# Stage order varies by brain phase. Mode A (planning) = Reddit-rich,
+# GMaps off; Mode B (live_companion) = GMaps primary + cached Reddit
+# signals. Both share route_segmentation, merge_dedup, scoring, delivery.
+#
+# When the brain phase is unknown (e.g., legacy rows seeded before the
+# phase column existed), we fall through to the legacy STAGE_ORDER so
+# behaviour is unchanged. Once Coolify rolls out the new image, every
+# advisory_jobs row will be created with a phase available on its trip.
+STAGE_PATHS_BY_PHASE: dict[str, list[str]] = {
+    "planning": [
+        "route_segmentation",
+        "reddit_scrape",
+        # tripadvisor_scrape: stub, dropped from path until the scraper is real
+        "merge_dedup",
+        "scoring",
+        "delivery",
+    ],
+    "live_companion": [
+        "route_segmentation",
+        "reddit_scrape",
+        "gmaps_scrape",
+        "merge_dedup",
+        "scoring",
+        "delivery",
+    ],
+    "paused": [
+        # Should never actually run — cycle worker filters paused brains —
+        # but if a stale on_demand job sneaks through, do nothing harmful.
+        "route_segmentation",
+        "merge_dedup",
+        "delivery",
+    ],
+}
+
+# Backwards-compatible alias for the legacy fixed stage order. Used only
+# when no phase information is available (very old jobs).
 STAGE_ORDER = [
     "route_segmentation",
     "reddit_scrape",
-    "tripadvisor_scrape",
     "gmaps_scrape",
-    "llm_extraction",
+    "merge_dedup",
     "scoring",
     "delivery",
 ]
+
 RETRY_BACKOFF_SECONDS = [30, 120, 480]
 
 logger = logging.getLogger(__name__)
@@ -567,9 +603,16 @@ async def _stage_gmaps_scrape(db: Session, job: AdvisoryJob) -> None:
     )
 
 
-async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
-    """Merge and dedupe insights across all sources."""
-    logger.info("[ADVISORY_STAGE] llm_extraction job_id=%s", job.id)
+async def _stage_merge_dedup(db: Session, job: AdvisoryJob) -> None:
+    """Merge and dedupe insights across all sources.
+
+    Despite the legacy name `llm_extraction`, this stage is pure Python:
+    it hashes (place_name, category, body[:100]) and folds duplicates into
+    a single row, bumping `_source_count` and concatenating context_signals.
+    The actual LLM extraction happens upstream inside reddit_scrape /
+    gmaps_scrape stages.
+    """
+    logger.info("[ADVISORY_STAGE] merge_dedup job_id=%s", job.id)
     import hashlib
 
     result = job.result_summary or {}
@@ -607,7 +650,7 @@ async def _stage_llm_extraction(db: Session, job: AdvisoryJob) -> None:
     job.result_summary = result
     flag_modified(job, "result_summary")
     db.commit()
-    logger.info("[ADVISORY_STAGE] llm_extraction merged %d → %d unique", len(all_insights), len(merged))
+    logger.info("[ADVISORY_STAGE] merge_dedup merged %d -> %d unique", len(all_insights), len(merged))
 
 
 async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
@@ -941,12 +984,33 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
 STAGE_HANDLERS = {
     "route_segmentation": _stage_route_segmentation,
     "reddit_scrape": _stage_reddit_scrape,
+    # tripadvisor_scrape kept addressable so legacy stage names still
+    # dispatch to the no-op stub when encountered. Not in any new
+    # STAGE_PATHS — will be removed once the real scraper lands.
     "tripadvisor_scrape": _stage_tripadvisor_scrape,
     "gmaps_scrape": _stage_gmaps_scrape,
-    "llm_extraction": _stage_llm_extraction,
+    # New canonical name; legacy name kept as alias so a job mid-flight
+    # at deploy time doesn't crash.
+    "merge_dedup": _stage_merge_dedup,
+    "llm_extraction": _stage_merge_dedup,
     "scoring": _stage_scoring,
     "delivery": _stage_delivery,
 }
+
+
+def _stage_path_for_job(job: AdvisoryJob, db: Session) -> list[str]:
+    """Return the stage list this job should run, based on its trip's
+    brain phase. Falls back to legacy STAGE_ORDER when phase is unknown."""
+    from app.models.trip_advisory_state import TripAdvisoryState
+
+    phase = (
+        db.query(TripAdvisoryState.phase)
+        .filter(TripAdvisoryState.trip_id == job.trip_id)
+        .scalar()
+    )
+    if phase and phase in STAGE_PATHS_BY_PHASE:
+        return STAGE_PATHS_BY_PHASE[phase]
+    return list(STAGE_ORDER)
 
 
 # ─── Job execution ───────────────────────────────────────────────────────────
@@ -996,7 +1060,11 @@ def _cycle_outcome_for_completed(job: AdvisoryJob) -> str:
 
 async def run_job_once(db: Session, job: AdvisoryJob) -> None:
     try:
-        for i, stage_name in enumerate(STAGE_ORDER):
+        # Phase-aware stage path. Legacy jobs / trips without a phase column
+        # entry fall back to the legacy STAGE_ORDER unchanged.
+        stage_path = _stage_path_for_job(job, db)
+        n_stages = len(stage_path)
+        for i, stage_name in enumerate(stage_path):
             db.refresh(job)
             if job.status == "cancel_requested":
                 _set_canceled(job)
@@ -1006,7 +1074,7 @@ async def run_job_once(db: Session, job: AdvisoryJob) -> None:
                 return
 
             job.stage = stage_name
-            job.progress = i / len(STAGE_ORDER)
+            job.progress = i / n_stages
             db.commit()
 
             handler = STAGE_HANDLERS[stage_name]
@@ -1014,14 +1082,17 @@ async def run_job_once(db: Session, job: AdvisoryJob) -> None:
 
         # All stages complete
         job.status = "completed"
-        job.stage = STAGE_ORDER[-1]
+        job.stage = stage_path[-1]
         job.progress = 1.0
         job.completed_at = utcnow()
         job.worker_session_id = None
         job.error_code = None
         job.error_message = None
         db.commit()
-        logger.info("[ADVISORY_WORKER] completed job_id=%s trip_id=%s", job.id, job.trip_id)
+        logger.info(
+            "[ADVISORY_WORKER] completed job_id=%s trip_id=%s stages=%d",
+            job.id, job.trip_id, n_stages,
+        )
         await _mark_cycle_terminus(db, job, _cycle_outcome_for_completed(job))
 
     except TerminalJobError as exc:

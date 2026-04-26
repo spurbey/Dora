@@ -331,6 +331,13 @@ class TripBrainService:
     # enrich_on_tracking_start — flip to active, compute next_eligible_at
     # ------------------------------------------------------------------
     async def enrich_on_tracking_start(self, trip_id: UUID) -> TripAdvisoryState:
+        """Live session started — flip brain to active + Mode B (live_companion).
+
+        Phase machine:
+            planning → live_companion (always, on first session start)
+            paused   → preserved (manual pauses survive session start)
+            live_companion → no-op (idempotent re-fires)
+        """
         trip = self.db.query(Trip).filter(Trip.id == trip_id).one_or_none()
         if trip is None:
             raise ValueError(f"enrich_on_tracking_start: trip {trip_id} not found")
@@ -347,6 +354,14 @@ class TripBrainService:
                             WHEN lifecycle_state IN ('paused', 'completed', 'errored')
                             THEN lifecycle_state
                             ELSE 'active'
+                        END,
+                        phase = CASE
+                            WHEN phase = 'paused' THEN 'paused'
+                            ELSE 'live_companion'
+                        END,
+                        last_phase_change_at = CASE
+                            WHEN phase IN ('planning', NULL) THEN now()
+                            ELSE last_phase_change_at
                         END,
                         next_eligible_at = now() + make_interval(secs => :cadence),
                         updated_at = now()

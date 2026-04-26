@@ -175,6 +175,35 @@ class TripAdvisoryState(Base):
         nullable=True,
     )
 
+    # Mode A/B phase machine. Distinct from lifecycle_state — phase is about
+    # which content sources/cadences apply, lifecycle is about whether the
+    # cycle worker should run at all.
+    #   planning        → trip created, no live session yet. Mode A
+    #                     (Reddit primary, GMaps off, slow cadence).
+    #   live_companion  → V2 session started. Mode B (GMaps primary, fast
+    #                     event-driven cadence).
+    #   paused          → catch-all for "don't fire even on triggers"
+    #                     (e.g., user manually paused).
+    phase = Column(
+        String(20),
+        nullable=False,
+        server_default=text("'planning'"),
+        comment="planning|live_companion|paused — drives which stage path "
+        "the advisory worker runs.",
+    )
+    locality_confidence = Column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+        comment="Per-(locality, intent) cached signal strength used by "
+        "clarify_intent. Shape: {'khandala': {'food_tip': 0.85, "
+        "'_signals': {'reddit': 7, 'gmaps': 4}}, ...}",
+    )
+    last_phase_change_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -218,6 +247,10 @@ class TripAdvisoryState(Base):
         CheckConstraint(
             "brightdata_call_count >= 0",
             name="check_trip_advisory_state_brightdata_nonneg",
+        ),
+        CheckConstraint(
+            "phase IN ('planning', 'live_companion', 'paused')",
+            name="ck_trip_advisory_state_phase",
         ),
         # Cycle worker scan path — filter by lifecycle, order by due time.
         Index(

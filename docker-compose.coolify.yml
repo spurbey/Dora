@@ -16,12 +16,24 @@ x-backend-env: &backend_env
   STORIES_STORAGE_BUCKET: ${STORIES_STORAGE_BUCKET:-stories}
 
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-  # Default to DeepSeek V4 Flash (released 2026-04-24). app.services.llm
-  # falls back to gpt-oss-120b:free automatically if the primary 5xx's.
+  # Production primary is DeepSeek V4 Flash (paid). During the rebuild
+  # validation phase we set OPENROUTER_MODEL in the environment override
+  # to a free model (nvidia/nemotron-3-super, glm-4.5-air, etc.) so we
+  # validate quality without burning credit. app.services.llm.chat_json
+  # rotates through OPENROUTER_FALLBACK_MODELS on 5xx/parse failures.
   OPENROUTER_MODEL: ${OPENROUTER_MODEL:-deepseek/deepseek-v4-flash}
+  OPENROUTER_FALLBACK_MODELS: ${OPENROUTER_FALLBACK_MODELS:-nvidia/nemotron-3-super-120b-a12b:free,z-ai/glm-4.5-air:free,minimax/minimax-m2.5:free,qwen/qwen3-next-80b-a3b-instruct:free,meta-llama/llama-3.3-70b-instruct:free}
   LLM_BUDGET_DAILY_USD: ${LLM_BUDGET_DAILY_USD:-5.0}
   BRIGHTDATA_WS_ENDPOINT: ${BRIGHTDATA_WS_ENDPOINT:-}
   BRIGHTDATA_AUTH: ${BRIGHTDATA_AUTH:-}
+  # BrightData residential proxy (Reddit scraping). All env-driven so we
+  # can rotate creds without rebuilding. CA cert is baked into the image
+  # at /app/certs/brightdata_ca.crt by the Dockerfile.
+  BRIGHTDATA_PROXY_HOST: ${BRIGHTDATA_PROXY_HOST:-brd.superproxy.io}
+  BRIGHTDATA_PROXY_PORT: ${BRIGHTDATA_PROXY_PORT:-33335}
+  BRIGHTDATA_PROXY_USER: ${BRIGHTDATA_PROXY_USER:-}
+  BRIGHTDATA_PROXY_PASS: ${BRIGHTDATA_PROXY_PASS:-}
+  BRIGHTDATA_PROXY_CA_PATH: ${BRIGHTDATA_PROXY_CA_PATH:-/app/certs/brightdata_ca.crt}
   ADVISORY_GMAPS_LOCAL_DEBUG: ${ADVISORY_GMAPS_LOCAL_DEBUG:-false}
   ADVISORY_GMAPS_LOCAL_HEADLESS: ${ADVISORY_GMAPS_LOCAL_HEADLESS:-false}
   ADVISORY_GMAPS_LOCAL_SLOWMO_MS: ${ADVISORY_GMAPS_LOCAL_SLOWMO_MS:-0}

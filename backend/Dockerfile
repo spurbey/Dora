@@ -56,6 +56,7 @@ RUN if [ "$INSTALL_PLAYWRIGHT" = "true" ]; then python -m playwright install chr
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+COPY certs/ ./certs/
 RUN mkdir -p /app/.gmaps_profile /ms-playwright && chown -R appuser:appuser /app /ms-playwright
 USER appuser
 ENV PORT=8000

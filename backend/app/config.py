@@ -122,12 +122,34 @@ class Settings(BaseSettings):
     ADVISORY_MIN_CONFIDENCE_PUSH: float = 0.7
     ADVISORY_MAX_PER_HOUR: int = 3
 
+    # BrightData residential proxy used by the Reddit scraper. Reddit blocks
+    # all datacenter ASNs at the network edge (verified 2026-04-26: EC2 +
+    # Webshare DC both got 403/blocked). Residential proxy + their CA cert
+    # is the only path that returns real Reddit content from a server runtime.
+    # Auth string is "user:password" — full URL is built in code.
+    BRIGHTDATA_PROXY_HOST: str = "brd.superproxy.io"
+    BRIGHTDATA_PROXY_PORT: int = 33335
+    BRIGHTDATA_PROXY_USER: Optional[str] = None
+    BRIGHTDATA_PROXY_PASS: Optional[str] = None
+    BRIGHTDATA_PROXY_CA_PATH: str = "/app/certs/brightdata_ca.crt"
+
     # Advisory external services (optional — worker skips stages if missing)
     OPENROUTER_API_KEY: Optional[str] = None
-    # Primary model: DeepSeek V4 Flash (released 2026-04-24). Fast, $0.14/$0.28
-    # per M tokens, 1M context, hybrid attention. Falls back to gpt-oss-120b:free
-    # automatically inside `app.services.llm.chat_json` on 5xx / parse failures.
+    # Production primary: DeepSeek V4 Flash (released 2026-04-24).
+    # Override via OPENROUTER_MODEL env when validating with free models;
+    # `app.services.llm.chat_json` rotates through OPENROUTER_FALLBACK_MODELS
+    # on 5xx / parse failures so a brief upstream outage doesn't knock the
+    # pipeline out.
     OPENROUTER_MODEL: str = "deepseek/deepseek-v4-flash"
+    # Comma-separated. Tried in order on retry. All free-tier so the
+    # pipeline keeps producing output even when the paid primary is down.
+    OPENROUTER_FALLBACK_MODELS: str = (
+        "nvidia/nemotron-3-super-120b-a12b:free,"
+        "z-ai/glm-4.5-air:free,"
+        "minimax/minimax-m2.5:free,"
+        "qwen/qwen3-next-80b-a3b-instruct:free,"
+        "meta-llama/llama-3.3-70b-instruct:free"
+    )
     # Informational only — no enforcement yet, just lets us audit cost over time.
     LLM_BUDGET_DAILY_USD: float = 5.0
     BRIGHTDATA_WS_ENDPOINT: Optional[str] = None

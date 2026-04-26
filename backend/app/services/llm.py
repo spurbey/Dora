@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any, Optional
 
 import httpx
@@ -45,7 +46,23 @@ OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 _DEFAULT_TIMEOUT_SECONDS = 20.0
 _MAX_ATTEMPTS_PRIMARY = 2
-_FALLBACK_MODEL = "openai/gpt-oss-120b:free"
+# Hardcoded last-resort fallback used only when OPENROUTER_FALLBACK_MODELS is
+# empty. Anything more specific should live in config so ops can rotate.
+_LAST_RESORT_FALLBACK = "openai/gpt-oss-120b:free"
+
+
+def _fallback_chain() -> list[str]:
+    # Defensive: settings on a deployed container built before this field was
+    # added will not have OPENROUTER_FALLBACK_MODELS at all. Prefer env over
+    # settings to make hot-pushed test runs work without rebuilding.
+    raw = (
+        os.environ.get("OPENROUTER_FALLBACK_MODELS")
+        or getattr(settings, "OPENROUTER_FALLBACK_MODELS", "")
+        or ""
+    ).strip()
+    if not raw:
+        return [_LAST_RESORT_FALLBACK]
+    return [m.strip() for m in raw.split(",") if m.strip()]
 
 
 async def chat_json(
@@ -80,10 +97,16 @@ async def chat_json(
         return None
 
     primary = model or settings.OPENROUTER_MODEL
-    fallback = fallback_model or _FALLBACK_MODEL
     candidates: list[str] = [primary]
-    if fallback and fallback != primary:
-        candidates.append(fallback)
+    if fallback_model:
+        # Caller-specified fallback wins.
+        if fallback_model != primary:
+            candidates.append(fallback_model)
+    else:
+        # Otherwise take the configured chain, skipping any duplicates.
+        for f in _fallback_chain():
+            if f and f not in candidates:
+                candidates.append(f)
 
     for model_id in candidates:
         for attempt in range(1, _MAX_ATTEMPTS_PRIMARY + 1):

@@ -4,6 +4,15 @@
 
 This document defines Dora's Stories MVP contract across backend and Flutter client.
 
+## Performance Execution Spec
+
+Performance and scale execution decisions for Stories live in:
+
+- [`stories-viewing-performance-execution-spec.md`](./stories-viewing-performance-execution-spec.md)
+- [`stories-performance-implementation-tracker.md`](./stories-performance-implementation-tracker.md)
+
+Use this contract doc for endpoint and lifecycle semantics, and use the execution spec for implementation sequencing, latency/load targets, rollout, and observability.
+
 Core backend files:
 
 - `backend/app/models/story.py`
@@ -95,7 +104,8 @@ Ordering:
 
 Pagination:
 
-- Cursor is offset string
+- Cursor is opaque keyset string (`next_cursor`)
+- Numeric offset-style cursor is rejected with `400 Invalid cursor`
 
 ## Viewer behavior (Flutter)
 

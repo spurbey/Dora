@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -71,6 +73,14 @@ def _create_story(
     return row
 
 
+def _decode_feed_cursor(raw: str) -> dict:
+    padded = raw + ("=" * (-len(raw) % 4))
+    decoded = base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
+    payload = json.loads(decoded)
+    assert isinstance(payload, dict)
+    return payload
+
+
 def test_publish_story_success_and_idempotent(client, test_user, auth_as):
     auth_as(test_user)
     payload = {
@@ -98,7 +108,7 @@ def test_publish_story_success_and_idempotent(client, test_user, auth_as):
 def test_feed_orders_own_first_and_respects_radius(client, db, test_user, other_user, auth_as):
     own = _create_story(db, author_id=test_user.id, center_lat=40.0, center_lng=40.0, minutes_ago=10)
     near = _create_story(db, author_id=other_user.id, center_lat=27.72, center_lng=85.32, minutes_ago=2)
-    _create_story(db, author_id=other_user.id, center_lat=10.0, center_lng=10.0, minutes_ago=1)
+    far = _create_story(db, author_id=other_user.id, center_lat=10.0, center_lng=10.0, minutes_ago=1)
 
     auth_as(test_user)
     resp = client.get("/api/v1/stories/feed", params={"lat": 27.7172, "lng": 85.3240, "radius_km": "5"})
@@ -108,6 +118,7 @@ def test_feed_orders_own_first_and_respects_radius(client, db, test_user, other_
 
     assert str(own.id) == ids[0]
     assert str(near.id) in ids
+    assert str(far.id) not in ids
 
 
 def test_mute_author_excludes_feed(client, db, test_user, other_user, auth_as):
@@ -187,3 +198,126 @@ def test_story_view_counts_are_per_viewer_and_owner_noop(
     assert first.json()["view_count"] == 1
     assert second.json()["view_count"] == 2
     assert owner.json()["view_count"] == 2
+
+
+def test_feed_emits_opaque_keyset_cursor(client, db, test_user, other_user, auth_as):
+    for minutes_ago in (1, 2, 3, 4):
+        _create_story(
+            db,
+            author_id=other_user.id,
+            center_lat=27.72,
+            center_lng=85.32,
+            minutes_ago=minutes_ago,
+        )
+
+    auth_as(test_user)
+    resp = client.get("/api/v1/stories/feed", params={"radius_km": "all", "limit": 2})
+    assert resp.status_code == 200
+    cursor = resp.json()["next_cursor"]
+    assert cursor
+    assert not cursor.isdigit()
+
+    decoded = _decode_feed_cursor(cursor)
+    assert decoded["v"] == 1
+    assert decoded["tier"] in (0, 1)
+    assert "published_at" in decoded
+    assert "id" in decoded
+
+
+def test_feed_keyset_pagination_has_no_duplicates_or_gaps(
+    client,
+    db,
+    test_user,
+    other_user,
+    auth_as,
+):
+    _create_story(db, author_id=test_user.id, center_lat=40.0, center_lng=40.0, minutes_ago=30)
+    _create_story(db, author_id=test_user.id, center_lat=40.0, center_lng=40.0, minutes_ago=15)
+    for minutes_ago in (1, 2, 3, 4, 5):
+        _create_story(
+            db,
+            author_id=other_user.id,
+            center_lat=27.72,
+            center_lng=85.32,
+            minutes_ago=minutes_ago,
+        )
+
+    auth_as(test_user)
+    full = client.get("/api/v1/stories/feed", params={"radius_km": "all", "limit": 50})
+    assert full.status_code == 200
+    expected_ids = [item["id"] for item in full.json()["stories"]]
+
+    seen: list[str] = []
+    cursor = None
+    while True:
+        params = {"radius_km": "all", "limit": 2}
+        if cursor:
+            params["cursor"] = cursor
+        page = client.get("/api/v1/stories/feed", params=params)
+        assert page.status_code == 200
+        body = page.json()
+        page_ids = [item["id"] for item in body["stories"]]
+        assert not (set(page_ids) & set(seen))
+        seen.extend(page_ids)
+        cursor = body["next_cursor"]
+        if not cursor:
+            break
+
+    assert seen == expected_ids
+
+
+def test_feed_legacy_numeric_cursor_returns_400(client, db, test_user, other_user, auth_as):
+    _create_story(db, author_id=other_user.id, center_lat=27.72, center_lng=85.32, minutes_ago=1)
+
+    auth_as(test_user)
+    resp = client.get("/api/v1/stories/feed", params={"radius_km": "all", "cursor": "10"})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid cursor"
+
+
+def test_feed_insert_between_pages_preserves_cursor_continuity(
+    client,
+    db,
+    test_user,
+    other_user,
+    auth_as,
+):
+    for minutes_ago in (1, 2, 3, 4, 5, 6):
+        _create_story(
+            db,
+            author_id=other_user.id,
+            center_lat=27.72,
+            center_lng=85.32,
+            minutes_ago=minutes_ago,
+        )
+
+    auth_as(test_user)
+    baseline = client.get("/api/v1/stories/feed", params={"radius_km": "all", "limit": 50})
+    assert baseline.status_code == 200
+    baseline_ids = [item["id"] for item in baseline.json()["stories"]]
+
+    first = client.get("/api/v1/stories/feed", params={"radius_km": "all", "limit": 3})
+    assert first.status_code == 200
+    first_body = first.json()
+    first_ids = [item["id"] for item in first_body["stories"]]
+    cursor = first_body["next_cursor"]
+    assert cursor
+
+    inserted = _create_story(
+        db,
+        author_id=other_user.id,
+        center_lat=27.72,
+        center_lng=85.32,
+        minutes_ago=0,
+    )
+
+    second = client.get(
+        "/api/v1/stories/feed",
+        params={"radius_km": "all", "limit": 3, "cursor": cursor},
+    )
+    assert second.status_code == 200
+    second_ids = [item["id"] for item in second.json()["stories"]]
+
+    expected_remaining = baseline_ids[len(first_ids):]
+    assert second_ids == expected_remaining[: len(second_ids)]
+    assert str(inserted.id) not in second_ids

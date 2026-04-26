@@ -4,12 +4,15 @@ Stories service layer.
 
 from __future__ import annotations
 
+import base64
+import json
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import and_, case, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,6 +26,7 @@ VIDEO_MAX_DURATION_MS = 60_000
 STORY_TTL_HOURS = 24
 STORY_PURGE_GRACE_HOURS = 24
 STORY_ROW_RETENTION_DAYS = 30
+FEED_CURSOR_VERSION = 1
 
 PHOTO_MIME_TYPES = {
     "image/jpeg",
@@ -111,6 +115,72 @@ class StoryService:
         )
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return r * c
+
+    def _feed_tier(self, *, author_user_id: UUID, user_id: UUID) -> int:
+        return 0 if author_user_id == user_id else 1
+
+    def _encode_feed_cursor(self, *, tier: int, published_at: datetime, story_id: UUID) -> str:
+        payload = {
+            "v": FEED_CURSOR_VERSION,
+            "tier": int(tier),
+            "published_at": published_at.astimezone(timezone.utc).isoformat(),
+            "id": str(story_id),
+        }
+        raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+    def _decode_feed_cursor(
+        self,
+        cursor: Optional[str],
+    ) -> Optional[tuple[int, datetime, UUID]]:
+        if cursor is None:
+            return None
+        trimmed = cursor.strip()
+        if not trimmed:
+            return None
+        if trimmed.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid cursor",
+            )
+        try:
+            padded = trimmed + ("=" * (-len(trimmed) % 4))
+            payload = json.loads(base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be object")
+            version = int(payload["v"])
+            tier = int(payload["tier"])
+            published_raw = str(payload["published_at"])
+            story_id = UUID(str(payload["id"]))
+            published_at = datetime.fromisoformat(published_raw.replace("Z", "+00:00"))
+            if published_at.tzinfo is None:
+                raise ValueError("published_at must be timezone-aware")
+            published_at = published_at.astimezone(timezone.utc)
+            if version != FEED_CURSOR_VERSION or tier not in (0, 1):
+                raise ValueError("invalid version/tier")
+            return tier, published_at, story_id
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid cursor",
+            ) from exc
+
+    def _radius_bbox(
+        self,
+        *,
+        center_lat: float,
+        center_lng: float,
+        radius_km: float,
+    ) -> tuple[float, float, float, float]:
+        lat_delta = radius_km / 111.0
+        cos_lat = abs(math.cos(math.radians(center_lat)))
+        lng_delta = radius_km / (111.0 * max(cos_lat, 0.01))
+        return (
+            max(-90.0, center_lat - lat_delta),
+            min(90.0, center_lat + lat_delta),
+            max(-180.0, center_lng - lng_delta),
+            min(180.0, center_lng + lng_delta),
+        )
 
     async def publish_story(
         self,
@@ -242,15 +312,7 @@ class StoryService:
         limit: int,
     ) -> tuple[list[tuple[Story, Optional[float], bool]], Optional[str]]:
         now = self._now()
-        offset = 0
-        if cursor:
-            try:
-                offset = max(0, int(cursor))
-            except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid cursor",
-                )
+        decoded_cursor = self._decode_feed_cursor(cursor)
 
         muted_author_ids = {
             row[0]
@@ -259,7 +321,8 @@ class StoryService:
             .all()
         }
 
-        q = (
+        tier_expr = case((Story.author_user_id == user_id, 0), else_=1)
+        query = (
             self.db.query(Story)
             .filter(
                 Story.deleted_at.is_(None),
@@ -268,45 +331,109 @@ class StoryService:
                 Story.expires_at.isnot(None),
                 Story.expires_at > now,
             )
-            .order_by(Story.published_at.desc(), Story.id.desc())
-            .limit(500)
         )
-        rows = q.all()
-
-        filtered: list[tuple[Story, Optional[float], bool]] = []
-        for row in rows:
-            is_own = row.author_user_id == user_id
-            if not is_own and row.author_user_id in muted_author_ids:
-                continue
-            distance_km: Optional[float] = None
-            if not is_own and radius_km is not None:
-                if viewer_lat is None or viewer_lng is None:
-                    continue
-                distance_km = self._distance_km(
-                    lat1=viewer_lat,
-                    lng1=viewer_lng,
-                    lat2=row.center_lat,
-                    lng2=row.center_lng,
+        if muted_author_ids:
+            query = query.filter(
+                or_(
+                    Story.author_user_id == user_id,
+                    Story.author_user_id.notin_(muted_author_ids),
                 )
-                if distance_km > radius_km:
-                    continue
-            elif viewer_lat is not None and viewer_lng is not None:
-                distance_km = self._distance_km(
-                    lat1=viewer_lat,
-                    lng1=viewer_lng,
-                    lat2=row.center_lat,
-                    lng2=row.center_lng,
-                )
-            filtered.append((row, distance_km, is_own))
-
-        filtered.sort(
-            key=lambda entry: (
-                0 if entry[2] else 1,
-                -(entry[0].published_at.timestamp() if entry[0].published_at else 0),
             )
-        )
-        page = filtered[offset : offset + limit]
-        next_cursor = str(offset + limit) if (offset + limit) < len(filtered) else None
+
+        if radius_km is not None:
+            if viewer_lat is None or viewer_lng is None:
+                query = query.filter(Story.author_user_id == user_id)
+            else:
+                lat_min, lat_max, lng_min, lng_max = self._radius_bbox(
+                    center_lat=viewer_lat,
+                    center_lng=viewer_lng,
+                    radius_km=radius_km,
+                )
+                query = query.filter(
+                    or_(
+                        Story.author_user_id == user_id,
+                        and_(
+                            Story.author_user_id != user_id,
+                            Story.center_lat >= lat_min,
+                            Story.center_lat <= lat_max,
+                            Story.center_lng >= lng_min,
+                            Story.center_lng <= lng_max,
+                        ),
+                    )
+                )
+
+        scan_limit = max(3 * limit, 60)
+        scan_cursor = decoded_cursor
+        collected: list[tuple[Story, Optional[float], bool]] = []
+
+        while len(collected) < (limit + 1):
+            scan_query = query
+            if scan_cursor is not None:
+                cursor_tier, cursor_published_at, cursor_story_id = scan_cursor
+                scan_query = scan_query.filter(
+                    or_(
+                        tier_expr > cursor_tier,
+                        and_(
+                            tier_expr == cursor_tier,
+                            Story.published_at < cursor_published_at,
+                        ),
+                        and_(
+                            tier_expr == cursor_tier,
+                            Story.published_at == cursor_published_at,
+                            Story.id < cursor_story_id,
+                        ),
+                    )
+                )
+            rows = (
+                scan_query
+                .order_by(
+                    tier_expr.asc(),
+                    Story.published_at.desc(),
+                    Story.id.desc(),
+                )
+                .limit(scan_limit)
+                .all()
+            )
+            if not rows:
+                break
+
+            for row in rows:
+                is_own = row.author_user_id == user_id
+                distance_km: Optional[float] = None
+                if viewer_lat is not None and viewer_lng is not None:
+                    distance_km = self._distance_km(
+                        lat1=viewer_lat,
+                        lng1=viewer_lng,
+                        lat2=row.center_lat,
+                        lng2=row.center_lng,
+                    )
+                if radius_km is not None and not is_own:
+                    if viewer_lat is None or viewer_lng is None:
+                        continue
+                    if distance_km is None or distance_km > radius_km:
+                        continue
+                collected.append((row, distance_km, is_own))
+                if len(collected) >= (limit + 1):
+                    break
+
+            last_row = rows[-1]
+            scan_cursor = (
+                self._feed_tier(author_user_id=last_row.author_user_id, user_id=user_id),
+                (last_row.published_at or now).astimezone(timezone.utc),
+                last_row.id,
+            )
+            if len(rows) < scan_limit:
+                break
+
+        page = collected[:limit]
+        next_cursor = None
+        if len(collected) > limit and page:
+            last_story, _, last_is_own = page[-1]
+            next_cursor = self._encode_feed_cursor(
+                tier=0 if last_is_own else 1,
+                published_at=(last_story.published_at or now).astimezone(timezone.utc),
+                story_id=last_story.id,
+            )
         return page, next_cursor
 
     def get_story_for_viewer(self, *, story_id: UUID, user_id: UUID) -> Story:

@@ -10,11 +10,12 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.models.story import Story, StoryAuthorMute, StoryReport
+from app.models.story import Story, StoryAuthorMute, StoryReport, StoryView
 from app.services.storage_service import StorageConfigurationError, StorageService
+from app.config import settings
 
 PHOTO_MAX_BYTES = 10 * 1024 * 1024
 VIDEO_MAX_BYTES = 100 * 1024 * 1024
@@ -190,6 +191,7 @@ class StoryService:
             max_size_mb=100,
             contents=media_bytes,
             object_key=object_path,
+            cache_control_seconds=86400,
         )
         thumbnail_url: Optional[str] = None
         thumbnail_path: Optional[str] = None
@@ -390,11 +392,30 @@ class StoryService:
     def record_view(self, *, story_id: UUID, viewer_user_id: UUID) -> Story:
         story = self.get_story_for_viewer(story_id=story_id, user_id=viewer_user_id)
         if story.author_user_id != viewer_user_id:
-            story.view_count = int(story.view_count or 0) + 1
-            story.updated_at = self._now()
-            self.db.add(story)
-            self.db.commit()
-            self.db.refresh(story)
+            already_viewed = (
+                self.db.query(StoryView.id)
+                .filter(
+                    StoryView.story_id == story.id,
+                    StoryView.viewer_user_id == viewer_user_id,
+                )
+                .first()
+            )
+            if already_viewed is None:
+                now = self._now()
+                self.db.add(
+                    StoryView(
+                        story_id=story.id,
+                        viewer_user_id=viewer_user_id,
+                    )
+                )
+                story.view_count = int(story.view_count or 0) + 1
+                story.updated_at = now
+                self.db.add(story)
+                try:
+                    self.db.commit()
+                except IntegrityError:
+                    self.db.rollback()
+                story = self.get_story_for_viewer(story_id=story_id, user_id=viewer_user_id)
         return story
 
     def moderation_hide(self, *, story_id: UUID, moderator_user_id: UUID) -> Story:

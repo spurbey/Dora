@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:dora/core/media/image_compressor.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/daos/media_dao.dart';
@@ -24,6 +26,10 @@ final storiesApiProvider = Provider<StoriesApi>((ref) {
 
 final storyHideStoreProvider = Provider<StoryHideStore>((ref) {
   return StoryHideStore();
+});
+
+final storyImageCompressorProvider = Provider<ImageCompressor>((ref) {
+  return const ImageCompressor();
 });
 
 @immutable
@@ -268,6 +274,8 @@ class StoryPublishController extends Notifier<AsyncValue<void>> {
   StoriesApi get _api => ref.read(storiesApiProvider);
   StoriesDao get _storiesDao => ref.read(storiesDaoProvider);
   MediaDao get _mediaDao => ref.read(mediaDaoProvider);
+  ImageCompressor get _imageCompressor =>
+      ref.read(storyImageCompressorProvider);
 
   Future<void> publishLocalStory(
     String storyId, {
@@ -307,13 +315,31 @@ class StoryPublishController extends Notifier<AsyncValue<void>> {
     }
 
     await _storiesDao.markPublishing(storyId);
+    String? temporaryCompressedPath;
     try {
       final mediaType = media.mediaType.toLowerCase() == 'video'
           ? StoryMediaType.video
           : StoryMediaType.photo;
+      var uploadFilePath = media.localUri!;
+      if (mediaType == StoryMediaType.photo) {
+        try {
+          final compressed = await _imageCompressor.compress(
+            inputPath: media.localUri!,
+            mediaId: story.id,
+          );
+          uploadFilePath = compressed.file.path;
+          if (compressed.isTemporary) {
+            temporaryCompressedPath = compressed.file.path;
+          }
+        } catch (error) {
+          debugPrint(
+            '[stories] photo compression failed, using original media: $error',
+          );
+        }
+      }
       final result = await _api.publishStory(
         clientStoryId: story.id,
-        filePath: media.localUri!,
+        filePath: uploadFilePath,
         mediaType: mediaType,
         centerLat: story.centerLat,
         centerLng: story.centerLng,
@@ -340,6 +366,17 @@ class StoryPublishController extends Notifier<AsyncValue<void>> {
         errorMessage: error.toString(),
       );
       rethrow;
+    } finally {
+      if (temporaryCompressedPath != null) {
+        try {
+          final file = File(temporaryCompressedPath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {
+          // Best effort cleanup only.
+        }
+      }
     }
   }
 

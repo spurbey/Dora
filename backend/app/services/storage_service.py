@@ -215,6 +215,7 @@ class StorageService:
         max_size_mb: int = 10,
         contents: Optional[bytes] = None,
         object_key: Optional[str] = None,
+        cache_control_seconds: Optional[int] = None,
     ) -> str:
         """
         Upload file to Supabase Storage.
@@ -271,13 +272,14 @@ class StorageService:
             file_path = f"{user_id}/{unique_filename}"
         
         try:
+            cache_control = 3600 if cache_control_seconds is None else max(0, int(cache_control_seconds))
             # Upload to Supabase Storage
             self.supabase.storage.from_(bucket).upload(
                 path=file_path,
                 file=contents,
                 file_options={
                     "content-type": file.content_type,
-                    "cache-control": "3600",
+                    "cache-control": str(cache_control),
                     "upsert": "false"
                 }
             )

@@ -150,3 +150,30 @@ class StoryReport(Base):
 
     def __repr__(self) -> str:
         return f"<StoryReport(story={self.story_id}, reporter={self.reporter_user_id})>"
+
+
+class StoryView(Base):
+    __tablename__ = "story_views"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    story_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("stories.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    viewer_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("story_id", "viewer_user_id", name="uq_story_views_story_viewer"),
+        Index("idx_story_views_story_created", "story_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<StoryView(story={self.story_id}, viewer={self.viewer_user_id})>"

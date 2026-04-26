@@ -50,7 +50,7 @@ from app.models.advisory_user_action import AdvisoryUserAction
 from app.models.trip_advisory_state import TripAdvisoryState
 from app.models.user_metadata import UserMetadata
 from app.models.advisory_conversation_message import AdvisoryConversationMessage
-from app.models.story import Story, StoryAuthorMute, StoryReport
+from app.models.story import Story, StoryAuthorMute, StoryReport, StoryView
 
 __all__ = [
     "User",
@@ -89,4 +89,5 @@ __all__ = [
     "Story",
     "StoryAuthorMute",
     "StoryReport",
+    "StoryView",
 ]

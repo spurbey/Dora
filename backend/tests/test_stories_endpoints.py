@@ -23,6 +23,7 @@ def mock_story_storage(monkeypatch):
             max_size_mb=10,
             contents=None,
             object_key=None,
+            cache_control_seconds=None,
         ):
             path = object_key or f"{user_id}/mock.bin"
             return f"https://example.supabase.co/storage/v1/object/public/{bucket}/{path}"
@@ -142,3 +143,47 @@ def test_moderation_hide_requires_allow_list(client, db, test_user, other_user, 
     allowed = client.post(f"/api/v1/stories/{row.id}/moderation-hide")
     assert allowed.status_code == 200
     assert allowed.json()["status"] == "moderation_hidden"
+
+
+def test_story_view_is_idempotent_per_viewer(client, db, test_user, other_user, auth_as):
+    row = _create_story(db, author_id=other_user.id)
+
+    auth_as(test_user)
+    first = client.post(f"/api/v1/stories/{row.id}/view")
+    assert first.status_code == 200
+    second = client.post(f"/api/v1/stories/{row.id}/view")
+    assert second.status_code == 200
+
+    db.refresh(row)
+    assert int(row.view_count or 0) == 1
+    assert first.json()["view_count"] == 1
+    assert second.json()["view_count"] == 1
+
+
+def test_story_view_counts_are_per_viewer_and_owner_noop(
+    client,
+    db,
+    test_user,
+    other_user,
+    premium_user,
+    auth_as,
+):
+    row = _create_story(db, author_id=other_user.id)
+
+    auth_as(test_user)
+    first = client.post(f"/api/v1/stories/{row.id}/view")
+    assert first.status_code == 200
+
+    auth_as(premium_user)
+    second = client.post(f"/api/v1/stories/{row.id}/view")
+    assert second.status_code == 200
+
+    auth_as(other_user)
+    owner = client.post(f"/api/v1/stories/{row.id}/view")
+    assert owner.status_code == 200
+
+    db.refresh(row)
+    assert int(row.view_count or 0) == 2
+    assert first.json()["view_count"] == 1
+    assert second.json()["view_count"] == 2
+    assert owner.json()["view_count"] == 2

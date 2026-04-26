@@ -95,26 +95,66 @@ async def process_trip(db: Session, trip_id: str) -> None:
     brain_svc = TripBrainService(db)
     advisory_svc = AdvisoryService(db)
 
+    # Phase gate (Phase 5): skip explicit-paused brains. They shouldn't be
+    # 'active' in the first place, but this is defense-in-depth — a manual
+    # pause that didn't also flip lifecycle would otherwise still cycle.
+    brain_row = (
+        db.query(TripAdvisoryState.user_id, TripAdvisoryState.phase, TripAdvisoryState.locality_confidence)
+        .filter(TripAdvisoryState.trip_id == trip_id)
+        .first()
+    )
+    if brain_row is None:
+        logger.warning("cycle_worker: brain missing for trip %s", trip_id)
+        return
+    if brain_row.phase == "paused":
+        logger.info("[CYCLE] skipping trip %s — phase=paused", trip_id)
+        return
+
     decision = await brain_svc.pick_next_target(UUID(trip_id))
     outcome = decision.outcome
     target: TargetContext | None = decision.target
 
     if outcome == "found" and target is not None:
-        # Load the owner's user_id for create_advisory_job.
-        owner = (
-            db.query(TripAdvisoryState.user_id)
-            .filter(TripAdvisoryState.trip_id == trip_id)
-            .first()
+        # Confidence skip (Phase 5): if we already have HIGH confidence for
+        # this locality + the trip's main intent categories, treat as covered
+        # and advance cadence without scraping. Saves LLM tokens and proxy
+        # bandwidth on already-known territory. UGC contributions later just
+        # bump confidence the same way deliveries do.
+        from app.services.advisory_clarify import (
+            CONFIDENCE_HIGH,
+            lookup_confidence,
         )
-        if owner is None:
-            logger.warning("cycle_worker: brain missing for trip %s", trip_id)
-            return
-        user_id = owner[0]
+        # Reload brain (lookup_confidence needs the locality_confidence dict)
+        brain = (
+            db.query(TripAdvisoryState)
+            .filter(TripAdvisoryState.trip_id == trip_id)
+            .one_or_none()
+        )
+        if brain is not None:
+            intent_cats = (target.trip_metadata or {}).get("activity_focus") or []
+            conf = lookup_confidence(brain, target.locality_key, list(intent_cats))
+            if conf >= CONFIDENCE_HIGH:
+                logger.info(
+                    "[CYCLE] skipping trip %s — locality=%s conf=%.2f >= HIGH",
+                    trip_id, target.locality, conf,
+                )
+                try:
+                    await brain_svc.mark_cycle_outcome(
+                        UUID(trip_id), "delivered", target=target,
+                        poi_place_ids=[], categories_delivered=[],
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("[CYCLE] mark_cycle_outcome (conf-skip) failed: %s", exc)
+                return
+
+        user_id = brain_row.user_id
 
         trigger_payload = dict(target.to_dict())
         # Tie request_hash to the locality so repeated triggers for the same
         # locality coalesce into a single active job.
         trigger_payload["segment_id"] = target.locality_key
+        # Trigger source for observability (Phase 5).
+        trigger_payload["trigger_source"] = "cadence"
         try:
             job = advisory_svc.create_advisory_job(
                 user_id=user_id,

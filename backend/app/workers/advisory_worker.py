@@ -759,6 +759,45 @@ async def _stage_scoring(db: Session, job: AdvisoryJob) -> None:
     logger.info("[ADVISORY_STAGE] scoring done. %d insights above threshold", len(scored))
 
 
+# Category → map display kind. Polygon path is reserved for future
+# warn-zone / UGC-derived area advisories — we don't synthesize polygons
+# this sprint, so polygon-eligible categories fall back to point/ambient.
+_DISPLAY_KIND_BY_CATEGORY: dict[str, str] = {
+    "must_do": "point",
+    "photo_spot": "point",
+    "food_tip": "point",
+    "accommodation": "point",
+    "transport_tip": "route_overlay",
+    "cultural_etiquette": "ambient",
+    "general_tip": "ambient",
+}
+
+
+def _resolve_display_kind(
+    category: str | None,
+    *,
+    has_point: bool,
+    has_polygon: bool,
+) -> str:
+    """Pick display_kind for an advisory.
+
+    Geo-anchored categories (safety_warning/scam_alert/avoid) prefer
+    polygon when available, else point, else ambient. The static map
+    handles the rest.
+    """
+    cat = (category or "general_tip").lower()
+    if cat in ("safety_warning", "scam_alert", "avoid"):
+        if has_polygon:
+            return "polygon"
+        if has_point:
+            return "point"
+        return "ambient"
+    kind = _DISPLAY_KIND_BY_CATEGORY.get(cat, "ambient")
+    if kind == "point" and not has_point:
+        return "ambient"
+    return kind
+
+
 async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
     """Write TripAdvisory rows.
 
@@ -808,11 +847,18 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
             # (Redis INCR) once that service lands in Step 8. For now we
             # mark delivered and let the push service decide; the status
             # flip matches plan semantics.
+            adv_category = p.get("category") or "general_tip"
+            adv_polygon = p.get("place_polygon")
+            display_kind = _resolve_display_kind(
+                adv_category,
+                has_point=p.get("lat") is not None and p.get("lng") is not None,
+                has_polygon=adv_polygon is not None,
+            )
             advisory = TripAdvisory(
                 trip_id=job.trip_id,
                 user_id=job.user_id,
                 advisory_job_id=job.id,
-                category=p.get("category") or "general_tip",
+                category=adv_category,
                 source=p.get("source") or "combined",
                 place_name=p.get("name"),
                 place_lat=p.get("lat"),
@@ -830,6 +876,8 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
                 status="delivered" if should_push else "pending",
                 observed_at=now,
                 delivered_at=now if should_push else None,
+                display_kind=display_kind,
+                place_polygon=adv_polygon,
             )
             db.add(advisory)
             db.flush()
@@ -937,13 +985,24 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         src_url = item.get("_source_url")
         if src_url:
             source_urls.append(src_url)
+        adv_category = item.get("category", "general_tip")
+        adv_polygon = item.get("place_polygon")
+        adv_lat = item.get("place_lat")
+        adv_lng = item.get("place_lng")
+        display_kind = _resolve_display_kind(
+            adv_category,
+            has_point=adv_lat is not None and adv_lng is not None,
+            has_polygon=adv_polygon is not None,
+        )
         advisory = TripAdvisory(
             trip_id=job.trip_id,
             user_id=job.user_id,
             advisory_job_id=job.id,
-            category=item.get("category", "general_tip"),
+            category=adv_category,
             source=item.get("_source", "reddit"),
             place_name=item.get("place_name"),
+            place_lat=adv_lat,
+            place_lng=adv_lng,
             title=item.get("category", "tip").replace("_", " ").title(),
             body=item.get("insight", ""),
             context_signal=item.get("context_signal"),
@@ -955,6 +1014,8 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
             status="delivered" if should_push else "pending",
             observed_at=now,
             delivered_at=now if should_push else None,
+            display_kind=display_kind,
+            place_polygon=adv_polygon,
         )
         db.add(advisory)
         created_count += 1

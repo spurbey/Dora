@@ -100,6 +100,21 @@ class TripAdvisory(Base):
         comment="Delivery-only: pending|delivered|expired",
     )
 
+    # Map-rendering hint. Drives how the live screen surfaces this advisory:
+    # point/polygon/route_overlay = on map, ambient = chat/list only.
+    display_kind = Column(
+        String(20),
+        nullable=False,
+        default="ambient",
+        server_default="ambient",
+        comment="point|polygon|route_overlay|ambient",
+    )
+    place_polygon = Column(
+        JSONB,
+        nullable=True,
+        comment="GeoJSON polygon when display_kind='polygon'",
+    )
+
     observed_at = Column(
         DateTime(timezone=True),
         nullable=True,
@@ -143,6 +158,11 @@ class TripAdvisory(Base):
         Index("idx_advisory_trip_status", "trip_id", "status"),
         Index("idx_advisory_user_category", "user_id", "category"),
         Index("idx_advisory_job", "advisory_job_id"),
+        CheckConstraint(
+            "display_kind IN ('point','polygon','route_overlay','ambient')",
+            name="ck_trip_advisory_display_kind",
+        ),
+        Index("idx_advisory_trip_display", "trip_id", "display_kind"),
     )
 
     def __repr__(self) -> str:

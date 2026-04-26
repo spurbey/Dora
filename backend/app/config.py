@@ -176,6 +176,12 @@ class Settings(BaseSettings):
     ADVISORY_IGNORE_TTL_SECONDS: int = 3600
     ADVISORY_IGNORE_PAUSE_THRESHOLD: int = 3
 
+    # Clarify-intent (Phase 5). When enabled, low-confidence on_demand jobs
+    # ask the user one focused question via the conversation thread before
+    # scraping. Disabled by default until OpenRouter credit is added; the
+    # worker hot-path treats this as a no-op when False.
+    ADVISORY_CLARIFY_ENABLED: bool = False
+
     # Advisory sampling + geo
     ADVISORY_SAMPLE_COUNT: int = 22
     ADVISORY_CENTROID_WINDOW_SECONDS: int = 7200

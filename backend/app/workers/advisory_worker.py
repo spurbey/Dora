@@ -38,6 +38,7 @@ from app.services.trip_brain_service import TripBrainService, TargetContext
 # advisory_jobs row will be created with a phase available on its trip.
 STAGE_PATHS_BY_PHASE: dict[str, list[str]] = {
     "planning": [
+        "clarify_intent",
         "route_segmentation",
         "reddit_scrape",
         # tripadvisor_scrape: stub, dropped from path until the scraper is real
@@ -46,6 +47,7 @@ STAGE_PATHS_BY_PHASE: dict[str, list[str]] = {
         "delivery",
     ],
     "live_companion": [
+        "clarify_intent",
         "route_segmentation",
         "reddit_scrape",
         "gmaps_scrape",
@@ -875,6 +877,28 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
         }
         flag_modified(job, "scrape_plan")
         db.commit()
+
+        # Bump locality_confidence so future clarify_intent decisions for
+        # this same (locality, intent) skip the ask. Best-effort — never
+        # raises into the worker loop.
+        if target and target.locality_key and delivered_categories:
+            try:
+                from app.services.advisory_clarify import update_confidence
+                cat_counts: dict[str, int] = {}
+                for c in delivered_categories:
+                    cat_counts[c] = cat_counts.get(c, 0) + 1
+                update_confidence(
+                    db,
+                    job.trip_id,
+                    target.locality_key,
+                    delivered_categories=list(cat_counts.keys()),
+                    insights_count_per_category=cat_counts,
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "[ADVISORY_STAGE] update_confidence failed job_id=%s",
+                    job.id, exc_info=True,
+                )
         return
 
     # Legacy path — pre_trip / on_demand.
@@ -981,7 +1005,25 @@ async def _stage_delivery(db: Session, job: AdvisoryJob) -> None:
     )
 
 
+async def _stage_clarify_intent(db: Session, job: AdvisoryJob) -> None:
+    """Wrapper around app.services.advisory_clarify.maybe_clarify.
+
+    The clarify stage is the only one that can short-circuit the pipeline
+    (when it blocks the job to wait for a user answer). It signals that
+    by setting job.status='blocked' inside maybe_clarify; run_job_once
+    detects the status change after this handler returns and exits early.
+    """
+    from app.services.advisory_clarify import maybe_clarify
+    proceed = await maybe_clarify(db, job)
+    if not proceed:
+        logger.info(
+            "[ADVISORY_STAGE] clarify_intent blocked job_id=%s — waiting for user",
+            job.id,
+        )
+
+
 STAGE_HANDLERS = {
+    "clarify_intent": _stage_clarify_intent,
     "route_segmentation": _stage_route_segmentation,
     "reddit_scrape": _stage_reddit_scrape,
     # tripadvisor_scrape kept addressable so legacy stage names still
@@ -1079,6 +1121,22 @@ async def run_job_once(db: Session, job: AdvisoryJob) -> None:
 
             handler = STAGE_HANDLERS[stage_name]
             await handler(db, job)
+
+            # The clarify_intent stage may have blocked the job (waiting for
+            # user response) or marked it completed (impossible status). In
+            # either case, we exit the stage loop without proceeding.
+            db.refresh(job)
+            if job.status in ("blocked", "completed", "canceled", "failed"):
+                logger.info(
+                    "[ADVISORY_WORKER] short-circuit at stage=%s status=%s job_id=%s",
+                    stage_name, job.status, job.id,
+                )
+                if job.status == "blocked":
+                    # Cycle terminus: 'failed' is the closest mapping for the
+                    # brain because the job didn't deliver. Avoids stuck
+                    # next_eligible_at for the trip while the user thinks.
+                    await _mark_cycle_terminus(db, job, "failed")
+                return
 
         # All stages complete
         job.status = "completed"

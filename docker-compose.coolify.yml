@@ -72,6 +72,9 @@ x-backend-env: &backend_env
   ADVISORY_CYCLE_BATCH_SIZE: ${ADVISORY_CYCLE_BATCH_SIZE:-50}
   ADVISORY_CYCLE_PROCESSING_TIMEOUT_SECONDS: ${ADVISORY_CYCLE_PROCESSING_TIMEOUT_SECONDS:-120}
   ADVISORY_IGNORE_TTL_SECONDS: ${ADVISORY_IGNORE_TTL_SECONDS:-3600}
+  # Set to "true" to enable the LLM clarify-intent stage on on_demand jobs.
+  # Requires OpenRouter credit (DeepSeek V4 Flash recommended for speed).
+  ADVISORY_CLARIFY_ENABLED: ${ADVISORY_CLARIFY_ENABLED:-false}
 
 x-renderer-env: &renderer_env
   PORT: 3100

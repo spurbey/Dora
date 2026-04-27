@@ -1,0 +1,1 @@
+{"commands":["set -e","api_container=$(docker ps --format \"{{.Names}}\" | grep \"^api-\" | head -n 1)","echo \"API_CONTAINER=$api_container\"","docker exec \"$api_container\" /bin/sh -lc \"env | sort | grep -E \\\"^(FIREBASE_|SUPABASE_URL|MAPBOX_API_KEY|OPENROUTER_API_KEY)=\\\" || true\""]}

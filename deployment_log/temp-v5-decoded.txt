@@ -1,0 +1,16 @@
+STATUS:Success
+--STDOUT--
+ADV=advisory_worker-oweg8231w4f615fwkxhil9r2-234520489177
+brightdata_ca.crt
+reddit_json.py
+INFO httpx: HTTP Request: GET https://www.reddit.com/r/IndiaTravel/search.json?q=vegetarian+food+Pune&limit=5&sort=relevance&type=link&restrict_sr=on&t=year "HTTP/1.1 402 Residential Failed (bad_endpoint)"
+WARNING reddit_json: [reddit_json] search IndiaTravel/'vegetarian food Pune' non-200: 402
+============================================================
+PROBE 1: search_subreddit IndiaTravel - vegetarian food Pune (limit=5)
+============================================================
+  elapsed: 3.16s
+  hits: 0
+
+NO_HITS - search blocked or empty
+
+--STDERR--

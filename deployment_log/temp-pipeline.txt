@@ -1,0 +1,40 @@
+ADV=advisory_worker-oweg8231w4f615fwkxhil9r2-234520489177
+brightdata_ca.crt
+reddit_json.py
+INFO httpx: HTTP Request: GET https://www.reddit.com/r/IndiaTravel/search.json?q=vegetarian+food+Pune&limit=5&sort=relevance&type=link&restrict_sr=on&t=year "HTTP/1.1 200 OK"
+INFO reddit_json: [reddit_json] search IndiaTravel/'vegetarian food Pune' ok hits=5
+INFO httpx: HTTP Request: GET https://www.reddit.com/r/indiatravel/comments/1ri2u1d/taking_indian_parents_to_travel_italy_during_may.json "HTTP/1.1 200 OK"
+INFO reddit_json: [reddit_json] post /r/indiatravel/comments/1ri2u1d/taking_indian_parents_to_tra ok body=636 comments=23 (top-level)
+============================================================
+PROBE 1: search_subreddit IndiaTravel - vegetarian food Pune (limit=5)
+============================================================
+  elapsed: 6.18s
+  hits: 5
+    - score=7 comments=34
+      Taking Indian parents to travel italy during May. Is it a good idea?
+      permalink: /r/indiatravel/comments/1ri2u1d/taking_indian_parents_to_travel_italy_during_may/
+    - score=3 comments=32
+      Advice for Kasol/Tosh Trip!
+      permalink: /r/indiatravel/comments/1p78mml/advice_for_kasoltosh_trip/
+    - score=5 comments=6
+      Need recommendations: Best/Trusted travel agents for Kazakhstan &amp; Uzbekistan (travelin
+      permalink: /r/indiatravel/comments/1sq2u41/need_recommendations_besttrusted_travel_agents/
+    - score=3 comments=11
+      15 Days in Armenia 🇦🇲 &amp; Georgia 🇬🇪 - Feedback on our itinerary/route + tips?
+      permalink: /r/indiatravel/comments/1rhp8ik/15_days_in_armenia_georgia_feedback_on_our/
+    - score=2 comments=3
+      Pune to Goa roadtrip
+      permalink: /r/indiatravel/comments/1rv4fns/pune_to_goa_roadtrip/
+
+============================================================
+PROBE 2: fetch_post for first hit
+============================================================
+  elapsed: 2.79s
+  title: Taking Indian parents to travel italy during May. Is it a good idea?
+  op: shadowySuperCoder420
+  body chars: 636 | score: 7 | num_comments: 34
+  body sample: 'I am planning to take my indian parents - 55 years old each to travel italy around 15th May in cities like Rome, Milan, Venice and Amalfi around 8N/9D. They can walk but not more than 3-4 km everyday.'
+  top-level comments parsed: 23
+  c[0]: author='HelpfulCar2018' score=2 is_op=False body_len=162
+        body: "55 years old is not so old (LOL) that they would be unable to walk beyond 3-4 km everyday. It's not about age but the amount of physical activity they can handle."
+        replies: 1

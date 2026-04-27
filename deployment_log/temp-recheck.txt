@@ -1,0 +1,37 @@
+ADV=advisory_worker-oweg8231w4f615fwkxhil9r2-234520489177
+brightdata_ca.crt
+============================================================
+PROBE A: urllib.request via proxy + cert (matches brightdata_proxy.py pattern)
+============================================================
+
+  [urllib] old_search_html
+    url:    https://old.reddit.com/r/IndiaTravel/search?q=vegetarian+food+Pune&restrict_sr=on&sort=relevance&t=year
+    status: 200
+    bytes:  71678
+    head:   b'<!doctype html><html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head><title>indiatravel: search results - vegetarian food Pune</title><meta name="keywords" content=" reddit, reddit.com, vote, comment, submit " /><meta name="description" content="Share you travel pics, stories and '
+    elapsed:7.85s
+
+  [urllib] www_search_json
+    url:    https://www.reddit.com/r/IndiaTravel/search.json?q=vegetarian+food+Pune&limit=5&sort=relevance&type=link&restrict_sr=on&t=year
+    status: 200
+    bytes:  26791
+    head:   b'{"kind": "Listing", "data": {"modhash": "", "dist": 5, "facets": {}, "after": "t3_1rv4fns", "geo_filter": "", "children": [{"kind": "t3", "data": {"approved_at_utc": null, "subreddit": "indiatravel", "selftext": "I am planning to take my indian parents - 55 years old each to travel italy around 15th'
+    elapsed:6.04s
+
+============================================================
+PROBE B: httpx via proxy + cert (our actual library)
+============================================================
+
+  [httpx] old_search_html
+    url:    https://old.reddit.com/r/IndiaTravel/search?q=vegetarian+food+Pune&restrict_sr=on&sort=relevance&t=year
+    status: 200
+    bytes:  71452
+    head:   b'<!doctype html><html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head><title>indiatravel: search results - vegetarian food Pune</title><meta name="keywords" content=" reddit, reddit.com, vote, comment, submit " /><meta name="description" content="Share you travel pics, stories and '
+    elapsed:6.03s
+
+  [httpx] www_search_json
+    url:    https://www.reddit.com/r/IndiaTravel/search.json?q=vegetarian+food+Pune&limit=5&sort=relevance&type=link&restrict_sr=on&t=year
+    status: 200
+    bytes:  26792
+    head:   b'{"kind": "Listing", "data": {"modhash": "", "dist": 5, "facets": {}, "after": "t3_1rv4fns", "geo_filter": "", "children": [{"kind": "t3", "data": {"approved_at_utc": null, "subreddit": "indiatravel", "selftext": "I am planning to take my indian parents - 55 years old each to travel italy around 15th'
+    elapsed:6.65s

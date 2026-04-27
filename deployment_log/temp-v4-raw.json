@@ -1,0 +1,14 @@
+{
+    "CommandId": "6ae7cc63-6eff-4f90-bac1-8a23ebfc8914",
+    "InstanceId": "i-09e5067742dd683c4",
+    "Comment": "reddit_json proxy probe — 1 search + 1 detail",
+    "DocumentName": "AWS-RunShellScript",
+    "DocumentVersion": "$DEFAULT",
+    "PluginName": "aws:runShellScript",
+    "ResponseCode": 0,
+    "ExecutionStartDateTime": "2026-04-26T16:42:17.495Z",
+    "ExecutionElapsedTime": "PT8.129S",
+    "ExecutionEndDateTime": "2026-04-26T16:42:25.495Z",
+    "Status": "Success",
+    "StatusDetails": "Success",
+    "StandardOutputContent": 

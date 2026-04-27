@@ -1,0 +1,1 @@
+{"commands":["set -e","api_container=$(docker ps --format \"{{.Names}}\" | grep \"^api-\" | head -n 1)","docker exec \"$api_container\" /bin/sh -lc \"env | sort | sed -n \\\"1,80p\\\"\""]}

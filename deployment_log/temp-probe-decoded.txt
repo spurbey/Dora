@@ -1,0 +1,36 @@
+STATUS: Success
+---STDOUT---
+ADV=advisory_worker-oweg8231w4f615fwkxhil9r2-234520489177
+brightdata_ca.crt
+reddit_json.py
+INFO httpx: HTTP Request: GET https://www.reddit.com/r/IndiaTravel/search.json?q=vegetarian+food+Pune&limit=5&sort=relevance&type=link&restrict_sr=on&t=year "HTTP/1.1 200 OK"
+INFO reddit_json: [reddit_json] search IndiaTravel/'vegetarian food Pune' ok hits=5
+WARNING reddit_json: [reddit_json] post /r/indiatravel/comments/1ri2u1d/taking_indian_parents_to_tra http error: 
+============================================================
+PROBE 1: search_subreddit IndiaTravel - vegetarian food Pune (limit=5)
+============================================================
+  elapsed: 6.93s
+  hits: 5
+    - score=6 comments=34
+      Taking Indian parents to travel italy during May. Is it a good idea?
+      permalink: /r/indiatravel/comments/1ri2u1d/taking_indian_parents_to_travel_italy_during_may/
+    - score=3 comments=32
+      Advice for Kasol/Tosh Trip!
+      permalink: /r/indiatravel/comments/1p78mml/advice_for_kasoltosh_trip/
+    - score=4 comments=6
+      Need recommendations: Best/Trusted travel agents for Kazakhstan &amp; Uzbekistan (travelin
+      permalink: /r/indiatravel/comments/1sq2u41/need_recommendations_besttrusted_travel_agents/
+    - score=3 comments=11
+      15 Days in Armenia 🇦🇲 &amp; Georgia 🇬🇪 - Feedback on our itinerary/route + tips?
+      permalink: /r/indiatravel/comments/1rhp8ik/15_days_in_armenia_georgia_feedback_on_our/
+    - score=2 comments=3
+      Pune to Goa roadtrip
+      permalink: /r/indiatravel/comments/1rv4fns/pune_to_goa_roadtrip/
+
+============================================================
+PROBE 2: fetch_post for first hit
+============================================================
+  elapsed: 15.93s
+  POST_NULL - post fetch failed
+
+---STDERR---

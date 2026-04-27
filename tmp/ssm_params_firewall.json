@@ -1,0 +1,1 @@
+{"commands":["sudo ufw status verbose || true","sudo iptables -S INPUT | sed -n \"1,80p\" || true"]}

@@ -1,0 +1,23 @@
+--STDOUT--
+ADV=advisory_worker-oweg8231w4f615fwkxhil9r2-234520489177
+brightdata_ca.crt
+llm.py
+reddit_json.py
+reddit_v2.py
+INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING app.services.llm: [LLM] reddit_planner parse error model=z-ai/glm-4.5-air:free: Expecting value: line 1 column 1 (char 0)
+INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING app.services.llm: [LLM] reddit_planner parse error model=z-ai/glm-4.5-air:free: Expecting value: line 1 column 1 (char 0)
+WARNING app.services.llm: [LLM] reddit_planner exhausted 2 attempts on z-ai/glm-4.5-air:free; trying next candidate
+INFO httpx: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO app.services.llm: [LLM] reddit_planner ok model=nvidia/nemotron-3-super-120b-a12b:free attempt=1 in=191 out=669
+INFO app.services.scrapers.reddit_v2: [reddit_v2] plan: subs=['IndiaTravel', 'Pune', 'IndianFood', 'vegetarian'] queries=['best vegetarian restaurants Pune', 'Pune street food guide for travelers', 'cultural attractions Pune weekend itinerary'] focus=['food_tip', 'must_do']
+INFO httpx: HTTP Request: GET https://www.reddit.com/r/IndiaTravel/search.json?q=best+vegetarian+restaurants+Pune&limit=3&sort=relevance&type=link&restrict_sr=on&t=year "HTTP/1.1 402 Residential Failed (bad_endpoint)"
+WARNING app.services.scrapers.reddit_json: [reddit_json] search IndiaTravel/'best vegetarian restaurants Pune' non-200: 402
+[0.0s] starting plan_search...
+[229.9s] plan: subs=['IndiaTravel', 'Pune', 'IndianFood', 'vegetarian'] queries=['best vegetarian restaurants Pune', 'Pune street food guide for travelers', 'cultural attractions Pune weekend itinerary']
+[229.9s] starting search_subreddit (sub='IndiaTravel', q='best vegetarian restaurants Pune')...
+[233.1s] got 0 hits; first: (none)
+[233.1s] DONE
+
+--STDERR--

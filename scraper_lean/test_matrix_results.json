@@ -1,0 +1,40 @@
+{
+  "test1_lean_local": {
+    "label": "Test 1: scraper_lean + Local browser",
+    "browser": "local",
+    "search": "PASS",
+    "place_title": "Malaka Spice",
+    "search_detail": "direct_hit",
+    "reviews_button": "FOUND",
+    "reviews_count": 5,
+    "reviews_sample": [
+      {
+        "author": "Avneesh Mishra",
+        "rating": 5,
+        "text": "An excellent restaurant for East Asian cuisine involving curry and starters. I t"
+      },
+      {
+        "author": "Zaheer Osman",
+        "rating": 5,
+        "text": "Wonderful entrance and beautiful ambiance. I started with a simple black coffee…"
+      },
+      {
+        "author": "prabhjeet oberoi",
+        "rating": 5,
+        "text": "A culinary jewel, this Pune restaurant is a symphony for the senses. 🍜 Each dish"
+      }
+    ],
+    "error": null
+  },
+  "test2_lean_brightdata": {
+    "label": "Test 2: scraper_lean + BrightData browser",
+    "browser": "brightdata",
+    "search": "PASS",
+    "place_title": "Malaka Spice",
+    "search_detail": "direct_hit",
+    "reviews_button": "FOUND",
+    "reviews_count": 0,
+    "reviews_sample": [],
+    "error": null
+  }
+}

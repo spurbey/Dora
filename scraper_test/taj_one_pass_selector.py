@@ -187,7 +187,8 @@ async def run_one_pass():
                 use_llm=use_llm,
             )
             reviews_used = _safe_review_texts(record)[:review_limit]
-            review_source = "google_maps_dynamic"
+            review_source = "google_maps_llm" if use_llm else "google_maps_css"
+            
             if len(reviews_used) < review_limit:
                 try:
                     dyn_rows = await wrapper.scrape_google_maps_dynamic_reviews(
@@ -198,8 +199,21 @@ async def run_one_pass():
                     dyn_texts = _filter_review_snippets(dyn_texts, review_limit)
                     if dyn_texts:
                         reviews_used = dyn_texts
+                        review_source = "google_maps_dynamic"
                 except Exception as dyn_exc:
                     print(f"  dynamic review extraction failed: {dyn_exc}")
+
+            if not reviews_used:
+                try:
+                    web_snippets = await wrapper.crawl_search_review_snippets(
+                        query=candidate,
+                        limit=review_limit,
+                    )
+                    if web_snippets:
+                        reviews_used = web_snippets
+                        review_source = "web_snippet_fallback"
+                except Exception as web_exc:
+                    print(f"  web snippet fallback failed: {web_exc}")
 
             scoring_record = dict(record)
             scoring_record["reviews"] = reviews_used

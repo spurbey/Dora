@@ -63,7 +63,9 @@ class Crawl4AIWrapper:
         schema: dict,
         instruction: str,
         provider: Optional[str] = None,
-        wait_for: Optional[str] = None
+        wait_for: Optional[str] = None,
+        js_code: Optional[str] = None,
+        delay_before_return_html: Optional[float] = None,
     ) -> list[dict]:
         """
         Crawl URL and extract data using LLM.
@@ -74,6 +76,7 @@ class Crawl4AIWrapper:
             instruction: Instructions for LLM
             provider: LLM provider (e.g., "openai/gpt-4o-mini")
             wait_for: CSS selector to wait for
+            js_code: JavaScript to execute before extraction
             
         Returns:
             List of extracted data as dicts
@@ -107,6 +110,21 @@ class Crawl4AIWrapper:
                 instruction=instruction,
                 force_json_response=True,
             )
+            
+            run_config_kwargs: dict = {
+                "extraction_strategy": extraction_strategy,
+                "cache_mode": CacheMode.BYPASS,
+                "verbose": self.config.CRAWL4AI_VERBOSE,
+            }
+            
+            if wait_for:
+                run_config_kwargs["wait_for"] = wait_for
+            if js_code:
+                run_config_kwargs["js_code"] = js_code
+            if delay_before_return_html:
+                run_config_kwargs["delay_before_return_html"] = delay_before_return_html
+                
+            run_config = CrawlerRunConfig(**run_config_kwargs)
             
             run_config = CrawlerRunConfig(
                 extraction_strategy=extraction_strategy,
@@ -156,6 +174,7 @@ class Crawl4AIWrapper:
             url: Target URL
             css_schema: CSS selector schema
             wait_for: CSS selector to wait for
+            js_code: JavaScript to execute
             
         Returns:
             List of extracted data as dicts
@@ -359,6 +378,15 @@ class Crawl4AIWrapper:
         """
         review_limit = max(1, min(review_limit, 12))
         structured: list[dict] = []
+        
+        # JS code to scroll and trigger lazy loading
+        js_scroll = """
+        (() => {
+            window.scrollTo(0, 2000);
+            return new Promise(resolve => setTimeout(resolve, 3000));
+        })()
+        """
+        
         if use_llm:
             instruction = (
                 "Extract place details from this Google Maps page. "
@@ -372,6 +400,8 @@ class Crawl4AIWrapper:
                 instruction=instruction,
                 provider=self.config.LLM_PROVIDER,
                 wait_for="body",
+                js_code=js_scroll,
+                delay_before_return_html=5.0,
             )
         else:
             structured = await self.crawl_with_css_extraction(
@@ -393,17 +423,66 @@ class Crawl4AIWrapper:
     ) -> list[dict]:
         """
         Dynamic JS path: open reviews panel and extract review cards.
+        Uses combined JS to click Reviews button, scroll, then extract.
         """
         review_limit = max(1, min(review_limit, 12))
+        
+        combined_js = f"""
+(() => {{
+  // Step 1: Click Reviews button
+  const norm = (v) => (v || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+  const clickable = Array.from(document.querySelectorAll('button, a, [role=\"button\"], span[role=\"button\"]'));
+  const patterns = [/reviews?$/, /all reviews/, /\\\\breviews?\\\\b/];
+  const deny = [/write a review/, /about this data/, /sign in/, /google review/];
+  
+  for (const el of clickable) {{
+    const label = norm(el.getAttribute('aria-label') || el.textContent);
+    if (!label || label.length < 3) continue;
+    if (deny.some((r) => r.test(label))) continue;
+    if (patterns.some((r) => r.test(label))) {{
+      try {{ el.click(); console.log('Clicked:', label); }} catch (e) {{}}
+      break;
+    }}
+  }}
+  
+  // Step 2: Wait and scroll to load reviews
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  await wait(2000);
+  
+  const containers = document.querySelectorAll('div[role=\"feed\"], div[aria-label*=\"Reviews\"], div[class*=\"review\"]');
+  if (containers.length > 0) {{
+    for (const c of containers) {{
+      for (let i = 0; i < 8; i++) {{
+        c.scrollTop = c.scrollHeight;
+        await wait(300);
+      }}
+    }}
+  }} else {{
+    for (let i = 0; i < 5; i++) {{
+      window.scrollTo(0, document.body.scrollHeight);
+      await wait(400);
+    }}
+  }}
+  
+  // Step 3: Click "More" to expand
+  const buttons = document.querySelectorAll('button, span[role=\"button\"]');
+  for (const btn of buttons) {{
+    const label = (btn.getAttribute('aria-label') || btn.textContent || '').toLowerCase().trim();
+    if (label === 'more' || label.includes('more review')) {{
+      try {{ btn.click(); console.log('Expanded:', label); }} catch(e) {{}}
+    }}
+  }}
+  
+  return 'done';
+}})()
+"""
+        
         rows = await self.crawl_with_css_extraction(
             url=place_url,
             css_schema=GOOGLE_DYNAMIC_REVIEW_SCHEMA,
             wait_for="body",
-            js_code=[
-                GOOGLE_JS_OPEN_REVIEWS_PANEL,
-                GOOGLE_JS_SCROLL_REVIEWS_PANEL,
-            ],
-            delay_before_return_html=6.0,
+            js_code=combined_js,
+            delay_before_return_html=8.0,
             page_timeout=180000,
         )
 
@@ -610,81 +689,92 @@ DUCKDUCKGO_SNIPPET_SCHEMA = {
 
 GOOGLE_DYNAMIC_REVIEW_SCHEMA = {
     "name": "google_dynamic_reviews",
-    "baseSelector": "div.jftiEf, div[data-review-id], div.MyEned, div[role='article']",
+    "baseSelector": "div[role='article']",
     "fields": [
-        {"name": "author", "selector": "div.d4r55, span.d4r55, .TSUbDb", "type": "text"},
-        {"name": "rating", "selector": "span.kvMYJc, span[aria-label*='stars']", "type": "attribute", "attribute": "aria-label"},
-        {"name": "relative_time", "selector": "span.rsqaWe, .xRkPPb", "type": "text"},
-        {"name": "text", "selector": "span.wiI7pd, div.MyEned span, div.MyEned", "type": "text"},
+        {"name": "author", "selector": "[class*='d4r55']", "type": "text"},
+        {"name": "rating", "selector": "[aria-label*='star']", "type": "attribute", "attribute": "aria-label"},
+        {"name": "relative_time", "selector": "[class*='rsqa']", "type": "text"},
+        {"name": "text", "selector": "[class*='wiI7']", "type": "text"},
     ],
 }
 
 GOOGLE_JS_OPEN_REVIEWS_PANEL = """
 (() => {
   const norm = (v) => (v || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-  const clickable = Array.from(document.querySelectorAll('button,[role="button"],a,div[role="button"],span[role="button"]'));
-  const patterns = [/^reviews$/, /more reviews/, /all reviews/, /^review summary$/, /review summary/];
-  const deny = [/write a review/, /about this data/, /sign in/];
-  const clicked = [];
+  // Find all clickable elements
+  const clickable = Array.from(document.querySelectorAll('button, a, [role="button"], span[role="button"]'));
+  const patterns = [/reviews?$/, /all reviews/, /\\breviews?\\b/];
+  const deny = [/write a review/, /about this data/, /sign in/, /google review/];
+  let clicked = [];
+  
   for (const el of clickable) {
     const label = norm(el.getAttribute('aria-label') || el.textContent);
-    if (!label) continue;
+    if (!label || label.length < 3) continue;
     if (deny.some((r) => r.test(label))) continue;
     if (patterns.some((r) => r.test(label))) {
-      try { el.click(); clicked.push(label); break; } catch (e) {}
+      try { 
+        el.click(); 
+        clicked.push(label.slice(0, 30)); 
+        break; 
+      } catch (e) {}
     }
   }
+  
+  // Fallback: try clicking near rating section
   if (!clicked.length) {
-    const star = Array.from(document.querySelectorAll('span[aria-label*="stars"], span[aria-label*="Stars"]'))[0];
-    if (star) {
-      const parent = star.closest('button,[role="button"],a,div[role="button"]');
-      if (parent) {
-        try { parent.click(); clicked.push('star_parent'); } catch (e) {}
+    const spans = document.querySelectorAll('span');
+    for (const span of spans) {
+      const txt = norm(span.textContent);
+      if (txt.includes('review') && !deny.some(r => r.test(txt))) {
+        const parent = span.closest('button, a, [role="button"]');
+        if (parent) {
+          try { parent.click(); clicked.push('fallback:' + txt.slice(0,20)); break; } catch (e) {}
+        }
       }
     }
   }
-  return { clicked };
+  
+  return clicked;
 })()
 """
 
 GOOGLE_JS_SCROLL_REVIEWS_PANEL = """
 (() => {
-  const findScrollers = () => {
-    const els = Array.from(document.querySelectorAll('div'));
-    return els.filter((el) => {
-      const sh = el.scrollHeight || 0;
-      const ch = el.clientHeight || 0;
-      if (sh < ch + 200) return false;
-      const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-      const cls = (el.className || '').toString().toLowerCase();
-      return aria.includes('review') || cls.includes('m6qerb') || cls.includes('dS8AEf');
-    }).sort((a, b) => (b.scrollHeight - a.scrollHeight));
-  };
-
-  const scrollers = findScrollers();
-  let scrolls = 0;
-  if (scrollers.length) {
-    const target = scrollers[0];
-    for (let i = 0; i < 22; i++) {
-      target.scrollTop = target.scrollHeight;
-      scrolls += 1;
+  // First wait a bit for panel to open
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  
+  // Try to find scrollable review container
+  let scrolled = 0;
+  const containers = document.querySelectorAll('div[role="feed"], div[aria-label*="Reviews"], div[class*="review"]');
+  
+  if (containers.length > 0) {
+    for (const c of containers) {
+      for (let i = 0; i < 10; i++) {
+        c.scrollTop = c.scrollHeight;
+        wait(200);
+        scrolled++;
+      }
     }
   } else {
-    for (let i = 0; i < 10; i++) {
+    // Fallback to window scroll
+    for (let i = 0; i < 5; i++) {
       window.scrollTo(0, document.body.scrollHeight);
-      scrolls += 1;
+      wait(300);
+      scrolled++;
     }
   }
-
-  const expandable = Array.from(document.querySelectorAll('button,[role="button"],span[role="button"]'));
+  
+  // Click "More" buttons to expand reviews
   let expanded = 0;
-  for (const el of expandable) {
-    const label = ((el.getAttribute('aria-label') || el.textContent || '').trim().toLowerCase());
-    if (label === 'more' || label === 'more reviews') {
-      try { el.click(); expanded += 1; } catch (e) {}
+  const buttons = document.querySelectorAll('button, span[role="button"]');
+  for (const btn of buttons) {
+    const label = (btn.getAttribute('aria-label') || btn.textContent || '').toLowerCase().trim();
+    if (label === 'more' || label.includes('more review')) {
+      try { btn.click(); expanded++; } catch(e) {}
     }
   }
-  return { scrolls, expanded, scrollerCount: scrollers.length };
+  
+  return { scrolled, expanded };
 })()
 """
 

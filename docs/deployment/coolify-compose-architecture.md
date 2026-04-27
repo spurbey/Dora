@@ -8,6 +8,9 @@ It is intended for:
 - agents modifying deployment files
 - incident debugging when services or workers fail in Coolify
 
+Quick incident checklist:
+- `docs/deployment/deploy-troubleshooting-quickstart.md`
+
 ---
 
 ## Background: Why We Moved

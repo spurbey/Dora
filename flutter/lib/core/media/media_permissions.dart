@@ -29,14 +29,38 @@ class MediaPermissions {
     return _mapStatus(status);
   }
 
-  Future<MediaPermissionState> ensureGalleryPermission() async {
+  Future<MediaPermissionState> ensureGalleryPermission({
+    bool requestIfDenied = true,
+    bool usePhotoManagerForAndroid = false,
+  }) async {
+    return galleryPermissionStatus(
+      requestIfDenied: requestIfDenied,
+      usePhotoManagerForAndroid: usePhotoManagerForAndroid,
+    );
+  }
+
+  Future<MediaPermissionState> galleryPermissionStatus({
+    bool requestIfDenied = false,
+    bool usePhotoManagerForAndroid = false,
+  }) async {
     if (Platform.isAndroid) {
-      // Android photo picker can work without explicit runtime storage permission.
-      // Keep flow non-blocking to avoid manifest mismatch loops from permission_handler.
-      return MediaPermissionState.granted;
+      final statuses = await _androidGalleryStatuses(
+        requestIfDenied: requestIfDenied,
+      );
+      if (statuses.any((status) => status.isGranted || status.isLimited)) {
+        return MediaPermissionState.granted;
+      }
+      if (statuses.any(
+        (status) => status.isPermanentlyDenied || status.isRestricted,
+      )) {
+        return MediaPermissionState.permanentlyDenied;
+      }
+      return MediaPermissionState.denied;
     }
 
-    final status = await Permission.photos.request();
+    final status = requestIfDenied
+        ? await Permission.photos.request()
+        : await Permission.photos.status;
     return _mapStatus(status);
   }
 
@@ -50,5 +74,22 @@ class MediaPermissions {
       return MediaPermissionState.permanentlyDenied;
     }
     return MediaPermissionState.denied;
+  }
+
+  Future<List<PermissionStatus>> _androidGalleryStatuses({
+    required bool requestIfDenied,
+  }) async {
+    if (requestIfDenied) {
+      return <PermissionStatus>[
+        await Permission.photos.request(),
+        await Permission.videos.request(),
+        await Permission.storage.request(),
+      ];
+    }
+    return <PermissionStatus>[
+      await Permission.photos.status,
+      await Permission.videos.status,
+      await Permission.storage.status,
+    ];
   }
 }

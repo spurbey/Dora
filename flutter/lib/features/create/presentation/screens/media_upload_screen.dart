@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:dora/core/media/custom_gallery_picker.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -46,17 +47,22 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(mediaUploadControllerProvider(_context));
-    final controller = ref.read(mediaUploadControllerProvider(_context).notifier);
+    final controller =
+        ref.read(mediaUploadControllerProvider(_context).notifier);
     final queueAsync = ref.watch(placeMediaProvider(widget.placeId));
-    final pendingAsync = ref.watch(placePendingUploadCountProvider(widget.placeId));
+    final pendingAsync =
+        ref.watch(placePendingUploadCountProvider(widget.placeId));
     final blockedCount = queueAsync.maybeWhen(
-      data: (items) => items.where((item) => item.uploadState == 'blocked').length,
+      data: (items) =>
+          items.where((item) => item.uploadState == 'blocked').length,
       orElse: () => 0,
     );
 
     ref.listen(mediaUploadControllerProvider(_context), (previous, next) {
       final error = next.errorMessage;
-      if (error != null && error.isNotEmpty && error != previous?.errorMessage) {
+      if (error != null &&
+          error.isNotEmpty &&
+          error != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error)),
         );
@@ -72,7 +78,7 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Media Upload',
           style: AppTypography.h3,
         ),
@@ -129,7 +135,8 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
                   ? Container(
                       width: double.infinity,
                       alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                       decoration: BoxDecoration(
                         border: Border.all(color: AppColors.divider),
                         borderRadius: BorderRadius.circular(10),
@@ -157,7 +164,10 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _pickFromGallery(controller),
+                    onPressed: () => _pickFromGallery(
+                      controller,
+                      alreadySelectedCount: state.selectedPaths.length,
+                    ),
                     icon: const Icon(Icons.photo_library_outlined),
                     label: const Text('Gallery'),
                   ),
@@ -173,7 +183,7 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Upload Queue', style: AppTypography.h3),
+            const Text('Upload Queue', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.xs),
             Expanded(
               child: queueAsync.when(
@@ -207,7 +217,8 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
                 error: (error, _) => Center(
                   child: Text(
                     'Failed to load queue: $error',
-                    style: AppTypography.caption.copyWith(color: AppColors.error),
+                    style:
+                        AppTypography.caption.copyWith(color: AppColors.error),
                   ),
                 ),
               ),
@@ -244,21 +255,37 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
     controller.addSelectedPaths([file.path]);
   }
 
-  Future<void> _pickFromGallery(MediaUploadController controller) async {
-    final permissions = ref.read(mediaPermissionsProvider);
-    final granted = await permissions.ensureGalleryPermission();
-    if (granted != MediaPermissionState.granted) {
-      await _handlePermissionDenied(permissions);
+  Future<void> _pickFromGallery(
+    MediaUploadController controller, {
+    required int alreadySelectedCount,
+  }) async {
+    if (alreadySelectedCount >= MediaUploadController.maxSelection) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selection capped at ${MediaUploadController.maxSelection} photos.',
+          ),
+        ),
+      );
       return;
     }
 
-    final files = await _picker.pickMultiImage();
-    if (files.isEmpty) {
+    final remaining = MediaUploadController.maxSelection - alreadySelectedCount;
+    final pickerResult = await const CustomGalleryPicker().pick(
+      context: context,
+      request: GalleryPickerRequest(
+        allowedMedia: GalleryPickerMediaFilter.images,
+        maxSelection: remaining,
+        launchContext: GalleryPickerLaunchContext.tripUpload,
+      ),
+    );
+    if (pickerResult == null || pickerResult.assets.isEmpty) {
       return;
     }
-    final paths = files
-        .where((file) => file.path.isNotEmpty && File(file.path).existsSync())
-        .map((file) => file.path)
+    final paths = pickerResult.assets
+        .map((asset) => asset.path)
+        .where((path) => path.isNotEmpty && File(path).existsSync())
         .toList();
     controller.addSelectedPaths(paths);
   }

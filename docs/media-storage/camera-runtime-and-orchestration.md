@@ -14,6 +14,10 @@ Core files:
 - Orchestrator: `flutter/lib/features/capture/domain/capture_orchestrator.dart`
 - File manager: `flutter/lib/features/capture/data/media_capture_file_store.dart`
 
+Gallery picker architecture (Android-first) is defined separately in:
+
+- `docs/media-storage/custom-gallery-picker-architecture.md`
+
 ## Entry points
 
 1. Global center FAB
@@ -122,6 +126,18 @@ Shown after capture, before persist:
 File:
 
 - `camera_runtime_screen.dart` (`_showDestinationChooser`)
+
+## Gallery picker surface
+
+Runtime gallery selection is part of the shared gallery architecture and must remain aligned with:
+
+- `docs/media-storage/custom-gallery-picker-architecture.md`
+
+Key runtime constraints:
+
+1. `fab` flow remains single-select.
+2. `liveTracking` photo flow supports multi-select (max 10).
+3. Story publish is still single-file; no batch story publish path.
 
 ## Story publish handoff
 

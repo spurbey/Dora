@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
+import 'package:dora/core/media/custom_gallery_picker.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/navigation/navigation_observers.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -160,15 +160,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _attemptInit({required bool resetRetry}) async {
-    final permissionState = await const MediaPermissions().cameraPermissionStatus(
+    final permissionState =
+        await const MediaPermissions().cameraPermissionStatus(
       requestIfDenied: true,
     );
     _cameraPermissionPermanentlyDenied =
         permissionState == MediaPermissionState.permanentlyDenied;
     if (permissionState != MediaPermissionState.granted) {
-      ref
-          .read(cameraRuntimeControllerProvider.notifier)
-          .setPermissionDenied(
+      ref.read(cameraRuntimeControllerProvider.notifier).setPermissionDenied(
             message: _cameraPermissionPermanentlyDenied
                 ? 'Camera permission permanently denied'
                 : 'Camera permission denied',
@@ -246,15 +245,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _handleResumed() async {
-    final permissionState = await const MediaPermissions().cameraPermissionStatus(
+    final permissionState =
+        await const MediaPermissions().cameraPermissionStatus(
       requestIfDenied: false,
     );
     _cameraPermissionPermanentlyDenied =
         permissionState == MediaPermissionState.permanentlyDenied;
     if (permissionState != MediaPermissionState.granted) {
-      ref
-          .read(cameraRuntimeControllerProvider.notifier)
-          .setPermissionDenied(
+      ref.read(cameraRuntimeControllerProvider.notifier).setPermissionDenied(
             message: _cameraPermissionPermanentlyDenied
                 ? 'Camera permission permanently denied'
                 : 'Camera permission denied',
@@ -438,13 +436,12 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
 
   Widget _buildCamera(CameraRuntimeState runtime) {
     final freezePhotoPreview = _isPhotoPreviewFrozen;
-    final shouldMountCamera =
-        runtime.phase == CameraRuntimePhase.initializing ||
-            runtime.phase == CameraRuntimePhase.preview ||
-            runtime.phase == CameraRuntimePhase.capturingPhoto ||
-            runtime.phase == CameraRuntimePhase.recordingVideo ||
-            (runtime.phase == CameraRuntimePhase.persisting &&
-                !freezePhotoPreview);
+    final shouldMountCamera = runtime.phase ==
+            CameraRuntimePhase.initializing ||
+        runtime.phase == CameraRuntimePhase.preview ||
+        runtime.phase == CameraRuntimePhase.capturingPhoto ||
+        runtime.phase == CameraRuntimePhase.recordingVideo ||
+        (runtime.phase == CameraRuntimePhase.persisting && !freezePhotoPreview);
     if (!shouldMountCamera) {
       _lastCameraState = null;
       return const SizedBox.expand();
@@ -714,62 +711,56 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     _clearFrozenPhotoPreview();
     final runtime = ref.read(cameraRuntimeControllerProvider);
     if (!runtime.canCapture) return;
-    final picker = ImagePicker();
     final mode = await _currentCaptureMode();
     final isLiveCaptureContext =
         widget.args.context == CameraLaunchContext.liveTracking;
+    if (!mounted) return;
     try {
-      if (mode == CaptureMode.video) {
-        final picked = await picker.pickVideo(source: ImageSource.gallery);
-        if (picked == null || picked.path.trim().isEmpty) {
-          return;
-        }
-        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-              CameraRuntimeEvent.captureStart,
-            );
-        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-              CameraRuntimeEvent.captureDone,
-            );
-        await _persistCaptured(
-          path: picked.path,
-          kind: CapturedMediaKind.video,
-        );
+      final request = GalleryPickerRequest(
+        allowedMedia: mode == CaptureMode.video
+            ? GalleryPickerMediaFilter.videos
+            : GalleryPickerMediaFilter.images,
+        maxSelection:
+            (mode == CaptureMode.photo && isLiveCaptureContext) ? 10 : 1,
+        launchContext: isLiveCaptureContext
+            ? GalleryPickerLaunchContext.liveTracking
+            : GalleryPickerLaunchContext.fab,
+      );
+      final pickerResult = await const CustomGalleryPicker().pick(
+        context: context,
+        request: request,
+      );
+      if (pickerResult == null || pickerResult.assets.isEmpty) {
         return;
       }
-
-      if (!isLiveCaptureContext) {
-        final picked = await picker.pickImage(source: ImageSource.gallery);
-        if (picked == null || picked.path.trim().isEmpty) {
-          return;
-        }
-        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-              CameraRuntimeEvent.captureStart,
-            );
-        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-              CameraRuntimeEvent.captureDone,
-            );
-        await _persistCaptured(
-          path: picked.path,
-          kind: CapturedMediaKind.photo,
-        );
-        return;
-      }
-
-      const maxBatch = 10;
-      final pickedPhotos = await picker.pickMultiImage(imageQuality: 92);
-      if (pickedPhotos.isEmpty) {
-        return;
-      }
-      final paths = pickedPhotos
-          .map((file) => file.path.trim())
+      final paths = pickerResult.assets
+          .map((asset) => asset.path.trim())
           .where((path) => path.isNotEmpty)
-          .take(maxBatch)
           .toList(growable: false);
       if (paths.isEmpty) {
         return;
       }
-      if (pickedPhotos.length > maxBatch) {
-        _showMessage('Selection capped at $maxBatch photos.');
+
+      if (mode == CaptureMode.video || !isLiveCaptureContext) {
+        if (mode == CaptureMode.photo) {
+          _setFrozenPhotoPreview(paths.first);
+        }
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureStart,
+            );
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureDone,
+            );
+        final result = await _persistCaptured(
+          path: paths.first,
+          kind: mode == CaptureMode.video
+              ? CapturedMediaKind.video
+              : CapturedMediaKind.photo,
+        );
+        if (result == null && mode == CaptureMode.photo) {
+          _clearFrozenPhotoPreview();
+        }
+        return;
       }
 
       CapturePersistResult? firstResult;
@@ -795,23 +786,9 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
       if (mounted && firstResult != null) {
         context.pop<CapturePersistResult>(firstResult);
       }
-    } on PlatformException catch (error) {
-      if (_isGalleryPermissionError(error)) {
-        _showMessage('Gallery access denied. Allow Photos permission.');
-        return;
-      }
+    } on PlatformException {
       _showMessage('Could not open gallery.');
     }
-  }
-
-  bool _isGalleryPermissionError(PlatformException error) {
-    final code = error.code.toLowerCase();
-    final message = (error.message ?? '').toLowerCase();
-    return code.contains('permission') ||
-        code.contains('access_denied') ||
-        message.contains('permission') ||
-        message.contains('denied') ||
-        message.contains('photos');
   }
 
   Future<void> _onMediaCaptureEvent(dynamic event) async {
@@ -1029,8 +1006,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   bool get _isPhotoPreviewFrozen =>
-      _frozenPhotoPreviewPath != null &&
-      (_frozenPhotoPreviewPath!.isNotEmpty);
+      _frozenPhotoPreviewPath != null && (_frozenPhotoPreviewPath!.isNotEmpty);
 
   void _setFrozenPhotoPreview(String path) {
     if (!mounted) {
@@ -1216,8 +1192,10 @@ class _BottomControls extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             TextButton.icon(
               onPressed: runtime.canCapture ? onGallery : null,
-              icon: const Icon(Icons.photo_library_outlined, color: Colors.white),
-              label: const Text('Gallery', style: TextStyle(color: Colors.white)),
+              icon:
+                  const Icon(Icons.photo_library_outlined, color: Colors.white),
+              label:
+                  const Text('Gallery', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),

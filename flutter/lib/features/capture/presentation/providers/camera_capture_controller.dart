@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show LiveTrackingEventType;
+import 'package:dora/core/media/custom_gallery_picker.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -71,10 +72,11 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
   /// Public entry point from the bottom sheet.
   Future<CameraCaptureResult> captureAndPersist({
     required CaptureKind kind,
+    required BuildContext context,
   }) async {
     state = const AsyncValue.loading();
     try {
-      final result = await _run(kind);
+      final result = await _run(kind, context: context);
       state = const AsyncValue.data(null);
       return result;
     } catch (error, stackTrace) {
@@ -86,24 +88,31 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
     }
   }
 
-  Future<CameraCaptureResult> _run(CaptureKind kind) async {
-    final permissions = const MediaPermissions();
-    if (kind != CaptureKind.gallery) {
+  Future<CameraCaptureResult> _run(
+    CaptureKind kind, {
+    required BuildContext context,
+  }) async {
+    const permissions = MediaPermissions();
+    _PickedMedia? picked;
+    if (kind == CaptureKind.gallery) {
+      if (!context.mounted) {
+        return const CameraCaptureResult.cancelled();
+      }
+      try {
+        picked = await _pickFromGallery(context);
+      } on _MediaPickPermissionDenied {
+        return const CameraCaptureResult(
+          kind: CameraCaptureResultKind.permissionDenied,
+        );
+      }
+    } else {
       final permissionState = await permissions.ensureCameraPermission();
       if (permissionState != MediaPermissionState.granted) {
         return const CameraCaptureResult(
           kind: CameraCaptureResultKind.permissionDenied,
         );
       }
-    }
-
-    _PickedMedia? picked;
-    try {
-      picked = await _pickMedia(kind);
-    } on _MediaPickPermissionDenied {
-      return const CameraCaptureResult(
-        kind: CameraCaptureResultKind.permissionDenied,
-      );
+      picked = await _pickCameraMedia(kind);
     }
     if (picked == null) {
       return const CameraCaptureResult.cancelled();
@@ -132,7 +141,7 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
     );
   }
 
-  Future<_PickedMedia?> _pickMedia(CaptureKind kind) async {
+  Future<_PickedMedia?> _pickCameraMedia(CaptureKind kind) async {
     try {
       final picker = ImagePicker();
       switch (kind) {
@@ -161,19 +170,7 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
                   mimeType: _guessMime(file.path),
                 );
         case CaptureKind.gallery:
-          final file = await picker.pickMedia(imageQuality: 92);
-          if (file == null) {
-            return null;
-          }
-          final lower = file.path.toLowerCase();
-          final isVideo = lower.endsWith('.mp4') ||
-              lower.endsWith('.mov') ||
-              lower.endsWith('.m4v');
-          return _PickedMedia(
-            file: File(file.path),
-            mediaType: isVideo ? 'video' : 'photo',
-            mimeType: _guessMime(file.path),
-          );
+          return null;
       }
     } on PlatformException catch (error) {
       if (_isPickerPermissionError(error)) {
@@ -181,6 +178,27 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
       }
       rethrow;
     }
+  }
+
+  Future<_PickedMedia?> _pickFromGallery(BuildContext context) async {
+    final picked = await const CustomGalleryPicker().pick(
+      context: context,
+      request: const GalleryPickerRequest(
+        allowedMedia: GalleryPickerMediaFilter.imagesAndVideos,
+        maxSelection: 1,
+        launchContext: GalleryPickerLaunchContext.legacyCapture,
+      ),
+    );
+    if (picked == null || picked.assets.isEmpty) {
+      return null;
+    }
+    final selected = picked.assets.first;
+    final isVideo = selected.kind == GallerySelectionKind.video;
+    return _PickedMedia(
+      file: File(selected.path),
+      mediaType: isVideo ? 'video' : 'photo',
+      mimeType: _guessMime(selected.path),
+    );
   }
 
   bool _isPickerPermissionError(PlatformException error) {

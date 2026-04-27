@@ -432,6 +432,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.1"
+  extended_image:
+    dependency: transitive
+    description:
+      name: extended_image
+      sha256: f6cbb1d798f51262ed1a3d93b4f1f2aa0d76128df39af18ecb77fa740f88b2e0
+      url: "https://pub.dev"
+    source: hosted
+    version: "10.0.1"
+  extended_image_library:
+    dependency: transitive
+    description:
+      name: extended_image_library
+      sha256: "1f9a24d3a00c2633891c6a7b5cab2807999eb2d5b597e5133b63f49d113811fe"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.1"
   fake_async:
     dependency: transitive
     description:
@@ -735,6 +751,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  fraction:
+    dependency: transitive
+    description:
+      name: fraction
+      sha256: dd487c01c0bfdcccc44d15250b24b4bee94b6981e01e8c41007a1b02f395ea01
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.5"
   freezed:
     dependency: "direct dev"
     description:
@@ -887,6 +911,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  http_client_helper:
+    dependency: transitive
+    description:
+      name: http_client_helper
+      sha256: "8a9127650734da86b5c73760de2b404494c968a3fd55602045ffec789dac3cb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.0"
   http_multi_server:
     dependency: transitive
     description:
@@ -975,6 +1007,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+  insta_assets_crop:
+    dependency: transitive
+    description:
+      name: insta_assets_crop
+      sha256: "90dfe4264296a0ccef244dd7ddc397a80ab725c8ad4ce22a03abdd9d97ceeb6c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
+  insta_assets_picker:
+    dependency: "direct main"
+    description:
+      name: insta_assets_picker
+      sha256: ddfc08e40d14830fadc74f4a85894e94ceea88f6137e9fad2482eaeccb9c386b
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.0"
   intl:
     dependency: "direct main"
     description:
@@ -1135,6 +1183,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.6"
+  nested:
+    dependency: transitive
+    description:
+      name: nested
+      sha256: "03bac4c528c64c95c722ec99280375a6f2fc708eec17c7b3f07253b626cd2a20"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   objective_c:
     dependency: transitive
     description:
@@ -1303,6 +1359,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
+  photo_manager:
+    dependency: transitive
+    description:
+      name: photo_manager
+      sha256: fb3bc8ea653370f88742b3baa304700107c83d12748aa58b2b9f2ed3ef15e6c2
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.9.0"
+  photo_manager_image_provider:
+    dependency: transitive
+    description:
+      name: photo_manager_image_provider
+      sha256: b6015b67b32f345f57cf32c126f871bced2501236c405aafaefa885f7c821e4f
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.0"
   platform:
     dependency: transitive
     description:
@@ -1351,6 +1423,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.6.0"
+  provider:
+    dependency: transitive
+    description:
+      name: provider
+      sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.1.5+1"
   pub_semver:
     dependency: transitive
     description:
@@ -1892,6 +1972,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.5.6"
+  visibility_detector:
+    dependency: transitive
+    description:
+      name: visibility_detector
+      sha256: dd5cc11e13494f432d15939c3aa8ae76844c42b723398643ce9addb88a5ed420
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0+2"
   vm_service:
     dependency: transitive
     description:
@@ -1932,6 +2020,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  wechat_assets_picker:
+    dependency: transitive
+    description:
+      name: wechat_assets_picker
+      sha256: c307e50394c1e6dfcd5c4701e84efb549fce71444fedcf2e671c50d809b3e2a1
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.8.0"
+  wechat_picker_library:
+    dependency: transitive
+    description:
+      name: wechat_picker_library
+      sha256: "5cb61b9aa935b60da5b043f8446fbb9c5077419f20ccc4856bf444aec4f44bc1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7"
   win32:
     dependency: transitive
     description:

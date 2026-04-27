@@ -9,10 +9,15 @@ This playbook is the operational checklist for changing the media/camera/vault/s
 1. Flutter local schema changes (`media`, `media_attachments`, local `stories`)
 2. Backend stories schema/API changes
 3. Camera runtime behavior changes
-4. Vault/filter/viewer behavior changes
-5. OpenAPI contract changes
+4. Gallery picker behavior changes
+5. Vault/filter/viewer behavior changes
+6. OpenAPI contract changes
 
 Handle them in that order when one change spans multiple layers.
+
+Gallery picker source-of-truth document:
+
+- `docs/media-storage/custom-gallery-picker-architecture.md`
 
 ## Mandatory guardrails
 
@@ -100,6 +105,15 @@ Then:
   - `flutter/lib/features/vault/presentation/widgets/vault_map.dart`
   - `flutter/lib/features/vault/presentation/widgets/vault_carousel.dart`
 
+## Flutter gallery picker
+
+- Shared picker module:
+  - `flutter/lib/core/media/custom_gallery_picker.dart`
+- Camera runtime integration:
+  - `flutter/lib/features/capture/presentation/screens/camera_runtime_screen.dart`
+- Trip upload integration:
+  - `flutter/lib/features/create/presentation/screens/media_upload_screen.dart`
+
 ## Regression hotspots (check every time)
 
 1. Trip publish enqueues only place-review media, never pure live-capture items.
@@ -122,4 +136,3 @@ A change is complete only when:
    - Capture to Vault
    - Capture during active trip
    - Story publish success/failure + retry/delete
-

@@ -65,7 +65,10 @@ class CameraFabSheet extends ConsumerWidget {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final result = await ref
         .read(cameraCaptureControllerProvider.notifier)
-        .captureAndPersist(kind: kind);
+        .captureAndPersist(
+          kind: kind,
+          context: context,
+        );
     if (messenger == null) {
       return;
     }

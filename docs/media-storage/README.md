@@ -31,11 +31,12 @@ The canonical model lets all lanes share one media identity while preserving dif
 
 1. [canonical-data-model.md](./canonical-data-model.md)
 2. [camera-runtime-and-orchestration.md](./camera-runtime-and-orchestration.md)
-3. [vault-product-surface.md](./vault-product-surface.md)
-4. [stories-publish-backend-client.md](./stories-publish-backend-client.md)
-5. [stories-viewing-performance-execution-spec.md](./stories-viewing-performance-execution-spec.md)
-6. [stories-performance-implementation-tracker.md](./stories-performance-implementation-tracker.md)
-7. [contributor-playbook.md](./contributor-playbook.md)
+3. [custom-gallery-picker-architecture.md](./custom-gallery-picker-architecture.md)
+4. [vault-product-surface.md](./vault-product-surface.md)
+5. [stories-publish-backend-client.md](./stories-publish-backend-client.md)
+6. [stories-viewing-performance-execution-spec.md](./stories-viewing-performance-execution-spec.md)
+7. [stories-performance-implementation-tracker.md](./stories-performance-implementation-tracker.md)
+8. [contributor-playbook.md](./contributor-playbook.md)
 
 ## Non-negotiable invariants
 

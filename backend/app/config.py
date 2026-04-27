@@ -152,6 +152,22 @@ class Settings(BaseSettings):
     )
     # Informational only — no enforcement yet, just lets us audit cost over time.
     LLM_BUDGET_DAILY_USD: float = 5.0
+
+    # LLM provider preference. "bedrock" puts AWS Bedrock (Claude) as
+    # the primary call path; OpenRouter chain still runs as automatic
+    # fallback when Bedrock errors. "openrouter" (default) keeps the
+    # legacy OpenRouter-only behavior.
+    LLM_PROVIDER: str = "openrouter"
+    # Bedrock model id. The 4.x Claude family on Bedrock requires the
+    # regional inference profile prefix (e.g., `us.` for us-east-1/2,
+    # `eu.` for Frankfurt). Override per region in env.
+    BEDROCK_MODEL_ID: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    # Bedrock lives in a separate AWS account from Lambda/S3 and uses
+    # the new bearer-token auth (single API key issued by Bedrock console),
+    # not the legacy access-key/secret pair. The token already encodes
+    # account + region scope.
+    BEDROCK_API_KEY: Optional[str] = None
+    BEDROCK_REGION: str = "us-east-1"
     BRIGHTDATA_WS_ENDPOINT: Optional[str] = None
     # Debug-only switch to run backend gmaps scraper against local Chromium
     # instead of BrightData CDP. Keep disabled in normal operation.

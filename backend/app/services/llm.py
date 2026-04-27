@@ -92,6 +92,26 @@ async def chat_json(
         timeout_seconds: Per-attempt timeout.
         label: Tag for logging (e.g., "ranker", "clarify_intent").
     """
+    # Bedrock (Claude) takes precedence when LLM_PROVIDER=bedrock and AWS
+    # credentials look configured. On any Bedrock failure we fall through
+    # to the OpenRouter chain — so when AWS credit runs out, just flip
+    # LLM_PROVIDER back to openrouter (or leave it; failure path is the
+    # same, just one wasted attempt per call).
+    if (settings.LLM_PROVIDER or "").lower() == "bedrock":
+        parsed = await _try_bedrock(
+            messages=messages,
+            schema=schema,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+            label=label,
+        )
+        if parsed is not None:
+            return parsed
+        logger.warning(
+            "[LLM] %s bedrock unavailable; falling through to OpenRouter", label
+        )
+
     if not settings.OPENROUTER_API_KEY:
         logger.info("[LLM] %s skipped: no OPENROUTER_API_KEY", label)
         return None
@@ -218,4 +238,122 @@ async def _try_chat(
             "[LLM] %s parse error model=%s: %s",
             label, model_id, exc,
         )
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Bedrock (Claude) path
+# ---------------------------------------------------------------------------
+#
+# We use Converse API with a single forced tool call to guarantee structured
+# JSON. Bedrock's tool-use is the only Claude path that returns parseable
+# JSON without prompt-engineering gymnastics. When `schema` is None we
+# define a permissive object schema so the tool-use shape still applies.
+
+_BEDROCK_TOOL_NAME = "respond"
+
+
+def _split_system(messages: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Bedrock Converse expects system as a separate field, not in messages."""
+    system_blocks: list[dict] = []
+    convo: list[dict] = []
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content", "")
+        if role == "system":
+            system_blocks.append({"text": content})
+        else:
+            convo.append({
+                "role": role,
+                "content": [{"text": content}],
+            })
+    return system_blocks, convo
+
+
+async def _try_bedrock(
+    *,
+    messages: list[dict],
+    schema: Optional[dict],
+    temperature: float,
+    max_tokens: Optional[int],
+    timeout_seconds: float,
+    label: str,
+) -> Optional[dict]:
+    api_key = settings.BEDROCK_API_KEY
+    region = settings.BEDROCK_REGION
+    model_id = settings.BEDROCK_MODEL_ID
+    if not api_key:
+        logger.info("[LLM] %s bedrock skipped: BEDROCK_API_KEY not set", label)
+        return None
+
+    tool_schema = schema or {"type": "object", "additionalProperties": True}
+    tool_config = {
+        "tools": [{
+            "toolSpec": {
+                "name": _BEDROCK_TOOL_NAME,
+                "description": f"Return the {label} response as structured JSON.",
+                "inputSchema": {"json": tool_schema},
+            }
+        }],
+        "toolChoice": {"tool": {"name": _BEDROCK_TOOL_NAME}},
+    }
+
+    system_blocks, convo = _split_system(messages)
+    inference_config: dict[str, Any] = {"temperature": temperature}
+    if max_tokens is not None:
+        inference_config["maxTokens"] = max_tokens
+
+    body: dict[str, Any] = {
+        "messages": convo,
+        "toolConfig": tool_config,
+        "inferenceConfig": inference_config,
+    }
+    if system_blocks:
+        body["system"] = system_blocks
+
+    # Bedrock REST endpoint. The model id may contain ":" / "." which
+    # are valid in the path; httpx will not double-encode them.
+    from urllib.parse import quote
+    url = (
+        f"https://bedrock-runtime.{region}.amazonaws.com"
+        f"/model/{quote(model_id, safe='')}/converse"
+    )
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            resp = await client.post(url, json=body, headers=headers)
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("[LLM] %s bedrock http error model=%s: %s", label, model_id, exc)
+        return None
+
+    if resp.status_code != 200:
+        logger.warning(
+            "[LLM] %s bedrock non-200 model=%s status=%d body=%s",
+            label, model_id, resp.status_code, resp.text[:200],
+        )
+        return None
+
+    try:
+        out = resp.json()
+        blocks = out["output"]["message"]["content"]
+        for blk in blocks:
+            if "toolUse" in blk:
+                parsed = blk["toolUse"].get("input")
+                if isinstance(parsed, dict):
+                    usage = out.get("usage") or {}
+                    logger.info(
+                        "[LLM] %s ok bedrock=%s in=%s out=%s",
+                        label, model_id,
+                        usage.get("inputTokens"),
+                        usage.get("outputTokens"),
+                    )
+                    return parsed
+        logger.warning("[LLM] %s bedrock no toolUse block", label)
+        return None
+    except (KeyError, ValueError, TypeError) as exc:
+        logger.warning("[LLM] %s bedrock parse error: %s", label, exc)
         return None

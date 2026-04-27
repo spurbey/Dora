@@ -15,6 +15,16 @@ x-backend-env: &backend_env
   V2_STORAGE_BUCKET: ${V2_STORAGE_BUCKET:-photos}
   STORIES_STORAGE_BUCKET: ${STORIES_STORAGE_BUCKET:-stories}
 
+  # LLM provider — "bedrock" routes Claude (Haiku 4.5) on AWS Bedrock as
+  # primary; OpenRouter chain stays as automatic failover. "openrouter"
+  # (default) keeps Bedrock disabled — flip to that once AWS credit ends.
+  LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+  BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.anthropic.claude-haiku-4-5-20251001-v1:0}
+  BEDROCK_REGION: ${BEDROCK_REGION:-us-east-1}
+  # Bedrock bearer-token API key (single value issued from the Bedrock
+  # console). This Bedrock account is separate from the Lambda/S3 AWS
+  # account, but auth is via this token alone — no access-key/secret pair.
+  BEDROCK_API_KEY: ${BEDROCK_API_KEY:-}
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
   # Production primary is DeepSeek V4 Flash (paid). During the rebuild
   # validation phase we set OPENROUTER_MODEL in the environment override

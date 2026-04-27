@@ -11,8 +11,21 @@ enum MediaPermissionState {
 class MediaPermissions {
   const MediaPermissions();
 
-  Future<MediaPermissionState> ensureCameraPermission() async {
-    final status = await Permission.camera.request();
+  Future<MediaPermissionState> ensureCameraPermission({
+    bool requestIfDenied = true,
+  }) async {
+    final status = requestIfDenied
+        ? await Permission.camera.request()
+        : await Permission.camera.status;
+    return _mapStatus(status);
+  }
+
+  Future<MediaPermissionState> cameraPermissionStatus({
+    bool requestIfDenied = false,
+  }) async {
+    final status = requestIfDenied
+        ? await Permission.camera.request()
+        : await Permission.camera.status;
     return _mapStatus(status);
   }
 

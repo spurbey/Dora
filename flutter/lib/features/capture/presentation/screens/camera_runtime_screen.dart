@@ -10,8 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 
+import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/navigation/navigation_observers.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -49,14 +49,22 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   DateTime? _recordingStartedAt;
   StreamSubscription<AudioInterruptionEvent>? _audioInterruptionSub;
   bool _resumeProbeInFlight = false;
+  int _resumeProbeFailureCount = 0;
   bool _initRetryUsed = false;
   bool _orientationLocked = false;
+  bool _cameraPermissionPermanentlyDenied = false;
+  String? _frozenPhotoPreviewPath;
+  CaptureMode _captureMode = CaptureMode.photo;
+  FlashMode _flashMode = FlashMode.auto;
 
   CameraInitialMode get _initialMode => widget.args.initialMode;
 
   @override
   void initState() {
     super.initState();
+    _captureMode = _initialMode == CameraInitialMode.video
+        ? CaptureMode.video
+        : CaptureMode.photo;
     WidgetsBinding.instance.addObserver(this);
     unawaited(_bootstrap());
   }
@@ -152,13 +160,22 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _attemptInit({required bool resetRetry}) async {
-    final status = await Permission.camera.status;
-    if (!status.isGranted) {
+    final permissionState = await const MediaPermissions().cameraPermissionStatus(
+      requestIfDenied: true,
+    );
+    _cameraPermissionPermanentlyDenied =
+        permissionState == MediaPermissionState.permanentlyDenied;
+    if (permissionState != MediaPermissionState.granted) {
       ref
           .read(cameraRuntimeControllerProvider.notifier)
-          .setPermissionDenied(message: 'Camera permission denied');
+          .setPermissionDenied(
+            message: _cameraPermissionPermanentlyDenied
+                ? 'Camera permission permanently denied'
+                : 'Camera permission denied',
+          );
       return;
     }
+    _cameraPermissionPermanentlyDenied = false;
     if (resetRetry) {
       _initRetryUsed = false;
     }
@@ -229,13 +246,22 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _handleResumed() async {
-    final cameraStatus = await Permission.camera.status;
-    if (!cameraStatus.isGranted) {
+    final permissionState = await const MediaPermissions().cameraPermissionStatus(
+      requestIfDenied: false,
+    );
+    _cameraPermissionPermanentlyDenied =
+        permissionState == MediaPermissionState.permanentlyDenied;
+    if (permissionState != MediaPermissionState.granted) {
       ref
           .read(cameraRuntimeControllerProvider.notifier)
-          .setPermissionDenied(message: 'Camera permission denied');
+          .setPermissionDenied(
+            message: _cameraPermissionPermanentlyDenied
+                ? 'Camera permission permanently denied'
+                : 'Camera permission denied',
+          );
       return;
     }
+    _cameraPermissionPermanentlyDenied = false;
 
     final runtime = ref.read(cameraRuntimeControllerProvider);
     final backgroundSince = runtime.backgroundSince;
@@ -269,6 +295,15 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
           runtime.phase == CameraRuntimePhase.recordingVideo;
       final responsive = !requiresLiveCamera || await _isCameraResponsive();
       final healthy = healthyPhase && responsive;
+      if (healthy) {
+        _resumeProbeFailureCount = 0;
+        return;
+      }
+      _resumeProbeFailureCount += 1;
+      if (_resumeProbeFailureCount < 2) {
+        return;
+      }
+      _resumeProbeFailureCount = 0;
       if (!healthy) {
         await ref
             .read(cameraRuntimeControllerProvider.notifier)
@@ -316,6 +351,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
             Positioned.fill(
               child: _buildCamera(runtime),
             ),
+            if (_isPhotoPreviewFrozen)
+              Positioned.fill(
+                child: Image.file(
+                  File(_frozenPhotoPreviewPath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
             Positioned(
               top: MediaQuery.of(context).padding.top + AppSpacing.md,
               left: AppSpacing.md,
@@ -341,7 +384,10 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
               child: _BottomControls(
                 runtime: runtime,
                 onCapture: _onCaptureTap,
-                onToggleMode: _toggleMode,
+                isVideoMode: _captureMode == CaptureMode.video,
+                flashMode: _flashMode,
+                onSelectPhotoMode: () => _setCaptureMode(CaptureMode.photo),
+                onSelectVideoMode: () => _setCaptureMode(CaptureMode.video),
                 onFlip: _flipCamera,
                 onFlash: _toggleFlash,
                 onGallery: _pickFromGallery,
@@ -350,11 +396,16 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
             if (runtime.phase == CameraRuntimePhase.initializing)
               const Center(child: CircularProgressIndicator()),
             if (runtime.phase == CameraRuntimePhase.permissionDenied)
-              _PermissionOverlay(onOpenSettings: openAppSettings),
+              _PermissionOverlay(
+                permanentlyDenied: _cameraPermissionPermanentlyDenied,
+                onTryAgain: () => _attemptInit(resetRetry: true),
+                onOpenSettings: const MediaPermissions().openSettings,
+              ),
             if (runtime.phase == CameraRuntimePhase.error)
               _ErrorOverlay(
                 message: runtime.errorMessage ?? 'Camera error',
                 onRetry: () async {
+                  _clearFrozenPhotoPreview();
                   await ref
                       .read(cameraRuntimeControllerProvider.notifier)
                       .forceTier3Reset(reason: 'retry_pressed');
@@ -386,12 +437,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Widget _buildCamera(CameraRuntimeState runtime) {
+    final freezePhotoPreview = _isPhotoPreviewFrozen;
     final shouldMountCamera =
         runtime.phase == CameraRuntimePhase.initializing ||
             runtime.phase == CameraRuntimePhase.preview ||
             runtime.phase == CameraRuntimePhase.capturingPhoto ||
             runtime.phase == CameraRuntimePhase.recordingVideo ||
-            runtime.phase == CameraRuntimePhase.persisting;
+            (runtime.phase == CameraRuntimePhase.persisting &&
+                !freezePhotoPreview);
     if (!shouldMountCamera) {
       _lastCameraState = null;
       return const SizedBox.expand();
@@ -444,20 +497,26 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     cameraState.when(
       onPreparingCamera: (_) {},
       onPhotoMode: (_) {
+        _captureMode = CaptureMode.photo;
         if (runtime.phase == CameraRuntimePhase.initializing) {
           _initWatchdog?.cancel();
           _initRetryUsed = false;
+          _resumeProbeFailureCount = 0;
           unawaited(controller.dispatch(CameraRuntimeEvent.initSuccess));
         }
       },
       onVideoMode: (_) {
+        _captureMode = CaptureMode.video;
         if (runtime.phase == CameraRuntimePhase.initializing) {
           _initWatchdog?.cancel();
           _initRetryUsed = false;
+          _resumeProbeFailureCount = 0;
           unawaited(controller.dispatch(CameraRuntimeEvent.initSuccess));
         }
       },
-      onVideoRecordingMode: (_) {},
+      onVideoRecordingMode: (_) {
+        _captureMode = CaptureMode.video;
+      },
       onPreviewMode: (_) {},
       onAnalysisOnlyMode: (_) {},
     );
@@ -480,6 +539,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _takePhoto() async {
+    _clearFrozenPhotoPreview();
     await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
           CameraRuntimeEvent.captureStart,
         );
@@ -500,6 +560,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   }
 
   Future<void> _startRecording() async {
+    _clearFrozenPhotoPreview();
     final bytesAvailable = await _estimateFreeStorageBytes();
     if (bytesAvailable != null &&
         bytesAvailable < kMinimumRecordingStorageBytes) {
@@ -608,13 +669,21 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     _orientationLocked = false;
   }
 
-  Future<void> _toggleMode() async {
+  Future<void> _setCaptureMode(CaptureMode target) async {
     final runtime = ref.read(cameraRuntimeControllerProvider);
     if (!runtime.canSwitchMode) return;
     final current = await _currentCaptureMode();
-    final target =
-        current == CaptureMode.photo ? CaptureMode.video : CaptureMode.photo;
+    if (current == target) {
+      return;
+    }
     await _invokeCameraAction((state) => state.setState(target));
+    if (!mounted) return;
+    setState(() {
+      _captureMode = target;
+      if (target == CaptureMode.photo) {
+        _clearFrozenPhotoPreview();
+      }
+    });
   }
 
   Future<void> _flipCamera() async {
@@ -634,42 +703,105 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
               ? FlashMode.always
               : FlashMode.auto;
       await state.sensorConfig.setFlashMode(next);
+      if (!mounted) return;
+      setState(() {
+        _flashMode = next;
+      });
     });
   }
 
   Future<void> _pickFromGallery() async {
+    _clearFrozenPhotoPreview();
     final runtime = ref.read(cameraRuntimeControllerProvider);
     if (!runtime.canCapture) return;
-    XFile? picked;
+    final picker = ImagePicker();
+    final mode = await _currentCaptureMode();
+    final isLiveCaptureContext =
+        widget.args.context == CameraLaunchContext.liveTracking;
     try {
-      picked = await ImagePicker().pickMedia();
+      if (mode == CaptureMode.video) {
+        final picked = await picker.pickVideo(source: ImageSource.gallery);
+        if (picked == null || picked.path.trim().isEmpty) {
+          return;
+        }
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureStart,
+            );
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureDone,
+            );
+        await _persistCaptured(
+          path: picked.path,
+          kind: CapturedMediaKind.video,
+        );
+        return;
+      }
+
+      if (!isLiveCaptureContext) {
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked == null || picked.path.trim().isEmpty) {
+          return;
+        }
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureStart,
+            );
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureDone,
+            );
+        await _persistCaptured(
+          path: picked.path,
+          kind: CapturedMediaKind.photo,
+        );
+        return;
+      }
+
+      const maxBatch = 10;
+      final pickedPhotos = await picker.pickMultiImage(imageQuality: 92);
+      if (pickedPhotos.isEmpty) {
+        return;
+      }
+      final paths = pickedPhotos
+          .map((file) => file.path.trim())
+          .where((path) => path.isNotEmpty)
+          .take(maxBatch)
+          .toList(growable: false);
+      if (paths.isEmpty) {
+        return;
+      }
+      if (pickedPhotos.length > maxBatch) {
+        _showMessage('Selection capped at $maxBatch photos.');
+      }
+
+      CapturePersistResult? firstResult;
+      for (final path in paths) {
+        if (!mounted) break;
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureStart,
+            );
+        await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
+              CameraRuntimeEvent.captureDone,
+            );
+        final result = await _persistCaptured(
+          path: path,
+          kind: CapturedMediaKind.photo,
+          popOnSuccess: false,
+          forcedDestination: CaptureDestination.vault,
+        );
+        if (result == null) {
+          break;
+        }
+        firstResult ??= result;
+      }
+      if (mounted && firstResult != null) {
+        context.pop<CapturePersistResult>(firstResult);
+      }
     } on PlatformException catch (error) {
       if (_isGalleryPermissionError(error)) {
         _showMessage('Gallery access denied. Allow Photos permission.');
         return;
       }
       _showMessage('Could not open gallery.');
-      return;
     }
-    if (picked == null || picked.path.trim().isEmpty) {
-      return;
-    }
-    final lower = picked.path.toLowerCase();
-    final kind = lower.endsWith('.mp4') ||
-            lower.endsWith('.mov') ||
-            lower.endsWith('.m4v')
-        ? CapturedMediaKind.video
-        : CapturedMediaKind.photo;
-    await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-          CameraRuntimeEvent.captureStart,
-        );
-    await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
-          CameraRuntimeEvent.captureDone,
-        );
-    await _persistCaptured(
-      path: picked.path,
-      kind: kind,
-    );
   }
 
   bool _isGalleryPermissionError(PlatformException error) {
@@ -705,12 +837,14 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     }
 
     if (kind == CapturedMediaKind.photo) {
+      _setFrozenPhotoPreview(path);
       await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
             CameraRuntimeEvent.captureDone,
           );
     }
 
     if (kind == CapturedMediaKind.video && _recordingStartedAt != null) {
+      _clearFrozenPhotoPreview();
       final elapsed = DateTime.now().toUtc().difference(_recordingStartedAt!);
       if (elapsed < kMinimumRecordingDuration) {
         try {
@@ -730,11 +864,13 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     await _persistCaptured(path: path, kind: kind);
   }
 
-  Future<void> _persistCaptured({
+  Future<CapturePersistResult?> _persistCaptured({
     required String path,
     required CapturedMediaKind kind,
+    bool popOnSuccess = true,
+    CaptureDestination? forcedDestination,
   }) async {
-    final destination = await _showDestinationChooser();
+    final destination = forcedDestination ?? await _showDestinationChooser();
     final selected = destination ?? CaptureDestination.vault;
 
     try {
@@ -771,13 +907,17 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
         );
       }
 
-      if (!mounted) return;
-      context.pop<CapturePersistResult>(result);
+      if (!mounted) return result;
+      if (popOnSuccess) {
+        context.pop<CapturePersistResult>(result);
+      }
+      return result;
     } catch (error) {
       await ref.read(cameraRuntimeControllerProvider.notifier).dispatch(
             CameraRuntimeEvent.persistFail,
             message: error.toString(),
           );
+      return null;
     }
   }
 
@@ -835,9 +975,7 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
   Future<CaptureMode> _currentCaptureMode() async {
     final state = _lastCameraState;
     if (state == null) {
-      return _initialMode == CameraInitialMode.video
-          ? CaptureMode.video
-          : CaptureMode.photo;
+      return _captureMode;
     }
     return state.when(
       onPhotoMode: (_) => CaptureMode.photo,
@@ -888,6 +1026,33 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
     } catch (_) {
       return null;
     }
+  }
+
+  bool get _isPhotoPreviewFrozen =>
+      _frozenPhotoPreviewPath != null &&
+      (_frozenPhotoPreviewPath!.isNotEmpty);
+
+  void _setFrozenPhotoPreview(String path) {
+    if (!mounted) {
+      _frozenPhotoPreviewPath = path;
+      return;
+    }
+    setState(() {
+      _frozenPhotoPreviewPath = path;
+    });
+  }
+
+  void _clearFrozenPhotoPreview() {
+    if (_frozenPhotoPreviewPath == null) {
+      return;
+    }
+    if (!mounted) {
+      _frozenPhotoPreviewPath = null;
+      return;
+    }
+    setState(() {
+      _frozenPhotoPreviewPath = null;
+    });
   }
 
   void _showMessage(String message) {
@@ -946,16 +1111,22 @@ class _TopBar extends StatelessWidget {
 class _BottomControls extends StatelessWidget {
   const _BottomControls({
     required this.runtime,
+    required this.isVideoMode,
+    required this.flashMode,
     required this.onCapture,
-    required this.onToggleMode,
+    required this.onSelectPhotoMode,
+    required this.onSelectVideoMode,
     required this.onFlip,
     required this.onFlash,
     required this.onGallery,
   });
 
   final CameraRuntimeState runtime;
+  final bool isVideoMode;
+  final FlashMode flashMode;
   final Future<void> Function() onCapture;
-  final Future<void> Function() onToggleMode;
+  final Future<void> Function() onSelectPhotoMode;
+  final Future<void> Function() onSelectVideoMode;
   final Future<void> Function() onFlip;
   final Future<void> Function() onFlash;
   final Future<void> Function() onGallery;
@@ -966,6 +1137,11 @@ class _BottomControls extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final isRecording = runtime.phase == CameraRuntimePhase.recordingVideo;
+    final flashIcon = flashMode == FlashMode.auto
+        ? Icons.flash_auto
+        : flashMode == FlashMode.always
+            ? Icons.flash_on
+            : Icons.flash_off;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -979,20 +1155,36 @@ class _BottomControls extends StatelessWidget {
             ),
             GestureDetector(
               onTap: () => onCapture(),
-              child: Container(
+              child: SizedBox(
                 width: 84,
                 height: 84,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                  color: isRecording ? Colors.red : Colors.white,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 4),
+                    color: Colors.black.withValues(alpha: 0.25),
+                  ),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: isRecording ? 26 : 56,
+                      height: isRecording ? 26 : 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: isRecording
+                            ? null
+                            : Border.all(color: Colors.white, width: 3),
+                        color: isRecording ? Colors.red : Colors.transparent,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
             IconButton(
               onPressed:
                   runtime.phase == CameraRuntimePhase.preview ? onFlash : null,
-              icon: const Icon(Icons.flash_on, color: Colors.white),
+              icon: Icon(flashIcon, color: Colors.white),
             ),
           ],
         ),
@@ -1000,20 +1192,32 @@ class _BottomControls extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextButton(
-              onPressed: runtime.canSwitchMode ? onToggleMode : null,
-              child: Text(
-                'Toggle Mode',
-                style: const TextStyle(color: Colors.white),
+            FilledButton.tonal(
+              onPressed: runtime.canSwitchMode ? onSelectPhotoMode : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: isVideoMode
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : Colors.white,
+                foregroundColor: isVideoMode ? Colors.white : Colors.black,
               ),
+              child: const Text('Photo'),
             ),
-            const SizedBox(width: AppSpacing.md),
-            TextButton(
-              onPressed: runtime.canCapture ? onGallery : null,
-              child: const Text(
-                'Gallery',
-                style: TextStyle(color: Colors.white),
+            const SizedBox(width: AppSpacing.sm),
+            FilledButton.tonal(
+              onPressed: runtime.canSwitchMode ? onSelectVideoMode : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: isVideoMode
+                    ? Colors.red.withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.18),
+                foregroundColor: Colors.white,
               ),
+              child: const Text('Video'),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: runtime.canCapture ? onGallery : null,
+              icon: const Icon(Icons.photo_library_outlined, color: Colors.white),
+              label: const Text('Gallery', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -1023,8 +1227,14 @@ class _BottomControls extends StatelessWidget {
 }
 
 class _PermissionOverlay extends StatelessWidget {
-  const _PermissionOverlay({required this.onOpenSettings});
+  const _PermissionOverlay({
+    required this.permanentlyDenied,
+    required this.onTryAgain,
+    required this.onOpenSettings,
+  });
 
+  final bool permanentlyDenied;
+  final Future<void> Function() onTryAgain;
   final Future<bool> Function() onOpenSettings;
 
   @override
@@ -1039,14 +1249,24 @@ class _PermissionOverlay extends StatelessWidget {
               const Icon(Icons.lock_outline,
                   size: 32, color: AppColors.textSecondary),
               const SizedBox(height: AppSpacing.sm),
-              const Text('Camera permission is required'),
-              const SizedBox(height: AppSpacing.sm),
-              FilledButton(
-                onPressed: () async {
-                  await onOpenSettings();
-                },
-                child: const Text('Open Settings'),
+              Text(
+                permanentlyDenied
+                    ? 'Camera permission is blocked'
+                    : 'Camera permission is required',
               ),
+              const SizedBox(height: AppSpacing.sm),
+              if (!permanentlyDenied)
+                FilledButton(
+                  onPressed: onTryAgain,
+                  child: const Text('Try Again'),
+                ),
+              if (permanentlyDenied)
+                FilledButton(
+                  onPressed: () async {
+                    await onOpenSettings();
+                  },
+                  child: const Text('Open Settings'),
+                ),
             ],
           ),
         ),

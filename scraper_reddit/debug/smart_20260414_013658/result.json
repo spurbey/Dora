@@ -1,0 +1,168 @@
+{
+  "question": "Mathura solo female travel safety",
+  "keywords": [
+    "mathura",
+    "solo",
+    "female",
+    "travel",
+    "safety"
+  ],
+  "pages_visited": 3,
+  "pages": [
+    {
+      "url": "https://old.reddit.com/r/IndiaTravel/search?q=mathura+solo+female+travel&restrict_sr=on&sort=relevance&t=year",
+      "success": true,
+      "depth": 0,
+      "score": 0,
+      "insights": [],
+      "error": null,
+      "raw_extracted": "[\n    {\n        \"blocks\": \"[]\",\n        \"error\": false\n    }\n]",
+      "extracted_count": 1,
+      "markdown_chars": 26228
+    },
+    {
+      "url": "https://old.reddit.com/r/indiatravel/comments/1oq5kys/destination_advice_för_solo_female_traveler",
+      "success": true,
+      "depth": 1,
+      "score": 0.6,
+      "insights": [],
+      "error": null,
+      "raw_extracted": "[\n    {\n        \"blocks\": [],\n        \"score\": 5,\n        \"error\": false\n    }\n]",
+      "extracted_count": 1,
+      "markdown_chars": 53581
+    },
+    {
+      "url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler",
+      "success": true,
+      "depth": 1,
+      "score": 0.4,
+      "insights": [
+        {
+          "category": "safety_warning",
+          "place_name": null,
+          "insight": "Avoid taking an Uber for the full Delhi‑Agra round trip as a solo female; drivers may overcharge and long rides can be unsafe.",
+          "context_signal": "mentioned by 3 users",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "transport_tip",
+          "place_name": null,
+          "insight": "Take the Gatimaan Express or other fast trains (e.g., Vande Bharat, Shatabdi) from Delhi to Agra for a safe, quick, and affordable option.",
+          "context_signal": "recommended by multiple commenters",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "transport_tip",
+          "place_name": null,
+          "insight": "If you prefer a car, book a private cab through your hotel or a reputable service in advance; expect an extra ₹1,000 for tolls beyond the quoted fare.",
+          "context_signal": "suggested by 2 users",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "safety_warning",
+          "place_name": null,
+          "insight": "Plan to travel during daylight hours; there is no night train from Agra to Delhi and night bus journeys can be risky and uncomfortable.",
+          "context_signal": "advised by 1 user",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "general_tip",
+          "place_name": null,
+          "insight": "Hire an official, government‑approved guide at the Taj Mahal to help navigate crowds and ensure safety, especially for solo women.",
+          "context_signal": "recommended by 1 user",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "avoid",
+          "place_name": "Mathura",
+          "insight": "Avoid relying on a bus route that passes through Mathura for the return leg, as it can be a nightmare and cause delays.",
+          "context_signal": "mentioned in a personal experience",
+          "best_for": "solo female travelers",
+          "error": false
+        },
+        {
+          "category": "safety_warning",
+          "place_name": null,
+          "insight": "Do not carry large bags; keep valuables in pockets and be prepared for separate security queues for foreign and Indian visitors.",
+          "context_signal": "advice from a local user",
+          "best_for": "solo female travelers",
+          "error": false
+        }
+      ],
+      "error": null,
+      "raw_extracted": "[\n    {\n        \"category\": \"safety_warning\",\n        \"place_name\": null,\n        \"insight\": \"Avoid taking an Uber for the full Delhi‑Agra round trip as a solo female; drivers may overcharge and long rides can be unsafe.\",\n        \"context_signal\": \"mentioned by 3 users\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"transport_tip\",\n        \"place_name\": null,\n        \"insight\": \"Take the Gatimaan Express or other fast trains (e.g., Vande Bharat, Shatabdi) from Delhi to Agra for a safe, quick, and affordable option.\",\n        \"context_signal\": \"recommended by multiple commenters\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"transport_tip\",\n        \"place_name\": null,\n        \"insight\": \"If you prefer a car, book a private cab through your hotel or a reputable service in advance; expect an extra ₹1,000 for tolls beyond the quoted fare.\",\n        \"context_signal\": \"suggested by 2 users\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"safety_warning\",\n        \"place_name\": null,\n        \"insight\": \"Plan to travel during daylight hours; there is no night train from Agra to Delhi and night bus journeys can be risky and uncomfortable.\",\n        \"context_signal\": \"advised by 1 user\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"general_tip\",\n        \"place_name\": null,\n        \"insight\": \"Hire an official, government‑approved guide at the Taj Mahal to help navigate crowds and ensure safety, especially for solo women.\",\n        \"context_signal\": \"recommended by 1 user\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"avoid\",\n        \"place_name\": \"Mathura\",\n        \"insight\": \"Avoid relying on a bus route that passes through Mathura for the return leg, as it can be a nightmare and cause delays.\",\n        \"context_signal\": \"mentioned in a personal experience\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    },\n    {\n        \"category\": \"safety_warning\",\n        \"place_name\": null,\n        \"insight\": \"Do not carry large bags; keep valuables in pockets and be prepared for separate security queues for foreign and Indian visitors.\",\n        \"context_signal\": \"advice from a local user\",\n        \"best_for\": \"solo female travelers\",\n        \"error\": false\n    }\n]",
+      "extracted_count": 7,
+      "markdown_chars": 25222
+    }
+  ],
+  "insights": [
+    {
+      "category": "safety_warning",
+      "place_name": null,
+      "insight": "Avoid taking an Uber for the full Delhi‑Agra round trip as a solo female; drivers may overcharge and long rides can be unsafe.",
+      "context_signal": "mentioned by 3 users",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "transport_tip",
+      "place_name": null,
+      "insight": "Take the Gatimaan Express or other fast trains (e.g., Vande Bharat, Shatabdi) from Delhi to Agra for a safe, quick, and affordable option.",
+      "context_signal": "recommended by multiple commenters",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "transport_tip",
+      "place_name": null,
+      "insight": "If you prefer a car, book a private cab through your hotel or a reputable service in advance; expect an extra ₹1,000 for tolls beyond the quoted fare.",
+      "context_signal": "suggested by 2 users",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "safety_warning",
+      "place_name": null,
+      "insight": "Plan to travel during daylight hours; there is no night train from Agra to Delhi and night bus journeys can be risky and uncomfortable.",
+      "context_signal": "advised by 1 user",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "general_tip",
+      "place_name": null,
+      "insight": "Hire an official, government‑approved guide at the Taj Mahal to help navigate crowds and ensure safety, especially for solo women.",
+      "context_signal": "recommended by 1 user",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "avoid",
+      "place_name": "Mathura",
+      "insight": "Avoid relying on a bus route that passes through Mathura for the return leg, as it can be a nightmare and cause delays.",
+      "context_signal": "mentioned in a personal experience",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    },
+    {
+      "category": "safety_warning",
+      "place_name": null,
+      "insight": "Do not carry large bags; keep valuables in pockets and be prepared for separate security queues for foreign and Indian visitors.",
+      "context_signal": "advice from a local user",
+      "best_for": "solo female travelers",
+      "error": false,
+      "_source_url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler"
+    }
+  ]
+}

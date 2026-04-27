@@ -1,0 +1,39 @@
+{
+  "question": "how is Mathura for solo female travelers safety tips",
+  "keywords": [
+    "mathura",
+    "solo",
+    "female",
+    "travelers",
+    "safety",
+    "tips"
+  ],
+  "pages_visited": 3,
+  "pages": [
+    {
+      "url": "https://old.reddit.com/r/IndiaTravel/search?q=mathura+solo+female+travelers&restrict_sr=on&sort=relevance&t=year",
+      "success": true,
+      "depth": 0,
+      "score": 0,
+      "insights": [],
+      "error": null
+    },
+    {
+      "url": "https://old.reddit.com/r/indiatravel/comments/1oq5kys/destination_advice_för_solo_female_traveler",
+      "success": true,
+      "depth": 1,
+      "score": 0.3333333333333333,
+      "insights": [],
+      "error": null
+    },
+    {
+      "url": "https://old.reddit.com/r/indiatravel/comments/1psa6ob/delhi_to_taj_mahal_for_a_solo_traveler",
+      "success": true,
+      "depth": 1,
+      "score": 0.16666666666666666,
+      "insights": [],
+      "error": null
+    }
+  ],
+  "insights": []
+}

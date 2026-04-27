@@ -1,0 +1,14 @@
+[
+  {
+    "score": 4,
+    "error": false
+  },
+  {
+    "index": 1,
+    "error": true,
+    "tags": [
+      "error"
+    ],
+    "content": "'Exception' object has no attribute 'request'"
+  }
+]

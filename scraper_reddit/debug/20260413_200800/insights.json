@@ -1,0 +1,18 @@
+[
+  {
+    "index": 0,
+    "error": true,
+    "tags": [
+      "error"
+    ],
+    "content": "litellm.APIError: APIError: OpenrouterException - {\"error\":{\"message\":\"Provider returned error\",\"code\":402,\"metadata\":{\"raw\":\"{\\\"error\\\":\\\"API key USD spend limit exceeded. Your account may still have USD balance, but this API key has reached its configured USD spending limit.\\\"}\",\"provider_name\":\"Venice\",\"is_byok\":false}},\"user_id\":\"user_30mgXWjImxxq7PJj6Qy8unaMjI3\"}"
+  },
+  {
+    "index": 1,
+    "error": true,
+    "tags": [
+      "error"
+    ],
+    "content": "'list' object has no attribute 'usage'"
+  }
+]

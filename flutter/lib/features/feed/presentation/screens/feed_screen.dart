@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -20,8 +17,6 @@ import 'package:dora/features/stories/presentation/widgets/stories_strip.dart';
 import 'package:dora/shared/widgets/error_view.dart';
 import 'package:dora/shared/widgets/loading_indicator.dart';
 
-bool _didRequestFeedLocationPermissionThisSession = false;
-
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
 
@@ -30,28 +25,6 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _didRequestFeedLocationPermissionThisSession) {
-        return;
-      }
-      _didRequestFeedLocationPermissionThisSession = true;
-      unawaited(_requestLocationPermissionOnFeedEntry());
-    });
-  }
-
-  Future<void> _requestLocationPermissionOnFeedEntry() async {
-    try {
-      await ref.read(locationPermissionProvider).ensurePermissionStatus(
-            requestIfDenied: true,
-          );
-    } catch (_) {
-      // Non-blocking preflight only.
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final feedState = ref.watch(feedControllerProvider);

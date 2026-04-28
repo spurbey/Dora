@@ -13,26 +13,26 @@ class LocationPermissionService {
   Future<LocationAccessState> ensurePermissionStatus({
     bool requestIfDenied = true,
   }) async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return LocationAccessState.serviceDisabled;
-    }
-
     var permission = await Geolocator.checkPermission();
     if (requestIfDenied && permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse) {
-      return LocationAccessState.granted;
     }
 
     if (permission == LocationPermission.deniedForever) {
       return LocationAccessState.deniedForever;
     }
 
-    return LocationAccessState.denied;
+    if (permission != LocationPermission.always &&
+        permission != LocationPermission.whileInUse) {
+      return LocationAccessState.denied;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return LocationAccessState.serviceDisabled;
+    }
+
+    return LocationAccessState.granted;
   }
 
   Future<bool> ensurePermission({bool requestIfDenied = true}) async {
@@ -41,4 +41,8 @@ class LocationPermissionService {
     );
     return status == LocationAccessState.granted;
   }
+
+  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+
+  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
 }

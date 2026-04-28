@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dora/core/location/location_preflight_prompt.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_radius.dart';
@@ -12,6 +15,7 @@ import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/auth/presentation/constants/onboarding_keys.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/shared/widgets/loading_indicator.dart';
+import 'package:dora/core/location/location_provider.dart';
 
 class StartupScreen extends ConsumerStatefulWidget {
   const StartupScreen({super.key});
@@ -86,7 +90,20 @@ class _StartupScreenState extends ConsumerState<StartupScreen>
       return;
     }
 
+    await _runLocationStartupPreflight();
+    if (!mounted) {
+      return;
+    }
     context.go(Routes.feed);
+  }
+
+  Future<void> _runLocationStartupPreflight() async {
+    if (!mounted) return;
+    await runLocationPreflightPrompt(
+      context: context,
+      permissionService: ref.read(locationPermissionProvider),
+      preflightContext: LocationPreflightContext.startup,
+    );
   }
 
   Future<_BootstrapResult> _warmUpAuthenticatedSession({

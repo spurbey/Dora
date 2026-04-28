@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/location/location_preflight_prompt.dart';
+import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/features/capture/domain/capture_models.dart';
@@ -20,12 +22,21 @@ class CameraFab extends ConsumerWidget {
       elevation: 4,
       shape: const CircleBorder(),
       tooltip: 'Capture',
-      onPressed: () => _openCamera(context),
+      onPressed: () => _openCamera(context, ref),
       child: const Icon(Icons.camera_alt_outlined, size: 26),
     );
   }
 
-  Future<void> _openCamera(BuildContext context) async {
+  Future<void> _openCamera(BuildContext context, WidgetRef ref) async {
+    await runLocationPreflightPrompt(
+      context: context,
+      permissionService: ref.read(locationPermissionProvider),
+      preflightContext: LocationPreflightContext.cameraFab,
+    );
+    if (!context.mounted) {
+      return;
+    }
+
     final result = await context.push<CapturePersistResult>(
       Routes.cameraPath(),
       extra: const CameraLaunchArgs(

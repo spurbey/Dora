@@ -41,6 +41,20 @@ from app.services.trip_brain_service import TargetContext, TripBrainService
 
 logger = logging.getLogger(__name__)
 
+# Maps user-facing activity_focus values → advisory category keys used in
+# locality_confidence. Without this mapping the gate always sees 0 confidence
+# because the key namespaces never overlap.
+_ACTIVITY_TO_CATEGORIES: dict[str, list[str]] = {
+    "food": ["food_tip"],
+    "hiking": ["must_do", "photo_spot"],
+    "photography": ["photo_spot"],
+    "beaches": ["must_do", "photo_spot"],
+    "cultural": ["cultural_etiquette", "must_do"],
+    "adventure": ["must_do"],
+    "relaxation": ["accommodation", "general_tip"],
+    "nightlife": ["food_tip", "must_do"],
+}
+
 
 # ---------------------------------------------------------------------------
 # Phase 1 — claim batch
@@ -131,8 +145,11 @@ async def process_trip(db: Session, trip_id: str) -> None:
             .one_or_none()
         )
         if brain is not None:
-            intent_cats = (target.trip_metadata or {}).get("activity_focus") or []
-            conf = lookup_confidence(brain, target.locality_key, list(intent_cats))
+            raw_focus = (target.trip_metadata or {}).get("activity_focus") or []
+            intent_cats: list[str] = []
+            for f in raw_focus:
+                intent_cats.extend(_ACTIVITY_TO_CATEGORIES.get(str(f).lower(), [str(f)]))
+            conf = lookup_confidence(brain, target.locality_key, intent_cats)
             if conf >= CONFIDENCE_HIGH:
                 logger.info(
                     "[CYCLE] skipping trip %s — locality=%s conf=%.2f >= HIGH",

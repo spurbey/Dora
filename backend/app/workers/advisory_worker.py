@@ -434,48 +434,51 @@ async def _stage_reddit_scrape(db: Session, job: AdvisoryJob) -> None:
     """Deep crawl Reddit + LLM extraction."""
     logger.info("[ADVISORY_STAGE] reddit_scrape job_id=%s", job.id)
 
-    if not settings.OPENROUTER_API_KEY:
-        logger.warning("[ADVISORY_STAGE] reddit_scrape skipped — no OPENROUTER_API_KEY")
-        result = job.result_summary or {}
-        result["reddit"] = {"status": "skipped_no_config", "insights": []}
-        job.result_summary = result
-        db.commit()
-        return
-
     _heartbeat(db, job)
 
     plan = job.scrape_plan or {}
-    question = plan.get("question", "travel tips")
-    subs = plan.get("subreddits", ["IndiaTravel", "travel"])
-    keywords = plan.get("keywords", [])
-    max_pages = plan.get("max_pages", 8)
-    max_depth = plan.get("max_depth", 2)
+    from app.services.scrapers.reddit_v2 import ScrapeContext, scrape_reddit_v2
 
-    from app.services.scrapers.reddit_scraper import scrape_reddit
-    scrape_result = await scrape_reddit(
-        question=question,
-        subs=subs,
-        extra_keywords=keywords,
-        max_pages=max_pages,
-        max_depth=max_depth,
-        openrouter_api_key=settings.OPENROUTER_API_KEY,
-        openrouter_model=settings.OPENROUTER_MODEL,
+    locality = plan.get("target", {}).get("locality") or plan.get("question", "travel tips")
+    intent_categories = plan.get("focus_categories") or []
+    trip_context = plan.get("trip_context") or ""
+
+    ctx = ScrapeContext(
+        locality=locality,
+        intent_categories=intent_categories,
+        user_query=trip_context or None,
     )
+    scrape_result = await scrape_reddit_v2(ctx)
 
     _heartbeat(db, job)
+
+    raw_insights = [
+        {
+            "place_name": ins.place_name,
+            "insight": ins.insight,
+            "category": ins.category,
+            "context_signal": ins.context_signal,
+            "best_for": ins.best_for,
+            "_source_url": ins.source_url,
+            "_source": "reddit",
+            "_source_count": 1,
+            "_confidence_score": 0.6,
+        }
+        for ins in scrape_result.insights
+    ]
 
     result = job.result_summary or {}
     result["reddit"] = {
         "status": "done",
-        "pages_visited": scrape_result.get("pages_visited", 0),
-        "insights": scrape_result.get("insights", []),
+        "pages_visited": scrape_result.posts_visited,
+        "insights": raw_insights,
     }
     job.result_summary = result
     flag_modified(job, "result_summary")
     db.commit()
     logger.info(
         "[ADVISORY_STAGE] reddit_scrape done. insights=%d",
-        len(scrape_result.get("insights", [])),
+        len(raw_insights),
     )
 
 

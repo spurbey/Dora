@@ -11,7 +11,10 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora/core/network/api_providers.dart';
+import 'package:dora/core/map/geocoding/app_geocoding_service.dart';
+import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
+import 'package:dora/features/create/presentation/providers/city_search_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -110,6 +113,12 @@ class _LiveTripCreationView extends ConsumerStatefulWidget {
 class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _originController;
+  late final TextEditingController _destinationController;
+  GeocodingResult? _originResult;
+  GeocodingResult? _destinationResult;
+  bool _originFocused = false;
+  bool _destinationFocused = false;
   List<String> _activityFocus = [];
   List<String> _travelStyle = [];
   String? _budgetCategory;
@@ -140,17 +149,22 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
   void initState() {
     super.initState();
     _nameController = TextEditingController();
+    _originController = TextEditingController();
+    _destinationController = TextEditingController();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _originController.dispose();
+    _destinationController.dispose();
     super.dispose();
   }
 
   bool get _canSubmit =>
       _nameController.text.trim().isNotEmpty &&
       _activityFocus.isNotEmpty &&
+      _destinationResult != null &&
       !_submitting;
 
   Future<void> _submit() async {
@@ -164,8 +178,8 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
 
     setState(() => _submitting = true);
     try {
-      final repository = ref.read(tripRepositoryProvider);
-      final trip = await repository.createTrip(
+      final tripRepo = ref.read(tripRepositoryProvider);
+      final trip = await tripRepo.createTrip(
         name: _nameController.text.trim(),
         activityFocus: _activityFocus.map((s) => s.toLowerCase()).toList(),
         travelStyle: _travelStyle.isNotEmpty
@@ -173,6 +187,33 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
             : null,
         budgetCategory: _budgetCategory,
       );
+
+      if (!mounted) return;
+
+      // Generate and attach route so seed_on_trip_creation has localities
+      // to sample. Origin defaults to destination when not set (radius mode).
+      final destination = _destinationResult!;
+      final origin = _originResult ?? destination;
+      try {
+        final routeRepo = ref.read(routeRepositoryProvider);
+        final route = await routeRepo.generateRouteViaApi(
+          tripId: trip.id,
+          start: AppLatLng(
+            latitude: origin.coordinates.latitude,
+            longitude: origin.coordinates.longitude,
+          ),
+          end: AppLatLng(
+            latitude: destination.coordinates.latitude,
+            longitude: destination.coordinates.longitude,
+          ),
+          mode: 'driving',
+        );
+        await routeRepo.addRoute(route);
+        await routeRepo.ensureRemoteRouteId(route.id);
+      } catch (_) {
+        // Non-fatal: advisory will still work via centroid fallback,
+        // just without pre-seeded route localities.
+      }
 
       if (!mounted) return;
 
@@ -274,12 +315,53 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Trip name',
-                  hintText: 'e.g., Summer in Japan',
+                  hintText: 'e.g., Mumbai to Goa',
                   border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Trip name is required' : null,
                 onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text('Where are you headed?', style: AppTypography.h3),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Destination is required — origin is optional',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _LocationSearchField(
+                controller: _originController,
+                label: 'From (optional)',
+                hint: 'e.g., Mumbai',
+                icon: Icons.trip_origin,
+                selected: _originResult,
+                onSelected: (result) {
+                  setState(() {
+                    _originResult = result;
+                    _originController.text = result?.name ?? '';
+                    _originFocused = false;
+                  });
+                },
+                onFocusChanged: (focused) => setState(() => _originFocused = focused),
+                focused: _originFocused,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _LocationSearchField(
+                controller: _destinationController,
+                label: 'To',
+                hint: 'e.g., Goa',
+                icon: Icons.place,
+                selected: _destinationResult,
+                onSelected: (result) {
+                  setState(() {
+                    _destinationResult = result;
+                    _destinationController.text = result?.name ?? '';
+                    _destinationFocused = false;
+                  });
+                },
+                onFocusChanged: (focused) => setState(() => _destinationFocused = focused),
+                focused: _destinationFocused,
               ),
               const SizedBox(height: AppSpacing.lg),
               Text('What are you into?', style: AppTypography.h3),
@@ -389,6 +471,135 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Location search field with inline autocomplete overlay
+// ---------------------------------------------------------------------------
+
+class _LocationSearchField extends ConsumerStatefulWidget {
+  const _LocationSearchField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.selected,
+    required this.onSelected,
+    required this.onFocusChanged,
+    required this.focused,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final GeocodingResult? selected;
+  final ValueChanged<GeocodingResult?> onSelected;
+  final ValueChanged<bool> onFocusChanged;
+  final bool focused;
+
+  @override
+  ConsumerState<_LocationSearchField> createState() =>
+      _LocationSearchFieldState();
+}
+
+class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      widget.onFocusChanged(_focusNode.hasFocus);
+      if (!_focusNode.hasFocus) {
+        // If user typed but didn't pick a result, revert to selected name.
+        if (widget.selected != null) {
+          widget.controller.text = widget.selected!.name;
+        } else {
+          widget.controller.clear();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final searchAsync = ref.watch(citySearchControllerProvider);
+    final results = searchAsync.valueOrNull ?? [];
+    final showDropdown = widget.focused && results.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hint,
+            prefixIcon: Icon(widget.icon, size: 18),
+            suffixIcon: widget.selected != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      widget.onSelected(null);
+                      widget.controller.clear();
+                      ref.read(citySearchControllerProvider.notifier).clear();
+                    },
+                  )
+                : null,
+            border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
+          ),
+          onChanged: (val) {
+            ref.read(citySearchControllerProvider.notifier).search(val);
+          },
+        ),
+        if (showDropdown)
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: AppRadius.borderMd,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: results.length > 5 ? 5 : results.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final r = results[i];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.location_on_outlined, size: 16),
+                  title: Text(r.name, style: AppTypography.body),
+                  subtitle: r.country != null
+                      ? Text(r.country!, style: AppTypography.caption)
+                      : null,
+                  onTap: () {
+                    widget.onSelected(r);
+                    ref.read(citySearchControllerProvider.notifier).clear();
+                    _focusNode.unfocus();
+                  },
+                );
+              },
+            ),
+          ),
       ],
     );
   }

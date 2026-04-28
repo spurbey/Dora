@@ -137,6 +137,8 @@ class AdvisoryInsightResponse(BaseModel):
     source_urls: Optional[list[str]] = None
     source_count: int = 1
     status: AdvisoryDeliveryStatus
+    display_kind: str = "ambient"
+    place_polygon: Optional[dict] = None
     observed_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     created_at: datetime

@@ -439,14 +439,19 @@ async def _stage_reddit_scrape(db: Session, job: AdvisoryJob) -> None:
     plan = job.scrape_plan or {}
     from app.services.scrapers.reddit_v2 import ScrapeContext, scrape_reddit_v2
 
-    locality = plan.get("target", {}).get("locality") or plan.get("question", "travel tips")
-    intent_categories = plan.get("focus_categories") or []
-    trip_context = plan.get("trip_context") or ""
-
+    # route_segmentation writes: cities[], question, conversation_context
+    # cycle jobs also write: target.locality via pick_next_target
+    cities: list[str] = plan.get("cities") or []
+    locality = (
+        (plan.get("target") or {}).get("locality")
+        or (cities[0] if cities else None)
+        or plan.get("question", "travel tips")
+    )
     ctx = ScrapeContext(
         locality=locality,
-        intent_categories=intent_categories,
-        user_query=trip_context or None,
+        intent_categories=plan.get("focus_categories") or [],
+        conversation_tail=plan.get("conversation_context") or [],
+        user_query=plan.get("question") if job.job_type == "on_demand" else None,
     )
     scrape_result = await scrape_reddit_v2(ctx)
 

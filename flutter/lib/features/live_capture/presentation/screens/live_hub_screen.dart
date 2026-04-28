@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +16,7 @@ import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/map/geocoding/app_geocoding_service.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/features/create/data/trip_repository.dart';
-import 'package:dora/features/create/presentation/providers/city_search_provider.dart';
+import 'package:dora/core/map/geocoding/geocoding_provider.dart';
 import 'package:dora/features/create/presentation/providers/editor_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -210,9 +212,9 @@ class _LiveTripCreationViewState extends ConsumerState<_LiveTripCreationView> {
         );
         await routeRepo.addRoute(route);
         await routeRepo.ensureRemoteRouteId(route.id);
-      } catch (_) {
-        // Non-fatal: advisory will still work via centroid fallback,
-        // just without pre-seeded route localities.
+      } catch (e) {
+        // Non-fatal: advisory falls back to GPS centroid without route localities.
+        debugPrint('[LiveHub] route generation failed (non-fatal): $e');
       }
 
       if (!mounted) return;
@@ -508,6 +510,8 @@ class _LocationSearchField extends ConsumerStatefulWidget {
 
 class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
   final _focusNode = FocusNode();
+  List<GeocodingResult> _results = [];
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -515,27 +519,43 @@ class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
       if (!_focusNode.hasFocus) {
-        // If user typed but didn't pick a result, revert to selected name.
         if (widget.selected != null) {
           widget.controller.text = widget.selected!.name;
         } else {
           widget.controller.clear();
         }
+        setState(() => _results = []);
       }
     });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
 
+  void _onChanged(String val) {
+    _debounce?.cancel();
+    if (val.trim().length < 2) {
+      setState(() => _results = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final service = ref.read(geocodingServiceProvider);
+        final hits = await service.searchCities(val);
+        if (mounted) setState(() => _results = hits);
+      } catch (_) {
+        if (mounted) setState(() => _results = []);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final searchAsync = ref.watch(citySearchControllerProvider);
-    final results = searchAsync.valueOrNull ?? [];
-    final showDropdown = widget.focused && results.isNotEmpty;
+    final showDropdown = widget.focused && _results.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,15 +573,13 @@ class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
                     onPressed: () {
                       widget.onSelected(null);
                       widget.controller.clear();
-                      ref.read(citySearchControllerProvider.notifier).clear();
+                      setState(() => _results = []);
                     },
                   )
                 : null,
             border: OutlineInputBorder(borderRadius: AppRadius.borderMd),
           ),
-          onChanged: (val) {
-            ref.read(citySearchControllerProvider.notifier).search(val);
-          },
+          onChanged: _onChanged,
         ),
         if (showDropdown)
           Container(
@@ -580,10 +598,10 @@ class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: results.length > 5 ? 5 : results.length,
+              itemCount: _results.length > 5 ? 5 : _results.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final r = results[i];
+                final r = _results[i];
                 return ListTile(
                   dense: true,
                   leading: const Icon(Icons.location_on_outlined, size: 16),
@@ -593,7 +611,7 @@ class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
                       : null,
                   onTap: () {
                     widget.onSelected(r);
-                    ref.read(citySearchControllerProvider.notifier).clear();
+                    setState(() => _results = []);
                     _focusNode.unfocus();
                   },
                 );

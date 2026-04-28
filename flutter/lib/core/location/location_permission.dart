@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 
+import 'package:dora/core/location/location_settings_resolver.dart';
+
 enum LocationAccessState {
   granted,
   denied,
@@ -8,7 +10,12 @@ enum LocationAccessState {
 }
 
 class LocationPermissionService {
-  const LocationPermissionService();
+  const LocationPermissionService({
+    LocationSettingsResolver locationSettingsResolver =
+        const LocationSettingsResolver(),
+  }) : _locationSettingsResolver = locationSettingsResolver;
+
+  final LocationSettingsResolver _locationSettingsResolver;
 
   Future<LocationAccessState> ensurePermissionStatus({
     bool requestIfDenied = true,
@@ -44,5 +51,11 @@ class LocationPermissionService {
 
   Future<bool> openAppSettings() => Geolocator.openAppSettings();
 
-  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
+  Future<bool> openLocationSettings() async {
+    final resolved = await _locationSettingsResolver.promptEnableLocation();
+    if (resolved) {
+      return true;
+    }
+    return Geolocator.openLocationSettings();
+  }
 }

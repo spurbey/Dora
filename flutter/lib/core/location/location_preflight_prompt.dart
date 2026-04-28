@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:dora/core/location/location_permission.dart';
+import 'package:dora/core/theme/app_colors.dart';
+import 'package:dora/core/theme/app_radius.dart';
+import 'package:dora/core/theme/app_spacing.dart';
+import 'package:dora/core/theme/app_typography.dart';
 
 enum LocationPreflightContext {
   startup,
@@ -98,21 +102,135 @@ Future<_LocationDialogAction> _showLocationDialog({
   required String message,
   required List<_LocationDialogAction> actions,
 }) async {
+  final primaryAction = _primaryAction(actions);
+  final secondaryActions = actions
+      .where((action) => action != primaryAction)
+      .toList(growable: false);
+
   final action = await showDialog<_LocationDialogAction>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        for (final option in actions)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(option),
-            child: Text(_actionLabel(option)),
-          ),
-      ],
+    builder: (context) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.lg,
+      ),
+      child: Container(
+        padding: AppSpacing.allLg,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: AppColors.divider),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.accentSoft,
+                border: Border.all(
+                  color: AppColors.accent.withValues(alpha: 0.28),
+                  width: 1.2,
+                ),
+              ),
+              child: const Icon(
+                Icons.explore_rounded,
+                color: AppColors.accent,
+                size: 42,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Dora',
+              style: AppTypography.h3.copyWith(
+                color: AppColors.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppTypography.h3.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            for (final option in secondaryActions) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(option),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.divider),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: AppRadius.borderMd,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                  ),
+                  child: Text(_actionLabel(option)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(primaryAction),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: AppRadius.borderMd,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.md,
+                  ),
+                ),
+                child: Text(_actionLabel(primaryAction)),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
   return action ?? _LocationDialogAction.notNow;
+}
+
+_LocationDialogAction _primaryAction(List<_LocationDialogAction> actions) {
+  if (actions.contains(_LocationDialogAction.openLocationSettings)) {
+    return _LocationDialogAction.openLocationSettings;
+  }
+  if (actions.contains(_LocationDialogAction.tryAgain)) {
+    return _LocationDialogAction.tryAgain;
+  }
+  if (actions.contains(_LocationDialogAction.openSettings)) {
+    return _LocationDialogAction.openSettings;
+  }
+  return actions.last;
 }
 
 String _actionLabel(_LocationDialogAction action) {

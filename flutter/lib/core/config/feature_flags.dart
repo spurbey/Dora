@@ -44,6 +44,8 @@ class FeatureFlags {
       String.fromEnvironment('ENABLE_STORIES_PUBLISH', defaultValue: 'auto');
   static const String _enableStoriesFeedOverride =
       String.fromEnvironment('ENABLE_STORIES_FEED', defaultValue: 'auto');
+  static const String _enableLiveScreenV3Override =
+      String.fromEnvironment('ENABLE_LIVE_SCREEN_V3', defaultValue: 'auto');
 
   static Future<void> initialize() async {
     await _remoteConfig.setConfigSettings(
@@ -66,6 +68,7 @@ class FeatureFlags {
       'enable_advisory_pipeline': false,
       'enable_stories_publish': false,
       'enable_stories_feed': false,
+      'enable_live_screen_v3': false,
     });
 
     try {
@@ -159,6 +162,13 @@ class FeatureFlags {
     if (override != null) return override;
     if (!_initialized) return false;
     return _remoteConfig.getBool('enable_stories_feed');
+  }
+
+  static bool get enableLiveScreenV3 {
+    final override = _parseOverride(_enableLiveScreenV3Override);
+    if (override != null) return override;
+    if (!_initialized) return false;
+    return _remoteConfig.getBool('enable_live_screen_v3');
   }
 
   static bool? _parseOverride(String value) {

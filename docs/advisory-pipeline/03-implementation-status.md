@@ -1,6 +1,10 @@
 # Advisory Pipeline — Implementation Status
 
-> Last updated: 2026-04-20
+> Last updated: 2026-04-29 (after rebuild sprint Phases 0–7)
+>
+> **For the rebuild that started 2026-04-26 jump straight to [§ Rebuild Sprint](#rebuild-sprint-2026-04-26--2026-04-29-phases-07).** The earlier sections describe the original 2026-04-20 build; the rebuild kept that work but fixed the structural failures it surfaced in production.
+>
+> **For server operations**, the canonical runbook is [05-server-ops-runbook.md](./05-server-ops-runbook.md). This file describes *what was built*; that file describes *how to run / debug / test on prod*.
 
 ## Major Commits (reverse chronological)
 
@@ -347,4 +351,153 @@ docs/
 
 - [01-architecture.md](./01-architecture.md) — system design, data flow, design decisions
 - [02-database-schema.md](./02-database-schema.md) — table definitions, indexes, constraints
+- [04-current-server-behavior-baseline.md](./04-current-server-behavior-baseline.md) — pre-rebuild observed behavior (the failures that motivated the rebuild)
+- [05-server-ops-runbook.md](./05-server-ops-runbook.md) — **canonical AWS/SSM/E2E playbook for prod operations**
 - [../scraping/hosted-chromium-cdp-setup.md](../scraping/hosted-chromium-cdp-setup.md) — EC2 Chrome CDP runbook
+- [../deployment/server-terminal-to-ec2-beginner-guide.md](../deployment/server-terminal-to-ec2-beginner-guide.md) — beginner-friendly SSM tutorial
+
+---
+
+## Rebuild Sprint (2026-04-26 → 2026-04-29) — Phases 0–7
+
+**Why:** by 2026-04-25 the original build was shipping garbage advisories in production ("Popular place in Parliament Of India — 66 reviews, 4.3 rated" — a canteen). Server diagnosis surfaced **six stacked failures**:
+
+1. Primary OpenRouter model `gpt-oss-120b:free` chronic 503s (13× in 34h)
+2. Reverse-geocode picking building names ("Parliament Of India") instead of city ("Delhi")
+3. Reddit scraper (Crawl4AI) returning 0 insights even on sane queries
+4. Cadence persistence failing intermittently — 12 jobs every 2 min for one trip
+5. `_fallback_copy` producing templated junk when LLM 503s
+6. 11 of 12 real-user trips never starting V2 sessions (separate Flutter sprint, deferred)
+
+The rebuild restructured orchestration around **Mode A (planning, Reddit-primary) / Mode B (live_companion, Reddit + GMaps)**, with the LLM as orchestrator instead of passive ranker. Plan source: `~/.claude/plans/glistening-sniffing-reef.md`.
+
+### Phase 0 — LLM foundation
+**Goal:** reliable structured-JSON LLM calls; replace the ad-hoc `httpx` + `gpt-oss-120b:free` with something stable.
+
+**Built:**
+- `backend/app/services/llm.py` — single `chat_json(messages, schema, …)` entry point. Returns parsed dict on success, `None` on any failure. Internal retries + automatic fallback.
+- **Bedrock primary path:** when `LLM_PROVIDER=bedrock`, calls Claude Haiku 4.5 via `bedrock-runtime.{region}.amazonaws.com/model/{id}/converse` with bearer-token auth. Forced tool-use schema for guaranteed parseable JSON. Single `BEDROCK_API_KEY` (no IAM key+secret) — separate AWS account from the Lambda/S3 one.
+- **OpenRouter chain as failover:** ordered list `OPENROUTER_FALLBACK_MODELS` (DeepSeek V4 Flash → nvidia/nemotron-3-super → glm-4.5-air → minimax → qwen → llama-3.3). On Bedrock failure or 5xx from a model, the chain rotates.
+- All previous LLM call sites (advisory_ranker, Crawl4AI extraction) migrated to `chat_json`.
+
+**Verified on prod (2026-04-29):** Bedrock smoke `RESULT: {'ok': True}` in api + advisory_worker containers. Token usage 660 in / 33 out per call.
+
+### Phase 1 — City-level locality
+**Goal:** stop reverse-geocode from returning building/POI names.
+
+**Built:** `geocoding_service.reverse_geocode` now walks the Mapbox feature-context array, preferring `place` (city) > `region` > `locality` (neighborhood). Returns first non-empty layer ≥ city scope.
+
+**Verified on prod:** `reverse_geocode(28.6172, 77.2079)` (Parliament House GPS) returns `"New Delhi"` / region `"Delhi"` / locality_key `in:Delhi:New Delhi`. Pune→Goa polyline reverse-geocodes to 15 real cities (`Pune, Bhor, Khandala, Wai, Satara, Panhala, Patan, Sawantwadi, Dharbandora, Dodamarg, Radhanagari, Bhudargad, Shahuwadi, Ajra, Satari`).
+
+### Phase 2 — Cadence persistence
+**Goal:** eliminate the "12 jobs every 2 min for one trip" symptom by guaranteeing brain writes survive.
+
+**Built:** `trip_brain_service.mark_cycle_outcome` now runs in a single explicit transaction (`with _safe_tx(self.db):`). Removed the `db.begin_nested()` conditional path. Callers updated to ensure no open transaction on entry.
+
+**Verified on prod:** `seed_on_trip_creation` UPDATE round-trips cleanly; `last_seed_at` advances. (Full cycle persistence — `last_cycle_at` advancing on cycle-triggered jobs — only fires for cycle worker, not on_demand. To be confirmed when V2 sessions land.)
+
+### Phase 3 — Reddit scraper rebuild
+**Goal:** Crawl4AI's `BestFirstCrawlingStrategy` returns 0 deep links from Reddit search pages. Rebuild without it.
+
+**Built:** `scrape_reddit_v2` (in `app/services/scrapers/reddit_v2.py`) — 4-stage pipeline:
+1. **plan**: Bedrock generates subreddit list + queries from cities + intent
+2. **search**: Playwright headed Chromium (xvfb in container) hits `old.reddit.com` search across `r/IndiaTravel`, `r/india`, `r/indiafood`, etc.; extracts post URLs
+3. **fetch**: opens each post URL, scrapes top-comments markdown
+4. **extract**: per-post Bedrock call extracts structured `TravelInsight[]`
+
+Uses **BrightData residential proxy** (`brd.superproxy.io:33335`) — Reddit blocks datacenter IPs server-side; residential IPs are the only path that works.
+
+`advisory_worker._stage_reddit_scrape` rewired to call `scrape_reddit_v2` (the old Crawl4AI path is dead code).
+
+**Verified on prod (2026-04-29):** the `reddit_scrape` stage ran for ~93s and produced enough insights for the merge_dedup → scoring → delivery chain to emit 34 advisories.
+
+### Phase 4 — Mode A/B phase machine
+**Goal:** stop firing the full 7-stage pipeline on every cycle. Route different sources at different cadences based on trip phase.
+
+**Built:**
+- **Brain schema:** `trip_advisory_state.phase` VARCHAR(20) NOT NULL DEFAULT `'planning'` CHECK in (`'planning'`, `'live_companion'`, `'paused'`); `locality_confidence` JSONB NOT NULL DEFAULT `'{}'`; `last_phase_change_at` timestamptz. Migration `a7f9c2e4d8b1_brain_phase_confidence.py`.
+- **Phase transitions:**
+
+  | From | To | Trigger |
+  |---|---|---|
+  | (new) | planning | trip creation (`seed_on_trip_creation`) |
+  | planning | live_companion | first V2 session start (`enrich_on_tracking_start`) |
+  | live_companion | planning | session ended >24h |
+  | any | paused | inactivity / manual pause |
+
+- **Stage paths per phase** (`STAGE_PATHS_BY_PHASE` in `advisory_worker.py:39`):
+  - **planning:** `clarify_intent → route_segmentation → reddit_scrape → merge_dedup → scoring → delivery`
+  - **live_companion:** `clarify_intent → route_segmentation → reddit_scrape → gmaps_scrape → merge_dedup → scoring → delivery`
+  - **paused:** minimal — `route_segmentation → merge_dedup → delivery` (no-harm)
+
+- **Cycle worker is now a trigger detector** (`advisory_cycle_worker.py`): replaced the time-driven `claim_due_trips` enqueue with a per-trip `detect_triggers` → `consider_trigger` → `create_advisory_job` flow. Trigger types: `region_jump`, `context_shift`, `user_query`, `route_changed`, `metadata_changed`. Time-based `next_eligible_at` is now a soft floor, not the firing mechanism.
+- **`_ACTIVITY_TO_CATEGORIES` mapping** (in `advisory_cycle_worker.py`): `food → food_tip`, `hiking → must_do + photo_spot`, etc. Used by the confidence-skip gate so a trip with high confidence in `(locality, food_tip)` doesn't re-fire when activity_focus contains `food`.
+
+**Verified on prod:** the planning stage path executes in declared order. The live_companion path is wired but unverified pending Flutter V2 sessions.
+
+### Phase 5 — clarify_intent + locality_confidence
+**Goal:** mandatory ask-first fallback when cached findings are weak. Stop the "guess and produce garbage" pattern.
+
+**Built:**
+- **`locality_confidence` storage** (added in Phase 4 migration): JSONB shape `{locality_key: {category: float, _signals: {reddit, gmaps, ugc}}}`. Updated by delivery stage.
+- **`_stage_clarify_intent`** in `advisory_worker.py:1077`. Reads `(locality, intent)` confidence from brain. If conf ≥ 0.7 → skip. If conf 0.5–0.7 → optional. If conf < 0.5 → mandatory: Bedrock returns `{status: clarify|ready|impossible, question, options}`. On `clarify`, persists `clarifying_question` message + blocks job (`status='blocked', reason='waiting_user_response'`).
+- **Resume path** (`/api/v1/advisory/conversation/answer`): when user picks an option chip, persists user response, looks up the blocked job from the cache, patches `scrape_plan.clarified_filters = answer` + `scrape_plan.user_asked_clarify = True`, sets `status='queued'`. Worker's next claim picks it up; clarify_intent now returns `ready` and proceeds.
+- **Feature flag:** `ADVISORY_CLARIFY_ENABLED=false` by default in compose. Stage exists in path but no-ops when disabled.
+
+**Verified on prod:** the stage transitions cleanly when disabled (no constraint violation, no LLM call). Ask-flow itself unverified pending flag flip + ambiguous query test.
+
+### Phase 6 — display_kind + place_polygon
+**Goal:** every advisory needs an explicit spatial-rendering hint for the map-first UI work.
+
+**Built:**
+- Migration `b8a3d6f1c5e2_advisory_display_kind.py`:
+  - `display_kind` VARCHAR(20) NOT NULL DEFAULT `'ambient'` CHECK in (`point`, `polygon`, `route_overlay`, `ambient`)
+  - `place_polygon` JSONB nullable (forward-looking — no polygon advisories generated this sprint)
+  - Index `idx_advisory_trip_display` on `(trip_id, display_kind)`
+- Model field on `TripAdvisory` + Pydantic `AdvisoryInsightResponse.display_kind`.
+- `_resolve_display_kind(category, has_pin)` mapping in `advisory_worker.py`:
+  - `transport_tip` → `route_overlay`
+  - has `place_lat` → `point` (fires on GMaps results in live_companion)
+  - everything else → `ambient`
+
+**Verified on prod (2026-04-29):** 34 advisories all have `display_kind` set. Distribution: 33× `ambient` (Reddit insights without coords), 1× `route_overlay` (a `transport_tip` from extraction). `point` distribution awaits GMaps E2E.
+
+### Phase 7 — stage CHECK constraint fix (regression caught in E2E)
+**Goal:** unblock advisory_worker which got stuck in a retry loop after the rebuild.
+
+**Discovered:** during the Day-7 E2E on 2026-04-29, the test job hung in `route_segmentation` for 180+s. Worker logs showed `(psycopg2.errors.CheckViolation) … check_advisory_job_stage` repeating every 5s. The original migration `ffd82b6d69e4` declared `stage IN ('route_segmentation','reddit_scrape','tripadvisor_scrape','gmaps_scrape','llm_extraction','scoring','delivery')`. Phase 4/5 added `clarify_intent` and `merge_dedup` (the latter renamed from `llm_extraction`) but never updated the constraint.
+
+**Fix:**
+1. **Live patch** via SSM: `ALTER TABLE advisory_jobs DROP CONSTRAINT check_advisory_job_stage; ALTER TABLE advisory_jobs ADD CONSTRAINT … CHECK (stage IS NULL OR stage IN (…full set…))`. Unblocked the worker immediately.
+2. **Permanent migration:** `backend/alembic/versions/d2e7a8b3f4c1_advisory_job_stage_constraint.py` chained off the actual prod head `d8b7c6a5e4f3`. Idempotent (uses `DROP CONSTRAINT IF EXISTS`). Applied via local `alembic upgrade head` (which targets the same Supabase DB as prod via `SUPABASE_DB_URL`). Prod alembic head is now `d2e7a8b3f4c1`.
+
+**Verified:** re-ran E2E after the fix → job completed in 102.4s, 34 advisories produced.
+
+---
+
+## Day-7 E2E Verification (2026-04-29)
+
+End-to-end test driven entirely server-side via SSM. Created a synthetic Pune→Goa trip with route geometry, drove it through `seed_on_trip_creation` → on_demand job → full pipeline → cleanup. Test driver script lives in [05-server-ops-runbook.md § 5](./05-server-ops-runbook.md#5-the-day-7-e2e-test).
+
+| Phase | Verified | Notes |
+|---|---|---|
+| 0 — Bedrock LLM | ✅ | smoke 200 OK in api + advisory_worker |
+| 1 — Locality fix | ✅ | Parliament House → "New Delhi"; Pune→Goa → 15 real cities |
+| 2 — Cadence persistence | ✅ | seed UPDATE survives; brain `last_seed_at` advances |
+| 3 — Reddit v2 scrape | ✅ | reddit_scrape stage produced enough insights for delivery |
+| 4 — Mode A/B phase machine | ✅ | planning path executed in declared order |
+| 5 — clarify_intent | ⚠️  partial | stage transitions cleanly when disabled; ask-flow itself unverified |
+| 6 — display_kind | ✅ | all 34 advisories have `display_kind` set with correct mapping |
+| 7 — stage constraint | ✅ | live patch + migration both applied; alembic head = `d2e7a8b3f4c1` |
+
+**Net result:** 34 advisories delivered in 102.4s for "best food spots in Pune". Categories: `food_tip`, `must_do`, `general_tip`, `avoid`, `transport_tip`. No churn, no stuck jobs.
+
+### Not yet exercised on prod (deferred)
+
+- **GMaps scraping (live_companion phase)** — needs a `trip_tracking_sessions` row + brain phase flip. Blocked on Flutter V2 sessions actually firing for real users.
+- **Cycle worker trigger detection** (`region_jump`, `route_changed`) — periodic detector logic rewritten in Phase 4 but never observed firing on real GPS injection.
+- **clarify_intent ask-flow** — gated by `ADVISORY_CLARIFY_ENABLED=false`. To test: flip env, redeploy, send ambiguous query like `"find food"`.
+- **Push notifications** — `FIREBASE_PUSH_ENABLED=false`.
+- **OpenRouter failover chain** — only kicks in on Bedrock failure. To exercise: temporarily flip `LLM_PROVIDER=openrouter`.
+
+---

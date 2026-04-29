@@ -63,6 +63,12 @@ class LiveCaptureMapController {
   // moving variant — used to decide whether to swap the image.
   bool _v3UserPinIsMoving = false;
 
+  /// Active dimensional mode. Defaults to standard so first-paint of
+  /// the live screen is tap-friendly; users opt into cinematic via the
+  /// [DimensionalModeToggle] widget.
+  MapDimensionalMode _dimensionalMode = MapDimensionalMode.standard;
+  MapDimensionalMode get dimensionalMode => _dimensionalMode;
+
   // Coalescing for path updates
   bool _pathUpdateInFlight = false;
   List<AppLatLng>? _pendingPathPoints;
@@ -446,6 +452,11 @@ class LiveCaptureMapController {
   static const String v3WarnLayerId = 'dora_v3_warn_layer';
   static const String v3GeotagLayerId = 'dora_v3_geotag_layer';
 
+  /// V3 cinematic-mode-only source/layer IDs (added/removed when the
+  /// dimensional mode toggles).
+  static const String _v3TerrainSourceId = 'dora_v3_terrain_dem';
+  static const String _v3BuildingsLayerId = 'dora_v3_buildings_layer';
+
   static const String _v3PolaroidSpriteId = 'dora_v3_polaroid_sprite';
   static const String _v3ClusterStackSpriteId = 'dora_v3_cluster_stack_sprite';
   static const String _v3NoteSpriteId = 'dora_v3_note_sprite';
@@ -680,6 +691,105 @@ class LiveCaptureMapController {
     if (_v3TrailPoints.isNotEmpty) {
       await setLivePathV3(_v3TrailPoints);
     }
+  }
+
+  // ── V3 dimensional mode (standard ↔ cinematic) ─────────────────────────────
+
+  /// Switches between [MapDimensionalMode.standard] (pitch 20°, no
+  /// terrain, no 3D buildings) and [MapDimensionalMode.cinematic]
+  /// (pitch 50°, terrain on, 3D buildings on).
+  ///
+  /// Camera transition is animated over 800 ms; layer add/remove happens
+  /// in parallel — there's a brief moment where pitch is mid-transition
+  /// while terrain renders in, but the pitch animation hides it.
+  ///
+  /// Idempotent — calling with the current mode is a no-op.
+  Future<void> setDimensionalMode(MapDimensionalMode mode) async {
+    if (mode == _dimensionalMode) return;
+    final map = _map;
+    if (map == null) return;
+
+    _dimensionalMode = mode;
+    final pitch = mode == MapDimensionalMode.cinematic ? 50.0 : 20.0;
+
+    // Camera animation in parallel with layer install/remove. We don't
+    // await this — the easeTo Future completes when the animation ends,
+    // but we want layer changes to happen during the tilt, not after.
+    unawaited(
+      map.easeTo(
+        CameraOptions(pitch: pitch),
+        MapAnimationOptions(duration: 800),
+      ),
+    );
+
+    if (mode == MapDimensionalMode.cinematic) {
+      await _installCinematicLayers();
+    } else {
+      await _removeCinematicLayers();
+    }
+  }
+
+  /// Installs the terrain raster-dem source + 3D buildings extrusion
+  /// layer. Idempotent — silent on duplicate-add via [_addOrReplaceSource]
+  /// / [_addOrReplaceLayer].
+  Future<void> _installCinematicLayers() async {
+    final map = _map;
+    if (map == null) return;
+    final style = map.style;
+
+    // Mapbox terrain DEM tileset.
+    await _addOrReplaceSource(
+      style,
+      RasterDemSource(
+        id: _v3TerrainSourceId,
+        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        tileSize: 514,
+      ),
+    );
+
+    // Apply terrain to the style. setStyleTerrain expects a JSON string
+    // describing the terrain config.
+    try {
+      await style.setStyleTerrain(
+        '{"source":"$_v3TerrainSourceId","exaggeration":1.2}',
+      );
+    } catch (_) {
+      // Style may not support terrain (e.g. some custom styles); fail-soft.
+    }
+
+    // 3D buildings — fill-extrusion on the style's `composite` source's
+    // `building` layer (standard for outdoor/streets styles).
+    await _addOrReplaceLayer(
+      style,
+      FillExtrusionLayer(
+        id: _v3BuildingsLayerId,
+        sourceId: 'composite',
+        sourceLayer: 'building',
+        minZoom: 14,
+        filter: const ['==', ['get', 'extrude'], 'true'],
+        fillExtrusionColor: DoraColors.brandPrimary.toARGB32(),
+        fillExtrusionOpacity: 0.35,
+        fillExtrusionHeightExpression: const ['get', 'height'],
+        fillExtrusionBaseExpression: const ['get', 'min_height'],
+      ),
+    );
+  }
+
+  /// Removes the cinematic-only source + layer. Style continues to render
+  /// as the flat 2D + pin/trail/marker stack.
+  Future<void> _removeCinematicLayers() async {
+    final map = _map;
+    if (map == null) return;
+    final style = map.style;
+    try {
+      await style.setStyleTerrain('{}');
+    } catch (_) {}
+    try {
+      await style.removeStyleLayer(_v3BuildingsLayerId);
+    } catch (_) {}
+    try {
+      await style.removeStyleSource(_v3TerrainSourceId);
+    } catch (_) {}
   }
 
   /// Updates the V3 GPS trail source with [points].
@@ -1033,6 +1143,14 @@ class AdvisoryMapMarker {
   final Color tint;
   final bool accepted;
 }
+
+/// V3 map dimensional mode — drives camera pitch + presence of 3D
+/// terrain and building extrusion layers.
+///
+/// **standard** is the default and the tap-friendly option (subtle 20°
+/// pitch, no terrain, no buildings). **cinematic** is the wow-factor
+/// upgrade for users who opt in via the [DimensionalModeToggle].
+enum MapDimensionalMode { standard, cinematic }
 
 /// What kind of V3 feature was hit by a map tap.
 enum V3MapTapKind { memory, memoryCluster, note, warn, geotag }

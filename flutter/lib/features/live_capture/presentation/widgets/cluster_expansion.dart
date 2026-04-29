@@ -157,8 +157,8 @@ class _ClusterCard extends StatelessWidget {
   static String _label(TimelineItem item) {
     if (item is TimelineMediaItem) return 'Photo';
     if (item is TimelineEventItem) {
-      final preview = item.preview.trim();
-      if (preview.isNotEmpty) return preview;
+      final body = item.body.trim();
+      if (body.isNotEmpty) return body;
       switch (item.kind) {
         case TripEventMapKind.note:
           return 'Note';

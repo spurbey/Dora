@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
@@ -108,14 +110,27 @@ TripEventMapKind? _kindOf(String eventType) {
   }
 }
 
+/// Extracts a short callout-friendly preview of the event's text body.
+///
+/// Capture flow stores user text under the `note` key in the payload
+/// JSON object (`live_capture_screen.dart` _captureQuickEvent /
+/// _promptForTextCapture). We parse that out here instead of dumping
+/// raw JSON. Trims to 80 chars + first line so the preview fits in
+/// a callout bubble. Fails soft on malformed JSON.
 String _previewFor(EventJournalRow row) {
   final payload = row.payloadJson;
   if (payload == null || payload.isEmpty) return '';
-  // Keep the parser dumb-simple — payload is JSON but we want a short
-  // preview. The payload schema isn't strictly typed across event kinds
-  // so we surface the raw text up to the first newline / ~80 chars.
-  // Detail screens parse this properly later; this is just for the
-  // callout teaser.
-  final firstLine = payload.split('\n').first;
+  String body;
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is Map && decoded['note'] is String) {
+      body = (decoded['note'] as String).trim();
+    } else {
+      body = payload;
+    }
+  } catch (_) {
+    body = payload;
+  }
+  final firstLine = body.split('\n').first;
   return firstLine.length > 80 ? firstLine.substring(0, 80) : firstLine;
 }

@@ -72,11 +72,11 @@ class MarkerImagePainter {
   /// Darkens [color] by [amount] (0.0–1.0).
   static Color darken(Color color, [double amount = 0.2]) {
     final factor = 1.0 - amount.clamp(0.0, 1.0);
-    return Color.fromARGB(
-      color.alpha,
-      (color.red * factor).round(),
-      (color.green * factor).round(),
-      (color.blue * factor).round(),
+    return Color.from(
+      alpha: color.a,
+      red: (color.r * factor).clamp(0.0, 1.0),
+      green: (color.g * factor).clamp(0.0, 1.0),
+      blue: (color.b * factor).clamp(0.0, 1.0),
     );
   }
 

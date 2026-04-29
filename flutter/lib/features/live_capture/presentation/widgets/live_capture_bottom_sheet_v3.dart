@@ -9,6 +9,7 @@ import 'package:dora/features/live_capture/presentation/widgets/timeline_sheet_c
 import 'package:dora/features/live_capture/presentation/widgets/v2_unresolved_chip.dart';
 import 'package:dora/features/live_capture/providers/bottom_sheet_state_provider.dart';
 import 'package:dora/features/live_capture/providers/trip_unified_timeline_provider.dart';
+import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
 
 /// V3 bottom-sheet host — a single [DraggableScrollableSheet] driven by
 /// [bottomSheetStateProvider]. The active state determines what content
@@ -32,6 +33,7 @@ class LiveCaptureBottomSheetV3 extends ConsumerWidget {
     super.key,
     required this.tripId,
     required this.onUnresolvedTap,
+    this.onCameraFly,
   });
 
   final String tripId;
@@ -39,6 +41,12 @@ class LiveCaptureBottomSheetV3 extends ConsumerWidget {
   /// Wired to navigate to the existing V2 unresolved-inbox review
   /// surface (typically the editor's resolver-review screen).
   final VoidCallback onUnresolvedTap;
+
+  /// Invoked when a timeline row is tapped and the underlying item has
+  /// coordinates. Host wires this to fly the map camera to the item's
+  /// location while the sheet transitions to detail mode. Items without
+  /// coordinates do not fire this callback.
+  final void Function(double lat, double lng)? onCameraFly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,13 +63,14 @@ class LiveCaptureBottomSheetV3 extends ConsumerWidget {
         return _SheetSurface(
           child: Column(
             children: [
-              const _DragHandle(),
+              _DragHandle(tripId: tripId),
               Expanded(
                 child: _ContentSwitcher(
                   tripId: tripId,
                   state: state,
                   scrollController: scrollController,
                   onUnresolvedTap: onUnresolvedTap,
+                  onCameraFly: onCameraFly,
                 ),
               ),
             ],
@@ -95,20 +104,52 @@ class _SheetSurface extends StatelessWidget {
   }
 }
 
-class _DragHandle extends StatelessWidget {
-  const _DragHandle();
+/// Drag handle bar at the top of the sheet — visible even at peek.
+///
+/// When the V2 resolver inbox has any unresolved items for this trip,
+/// a small amber dot is rendered next to the handle bar. Honors the
+/// plan's no-coords acceptance criterion: even when the sheet is
+/// collapsed, the user gets a visible signal that there's something
+/// awaiting review.
+class _DragHandle extends ConsumerWidget {
+  const _DragHandle({required this.tripId});
+  final String tripId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unresolvedAsync = ref.watch(v2UnresolvedInboxProvider(tripId));
+    final hasUnresolved = (unresolvedAsync.valueOrNull?.isNotEmpty) ?? false;
+
     return Padding(
       padding: const EdgeInsets.only(top: DoraSpacing.sm),
-      child: Container(
-        width: 40,
-        height: 5,
-        decoration: BoxDecoration(
-          color: DoraColors.inkTertiary.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(3),
-        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 40,
+            height: 5,
+            decoration: BoxDecoration(
+              color: DoraColors.inkTertiary.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          if (hasUnresolved)
+            Positioned(
+              right: -16,
+              child: Semantics(
+                label: 'Items awaiting review',
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: DoraColors.warn,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -125,12 +166,14 @@ class _ContentSwitcher extends StatelessWidget {
     required this.state,
     required this.scrollController,
     required this.onUnresolvedTap,
+    required this.onCameraFly,
   });
 
   final String tripId;
   final BottomSheetState state;
   final ScrollController scrollController;
   final VoidCallback onUnresolvedTap;
+  final void Function(double lat, double lng)? onCameraFly;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +181,7 @@ class _ContentSwitcher extends StatelessWidget {
       return TimelineSheetContent(
         tripId: tripId,
         scrollController: scrollController,
+        onCameraFly: onCameraFly,
         headerChip: V2UnresolvedChip(
           tripId: tripId,
           onTap: onUnresolvedTap,

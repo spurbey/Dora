@@ -88,9 +88,7 @@ class LiveCaptureMapController {
     _pointManager = await map.annotations.createPointAnnotationManager();
     _lineManager = await map.annotations.createPolylineAnnotationManager();
     _advisoryManager = await map.annotations.createPointAnnotationManager();
-    _advisoryManager?.addOnPointAnnotationClickListener(
-      _AdvisoryClickListener(this),
-    );
+    _advisoryManager?.tapEvents(onTap: _handleAdvisoryClick);
   }
 
   void setOnAdvisoryMarkerTap(void Function(String advisoryId)? handler) {
@@ -1181,12 +1179,3 @@ class V3MapTap {
   final int? clusterCount;
 }
 
-class _AdvisoryClickListener extends OnPointAnnotationClickListener {
-  _AdvisoryClickListener(this._controller);
-  final LiveCaptureMapController _controller;
-
-  @override
-  void onPointAnnotationClick(PointAnnotation annotation) {
-    _controller._handleAdvisoryClick(annotation);
-  }
-}

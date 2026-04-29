@@ -25,6 +25,7 @@ class TimelineSheetContent extends ConsumerWidget {
     required this.tripId,
     required this.scrollController,
     this.headerChip,
+    this.onCameraFly,
   });
 
   final String tripId;
@@ -33,6 +34,12 @@ class TimelineSheetContent extends ConsumerWidget {
   /// Optional header chip — typically the V2UnresolvedChip surfacing
   /// resolver review-required count. Null = no chip rendered.
   final Widget? headerChip;
+
+  /// Invoked with `(latitude, longitude)` when the user taps a row whose
+  /// item has coordinates. Host wires this to fly the map camera to the
+  /// item's location while the bottom sheet transitions to detail mode.
+  /// Items without coordinates simply don't fire this callback.
+  final void Function(double lat, double lng)? onCameraFly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,7 +70,11 @@ class TimelineSheetContent extends ConsumerWidget {
                 child: _EmptyTimeline(),
               );
             }
-            return _DaySectionedList(items: items, tripId: tripId);
+            return _DaySectionedList(
+              items: items,
+              tripId: tripId,
+              onCameraFly: onCameraFly,
+            );
           },
           loading: () => const SliverFillRemaining(
             hasScrollBody: false,
@@ -149,9 +160,14 @@ class _EmptyTimeline extends StatelessWidget {
 }
 
 class _DaySectionedList extends StatelessWidget {
-  const _DaySectionedList({required this.items, required this.tripId});
+  const _DaySectionedList({
+    required this.items,
+    required this.tripId,
+    required this.onCameraFly,
+  });
   final List<TimelineItem> items;
   final String tripId;
+  final void Function(double lat, double lng)? onCameraFly;
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +205,11 @@ class _DaySectionedList extends StatelessWidget {
     for (final (label, bucketItems) in buckets) {
       children.add(_SectionHeader(label: label));
       for (final item in bucketItems) {
-        children.add(_TimelineRow(item: item, tripId: tripId));
+        children.add(_TimelineRow(
+          item: item,
+          tripId: tripId,
+          onCameraFly: onCameraFly,
+        ));
       }
     }
 
@@ -236,14 +256,27 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _TimelineRow extends ConsumerWidget {
-  const _TimelineRow({required this.item, required this.tripId});
+  const _TimelineRow({
+    required this.item,
+    required this.tripId,
+    required this.onCameraFly,
+  });
   final TimelineItem item;
   final String tripId;
+  final void Function(double lat, double lng)? onCameraFly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
       onTap: () {
+        // Camera fly first so the map is moving by the time the sheet
+        // detail finishes its transition. No-coords items skip the fly
+        // — detail still opens, map stays put.
+        final lat = item.latitude;
+        final lng = item.longitude;
+        if (lat != null && lng != null) {
+          onCameraFly?.call(lat, lng);
+        }
         ref.read(bottomSheetStateProvider(tripId).notifier).openDetail(item);
       },
       child: Padding(
@@ -380,8 +413,8 @@ class _Body extends StatelessWidget {
   static String _titleFor(TimelineItem item) {
     if (item is TimelineMediaItem) return 'Photo';
     if (item is TimelineEventItem) {
-      final preview = item.preview.trim();
-      if (preview.isEmpty) {
+      final body = item.body.trim();
+      if (body.isEmpty) {
         switch (item.kind) {
           case TripEventMapKind.note:
             return 'Note';
@@ -391,7 +424,7 @@ class _Body extends StatelessWidget {
             return 'Geotag';
         }
       }
-      return preview;
+      return body;
     }
     return '';
   }

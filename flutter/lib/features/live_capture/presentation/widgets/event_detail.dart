@@ -35,9 +35,7 @@ class EventDetail extends ConsumerWidget {
     final tint = _tintFor(item.kind);
     final icon = _iconFor(item.kind);
     final title = _titleFor(item.kind);
-    final body = item.preview.trim().isEmpty
-        ? '(no content)'
-        : item.preview;
+    final body = item.body.trim().isEmpty ? '(no content)' : item.body;
 
     return CustomScrollView(
       controller: scrollController,

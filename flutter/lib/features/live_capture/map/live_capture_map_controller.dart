@@ -53,6 +53,15 @@ class LiveCaptureMapController {
   // again immediately.
   List<TripCapturedMediaMarker> _v3Memories = const [];
   List<TripEventMapMarker> _v3Events = const [];
+  List<AppLatLng> _v3TrailPoints = const [];
+
+  // V3 user pin sprite cache (lazily rendered on first call). Two
+  // variants: idle (compass disc only) and moving (compass disc + cone).
+  Uint8List? _v3UserPinIdle;
+  Uint8List? _v3UserPinMoving;
+  // True when the active position annotation currently shows the
+  // moving variant — used to decide whether to swap the image.
+  bool _v3UserPinIsMoving = false;
 
   // Coalescing for path updates
   bool _pathUpdateInFlight = false;
@@ -138,6 +147,77 @@ class LiveCaptureMapController {
       } catch (_) {
         // Annotation may have been cleared — recreate on next call.
         _positionAnnotation = null;
+      }
+    }
+
+    if (_followMode) {
+      try {
+        await map.easeTo(
+          CameraOptions(center: geometry),
+          MapAnimationOptions(duration: AnimationTokens.markerLerpMs),
+        );
+      } catch (_) {}
+    }
+  }
+
+  /// V3 variant of [updatePosition] — swaps the user-pin sprite to the
+  /// Dora compass disc, with an additional direction cone variant when
+  /// the user is moving (`speedMps > 1`).
+  ///
+  /// Distinct from [updatePosition] (which renders the V2 sky-blue dot).
+  /// V3 call sites use this instead. Both methods drive the same
+  /// [_pointManager] annotation, so only one user pin is ever on the
+  /// map at a time — flipping the V3 flag at runtime is safe.
+  Future<void> updatePositionV3(
+    AppLatLng position, {
+    double? bearingDeg,
+    double? speedMps,
+  }) async {
+    final map = _map;
+    final manager = _pointManager;
+    if (map == null || manager == null) return;
+    _lastKnownPosition = position;
+
+    // Lazily render both sprite variants on first call. Cheap (~ms)
+    // and only happens once per session.
+    _v3UserPinIdle ??= await MarkerImagePainter.drawDoraUserPin();
+    final wantMoving = (speedMps ?? 0) > 1.0;
+    if (wantMoving) {
+      _v3UserPinMoving ??= await MarkerImagePainter.drawDoraUserPinWithCone();
+    }
+    final image = wantMoving ? _v3UserPinMoving : _v3UserPinIdle;
+
+    final geometry = _toPoint(position);
+
+    if (_positionAnnotation == null) {
+      _positionAnnotation = await manager.create(
+        PointAnnotationOptions(
+          geometry: geometry,
+          image: image,
+          iconAnchor: IconAnchor.CENTER,
+          iconSize: 1.0,
+          iconRotate: bearingDeg ?? 0,
+          symbolSortKey: 1200,
+        ),
+      );
+      _v3UserPinIsMoving = wantMoving;
+    } else {
+      _positionAnnotation!.geometry = geometry;
+      if (bearingDeg != null) {
+        _positionAnnotation!.iconRotate = bearingDeg;
+      }
+      // Only swap the image when the moving/idle state actually flips —
+      // image swaps trigger a sprite re-upload across the platform
+      // channel which is more expensive than just nudging geometry.
+      if (wantMoving != _v3UserPinIsMoving) {
+        _positionAnnotation!.image = image;
+        _v3UserPinIsMoving = wantMoving;
+      }
+      try {
+        await manager.update(_positionAnnotation!);
+      } catch (_) {
+        _positionAnnotation = null;
+        _v3UserPinIsMoving = false;
       }
     }
 
@@ -353,7 +433,10 @@ class LiveCaptureMapController {
   static const String v3NotesSourceId = 'dora_v3_notes';
   static const String v3WarnsSourceId = 'dora_v3_warns';
   static const String v3GeotagsSourceId = 'dora_v3_geotags';
+  static const String v3TrailSourceId = 'dora_v3_trail';
 
+  static const String v3TrailGlowLayerId = 'dora_v3_trail_glow_layer';
+  static const String v3TrailGradientLayerId = 'dora_v3_trail_gradient_layer';
   static const String v3MemoryLayerId = 'dora_v3_memory_layer';
   static const String v3MemoryClusterLayerId = 'dora_v3_memory_cluster_layer';
   static const String v3MemoryClusterCountLayerId =
@@ -407,6 +490,16 @@ class LiveCaptureMapController {
     await _registerSprite(_v3GeotagSpriteId, geotag, 56);
 
     // Sources
+    // Trail source — line-metrics enabled so LineLayer can use line-progress
+    // expressions for the gradient fade.
+    await _addOrReplaceSource(
+      style,
+      GeoJsonSource(
+        id: v3TrailSourceId,
+        data: _emptyFeatureCollection,
+        lineMetrics: true,
+      ),
+    );
     await _addOrReplaceSource(
       style,
       GeoJsonSource(
@@ -431,9 +524,54 @@ class LiveCaptureMapController {
       GeoJsonSource(id: v3GeotagsSourceId, data: _emptyFeatureCollection),
     );
 
-    // Layers — z-order: pulse (bottom) → geotag → note → warn → memory
-    // → memory cluster (top). Symbol layers are sort-key-driven within
-    // their layer so we don't need explicit symbolSortKey here.
+    // Layers — z-order: trail glow (bottom) → trail gradient → warn pulse →
+    // geotag → note → warn → memory → memory cluster (top). Symbol layers
+    // are sort-key-driven within their layer so we don't need explicit
+    // symbolSortKey here.
+    //
+    // Trail glow — wider, low-opacity, blurred underneath the gradient.
+    // Gives the trail a soft "lit" presence on the map without being loud.
+    await _addOrReplaceLayer(
+      style,
+      LineLayer(
+        id: v3TrailGlowLayerId,
+        sourceId: v3TrailSourceId,
+        lineColor: DoraColors.brandPrimary.toARGB32(),
+        lineOpacity: 0.20,
+        lineWidth: 16,
+        lineBlur: 4,
+        lineCap: LineCap.ROUND,
+        lineJoin: LineJoin.ROUND,
+      ),
+    );
+    // Trail gradient — main visible line. line-progress goes 0.0 → 1.0
+    // along the line; we interpolate cream → mint → teal so older parts
+    // of the trail fade and the leading edge pops in brand color. This
+    // requires lineMetrics on the source (set above).
+    await _addOrReplaceLayer(
+      style,
+      LineLayer(
+        id: v3TrailGradientLayerId,
+        sourceId: v3TrailSourceId,
+        lineWidth: 5,
+        lineCap: LineCap.ROUND,
+        lineJoin: LineJoin.ROUND,
+        lineGradientExpression: const [
+          'interpolate',
+          ['linear'],
+          ['line-progress'],
+          0.0,
+          // surface.cream
+          'rgb(255,244,230)',
+          0.5,
+          // brand.accent (mint) — softer mid-trail
+          'rgb(94,234,212)',
+          1.0,
+          // brand.primary (teal) — leading edge
+          'rgb(14,165,160)',
+        ],
+      ),
+    );
     await _addOrReplaceLayer(
       style,
       CircleLayer(
@@ -539,6 +677,51 @@ class LiveCaptureMapController {
     if (_v3Events.isNotEmpty) {
       await setEventMarkers(_v3Events);
     }
+    if (_v3TrailPoints.isNotEmpty) {
+      await setLivePathV3(_v3TrailPoints);
+    }
+  }
+
+  /// Updates the V3 GPS trail source with [points].
+  ///
+  /// Distinct from [updateLivePath] (V2 path that uses a
+  /// [PolylineAnnotationManager]) — this writes to the V3 GeoJSON source
+  /// so the line-gradient + glow + dasharray-on-newest layers light up.
+  /// V2 and V3 trails do NOT both render simultaneously; the call site
+  /// chooses one based on the V3 feature flag.
+  ///
+  /// Edge cases:
+  ///   - Empty list → empty FeatureCollection (line disappears).
+  ///   - Single point → empty FeatureCollection (LineString needs ≥2).
+  Future<void> setLivePathV3(List<AppLatLng> points) async {
+    _v3TrailPoints = List.unmodifiable(points);
+    if (!_v3LayersInstalled) return;
+    final source = await _map?.style.getSource(v3TrailSourceId);
+    if (source is! GeoJsonSource) return;
+    await source.updateGeoJSON(_buildTrailFeatureCollection(points));
+  }
+
+  /// Builds a FeatureCollection containing a single LineString feature
+  /// for the trail. Returns the empty-features sentinel when there are
+  /// fewer than 2 points (Mapbox can't render a 0- or 1-point line).
+  static String _buildTrailFeatureCollection(List<AppLatLng> points) {
+    if (points.length < 2) return _emptyFeatureCollection;
+    final buffer = StringBuffer(
+      '{"type":"FeatureCollection","features":[{"type":"Feature",'
+      '"properties":{},"geometry":{"type":"LineString","coordinates":[',
+    );
+    for (var i = 0; i < points.length; i++) {
+      if (i > 0) buffer.write(',');
+      final p = points[i];
+      buffer
+        ..write('[')
+        ..write(p.longitude)
+        ..write(',')
+        ..write(p.latitude)
+        ..write(']');
+    }
+    buffer.write(']}}]}');
+    return buffer.toString();
   }
 
   /// Replaces the memory-pin source data with [markers].

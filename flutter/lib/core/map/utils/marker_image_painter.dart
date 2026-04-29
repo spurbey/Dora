@@ -247,6 +247,126 @@ class MarkerImagePainter {
     );
   }
 
+  /// V3 user pin with a direction-of-travel cone fanning UP (north) from
+  /// the pin. The whole sprite is then rotated by the controller via
+  /// `iconRotate` to align the cone with the user's bearing — so when
+  /// bearing is 90°, the cone points east, etc.
+  ///
+  /// Used in place of [drawDoraUserPin] when the user is moving (>1 m/s).
+  /// Keeping it as a separate static sprite (vs runtime composition)
+  /// means the controller can swap pre-cached images without re-rendering
+  /// per frame.
+  static Future<Uint8List> drawDoraUserPinWithCone() async {
+    // Larger canvas to fit the cone above the pin.
+    return _toPng(
+      size: 96,
+      paint: (canvas, size) {
+        final center = Offset(size / 2, size / 2);
+
+        // Direction cone — drawn FIRST so the pin sits on top of it.
+        // 60° fan extending up (-Y direction) from just outside the pin.
+        // Soft teal-mint with low opacity, gradient fading to transparent
+        // at the far edge.
+        const halfAngleRad = 30 * math.pi / 180; // 30° on each side = 60° fan
+        const coneOuterRadius = 42.0;
+        const coneInnerRadius = 14.0; // start just outside the pin disc
+        final conePath = Path()
+          ..moveTo(
+            center.dx - coneInnerRadius * math.sin(halfAngleRad),
+            center.dy - coneInnerRadius * math.cos(halfAngleRad),
+          )
+          ..lineTo(
+            center.dx - coneOuterRadius * math.sin(halfAngleRad),
+            center.dy - coneOuterRadius * math.cos(halfAngleRad),
+          )
+          ..arcToPoint(
+            Offset(
+              center.dx + coneOuterRadius * math.sin(halfAngleRad),
+              center.dy - coneOuterRadius * math.cos(halfAngleRad),
+            ),
+            radius: const Radius.circular(coneOuterRadius),
+            clockwise: true,
+            largeArc: false,
+          )
+          ..lineTo(
+            center.dx + coneInnerRadius * math.sin(halfAngleRad),
+            center.dy - coneInnerRadius * math.cos(halfAngleRad),
+          )
+          ..close();
+        canvas.drawPath(
+          conePath,
+          Paint()
+            ..shader = ui.Gradient.linear(
+              Offset(center.dx, center.dy - coneInnerRadius),
+              Offset(center.dx, center.dy - coneOuterRadius),
+              [
+                DoraColors.brandPrimary.withValues(alpha: 0.30),
+                DoraColors.brandPrimary.withValues(alpha: 0.0),
+              ],
+            ),
+        );
+
+        // Now the pin itself — same composition as drawDoraUserPin, but
+        // recentered on the larger canvas.
+        canvas.drawCircle(
+          center.translate(0, 1),
+          16,
+          Paint()
+            ..color = DoraColors.brandPrimary.withValues(alpha: 0.22)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+        );
+        canvas.drawCircle(
+          center,
+          18,
+          Paint()..color = DoraColors.brandPrimary.withValues(alpha: 0.18),
+        );
+        canvas.drawCircle(
+          center,
+          14,
+          Paint()
+            ..shader = const RadialGradient(
+              center: Alignment(-0.3, -0.3),
+              radius: 1.0,
+              colors: [DoraColors.brandAccent, DoraColors.brandPrimary],
+            ).createShader(Rect.fromCircle(center: center, radius: 14)),
+        );
+        canvas.drawCircle(
+          center,
+          14,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = DoraColors.surfaceWhite,
+        );
+
+        // Compass rose (forward direction marker — the N ray reads as "this
+        // is the way you're moving" once the sprite is bearing-rotated).
+        final rayPaint = Paint()
+          ..color = DoraColors.surfaceWhite
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round;
+        for (int i = 0; i < 4; i++) {
+          final angle = i * math.pi / 2;
+          final inner = Offset(
+            center.dx + math.sin(angle) * 4,
+            center.dy - math.cos(angle) * 4,
+          );
+          final outer = Offset(
+            center.dx + math.sin(angle) * 9,
+            center.dy - math.cos(angle) * 9,
+          );
+          canvas.drawLine(inner, outer, rayPaint);
+        }
+        canvas.drawCircle(
+          center,
+          2,
+          Paint()..color = DoraColors.surfaceWhite,
+        );
+      },
+    );
+  }
+
   /// V3 captured-photo polaroid pin — 64×80 generic frame.
   ///
   /// Per the Phase 0 plan, this is a SINGLE generic frame registered once via

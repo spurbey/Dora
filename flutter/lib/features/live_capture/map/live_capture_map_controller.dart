@@ -69,6 +69,11 @@ class LiveCaptureMapController {
   MapDimensionalMode _dimensionalMode = MapDimensionalMode.standard;
   MapDimensionalMode get dimensionalMode => _dimensionalMode;
 
+  /// Underlying [MapboxMap] handle for callers that need to project
+  /// coordinates → screen pixels (e.g. the V3 callout overlay).
+  /// Nullable while the map is initializing.
+  MapboxMap? get mapboxMap => _map;
+
   // Coalescing for path updates
   bool _pathUpdateInFlight = false;
   List<AppLatLng>? _pendingPathPoints;
@@ -689,6 +694,29 @@ class LiveCaptureMapController {
     if (_v3TrailPoints.isNotEmpty) {
       await setLivePathV3(_v3TrailPoints);
     }
+  }
+
+  /// Flies the camera to [lat, lng] at [zoom] over 800 ms with a smooth
+  /// ease curve. Used by the V3 timeline row tap → camera follow flow.
+  /// Disables follow mode so the user pin doesn't immediately drag the
+  /// camera back; tapping the recenter FAB re-enables follow.
+  Future<void> flyToV3({
+    required double lat,
+    required double lng,
+    double zoom = 16,
+  }) async {
+    final map = _map;
+    if (map == null) return;
+    _followMode = false;
+    try {
+      await map.flyTo(
+        CameraOptions(
+          center: Point(coordinates: Position(lng, lat)),
+          zoom: zoom,
+        ),
+        MapAnimationOptions(duration: 800),
+      );
+    } catch (_) {}
   }
 
   // ── V3 dimensional mode (standard ↔ cinematic) ─────────────────────────────

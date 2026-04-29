@@ -35,10 +35,25 @@ import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/features/advisory/providers/advisory_providers.dart';
 import 'package:dora/features/live_capture/map/live_capture_map_controller.dart'
-    show AdvisoryMapMarker;
+    show
+        AdvisoryMapMarker,
+        MapDimensionalMode,
+        V3MapTap,
+        V3MapTapKind;
 import 'package:dora/features/live_capture/presentation/widgets/advisory_active_card.dart';
 import 'package:dora/features/live_capture/presentation/widgets/advisory_side_panel.dart';
+import 'package:dora/features/live_capture/presentation/widgets/dimensional_mode_toggle.dart';
+import 'package:dora/features/live_capture/presentation/widgets/dora_bubble_stack.dart';
+import 'package:dora/features/live_capture/presentation/widgets/dora_top_left_pill.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_detail_sheet.dart';
+import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_sheet_v3.dart';
+import 'package:dora/features/live_capture/presentation/widgets/map_callout_overlay.dart';
+import 'package:dora/features/live_capture/providers/bottom_sheet_state_provider.dart';
+import 'package:dora/features/live_capture/providers/dora_bubble_triggers.dart';
+import 'package:dora/features/live_capture/providers/trip_captured_media_provider.dart';
+import 'package:dora/features/live_capture/providers/trip_events_map_provider.dart';
+import 'package:dora/features/live_capture/providers/trip_unified_timeline_provider.dart';
+import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -98,6 +113,18 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   String? _focusedAdvisoryId;
   BottomSheetContent? _bottomSheetContent;
   Timer? _resolverReconcileTimer;
+
+  // ── V3 state ───────────────────────────────────────────────────────────────
+  // Map widget GlobalKey so the screen can drive flyTo from timeline-row taps
+  // and project map coords for the callout overlay.
+  final GlobalKey<LiveCaptureMapWidgetState> _v3MapKey =
+      GlobalKey<LiveCaptureMapWidgetState>();
+  // Camera-change pump — Mapbox calls onCameraChanged on every pan/zoom/rotate;
+  // the callout overlay subscribes to this stream to re-anchor.
+  final StreamController<void> _v3CameraChanges =
+      StreamController<void>.broadcast();
+  MapDimensionalMode _v3DimensionalMode = MapDimensionalMode.standard;
+  MapCalloutData? _v3Callout;
 
   // Entrance animations
   late final AnimationController _entranceCtrl;
@@ -162,6 +189,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     _entranceCtrl.dispose();
     _effectController.close();
     _resolverReconcileTimer?.cancel();
+    _v3CameraChanges.close();
     super.dispose();
   }
 
@@ -326,8 +354,26 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                       : _mapInsightsToMarkers(
                           insightsAsync?.asData?.value,
                         );
+
+                  // V3 surface — only watched when the flag is on so V2
+                  // doesn't pay the subscription cost.
+                  final enableV3 =
+                      !usePreview && FeatureFlags.enableLiveScreenV3;
+                  final memoryMarkers = enableV3
+                      ? (innerRef
+                              .watch(tripCapturedMediaProvider(widget.tripId))
+                              .valueOrNull ??
+                          const <TripCapturedMediaMarker>[])
+                      : const <TripCapturedMediaMarker>[];
+                  final eventMarkers = enableV3
+                      ? (innerRef
+                              .watch(tripEventsMapProvider(widget.tripId))
+                              .valueOrNull ??
+                          const <TripEventMapMarker>[])
+                      : const <TripEventMapMarker>[];
+
                   return LiveCaptureMapWidget(
-                    key: ValueKey('liveCaptureMap-${widget.tripId}'),
+                    key: _v3MapKey,
                     initialCenter: mapInitialCenter,
                     initialZoom: 13,
                     position: capturePosition,
@@ -344,6 +390,18 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                         _bottomSheetContent = AdvisoryPoiDetail(found.first);
                       });
                     },
+                    enableV3: enableV3,
+                    memoryMarkers: memoryMarkers,
+                    eventMarkers: eventMarkers,
+                    dimensionalMode: _v3DimensionalMode,
+                    onCameraChanged: enableV3
+                        ? () {
+                            if (!_v3CameraChanges.isClosed) {
+                              _v3CameraChanges.add(null);
+                            }
+                          }
+                        : null,
+                    onV3MapTap: enableV3 ? _handleV3MapTap : null,
                   );
                 },
               ),
@@ -627,10 +685,152 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                   onDismiss: () => setState(() => _bottomSheetContent = null),
                 ),
               ),
+
+            // ── V3 chrome ────────────────────────────────────────────────
+            if (!usePreview && FeatureFlags.enableLiveScreenV3) ...[
+              // Map callout overlay — pointer-transparent except where the
+              // bubble itself sits.
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: _v3Callout == null,
+                  child: Consumer(
+                    builder: (context, innerRef, _) {
+                      // Resolve mapboxMap from the controller through the
+                      // map widget's state. The widget exposes flyTo via
+                      // its key; the callout overlay needs the underlying
+                      // MapboxMap instance — we expose that via a getter.
+                      return MapCalloutOverlay(
+                        data: _v3Callout,
+                        mapboxMap: _v3MapKey.currentState?.mapboxMap,
+                        cameraChangeStream: _v3CameraChanges.stream,
+                        onTap: _onCalloutTap,
+                      );
+                    },
+                  ),
+                ),
+              ),
+              // Top-left Dora pill
+              Positioned(
+                top: 70,
+                left: AppSpacing.md,
+                child: SafeArea(
+                  child: DoraTopLeftPill(
+                    tripId: widget.tripId,
+                    onTap: _toggleSidePanel,
+                  ),
+                ),
+              ),
+              // Top-right dimensional toggle
+              Positioned(
+                top: 70,
+                right: AppSpacing.md,
+                child: SafeArea(
+                  child: DimensionalModeToggle(
+                    mode: _v3DimensionalMode,
+                    onChanged: (mode) =>
+                        setState(() => _v3DimensionalMode = mode),
+                  ),
+                ),
+              ),
+              // Bottom-left Dora speech bubble stack
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 200,
+                child: DoraBubbleStack(
+                  tripId: widget.tripId,
+                  onAdvisoryTap: (advisoryId) {
+                    setState(() {
+                      _sidePanelOpen = true;
+                      _focusedAdvisoryId = advisoryId;
+                    });
+                  },
+                ),
+              ),
+              // Bottom sheet host
+              Positioned.fill(
+                child: LiveCaptureBottomSheetV3(
+                  tripId: widget.tripId,
+                  onUnresolvedTap: () =>
+                      context.push(Routes.editorPath(widget.tripId)),
+                  onCameraFly: (lat, lng) {
+                    _v3MapKey.currentState?.flyTo(lat, lng);
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// Handles a V3 map tap. Surfaces a callout above the hit pin; the
+  /// callout's onTap then opens the bottom-sheet detail.
+  void _handleV3MapTap(V3MapTap? hit) {
+    if (hit == null) {
+      setState(() => _v3Callout = null);
+      return;
+    }
+    setState(() {
+      _v3Callout = MapCalloutData(
+        id: hit.id,
+        kind: _calloutKindFor(hit.kind),
+        latitude: hit.latitude,
+        longitude: hit.longitude,
+        title: _calloutTitleFor(hit),
+        clusterCount: hit.clusterCount,
+      );
+    });
+  }
+
+  void _onCalloutTap() {
+    final callout = _v3Callout;
+    if (callout == null) return;
+    // Map the callout id back to a TimelineItem and open detail.
+    // Read the unified timeline once to find the matching item.
+    final timelineAsync =
+        ref.read(tripUnifiedTimelineProvider(widget.tripId));
+    final items = timelineAsync.valueOrNull ?? const [];
+    final match = items
+        .where((it) =>
+            it.id == 'media:${callout.id}' || it.id == 'event:${callout.id}')
+        .toList();
+    if (match.isEmpty) return;
+    ref
+        .read(bottomSheetStateProvider(widget.tripId).notifier)
+        .openDetail(match.first);
+    setState(() => _v3Callout = null);
+  }
+
+  static MapCalloutKind _calloutKindFor(V3MapTapKind kind) {
+    switch (kind) {
+      case V3MapTapKind.memory:
+        return MapCalloutKind.memory;
+      case V3MapTapKind.memoryCluster:
+        return MapCalloutKind.cluster;
+      case V3MapTapKind.note:
+        return MapCalloutKind.note;
+      case V3MapTapKind.warn:
+        return MapCalloutKind.warn;
+      case V3MapTapKind.geotag:
+        return MapCalloutKind.geotag;
+    }
+  }
+
+  static String _calloutTitleFor(V3MapTap hit) {
+    switch (hit.kind) {
+      case V3MapTapKind.memory:
+        return 'Photo';
+      case V3MapTapKind.memoryCluster:
+        return '${hit.clusterCount ?? 0} memories here';
+      case V3MapTapKind.note:
+        return 'Note';
+      case V3MapTapKind.warn:
+        return 'Warning';
+      case V3MapTapKind.geotag:
+        return 'Geotag';
+    }
   }
 
   LiveTrackingRuntimeState get _previewRuntimeState {
@@ -1090,6 +1290,18 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       onSuccess?.call();
       _showMessage(
           'Captured locally. Review in editor if a place needs confirmation.');
+      // V3 acknowledgement bubble — fires only when V3 is enabled.
+      if (FeatureFlags.enableLiveScreenV3) {
+        DoraBubbleTriggers.acknowledgeEventAdd(
+          ref,
+          widget.tripId,
+          kind: switch (eventType) {
+            LiveTrackingEventType.warn => 'warn',
+            LiveTrackingEventType.tag => 'geotag',
+            _ => 'note',
+          },
+        );
+      }
     } catch (_) {
       _showMessage('Failed to capture item. Try again.');
     } finally {
@@ -1172,6 +1384,11 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
           ? ' Attached to ${result.tripName ?? 'active trip'}.'
           : '';
       _showMessage('$destinationMsg$attachMsg');
+      // V3 acknowledgement bubble for memory captures — only when
+      // attached to a trip (vault-only captures aren't on this screen).
+      if (FeatureFlags.enableLiveScreenV3 && result.attachedToTrip) {
+        DoraBubbleTriggers.acknowledgeMemoryCapture(ref, widget.tripId);
+      }
     } catch (_) {
       _showMessage('Failed to capture media. Try again.');
     } finally {

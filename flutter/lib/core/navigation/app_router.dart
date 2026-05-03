@@ -30,11 +30,15 @@ import 'package:dora/features/profile/presentation/screens/settings_screen.dart'
 import 'package:dora/features/trips/presentation/screens/my_trips_screen.dart';
 import 'package:dora/features/vault/presentation/screens/vault_screen.dart';
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authChanges = Supabase.instance.client.auth.onAuthStateChange
       .map((event) => event.session?.user);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.startup,
     observers: [
       ref.watch(appRouteObserverProvider),
@@ -93,6 +97,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.liveCapture,
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => LiveCaptureScreen(
           tripId: state.pathParameters['id']!,
           advisoryFocusId: state.uri.queryParameters['advisoryFocus'],
@@ -146,6 +151,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       ShellRoute(
+        navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => NavigationShell(child: child),
         routes: [
           GoRoute(

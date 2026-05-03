@@ -21,6 +21,11 @@ int locationToTabIndex(String location) {
   return 0;
 }
 
+bool _suppressesShellChrome(String location) {
+  final liveCapturePattern = RegExp(r'^/trips/[^/]+/live/?$');
+  return liveCapturePattern.hasMatch(location);
+}
+
 String tabIndexToRoute(int index) {
   switch (index) {
     case 0:
@@ -45,15 +50,18 @@ class NavigationShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = locationToTabIndex(location);
+    final suppressChrome = _suppressesShellChrome(location);
 
     return Scaffold(
       body: child,
-      floatingActionButton: const CameraFab(),
+      floatingActionButton: suppressChrome ? null : const CameraFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _CustomTabBar(
-        currentIndex: currentIndex,
-        onTap: (index) => context.go(tabIndexToRoute(index)),
-      ),
+      bottomNavigationBar: suppressChrome
+          ? null
+          : _CustomTabBar(
+              currentIndex: currentIndex,
+              onTap: (index) => context.go(tabIndexToRoute(index)),
+            ),
     );
   }
 }
@@ -107,7 +115,7 @@ class _CustomTabBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 56,
+          height: 58,
           child: Row(
             children: [
               for (final item in _leftItems)
@@ -183,10 +191,16 @@ class _TabButton extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     data.label,
+                    textScaler: const TextScaler.linear(1.0),
+                    textHeightBehavior: const TextHeightBehavior(
+                      applyHeightToFirstAscent: false,
+                      applyHeightToLastDescent: false,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption.copyWith(
                       color: foreground,
+                      height: 1.0,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     ),
                   ),

@@ -10,8 +10,8 @@ import 'package:dora/features/live_capture/providers/trip_unified_timeline_provi
 ///   - [BottomSheetDetail] — sheet visible, single-item detail view
 ///   - [BottomSheetCluster] — sheet visible, carousel of items at one cluster
 ///
-/// Transitions are user-driven: tap pin → Detail; drag sheet up → Timeline;
-/// drag sheet down past peek → Hidden; tap cluster pin → Cluster;
+/// Transitions are user-driven: tap timeline handle → Timeline; tap pin →
+/// Detail; tap cluster pin → Cluster; close button → Hidden;
 /// tap row in cluster carousel → Detail.
 sealed class BottomSheetState {
   const BottomSheetState();
@@ -45,11 +45,9 @@ class BottomSheetCluster extends BottomSheetState {
 /// the appropriate content. User actions (tap pin, drag sheet, etc.)
 /// call methods on the notifier to drive transitions.
 class BottomSheetStateNotifier extends StateNotifier<BottomSheetState> {
-  /// Defaults to [BottomSheetTimeline] so V3 always shows a peek handle
-  /// the user can drag up — without it there's no discoverable entry
-  /// into the timeline. The sheet snaps at 0.12 (peek) so this doesn't
-  /// occupy meaningful screen real estate when idle.
-  BottomSheetStateNotifier() : super(const BottomSheetTimeline());
+  /// Defaults to hidden. The live screen renders a separate compact timeline
+  /// handle, so the heavy draggable sheet never covers the map on first mount.
+  BottomSheetStateNotifier() : super(const BottomSheetHidden());
 
   /// Open the timeline (default sheet view).
   void openTimeline() {
@@ -65,7 +63,8 @@ class BottomSheetStateNotifier extends StateNotifier<BottomSheetState> {
 
   /// Open cluster expansion with [items] — typically the memories that
   /// fall within a single cluster pin's radius.
-  void openCluster({required String clusterId, required List<TimelineItem> items}) {
+  void openCluster(
+      {required String clusterId, required List<TimelineItem> items}) {
     state = BottomSheetCluster(clusterId: clusterId, items: items);
   }
 

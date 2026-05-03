@@ -14,6 +14,7 @@ import 'package:dora/features/advisory/providers/advisory_providers.dart';
 
 const double _panelWidth = 340;
 const double _compactBreakpoint = 400;
+const double _compactPanelHeightThreshold = 220;
 
 /// Slidable right-edge panel showing the Dora conversation thread.
 ///
@@ -48,7 +49,6 @@ class _AdvisorySidePanelState extends ConsumerState<AdvisorySidePanel> {
   Timer? _pollTimer;
   bool _sending = false;
   String? _pendingUserText;
-  bool _hasScrolledToFocus = false;
 
   @override
   void initState() {
@@ -64,7 +64,6 @@ class _AdvisorySidePanelState extends ConsumerState<AdvisorySidePanel> {
     super.didUpdateWidget(old);
     if (widget.isOpen && !old.isOpen) {
       _startPolling();
-      _hasScrolledToFocus = false;
     } else if (!widget.isOpen && old.isOpen) {
       _stopPolling();
     }
@@ -158,28 +157,39 @@ class _AdvisorySidePanelState extends ConsumerState<AdvisorySidePanel> {
               elevation: 0,
               color: AppColors.surface,
               child: SafeArea(
-                child: Column(
-                  children: [
-                    _SidePanelHeader(
-                      onClose: widget.onClose,
-                      statusHint: _statusHint(),
-                    ),
-                    const Divider(height: 1, color: AppColors.divider),
-                    Expanded(
-                      child: _buildThread(),
-                    ),
-                    _PendingQuestionChips(
-                      localTripId: widget.localTripId,
-                      onAnswer: _answerQuestion,
-                      disabled: _sending,
-                    ),
-                    _InputBar(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      onSend: _send,
-                      sending: _sending,
-                    ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompactHeight =
+                        constraints.maxHeight < _compactPanelHeightThreshold;
+                    return Column(
+                      children: [
+                        if (isCompactHeight)
+                          _CompactSidePanelHeader(onClose: widget.onClose)
+                        else
+                          _SidePanelHeader(
+                            onClose: widget.onClose,
+                            statusHint: _statusHint(),
+                          ),
+                        const Divider(height: 1, color: AppColors.divider),
+                        Expanded(
+                          child: _buildThread(),
+                        ),
+                        if (!isCompactHeight) ...[
+                          _PendingQuestionChips(
+                            localTripId: widget.localTripId,
+                            onAnswer: _answerQuestion,
+                            disabled: _sending,
+                          ),
+                          _InputBar(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            onSend: _send,
+                            sending: _sending,
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -212,7 +222,7 @@ class _AdvisorySidePanelState extends ConsumerState<AdvisorySidePanel> {
         }
 
         if (messages.isEmpty) {
-          return _ThreadEmpty();
+          return const _ThreadEmpty();
         }
 
         // Auto-scroll to bottom when new content arrives
@@ -244,8 +254,7 @@ class _AdvisorySidePanelState extends ConsumerState<AdvisorySidePanel> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showTimestamp)
-                  _TimestampDivider(time: msg.createdAt),
+                if (showTimestamp) _TimestampDivider(time: msg.createdAt),
                 _ConversationBubble(
                   message: msg,
                   highlighted: isFocused,
@@ -290,6 +299,38 @@ ConversationMessageResponse _optimisticUserMessage(String content) {
 // Header
 // ────────────────────────────────────────────────────────────────────
 
+class _CompactSidePanelHeader extends StatelessWidget {
+  const _CompactSidePanelHeader({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              'Dora',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Close',
+            onPressed: onClose,
+            icon: const Icon(Icons.close),
+            color: AppColors.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SidePanelHeader extends StatelessWidget {
   const _SidePanelHeader({required this.onClose, required this.statusHint});
 
@@ -310,7 +351,7 @@ class _SidePanelHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Dora', style: AppTypography.h2),
+                const Text('Dora', style: AppTypography.h2),
                 const SizedBox(height: 2),
                 Text(
                   statusHint,
@@ -349,7 +390,7 @@ class _ThreadSkeleton extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: AppSpacing.md),
           child: Container(
             height: 64,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.card,
               borderRadius: AppRadius.borderMd,
             ),
@@ -370,12 +411,15 @@ class _ThreadError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cloud_off, color: AppColors.textSecondary, size: 32),
+          const Icon(
+            Icons.cloud_off,
+            color: AppColors.textSecondary,
+            size: 32,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             "Dora couldn't load messages",
-            style: AppTypography.body
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
@@ -386,6 +430,8 @@ class _ThreadError extends StatelessWidget {
 }
 
 class _ThreadEmpty extends StatelessWidget {
+  const _ThreadEmpty();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -396,7 +442,7 @@ class _ThreadEmpty extends StatelessWidget {
           children: [
             const DoraAvatar(size: 64, showPulse: true),
             const SizedBox(height: AppSpacing.md),
-            Text(
+            const Text(
               'Hi, I\'m Dora 👋',
               style: AppTypography.h2,
               textAlign: TextAlign.center,
@@ -404,8 +450,8 @@ class _ThreadEmpty extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Ask me about food, places, safety — anything you want to know on your trip.',
-              style: AppTypography.body
-                  .copyWith(color: AppColors.textSecondary),
+              style:
+                  AppTypography.body.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -503,9 +549,9 @@ class _UserBubble extends StatelessWidget {
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm + 2,
           ),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.accent,
-            borderRadius: const BorderRadius.only(
+            borderRadius: BorderRadius.only(
               topLeft: Radius.circular(18),
               topRight: Radius.circular(18),
               bottomLeft: Radius.circular(18),
@@ -795,8 +841,7 @@ class _PendingQuestionChips extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async =
-        ref.watch(pendingClarifyingQuestionProvider(localTripId));
+    final async = ref.watch(pendingClarifyingQuestionProvider(localTripId));
     final question = async.asData?.value;
     if (question == null) return const SizedBox.shrink();
 
@@ -824,9 +869,8 @@ class _PendingQuestionChips extends ConsumerWidget {
           for (final opt in options)
             ActionChip(
               label: Text(opt),
-              onPressed: disabled
-                  ? null
-                  : () => onAnswer(question.id.toString(), opt),
+              onPressed:
+                  disabled ? null : () => onAnswer(question.id.toString(), opt),
               backgroundColor: AppColors.accentSoft,
               labelStyle: AppTypography.caption.copyWith(
                 color: AppColors.accent,
@@ -905,8 +949,7 @@ class _InputBar extends StatelessWidget {
                         .copyWith(color: AppColors.textSecondary),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -917,9 +960,8 @@ class _InputBar extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: hasText && !sending
-                    ? AppColors.accent
-                    : AppColors.divider,
+                color:
+                    hasText && !sending ? AppColors.accent : AppColors.divider,
                 shape: BoxShape.circle,
               ),
               child: Material(

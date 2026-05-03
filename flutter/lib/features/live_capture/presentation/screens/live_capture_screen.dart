@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/map/models/app_latlng.dart';
 import 'package:dora/features/capture/domain/capture_models.dart';
@@ -16,6 +17,7 @@ import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
+import 'package:dora/core/theme/dora_theme.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart';
 import 'package:dora/features/create/presentation/providers/editor_sync_status_provider.dart';
 import 'package:dora/features/create/presentation/providers/media_upload_provider.dart';
@@ -31,11 +33,7 @@ import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/features/advisory/providers/advisory_providers.dart';
 import 'package:dora/features/live_capture/map/live_capture_map_controller.dart'
-    show
-        AdvisoryMapMarker,
-        MapDimensionalMode,
-        V3MapTap,
-        V3MapTapKind;
+    show AdvisoryMapMarker, MapDimensionalMode, V3MapTap, V3MapTapKind;
 import 'package:dora/features/live_capture/presentation/widgets/advisory_active_card.dart';
 import 'package:dora/features/live_capture/presentation/widgets/advisory_side_panel.dart';
 import 'package:dora/features/live_capture/presentation/widgets/dimensional_mode_toggle.dart';
@@ -229,6 +227,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
+    final enableV3 = !usePreview && FeatureFlags.enableLiveScreenV3;
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
     final useV2Lane = !usePreview;
     _useV2Lane = useV2Lane;
     if (!usePreview) {
@@ -237,7 +237,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final runtimeAsync = usePreview
         ? null
         : ref.watch(v2LiveTrackingRuntimeSnapshotProvider(widget.tripId));
-    final AsyncValue<EditorSyncStatus>? syncStatusAsync = null;
+    const AsyncValue<EditorSyncStatus>? syncStatusAsync = null;
     final mapOverlay = usePreview
         ? null
         : ref.watch(v2LiveTrackingMapOverlayProvider(widget.tripId));
@@ -288,6 +288,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final reviewHints = unresolvedSummary.reviewHints;
     final v2InboxItems =
         v2InboxAsync?.valueOrNull ?? const <V2UnresolvedInboxItem>[];
+    final v3SheetState =
+        enableV3 ? ref.watch(bottomSheetStateProvider(widget.tripId)) : null;
+    final v3SheetVisible =
+        v3SheetState != null && v3SheetState is! BottomSheetHidden;
     final showReviewPrompt = !usePreview &&
         reviewEvent != null &&
         reviewHints.isNotEmpty &&
@@ -347,11 +351,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                           insightsAsync?.asData?.value,
                         );
 
-                  // V3 is the live-screen experience. The `usePreview`
-                  // path is the only place it's gated — that's the
-                  // shell-test render harness which uses synthetic
-                  // state and shouldn't subscribe to providers.
-                  final enableV3 = !usePreview;
+                  // V3 providers only subscribe when the feature flag is on.
                   final memoryMarkers = enableV3
                       ? (innerRef
                               .watch(tripCapturedMediaProvider(widget.tripId))
@@ -379,6 +379,13 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                       final found =
                           list.where((i) => i.id == advisoryId).toList();
                       if (found.isEmpty) return;
+                      if (enableV3) {
+                        setState(() {
+                          _sidePanelOpen = true;
+                          _focusedAdvisoryId = advisoryId;
+                        });
+                        return;
+                      }
                       setState(() {
                         _bottomSheetContent = AdvisoryPoiDetail(found.first);
                       });
@@ -399,225 +406,235 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 },
               ),
             ),
-            SafeArea(
-              child: Stack(
-                children: [
-                  _withEntrance(
-                    Consumer(
-                      builder: (context, innerRef, _) {
-                        final pendingAdvisoryCount = innerRef
-                                .watch(advisoryInsightsProvider(widget.tripId))
-                                .asData
-                                ?.value
-                                .insights
-                                .where((i) => i.status.name == 'pending')
-                                .length ??
-                            0;
-                        return LiveCaptureTopBar(
-                          tripName: tripName,
-                          state: shellState,
-                          syncLabel: syncLabel,
-                          syncKind: syncKind,
-                          onBack: _handleBack,
-                          onOverflow: _showOverflowMenu,
-                          resolverBadgeCount: v2InboxItems.length,
-                          onResolverTap: v2InboxItems.isNotEmpty
-                              ? () => context.push(
-                                    Routes.editorPath(widget.tripId),
-                                  )
-                              : null,
-                          advisoryUnreadCount: pendingAdvisoryCount,
-                          onAdvisoryTap: () => _toggleSidePanel(),
-                        );
-                      },
-                    ),
-                    _topBarAnim,
-                    slideY: -8,
-                  ),
-                  if (topNotices.isNotEmpty)
-                    Positioned(
-                      left: AppSpacing.md,
-                      right: AppSpacing.md,
-                      top: 74,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (var i = 0; i < topNotices.length; i++) ...[
-                            if (i > 0) const SizedBox(height: 6),
-                            topNotices[i],
-                          ],
-                        ],
-                      ),
-                    ),
-                  // (Recent-events strip removed — the V3 timeline
-                  // bottom sheet is the canonical surface for "what
-                  // I just captured" in chronological order.)
-                  // The preview shell still uses _RecentEventsPlaceholder
-                  // so widget tests don't crash on missing live data.
-                  if (usePreview)
-                    Positioned(
-                      left: AppSpacing.md,
-                      right: AppSpacing.md,
-                      bottom: AppSpacing.md + 86,
-                      child: const _RecentEventsPlaceholder(),
-                    ),
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 98, 0, 100),
-                      child: _withEntrance(
-                        LiveCaptureActionDock(
-                          state: shellState,
-                          isBusy: _actionInFlight,
-                          onPhoto: usePreview
-                              ? null
-                              : () => _openCameraCapture(
-                                    initialMode: CameraInitialMode.photo,
-                                  ),
-                          onMedia: usePreview
-                              ? null
-                              : () => _openCameraCapture(
-                                    initialMode: CameraInitialMode.video,
-                                  ),
-                          onTag: usePreview
-                              ? null
-                              : () => _captureQuickEvent(
-                                    eventType: LiveTrackingEventType.tag,
-                                    note: 'Checkpoint',
-                                    successMessage:
-                                        'Checkpoint captured locally.',
-                                    position: capturePosition,
-                                  ),
-                          onNote: usePreview
-                              ? null
-                              : () => _promptForTextCapture(
-                                    title: 'Add Quick Note',
-                                    hintText: 'Write note for this location...',
-                                    defaultPrefix: '',
-                                    eventType: LiveTrackingEventType.note,
-                                    successMessage: 'Note captured locally.',
-                                    position: capturePosition,
-                                  ),
-                          onWarn: usePreview
-                              ? null
-                              : () => _promptForTextCapture(
-                                    title: 'Add Warning',
-                                    hintText:
-                                        'Write warning for this location...',
-                                    defaultPrefix: '[Warn] ',
-                                    eventType: LiveTrackingEventType.warn,
-                                    successMessage: 'Warning captured locally.',
-                                    position: capturePosition,
-                                  ),
-                        ),
-                        _dockAnim,
-                        slideX: 24,
-                      ),
-                    ),
-                  ),
-                  _withEntrance(
-                    LiveCaptureBottomPanel(
-                      state: shellState,
-                      isBusy: _actionInFlight,
-                      busyLabel: _actionLabel,
-                      onStart: usePreview
-                          ? null
-                          : () => _runLiveTrackingAction(
-                                busyLabel: 'Starting...',
-                                successMessage: 'Live tracking started.',
-                                action: () async {
-                                  await ref
-                                      .read(v2CaptureCoordinatorProvider)
-                                      .startTracking(tripId: widget.tripId);
-                                  return true;
-                                },
-                              ),
-                      onPause: usePreview
-                          ? null
-                          : () => _runLiveTrackingAction(
-                                busyLabel: 'Pausing...',
-                                successMessage: 'Live tracking paused.',
-                                noOpMessage:
-                                    'No active tracking session to pause.',
-                                action: () async {
-                                  final paused = await ref
-                                      .read(v2CaptureCoordinatorProvider)
-                                      .pauseTracking(tripId: widget.tripId);
-                                  return paused != null;
-                                },
-                              ),
-                      onResume: usePreview
-                          ? null
-                          : () => _runLiveTrackingAction(
-                                busyLabel: 'Resuming...',
-                                successMessage: 'Live tracking resumed.',
-                                noOpMessage:
-                                    'No paused tracking session to resume.',
-                                action: () async {
-                                  final resumed = await ref
-                                      .read(v2CaptureCoordinatorProvider)
-                                      .resumeTracking(tripId: widget.tripId);
-                                  return resumed != null;
-                                },
-                              ),
-                      onStop: usePreview
-                          ? null
-                          : () => _runLiveTrackingAction(
-                                busyLabel: 'Stopping...',
-                                successMessage: 'Live tracking stopped.',
-                                noOpMessage:
-                                    'No active or paused session to stop.',
-                                action: () async {
-                                  final stopped = await ref
-                                      .read(v2CaptureCoordinatorProvider)
-                                      .stopTracking(tripId: widget.tripId);
-                                  return stopped != null;
-                                },
-                              ),
-                      onRetrySync: usePreview || useV2Lane || _actionInFlight
-                          ? null
-                          : _retrySyncNow,
-                      onOpenEditor: usePreview
-                          ? null
-                          : () =>
-                              context.push(Routes.editorPath(widget.tripId)),
-                    ),
-                    _panelAnim,
-                    slideY: 24,
-                  ),
-                  // Advisory active card — floats just above the bottom panel
-                  if (!usePreview)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 120,
-                      child: Consumer(
+            if (!enableV3)
+              SafeArea(
+                child: Stack(
+                  children: [
+                    _withEntrance(
+                      Consumer(
                         builder: (context, innerRef, _) {
-                          final async = innerRef.watch(
-                            activeAdvisoryProvider(widget.tripId),
-                          );
-                          final advisory = async.asData?.value;
-                          if (advisory == null) {
-                            return const SizedBox.shrink();
-                          }
-                          return AdvisoryActiveCard(
-                            key: ValueKey(
-                              'active_advisory_${advisory.id}',
-                            ),
-                            localTripId: widget.tripId,
-                            advisory: advisory,
-                            onOpenDetail: () {
-                              setState(() {
-                                _sidePanelOpen = true;
-                                _focusedAdvisoryId = advisory.id;
-                              });
-                            },
+                          final pendingAdvisoryCount = innerRef
+                                  .watch(
+                                      advisoryInsightsProvider(widget.tripId))
+                                  .asData
+                                  ?.value
+                                  .insights
+                                  .where((i) => i.status.name == 'pending')
+                                  .length ??
+                              0;
+                          return LiveCaptureTopBar(
+                            tripName: tripName,
+                            state: shellState,
+                            syncLabel: syncLabel,
+                            syncKind: syncKind,
+                            onBack: _handleBack,
+                            onOverflow: _showOverflowMenu,
+                            resolverBadgeCount: v2InboxItems.length,
+                            onResolverTap: v2InboxItems.isNotEmpty
+                                ? () => context.push(
+                                      Routes.editorPath(widget.tripId),
+                                    )
+                                : null,
+                            advisoryUnreadCount: pendingAdvisoryCount,
+                            onAdvisoryTap: () => _toggleSidePanel(),
                           );
                         },
                       ),
+                      _topBarAnim,
+                      slideY: -8,
                     ),
-                ],
+                    if (topNotices.isNotEmpty)
+                      Positioned(
+                        left: AppSpacing.md,
+                        right: AppSpacing.md,
+                        top: 74,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (var i = 0; i < topNotices.length; i++) ...[
+                              if (i > 0) const SizedBox(height: 6),
+                              topNotices[i],
+                            ],
+                          ],
+                        ),
+                      ),
+                    // (Recent-events strip removed — the V3 timeline
+                    // bottom sheet is the canonical surface for "what
+                    // I just captured" in chronological order.)
+                    // The preview shell still uses _RecentEventsPlaceholder
+                    // so widget tests don't crash on missing live data.
+                    if (usePreview)
+                      const Positioned(
+                        left: AppSpacing.md,
+                        right: AppSpacing.md,
+                        bottom: AppSpacing.md + 86,
+                        child: _RecentEventsPlaceholder(),
+                      ),
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 98, 0, 100),
+                        child: _withEntrance(
+                          LiveCaptureActionDock(
+                            state: shellState,
+                            isBusy: _actionInFlight,
+                            onPhoto: usePreview
+                                ? null
+                                : () => _openCameraCapture(
+                                      initialMode: CameraInitialMode.photo,
+                                    ),
+                            onMedia: usePreview
+                                ? null
+                                : () => _openCameraCapture(
+                                      initialMode: CameraInitialMode.video,
+                                    ),
+                            onTag: usePreview
+                                ? null
+                                : () => _captureQuickEvent(
+                                      eventType: LiveTrackingEventType.tag,
+                                      note: 'Checkpoint',
+                                      successMessage:
+                                          'Checkpoint captured locally.',
+                                      position: capturePosition,
+                                    ),
+                            onNote: usePreview
+                                ? null
+                                : () => _promptForTextCapture(
+                                      title: 'Add Quick Note',
+                                      hintText:
+                                          'Write note for this location...',
+                                      defaultPrefix: '',
+                                      eventType: LiveTrackingEventType.note,
+                                      successMessage: 'Note captured locally.',
+                                      position: capturePosition,
+                                    ),
+                            onWarn: usePreview
+                                ? null
+                                : () => _promptForTextCapture(
+                                      title: 'Add Warning',
+                                      hintText:
+                                          'Write warning for this location...',
+                                      defaultPrefix: '[Warn] ',
+                                      eventType: LiveTrackingEventType.warn,
+                                      successMessage:
+                                          'Warning captured locally.',
+                                      position: capturePosition,
+                                    ),
+                          ),
+                          _dockAnim,
+                          slideX: 24,
+                        ),
+                      ),
+                    ),
+                    _withEntrance(
+                      LiveCaptureBottomPanel(
+                        state: shellState,
+                        isBusy: _actionInFlight,
+                        busyLabel: _actionLabel,
+                        onStart: usePreview
+                            ? null
+                            : () => _runLiveTrackingAction(
+                                  busyLabel: 'Starting...',
+                                  successMessage: 'Live tracking started.',
+                                  action: () async {
+                                    await ref
+                                        .read(v2CaptureCoordinatorProvider)
+                                        .startTracking(tripId: widget.tripId);
+                                    return true;
+                                  },
+                                ),
+                        onPause: usePreview
+                            ? null
+                            : () => _runLiveTrackingAction(
+                                  busyLabel: 'Pausing...',
+                                  successMessage: 'Live tracking paused.',
+                                  noOpMessage:
+                                      'No active tracking session to pause.',
+                                  action: () async {
+                                    final paused = await ref
+                                        .read(v2CaptureCoordinatorProvider)
+                                        .pauseTracking(tripId: widget.tripId);
+                                    return paused != null;
+                                  },
+                                ),
+                        onResume: usePreview
+                            ? null
+                            : () => _runLiveTrackingAction(
+                                  busyLabel: 'Resuming...',
+                                  successMessage: 'Live tracking resumed.',
+                                  noOpMessage:
+                                      'No paused tracking session to resume.',
+                                  action: () async {
+                                    final resumed = await ref
+                                        .read(v2CaptureCoordinatorProvider)
+                                        .resumeTracking(tripId: widget.tripId);
+                                    return resumed != null;
+                                  },
+                                ),
+                        onStop: usePreview
+                            ? null
+                            : () => _runLiveTrackingAction(
+                                  busyLabel: 'Stopping...',
+                                  successMessage: 'Live tracking stopped.',
+                                  noOpMessage:
+                                      'No active or paused session to stop.',
+                                  action: () async {
+                                    final stopped = await ref
+                                        .read(v2CaptureCoordinatorProvider)
+                                        .stopTracking(tripId: widget.tripId);
+                                    return stopped != null;
+                                  },
+                                ),
+                        onRetrySync: usePreview || useV2Lane || _actionInFlight
+                            ? null
+                            : _retrySyncNow,
+                        onOpenEditor: usePreview
+                            ? null
+                            : () =>
+                                context.push(Routes.editorPath(widget.tripId)),
+                      ),
+                      _panelAnim,
+                      slideY: 24,
+                    ),
+                    // Advisory active card — floats just above the bottom panel
+                    if (!usePreview)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 120,
+                        child: Consumer(
+                          builder: (context, innerRef, _) {
+                            final async = innerRef.watch(
+                              activeAdvisoryProvider(widget.tripId),
+                            );
+                            final advisory = async.asData?.value;
+                            if (advisory == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return AdvisoryActiveCard(
+                              key: ValueKey(
+                                'active_advisory_${advisory.id}',
+                              ),
+                              localTripId: widget.tripId,
+                              advisory: advisory,
+                              onShowOnMap: advisory.placeLat != null &&
+                                      advisory.placeLng != null
+                                  ? (lat, lng) {
+                                      _v3MapKey.currentState?.flyTo(lat, lng);
+                                    }
+                                  : null,
+                              onOpenDetail: () {
+                                setState(() {
+                                  _sidePanelOpen = true;
+                                  _focusedAdvisoryId = advisory.id;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
             // Transient burst effects — above HUD, pointer-transparent
             Positioned.fill(
               child: LiveCaptureTransientEffects(
@@ -635,6 +652,13 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                   onClose: _toggleSidePanel,
                   focusedAdvisoryId: _focusedAdvisoryId,
                   onOpenAdvisoryDetail: (adv) {
+                    if (enableV3) {
+                      setState(() {
+                        _sidePanelOpen = true;
+                        _focusedAdvisoryId = adv.id;
+                      });
+                      return;
+                    }
                     setState(() {
                       _bottomSheetContent = AdvisoryPoiDetail(adv);
                     });
@@ -642,17 +666,20 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 ),
               ),
             // Bottom detail sheet — POI / photo / place detail
-            if (!usePreview && _bottomSheetContent != null)
+            if (!usePreview && !enableV3 && _bottomSheetContent != null)
               Positioned.fill(
                 child: LiveCaptureBottomDetailSheet(
                   localTripId: widget.tripId,
                   content: _bottomSheetContent!,
                   onDismiss: () => setState(() => _bottomSheetContent = null),
+                  onShowOnMap: (lat, lng) {
+                    _v3MapKey.currentState?.flyTo(lat, lng);
+                  },
                 ),
               ),
 
             // ── V3 chrome — the live-screen experience. ───────────────
-            if (!usePreview) ...[
+            if (enableV3) ...[
               // Map callout overlay — pointer-transparent except where the
               // bubble itself sits.
               Positioned.fill(
@@ -674,26 +701,37 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                   ),
                 ),
               ),
-              // Top-left Dora pill
               Positioned(
-                top: 70,
-                left: AppSpacing.md,
+                left: 0,
+                right: 0,
+                top: 0,
                 child: SafeArea(
-                  child: DoraTopLeftPill(
-                    tripId: widget.tripId,
-                    onTap: _toggleSidePanel,
-                  ),
-                ),
-              ),
-              // Top-right dimensional toggle
-              Positioned(
-                top: 70,
-                right: AppSpacing.md,
-                child: SafeArea(
-                  child: DimensionalModeToggle(
-                    mode: _v3DimensionalMode,
-                    onChanged: (mode) =>
-                        setState(() => _v3DimensionalMode = mode),
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        textScaler: const TextScaler.linear(1.0),
+                      ),
+                      child: _LiveCaptureV3TopChrome(
+                        tripName: tripName,
+                        state: shellState,
+                        syncLabel: syncLabel,
+                        onBack: _handleBack,
+                        onOverflow: _showOverflowMenu,
+                        doraPill: DoraTopLeftPill(
+                          tripId: widget.tripId,
+                          size: 52,
+                          onTap: _toggleSidePanel,
+                        ),
+                        dimensionalToggle: DimensionalModeToggle(
+                          mode: _v3DimensionalMode,
+                          size: 52,
+                          onChanged: (mode) =>
+                              setState(() => _v3DimensionalMode = mode),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -701,28 +739,150 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 200,
-                child: DoraBubbleStack(
-                  tripId: widget.tripId,
-                  onAdvisoryTap: (advisoryId) {
-                    setState(() {
-                      _sidePanelOpen = true;
-                      _focusedAdvisoryId = advisoryId;
-                    });
-                  },
+                bottom: (v3SheetVisible ? 200 : 132) + bottomSafe,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: const TextScaler.linear(1.0),
+                  ),
+                  child: DoraBubbleStack(
+                    tripId: widget.tripId,
+                    onAdvisoryTap: (advisoryId) {
+                      setState(() {
+                        _sidePanelOpen = true;
+                        _focusedAdvisoryId = advisoryId;
+                      });
+                    },
+                  ),
                 ),
               ),
               // Bottom sheet host
-              Positioned.fill(
-                child: LiveCaptureBottomSheetV3(
-                  tripId: widget.tripId,
-                  onUnresolvedTap: () =>
-                      context.push(Routes.editorPath(widget.tripId)),
-                  onCameraFly: (lat, lng) {
-                    _v3MapKey.currentState?.flyTo(lat, lng);
-                  },
+              if (v3SheetVisible)
+                Positioned.fill(
+                  child: LiveCaptureBottomSheetV3(
+                    tripId: widget.tripId,
+                    onUnresolvedTap: () =>
+                        context.push(Routes.editorPath(widget.tripId)),
+                    onCameraFly: (lat, lng) {
+                      _v3MapKey.currentState?.flyTo(lat, lng);
+                    },
+                  ),
                 ),
-              ),
+              if (!v3SheetVisible)
+                Positioned(
+                  right: 16,
+                  bottom: 28 + bottomSafe,
+                  child: _LiveCaptureV3TimelineHandle(
+                    tripId: widget.tripId,
+                    onTap: () => ref
+                        .read(bottomSheetStateProvider(widget.tripId).notifier)
+                        .openTimeline(),
+                  ),
+                ),
+              if (!v3SheetVisible)
+                Positioned(
+                  left: 16,
+                  bottom: 28 + bottomSafe,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: const TextScaler.linear(1.0),
+                    ),
+                    child: _LiveCaptureV3TrackingControls(
+                      state: shellState,
+                      isBusy: _actionInFlight,
+                      onStart: () => _runLiveTrackingAction(
+                        busyLabel: 'Starting...',
+                        successMessage: 'Live tracking started.',
+                        action: () async {
+                          await ref
+                              .read(v2CaptureCoordinatorProvider)
+                              .startTracking(tripId: widget.tripId);
+                          return true;
+                        },
+                      ),
+                      onPause: () => _runLiveTrackingAction(
+                        busyLabel: 'Pausing...',
+                        successMessage: 'Live tracking paused.',
+                        noOpMessage: 'No active tracking session to pause.',
+                        action: () async {
+                          final paused = await ref
+                              .read(v2CaptureCoordinatorProvider)
+                              .pauseTracking(tripId: widget.tripId);
+                          return paused != null;
+                        },
+                      ),
+                      onResume: () => _runLiveTrackingAction(
+                        busyLabel: 'Resuming...',
+                        successMessage: 'Live tracking resumed.',
+                        noOpMessage: 'No paused tracking session to resume.',
+                        action: () async {
+                          final resumed = await ref
+                              .read(v2CaptureCoordinatorProvider)
+                              .resumeTracking(tripId: widget.tripId);
+                          return resumed != null;
+                        },
+                      ),
+                      onStop: () => _runLiveTrackingAction(
+                        busyLabel: 'Stopping...',
+                        successMessage: 'Live tracking stopped.',
+                        noOpMessage: 'No active or paused session to stop.',
+                        action: () async {
+                          final stopped = await ref
+                              .read(v2CaptureCoordinatorProvider)
+                              .stopTracking(tripId: widget.tripId);
+                          return stopped != null;
+                        },
+                      ),
+                      onOpenEditor: () =>
+                          context.push(Routes.editorPath(widget.tripId)),
+                    ),
+                  ),
+                ),
+              if (!v3SheetVisible)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 24 + bottomSafe,
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: const TextScaler.linear(1.0),
+                    ),
+                    child: _LiveCaptureV3CaptureControl(
+                      state: shellState,
+                      isBusy: _actionInFlight,
+                      onPhoto: () => _openCameraCapture(
+                        initialMode: CameraInitialMode.photo,
+                      ),
+                      onVideo: () => _openCameraCapture(
+                        initialMode: CameraInitialMode.video,
+                      ),
+                      onMedia: () => _openCameraCapture(
+                        initialMode: CameraInitialMode.video,
+                      ),
+                      onTag: () => _captureQuickEvent(
+                        eventType: LiveTrackingEventType.tag,
+                        note: 'Checkpoint',
+                        successMessage: 'Checkpoint captured locally.',
+                        position: capturePosition,
+                      ),
+                      onNote: () => _promptForTextCapture(
+                        title: 'Add Quick Note',
+                        hintText: 'Write note for this location...',
+                        defaultPrefix: '',
+                        eventType: LiveTrackingEventType.note,
+                        successMessage: 'Note captured locally.',
+                        position: capturePosition,
+                      ),
+                      onWarn: () => _promptForTextCapture(
+                        title: 'Add Warning',
+                        hintText: 'Write warning for this location...',
+                        defaultPrefix: '[Warn] ',
+                        eventType: LiveTrackingEventType.warn,
+                        successMessage: 'Warning captured locally.',
+                        position: capturePosition,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ],
         ),
@@ -737,14 +897,28 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       setState(() => _v3Callout = null);
       return;
     }
+    final item = _timelineItemForHit(hit);
+    final mediaItem = item is TimelineMediaItem ? item : null;
     setState(() {
       _v3Callout = MapCalloutData(
         id: hit.id,
         kind: _calloutKindFor(hit.kind),
         latitude: hit.latitude,
         longitude: hit.longitude,
-        title: _calloutTitleFor(hit),
+        title: _calloutTitleFor(hit, item),
         clusterCount: hit.clusterCount,
+        thumbnailLocalPath: mediaItem == null
+            ? null
+            : _firstNonEmptyString([
+                mediaItem.thumbnailLocalPath,
+                mediaItem.localUri,
+              ]),
+        thumbnailUrl: mediaItem == null
+            ? null
+            : _firstNonEmptyString([
+                mediaItem.thumbnailRemoteUrl,
+                mediaItem.remoteUrl,
+              ]),
       );
     });
   }
@@ -754,8 +928,7 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     if (callout == null) return;
     // Map the callout id back to a TimelineItem and open detail.
     // Read the unified timeline once to find the matching item.
-    final timelineAsync =
-        ref.read(tripUnifiedTimelineProvider(widget.tripId));
+    final timelineAsync = ref.read(tripUnifiedTimelineProvider(widget.tripId));
     final items = timelineAsync.valueOrNull ?? const [];
     final match = items
         .where((it) =>
@@ -766,6 +939,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         .read(bottomSheetStateProvider(widget.tripId).notifier)
         .openDetail(match.first);
     setState(() => _v3Callout = null);
+  }
+
+  TimelineItem? _timelineItemForHit(V3MapTap hit) {
+    final items =
+        ref.read(tripUnifiedTimelineProvider(widget.tripId)).valueOrNull ??
+            const <TimelineItem>[];
+    final prefix = hit.kind == V3MapTapKind.memory ? 'media:' : 'event:';
+    for (final item in items) {
+      if (item.id == '$prefix${hit.id}') return item;
+    }
+    return null;
   }
 
   static MapCalloutKind _calloutKindFor(V3MapTapKind kind) {
@@ -783,7 +967,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     }
   }
 
-  static String _calloutTitleFor(V3MapTap hit) {
+  static String _calloutTitleFor(V3MapTap hit, TimelineItem? item) {
+    if (item is TimelineEventItem && item.body.trim().isNotEmpty) {
+      return item.body.trim();
+    }
     switch (hit.kind) {
       case V3MapTapKind.memory:
         return 'Photo';
@@ -796,6 +983,13 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       case V3MapTapKind.geotag:
         return 'Geotag';
     }
+  }
+
+  static String? _firstNonEmptyString(Iterable<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) return value.trim();
+    }
+    return null;
   }
 
   LiveTrackingRuntimeState get _previewRuntimeState {
@@ -1492,6 +1686,599 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   }
 }
 
+class _LiveCaptureV3TopChrome extends StatelessWidget {
+  const _LiveCaptureV3TopChrome({
+    required this.tripName,
+    required this.state,
+    required this.syncLabel,
+    required this.onBack,
+    required this.onOverflow,
+    required this.doraPill,
+    required this.dimensionalToggle,
+  });
+
+  final String tripName;
+  final LiveCaptureShellState state;
+  final String syncLabel;
+  final VoidCallback onBack;
+  final VoidCallback onOverflow;
+  final Widget doraPill;
+  final Widget dimensionalToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _stateLabel(state);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        doraPill,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            decoration: BoxDecoration(
+              color: DoraColors.surfaceWhite.withValues(alpha: 0.78),
+              borderRadius: DoraRadius.chipAll,
+              border: Border.all(
+                color: DoraColors.inkPrimary.withValues(alpha: 0.08),
+              ),
+              boxShadow: DoraShadow.tight,
+            ),
+            child: ClipRect(
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: onBack,
+                      customBorder: const CircleBorder(),
+                      child: const SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          size: 20,
+                          color: DoraColors.inkPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: tripName,
+                              style: DoraTypography.callout.copyWith(
+                                fontWeight: FontWeight.w700,
+                                height: 1.0,
+                                color: DoraColors.inkPrimary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '  $label - $syncLabel',
+                              style: DoraTypography.caption.copyWith(
+                                fontSize: 11,
+                                height: 1.0,
+                                color: DoraColors.inkSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        textScaler: const TextScaler.linear(1.0),
+                        textHeightBehavior: const TextHeightBehavior(
+                          applyHeightToFirstAscent: false,
+                          applyHeightToLastDescent: false,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: onOverflow,
+                      customBorder: const CircleBorder(),
+                      child: const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Icon(
+                          Icons.more_horiz_rounded,
+                          size: 20,
+                          color: DoraColors.inkSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        dimensionalToggle,
+      ],
+    );
+  }
+
+  static String _stateLabel(LiveCaptureShellState state) {
+    switch (state) {
+      case LiveCaptureShellState.active:
+        return 'Active';
+      case LiveCaptureShellState.paused:
+        return 'Paused';
+      case LiveCaptureShellState.ended:
+        return 'Ended';
+      case LiveCaptureShellState.blocked:
+        return 'Blocked';
+      case LiveCaptureShellState.planned:
+        return 'Ready';
+    }
+  }
+}
+
+class _LiveCaptureV3TimelineHandle extends ConsumerWidget {
+  const _LiveCaptureV3TimelineHandle({
+    required this.tripId,
+    required this.onTap,
+  });
+
+  final String tripId;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timelineCount =
+        ref.watch(tripUnifiedTimelineProvider(tripId)).valueOrNull?.length ?? 0;
+    final unresolvedCount =
+        ref.watch(v2UnresolvedInboxProvider(tripId)).valueOrNull?.length ?? 0;
+    final label = timelineCount == 0 ? 'Timeline' : '$timelineCount items';
+
+    return Semantics(
+      button: true,
+      label: 'Open trip timeline',
+      child: Material(
+        color: DoraColors.surfaceWhite.withValues(alpha: 0.9),
+        borderRadius: DoraRadius.pillAll,
+        elevation: 0,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: DoraRadius.pillAll,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              borderRadius: DoraRadius.pillAll,
+              border: Border.all(
+                color: DoraColors.inkPrimary.withValues(alpha: 0.08),
+              ),
+              boxShadow: DoraShadow.tight,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(
+                      Icons.auto_stories_outlined,
+                      size: 20,
+                      color: DoraColors.brandPrimary,
+                    ),
+                    if (unresolvedCount > 0)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: DoraColors.warn,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  textScaler: const TextScaler.linear(1.0),
+                  style: DoraTypography.caption.copyWith(
+                    color: DoraColors.brandPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveCaptureV3TrackingControls extends StatelessWidget {
+  const _LiveCaptureV3TrackingControls({
+    required this.state,
+    required this.isBusy,
+    required this.onStart,
+    required this.onPause,
+    required this.onResume,
+    required this.onStop,
+    required this.onOpenEditor,
+  });
+
+  final LiveCaptureShellState state;
+  final bool isBusy;
+  final VoidCallback onStart;
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+  final VoidCallback onStop;
+  final VoidCallback onOpenEditor;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !isBusy;
+    final actions = switch (state) {
+      LiveCaptureShellState.planned => [
+          _V3ControlAction(
+            icon: Icons.play_arrow_rounded,
+            label: 'Start',
+            onTap: enabled ? onStart : null,
+          ),
+        ],
+      LiveCaptureShellState.active => [
+          _V3ControlAction(
+            icon: Icons.pause_rounded,
+            label: 'Pause',
+            onTap: enabled ? onPause : null,
+          ),
+          _V3ControlAction(
+            icon: Icons.stop_rounded,
+            label: 'Stop',
+            onTap: enabled ? onStop : null,
+            tint: DoraColors.warn,
+          ),
+        ],
+      LiveCaptureShellState.paused => [
+          _V3ControlAction(
+            icon: Icons.play_arrow_rounded,
+            label: 'Resume',
+            onTap: enabled ? onResume : null,
+          ),
+          _V3ControlAction(
+            icon: Icons.stop_rounded,
+            label: 'Stop',
+            onTap: enabled ? onStop : null,
+            tint: DoraColors.warn,
+          ),
+        ],
+      LiveCaptureShellState.ended => [
+          _V3ControlAction(
+            icon: Icons.play_arrow_rounded,
+            label: 'Start New',
+            onTap: enabled ? onStart : null,
+          ),
+          _V3ControlAction(
+            icon: Icons.edit_outlined,
+            label: 'Review',
+            onTap: enabled ? onOpenEditor : null,
+          ),
+        ],
+      LiveCaptureShellState.blocked => [
+          _V3ControlAction(
+            icon: Icons.rule_folder_outlined,
+            label: 'Review',
+            onTap: enabled ? onOpenEditor : null,
+            tint: DoraColors.warn,
+          ),
+        ],
+    };
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: DoraColors.surfaceWhite.withValues(alpha: 0.86),
+        borderRadius: DoraRadius.pillAll,
+        border: Border.all(
+          color: DoraColors.inkPrimary.withValues(alpha: 0.08),
+        ),
+        boxShadow: DoraShadow.tight,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions) _V3ControlButton(action: action),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveCaptureV3CaptureControl extends StatefulWidget {
+  const _LiveCaptureV3CaptureControl({
+    required this.state,
+    required this.isBusy,
+    required this.onPhoto,
+    required this.onVideo,
+    required this.onNote,
+    required this.onWarn,
+    required this.onTag,
+    required this.onMedia,
+  });
+
+  final LiveCaptureShellState state;
+  final bool isBusy;
+  final VoidCallback onPhoto;
+  final VoidCallback onVideo;
+  final VoidCallback onNote;
+  final VoidCallback onWarn;
+  final VoidCallback onTag;
+  final VoidCallback onMedia;
+
+  @override
+  State<_LiveCaptureV3CaptureControl> createState() =>
+      _LiveCaptureV3CaptureControlState();
+}
+
+class _LiveCaptureV3CaptureControlState
+    extends State<_LiveCaptureV3CaptureControl> {
+  bool _expanded = false;
+
+  bool get _canShow {
+    return widget.state == LiveCaptureShellState.active ||
+        widget.state == LiveCaptureShellState.paused;
+  }
+
+  bool get _canPrimary {
+    return _canShow && !widget.isBusy;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_canShow) return const SizedBox.shrink();
+    final paused = widget.state == LiveCaptureShellState.paused;
+    final actions = paused
+        ? [
+            _V3ControlAction(
+              icon: Icons.note_add_outlined,
+              label: 'Note',
+              onTap: _canPrimary ? widget.onNote : null,
+            ),
+          ]
+        : [
+            _V3ControlAction(
+              icon: Icons.note_add_outlined,
+              label: 'Note',
+              onTap: _canPrimary ? widget.onNote : null,
+            ),
+            _V3ControlAction(
+              icon: Icons.warning_amber_rounded,
+              label: 'Warn',
+              tint: DoraColors.warn,
+              onTap: _canPrimary ? widget.onWarn : null,
+            ),
+            _V3ControlAction(
+              icon: Icons.place_outlined,
+              label: 'Tag',
+              onTap: _canPrimary ? widget.onTag : null,
+            ),
+            _V3ControlAction(
+              icon: Icons.videocam_outlined,
+              label: 'Media',
+              onTap: _canPrimary ? widget.onMedia : null,
+            ),
+          ];
+
+    return IgnorePointer(
+      ignoring: widget.isBusy,
+      child: AnimatedOpacity(
+        opacity: widget.isBusy ? 0.65 : 1,
+        duration: DoraMotion.dismiss,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: DoraMotion.reveal,
+              switchInCurve: DoraMotion.revealCurve,
+              switchOutCurve: DoraMotion.dismissCurve,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SizeTransition(
+                    sizeFactor: animation,
+                    axisAlignment: -1,
+                    child: child,
+                  ),
+                );
+              },
+              child: _expanded
+                  ? Container(
+                      key: const ValueKey('v3CaptureMenu'),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: DoraColors.surfaceWhite.withValues(alpha: 0.92),
+                        borderRadius: DoraRadius.pillAll,
+                        border: Border.all(
+                          color: DoraColors.inkPrimary.withValues(alpha: 0.08),
+                        ),
+                        boxShadow: DoraShadow.tight,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final action in actions)
+                            _V3ControlButton(
+                              action: action,
+                              onAfterTap: () =>
+                                  setState(() => _expanded = false),
+                            ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            GestureDetector(
+              onTap: _canPrimary
+                  ? (paused ? widget.onNote : widget.onPhoto)
+                  : null,
+              onLongPress: _canPrimary && !paused ? widget.onVideo : null,
+              onVerticalDragEnd: (details) {
+                final dy = details.primaryVelocity ?? 0;
+                if (dy < 0) setState(() => _expanded = true);
+                if (dy > 0) setState(() => _expanded = false);
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const RadialGradient(
+                        center: Alignment(-0.25, -0.3),
+                        colors: [
+                          DoraColors.brandAccent,
+                          DoraColors.brandPrimary,
+                        ],
+                      ),
+                      border: Border.all(
+                        color: DoraColors.surfaceWhite,
+                        width: 3,
+                      ),
+                      boxShadow: DoraShadow.soft,
+                    ),
+                    child: Icon(
+                      paused
+                          ? Icons.note_add_outlined
+                          : Icons.photo_camera_outlined,
+                      color: DoraColors.surfaceWhite,
+                      size: 30,
+                    ),
+                  ),
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Material(
+                      color: DoraColors.surfaceWhite,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _canPrimary
+                            ? () => setState(() => _expanded = !_expanded)
+                            : null,
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Icon(
+                            _expanded
+                                ? Icons.keyboard_arrow_down_rounded
+                                : Icons.keyboard_arrow_up_rounded,
+                            size: 20,
+                            color: DoraColors.brandPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _V3ControlAction {
+  const _V3ControlAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.tint = DoraColors.brandPrimary,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color tint;
+}
+
+class _V3ControlButton extends StatelessWidget {
+  const _V3ControlButton({
+    required this.action,
+    this.onAfterTap,
+  });
+
+  final _V3ControlAction action;
+  final VoidCallback? onAfterTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = action.onTap != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Semantics(
+        button: true,
+        label: action.label,
+        child: Material(
+          color: enabled
+              ? action.tint.withValues(alpha: 0.10)
+              : DoraColors.inkTertiary.withValues(alpha: 0.10),
+          borderRadius: DoraRadius.pillAll,
+          child: InkWell(
+            onTap: enabled
+                ? () {
+                    action.onTap!();
+                    onAfterTap?.call();
+                  }
+                : null,
+            borderRadius: DoraRadius.pillAll,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      action.icon,
+                      color: enabled ? action.tint : DoraColors.inkTertiary,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      action.label,
+                      textScaler: const TextScaler.linear(1.0),
+                      style: DoraTypography.caption.copyWith(
+                        color: enabled ? action.tint : DoraColors.inkTertiary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TextCaptureDialog extends StatefulWidget {
   const _TextCaptureDialog({
     required this.title,
@@ -1846,7 +2633,7 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Trip preferences', style: AppTypography.h2),
+            const Text('Trip preferences', style: AppTypography.h2),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Changes update your advisory recommendations.',
@@ -1854,7 +2641,7 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
                   .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Activity focus', style: AppTypography.h3),
+            const Text('Activity focus', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
@@ -1877,7 +2664,7 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
               }).toList(),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Travel style', style: AppTypography.h3),
+            const Text('Travel style', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
@@ -1898,7 +2685,7 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
               }).toList(),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Budget', style: AppTypography.h3),
+            const Text('Budget', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
@@ -1937,7 +2724,8 @@ class _TripMetadataEditSheetState extends State<_TripMetadataEditSheet> {
                               _travelStyle,
                               _budgetCategory,
                             );
-                            if (mounted) Navigator.of(context).pop();
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop();
                           },
                     child: Text(_saving ? 'Saving...' : 'Save'),
                   ),

@@ -45,7 +45,11 @@ class BottomSheetCluster extends BottomSheetState {
 /// the appropriate content. User actions (tap pin, drag sheet, etc.)
 /// call methods on the notifier to drive transitions.
 class BottomSheetStateNotifier extends StateNotifier<BottomSheetState> {
-  BottomSheetStateNotifier() : super(const BottomSheetHidden());
+  /// Defaults to [BottomSheetTimeline] so V3 always shows a peek handle
+  /// the user can drag up — without it there's no discoverable entry
+  /// into the timeline. The sheet snaps at 0.12 (peek) so this doesn't
+  /// occupy meaningful screen real estate when idle.
+  BottomSheetStateNotifier() : super(const BottomSheetTimeline());
 
   /// Open the timeline (default sheet view).
   void openTimeline() {

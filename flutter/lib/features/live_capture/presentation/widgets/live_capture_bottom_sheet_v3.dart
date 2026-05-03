@@ -54,7 +54,11 @@ class LiveCaptureBottomSheetV3 extends ConsumerWidget {
     if (state is BottomSheetHidden) return const SizedBox.shrink();
 
     return DraggableScrollableSheet(
-      initialChildSize: state is BottomSheetTimeline ? 0.45 : 0.6,
+      // Timeline starts at peek (0.12) so the user gets a discoverable
+      // drag handle without the sheet covering half the screen on first
+      // mount. Detail / cluster open at 0.6 so the content is visible
+      // immediately when the sheet transitions in response to a tap.
+      initialChildSize: state is BottomSheetTimeline ? 0.12 : 0.6,
       minChildSize: 0.12,
       maxChildSize: 0.92,
       snap: true,

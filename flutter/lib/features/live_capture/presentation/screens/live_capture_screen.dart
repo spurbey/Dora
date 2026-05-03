@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import 'package:dora/features/capture/domain/capture_models.dart';
 import 'package:dora/features/live_capture/map/live_capture_map_widget.dart';
 import 'package:dora/core/navigation/routes.dart';
 import 'package:dora/core/storage/database_provider.dart';
-import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -24,11 +22,9 @@ import 'package:dora/features/create/presentation/providers/media_upload_provide
 import 'package:dora/features/live_capture/domain/live_capture_shell_state.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_action_dock.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_bottom_panel.dart';
-import 'package:dora/features/live_capture/presentation/widgets/live_capture_recent_events_strip.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_top_bar.dart';
 import 'package:dora/features/live_capture/presentation/widgets/live_capture_transient_effects.dart';
 import 'package:dora/features/live_tracking/v2/inbox/v2_unresolved_inbox_provider.dart';
-import 'package:dora/features/live_tracking/v2/compiler/v2_projection_models.dart';
 import 'package:dora/features/live_tracking/v2/resolver/v2_resolver_models.dart';
 import 'package:dora/features/live_tracking/v2/runtime/v2_live_tracking_runtime_provider.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
@@ -53,7 +49,6 @@ import 'package:dora/features/live_capture/providers/dora_bubble_triggers.dart';
 import 'package:dora/features/live_capture/providers/trip_captured_media_provider.dart';
 import 'package:dora/features/live_capture/providers/trip_events_map_provider.dart';
 import 'package:dora/features/live_capture/providers/trip_unified_timeline_provider.dart';
-import 'package:dora/core/config/feature_flags.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 import 'package:dora_api/dora_api.dart' as openapi;
 
@@ -234,7 +229,6 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
   @override
   Widget build(BuildContext context) {
     final usePreview = widget.previewState != null;
-    final v2CompilerEnabled = !usePreview;
     final useV2Lane = !usePreview;
     _useV2Lane = useV2Lane;
     if (!usePreview) {
@@ -247,12 +241,10 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
     final mapOverlay = usePreview
         ? null
         : ref.watch(v2LiveTrackingMapOverlayProvider(widget.tripId));
-    final v2EventsAsync = usePreview || !useV2Lane
-        ? null
-        : ref.watch(v2LiveCaptureEventsProvider(widget.tripId));
-    final v2RecentProjectionAsync = usePreview || !v2CompilerEnabled
-        ? null
-        : ref.watch(v2LiveRecentProjectionProvider(widget.tripId));
+    // The recent-events strip is gone (replaced by the V3 timeline
+    // bottom sheet) so we no longer subscribe to v2LiveCaptureEventsProvider
+    // / v2LiveRecentProjectionProvider here. The unified timeline
+    // provider does its own subscriptions inside the sheet.
     final v2InboxAsync = usePreview || !useV2Lane
         ? null
         : ref.watch(v2UnresolvedInboxProvider(widget.tripId));
@@ -355,10 +347,11 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                           insightsAsync?.asData?.value,
                         );
 
-                  // V3 surface — only watched when the flag is on so V2
-                  // doesn't pay the subscription cost.
-                  final enableV3 =
-                      !usePreview && FeatureFlags.enableLiveScreenV3;
+                  // V3 is the live-screen experience. The `usePreview`
+                  // path is the only place it's gated — that's the
+                  // shell-test render harness which uses synthetic
+                  // state and shouldn't subscribe to providers.
+                  final enableV3 = !usePreview;
                   final memoryMarkers = enableV3
                       ? (innerRef
                               .watch(tripCapturedMediaProvider(widget.tripId))
@@ -456,46 +449,18 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                         ],
                       ),
                     ),
-                  Positioned(
-                    left: AppSpacing.md,
-                    right: AppSpacing.md,
-                    bottom: AppSpacing.md + 86,
-                    child: usePreview
-                        ? const _RecentEventsPlaceholder()
-                        : v2CompilerEnabled
-                            ? v2RecentProjectionAsync!.when(
-                                data: (entries) => LiveCaptureRecentEventsStrip(
-                                  events: _mapV2ProjectionRecentEvents(entries),
-                                  loading: false,
-                                ),
-                                loading: () =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: true,
-                                ),
-                                error: (_, __) =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: false,
-                                ),
-                              )
-                            : v2EventsAsync!.when(
-                                data: (events) => LiveCaptureRecentEventsStrip(
-                                  events: _mapV2RecentEvents(events),
-                                  loading: false,
-                                ),
-                                loading: () =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: true,
-                                ),
-                                error: (_, __) =>
-                                    const LiveCaptureRecentEventsStrip(
-                                  events: <LiveCaptureRecentEventItem>[],
-                                  loading: false,
-                                ),
-                              ),
-                  ),
+                  // (Recent-events strip removed — the V3 timeline
+                  // bottom sheet is the canonical surface for "what
+                  // I just captured" in chronological order.)
+                  // The preview shell still uses _RecentEventsPlaceholder
+                  // so widget tests don't crash on missing live data.
+                  if (usePreview)
+                    Positioned(
+                      left: AppSpacing.md,
+                      right: AppSpacing.md,
+                      bottom: AppSpacing.md + 86,
+                      child: const _RecentEventsPlaceholder(),
+                    ),
                   Positioned.fill(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(0, 98, 0, 100),
@@ -686,8 +651,8 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
                 ),
               ),
 
-            // ── V3 chrome ────────────────────────────────────────────────
-            if (!usePreview && FeatureFlags.enableLiveScreenV3) ...[
+            // ── V3 chrome — the live-screen experience. ───────────────
+            if (!usePreview) ...[
               // Map callout overlay — pointer-transparent except where the
               // bubble itself sits.
               Positioned.fill(
@@ -917,88 +882,6 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       return false;
     }
     return _useV2Lane;
-  }
-
-  List<LiveCaptureRecentEventItem> _mapV2RecentEvents(
-    List<EventJournalRow> events,
-  ) {
-    return events
-        .map(
-          (event) => LiveCaptureRecentEventItem(
-            id: event.eventId,
-            eventType: event.eventType,
-            note: _extractV2EventNote(event),
-            capturedAt: event.capturedAt,
-            syncLabel: _resolverLabel(event.resolverState),
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  List<LiveCaptureRecentEventItem> _mapV2ProjectionRecentEvents(
-    List<V2TimelineProjectionEntry> entries,
-  ) {
-    return entries
-        .map(
-          (entry) => LiveCaptureRecentEventItem(
-            id: entry.entryId,
-            eventType: entry.eventType,
-            note: entry.title,
-            capturedAt: entry.capturedAt,
-            syncLabel: _chipLabel(entry.syncChipState),
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  String _chipLabel(String chipState) {
-    switch (chipState) {
-      case 'commit_pending':
-        return 'Saved locally';
-      case 'committing':
-        return 'Saved locally';
-      case 'committed':
-        return 'Saved locally';
-      case 'commit_failed_retryable':
-        return 'Saved locally';
-      case 'local_only':
-      default:
-        return 'Local';
-    }
-  }
-
-  String _resolverLabel(String resolverState) {
-    switch (resolverState) {
-      case 'place_bound':
-        return 'Bound';
-      case 'review_required':
-        return 'Needs review';
-      case 'geotag_final':
-        return 'Geo-tagged';
-      case 'geotag_unresolved':
-      default:
-        return 'Local';
-    }
-  }
-
-  String? _extractV2EventNote(EventJournalRow event) {
-    final payload = event.payloadJson;
-    if (payload == null || payload.isEmpty) {
-      return null;
-    }
-    try {
-      final decoded = jsonDecode(payload);
-      if (decoded is! Map<String, dynamic>) {
-        return null;
-      }
-      final note = decoded['note'];
-      if (note is String && note.trim().isNotEmpty) {
-        return note.trim();
-      }
-    } catch (_) {
-      // no-op: notes are optional in payload.
-    }
-    return null;
   }
 
   void _toggleSidePanel() {
@@ -1288,20 +1171,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
         return;
       }
       onSuccess?.call();
-      _showMessage(
-          'Captured locally. Review in editor if a place needs confirmation.');
-      // V3 acknowledgement bubble — fires only when V3 is enabled.
-      if (FeatureFlags.enableLiveScreenV3) {
-        DoraBubbleTriggers.acknowledgeEventAdd(
-          ref,
-          widget.tripId,
-          kind: switch (eventType) {
-            LiveTrackingEventType.warn => 'warn',
-            LiveTrackingEventType.tag => 'geotag',
-            _ => 'note',
-          },
-        );
-      }
+      // The V3 acknowledgement bubble is the user-facing message for
+      // event captures. No separate snackbar — single message per event.
+      DoraBubbleTriggers.acknowledgeEventAdd(
+        ref,
+        widget.tripId,
+        kind: switch (eventType) {
+          LiveTrackingEventType.warn => 'warn',
+          LiveTrackingEventType.tag => 'geotag',
+          _ => 'note',
+        },
+      );
     } catch (_) {
       _showMessage('Failed to capture item. Try again.');
     } finally {
@@ -1377,17 +1257,17 @@ class _LiveCaptureScreenState extends ConsumerState<LiveCaptureScreen>
       if (result.kind == CapturedMediaKind.photo) {
         _emitEffect(TransientEffectType.photoCaptured);
       }
-      final destinationMsg = result.destination == CaptureDestination.storyDraft
-          ? 'Captured; story draft saved and publish queued.'
-          : 'Captured locally.';
-      final attachMsg = result.attachedToTrip
-          ? ' Attached to ${result.tripName ?? 'active trip'}.'
-          : '';
-      _showMessage('$destinationMsg$attachMsg');
-      // V3 acknowledgement bubble for memory captures — only when
-      // attached to a trip (vault-only captures aren't on this screen).
-      if (FeatureFlags.enableLiveScreenV3 && result.attachedToTrip) {
+      // Trip-attached captures: Dora bubble is the user-facing message.
+      // Vault-only captures (no trip attachment) keep the system
+      // snackbar — Dora has nothing to say about non-trip media.
+      if (result.attachedToTrip) {
         DoraBubbleTriggers.acknowledgeMemoryCapture(ref, widget.tripId);
+      } else {
+        final destinationMsg =
+            result.destination == CaptureDestination.storyDraft
+                ? 'Captured; story draft saved and publish queued.'
+                : 'Captured locally.';
+        _showMessage(destinationMsg);
       }
     } catch (_) {
       _showMessage('Failed to capture media. Try again.');

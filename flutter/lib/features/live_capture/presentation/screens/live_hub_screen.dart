@@ -519,12 +519,19 @@ class _LocationSearchFieldState extends ConsumerState<_LocationSearchField> {
     _focusNode.addListener(() {
       widget.onFocusChanged(_focusNode.hasFocus);
       if (!_focusNode.hasFocus) {
-        if (widget.selected != null) {
-          widget.controller.text = widget.selected!.name;
-        } else {
-          widget.controller.clear();
-        }
-        setState(() => _results = []);
+        // Defer teardown: on web the field blurs BEFORE the dropdown tap
+        // lands. Clearing synchronously here would wipe the query and
+        // dismiss the list, so the tap hits empty space and the selection
+        // never happens. A short delay lets onTap run first; if the user
+        // genuinely tapped away, this just closes the list and keeps the
+        // typed text (submit still requires an actual selection).
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (!mounted || _focusNode.hasFocus) return;
+          if (widget.selected != null) {
+            widget.controller.text = widget.selected!.name;
+          }
+          setState(() => _results = []);
+        });
       }
     });
   }

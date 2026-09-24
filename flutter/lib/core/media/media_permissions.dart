@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 enum MediaPermissionState {
@@ -43,7 +42,12 @@ class MediaPermissions {
     bool requestIfDenied = false,
     bool usePhotoManagerForAndroid = false,
   }) async {
-    if (Platform.isAndroid) {
+    // Web has no install-time media permissions — the browser file picker
+    // and getUserMedia prompts handle consent per interaction.
+    if (kIsWeb) {
+      return MediaPermissionState.granted;
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       final statuses = await _androidGalleryStatuses(
         requestIfDenied: requestIfDenied,
       );

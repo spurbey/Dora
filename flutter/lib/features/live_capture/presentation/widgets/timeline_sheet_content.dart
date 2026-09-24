@@ -223,8 +223,18 @@ class _DaySectionedList extends StatelessWidget {
 
   static String _absoluteDateLabel(DateTime day) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[day.month - 1]} ${day.day}';
   }
@@ -317,8 +327,14 @@ class _Leading extends StatelessWidget {
           width: size,
           height: size,
           child: _MediaThumbnail(
-            localPath: current.thumbnailLocalPath,
-            remoteUrl: current.thumbnailRemoteUrl,
+            localPath: _firstNonEmpty([
+              current.thumbnailLocalPath,
+              current.localUri,
+            ]),
+            remoteUrl: _firstNonEmpty([
+              current.thumbnailRemoteUrl,
+              current.remoteUrl,
+            ]),
           ),
         ),
       );
@@ -442,8 +458,9 @@ class _MediaThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (localPath != null && localPath!.isNotEmpty) {
+      final file = _fileFromPath(localPath!);
       return Image(
-        image: FileImage(File(localPath!)),
+        image: FileImage(file),
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const _ThumbnailFallback(),
       );
@@ -459,6 +476,21 @@ class _MediaThumbnail extends StatelessWidget {
     }
     return const _ThumbnailFallback();
   }
+}
+
+String? _firstNonEmpty(Iterable<String?> values) {
+  for (final value in values) {
+    if (value != null && value.trim().isNotEmpty) return value.trim();
+  }
+  return null;
+}
+
+File _fileFromPath(String raw) {
+  final parsed = Uri.tryParse(raw);
+  if (parsed != null && parsed.scheme == 'file') {
+    return File.fromUri(parsed);
+  }
+  return File(raw);
 }
 
 class _ThumbnailFallback extends StatelessWidget {
@@ -490,8 +522,18 @@ String _formatTimeAgo(DateTime when) {
   if (diff.inHours < 24) return '${diff.inHours}h ago';
   if (diff.inDays < 7) return '${diff.inDays}d ago';
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final localized = when.toLocal();
   return '${months[localized.month - 1]} ${localized.day}';

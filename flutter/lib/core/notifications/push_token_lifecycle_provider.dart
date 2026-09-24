@@ -1,17 +1,13 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/network/api_providers.dart';
+import 'package:dora/core/notifications/push_client_factory.dart';
 import 'package:dora/core/notifications/push_token_client.dart';
 import 'package:dora/core/notifications/push_token_lifecycle_bootstrap.dart';
 import 'package:dora/features/auth/presentation/providers/auth_provider.dart';
 
 final pushTokenClientProvider = Provider<PushTokenClient>((ref) {
-  try {
-    return FirebasePushTokenClient(FirebaseMessaging.instance);
-  } catch (_) {
-    return const NoopPushTokenClient();
-  }
+  return createPushClient();
 });
 
 final pushTokenLifecycleBootstrapProvider = Provider<void>((ref) {

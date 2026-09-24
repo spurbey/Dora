@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:insta_assets_picker/insta_assets_picker.dart';
@@ -70,7 +69,8 @@ class CustomGalleryPicker {
     required BuildContext context,
     required GalleryPickerRequest request,
   }) async {
-    if (!Platform.isAndroid) {
+    // Web + iOS use the image_picker fallback (browser file picker on web).
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return _pickWithImagePickerFallback(request);
     }
     return _pickWithInstaAssetsPicker(

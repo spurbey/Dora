@@ -38,8 +38,9 @@ class ClusterExpansion extends ConsumerWidget {
         SliverToBoxAdapter(
           child: _Header(
             count: cluster.items.length,
-            onBack: () =>
-                ref.read(bottomSheetStateProvider(tripId).notifier).backToTimeline(),
+            onBack: () => ref
+                .read(bottomSheetStateProvider(tripId).notifier)
+                .backToTimeline(),
           ),
         ),
         SliverToBoxAdapter(
@@ -180,16 +181,18 @@ class _Visual extends StatelessWidget {
   Widget build(BuildContext context) {
     if (item is TimelineMediaItem) {
       final m = item as TimelineMediaItem;
-      if (m.thumbnailLocalPath != null && m.thumbnailLocalPath!.isNotEmpty) {
+      final localPath = _firstNonEmpty([m.thumbnailLocalPath, m.localUri]);
+      final remotePath = _firstNonEmpty([m.thumbnailRemoteUrl, m.remoteUrl]);
+      if (localPath != null) {
         return Image(
-          image: FileImage(File(m.thumbnailLocalPath!)),
+          image: FileImage(_fileFromPath(localPath)),
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const _Fallback(),
         );
       }
-      if (m.thumbnailRemoteUrl != null && m.thumbnailRemoteUrl!.isNotEmpty) {
+      if (remotePath != null) {
         return Image.network(
-          m.thumbnailRemoteUrl!,
+          remotePath,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const _Fallback(),
         );
@@ -229,6 +232,21 @@ class _Visual extends StatelessWidget {
         return DoraColors.brandPrimary;
     }
   }
+}
+
+String? _firstNonEmpty(Iterable<String?> values) {
+  for (final value in values) {
+    if (value != null && value.trim().isNotEmpty) return value.trim();
+  }
+  return null;
+}
+
+File _fileFromPath(String raw) {
+  final parsed = Uri.tryParse(raw);
+  if (parsed != null && parsed.scheme == 'file') {
+    return File.fromUri(parsed);
+  }
+  return File(raw);
 }
 
 class _Fallback extends StatelessWidget {

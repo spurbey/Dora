@@ -24,10 +24,12 @@ class DoraTopLeftPill extends ConsumerWidget {
     super.key,
     required this.tripId,
     required this.onTap,
+    this.size = 60,
   });
 
   final String tripId;
   final VoidCallback onTap;
+  final double size;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,7 +37,7 @@ class DoraTopLeftPill extends ConsumerWidget {
     final thinking = _thinking(ref);
 
     return DoraPill(
-      size: 60,
+      size: size,
       pulse: !thinking,
       onTap: onTap,
       semanticsLabel: 'Open Dora chat',

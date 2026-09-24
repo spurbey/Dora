@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class LocationSettingsResolver {
@@ -10,7 +9,8 @@ class LocationSettingsResolver {
   );
 
   Future<bool> promptEnableLocation() async {
-    if (!Platform.isAndroid) {
+    // Browser location prompts are handled by geolocator itself.
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return false;
     }
     try {

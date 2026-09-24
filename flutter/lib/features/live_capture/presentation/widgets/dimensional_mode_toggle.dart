@@ -20,12 +20,14 @@ class DimensionalModeToggle extends StatefulWidget {
     super.key,
     required this.mode,
     required this.onChanged,
+    this.size = 48,
   });
 
   /// Current mode — drives the icon (square = standard, cube =
   /// cinematic). The widget is stateless on the mode itself; the
   /// parent owns the truth.
   final MapDimensionalMode mode;
+  final double size;
 
   /// Called with the new mode after a tap. Parent calls
   /// [LiveCaptureMapController.setDimensionalMode] with this value
@@ -43,22 +45,20 @@ class _DimensionalModeToggleState extends State<DimensionalModeToggle> {
   Widget build(BuildContext context) {
     final isCinematic = widget.mode == MapDimensionalMode.cinematic;
     return DoraPill(
-      size: 48,
+      size: widget.size,
       shadows: DoraShadow.tight,
       gradientColors: isCinematic
           ? const [DoraColors.brandAccent, DoraColors.brandPrimary]
           : const [DoraColors.surfaceWhite, DoraColors.surfaceMint],
       onTap: () => _handleTap(context, isCinematic),
-      semanticsLabel: isCinematic
-          ? 'Switch to standard map'
-          : 'Switch to cinematic map',
+      semanticsLabel:
+          isCinematic ? 'Switch to standard map' : 'Switch to cinematic map',
       child: CustomPaint(
         size: const Size(22, 22),
         painter: _DimensionalIconPainter(
           isCinematic: isCinematic,
-          color: isCinematic
-              ? DoraColors.surfaceWhite
-              : DoraColors.brandPrimary,
+          color:
+              isCinematic ? DoraColors.surfaceWhite : DoraColors.brandPrimary,
         ),
       ),
     );

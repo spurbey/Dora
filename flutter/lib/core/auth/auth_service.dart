@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract class AuthTokenProvider {
@@ -103,9 +104,13 @@ class AuthService implements AuthTokenProvider {
   }
 
   Future<void> signInWithGoogle() async {
+    // Mobile uses a custom-scheme deep link; web must redirect back to the
+    // hosted origin (whitelist it in Supabase Auth > Redirect URLs).
+    final redirectTo =
+        kIsWeb ? Uri.base.origin : 'com.dora.travel://login-callback/';
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.dora.travel://login-callback/',
+      redirectTo: redirectTo,
     );
   }
 }

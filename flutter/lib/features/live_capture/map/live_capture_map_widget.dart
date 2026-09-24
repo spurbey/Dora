@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
@@ -337,6 +338,38 @@ class LiveCaptureMapWidgetState extends State<LiveCaptureMapWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Web MVP: no Mapbox web implementation — timeline/advisory content
+    // below the map stays usable; camera ops are safe no-ops (null ctrl).
+    if (kIsWeb) {
+      final theme = Theme.of(context);
+      return Container(
+        color: theme.colorScheme.surfaceContainerHighest,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.map_outlined,
+                    size: 44, color: theme.colorScheme.primary),
+                const SizedBox(height: 12),
+                Text(
+                  'Live map is mobile-only in this web preview',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your timeline, advisories and captures below keep working.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Stack(
       children: [
         // Map with pointer listener to detect user panning

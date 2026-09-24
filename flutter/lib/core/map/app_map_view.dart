@@ -212,6 +212,16 @@ class _AppMapViewState extends State<AppMapView> {
 
   @override
   Widget build(BuildContext context) {
+    // Web MVP: mapbox_maps_flutter has no web implementation. Show a
+    // graceful placeholder (counts + center) instead of throwing.
+    if (kIsWeb) {
+      return _WebMapPlaceholder(
+        center: widget.initialCenter,
+        zoom: widget.initialZoom,
+        markerCount: widget.markers?.length ?? 0,
+        routeCount: widget.routes?.length ?? 0,
+      );
+    }
     return MapWidget(
       cameraOptions: CameraOptions(
         center: Point(
@@ -363,6 +373,61 @@ class _RouteRenderSignature {
         width,
         dashed,
       );
+}
+
+/// Web placeholder shown wherever [AppMapView] is used.
+///
+/// Full Mapbox GL JS interop is phased work; until then the surrounding
+/// screen stays usable (lists, forms, uploads) instead of red-screening.
+class _WebMapPlaceholder extends StatelessWidget {
+  const _WebMapPlaceholder({
+    required this.center,
+    required this.zoom,
+    required this.markerCount,
+    required this.routeCount,
+  });
+
+  final AppLatLng center;
+  final double zoom;
+  final int markerCount;
+  final int routeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.map_outlined,
+                size: 48,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Interactive map is mobile-only in this web preview',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${markerCount} places · ${routeCount} routes\n'
+                'Center ${center.latitude.toStringAsFixed(4)}, '
+                '${center.longitude.toStringAsFixed(4)} · z${zoom.toStringAsFixed(1)}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _LatLngTuple {

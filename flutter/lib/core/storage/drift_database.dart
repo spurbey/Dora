@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'package:dora/core/storage/db_executor_native.dart'
+    if (dart.library.html) 'package:dora/core/storage/db_executor_web.dart';
 
 import 'package:dora/core/map/models/app_latlng.dart'; // ignore: unused_import
 import 'package:dora/core/storage/converters.dart'; // ignore: unused_import
@@ -949,9 +947,7 @@ class AppDatabase extends _$AppDatabase {
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {
-      final dbFolder = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dbFolder.path, 'dora.db'));
-      return NativeDatabase(file);
+      return openDbConnection();
     });
   }
 }

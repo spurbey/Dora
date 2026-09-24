@@ -42,7 +42,9 @@ class TimelineMediaItem extends TimelineItem {
     required this.capturedAt,
     required this.latitude,
     required this.longitude,
+    required this.localUri,
     required this.thumbnailLocalPath,
+    required this.remoteUrl,
     required this.thumbnailRemoteUrl,
     required this.rotationDegrees,
   });
@@ -55,7 +57,9 @@ class TimelineMediaItem extends TimelineItem {
   @override
   final double? longitude;
 
+  final String? localUri;
   final String? thumbnailLocalPath;
+  final String? remoteUrl;
   final String? thumbnailRemoteUrl;
   final double rotationDegrees;
 
@@ -105,8 +109,8 @@ class TimelineEventItem extends TimelineItem {
 ///
 /// Sort: most recent first. The widget groups by day (Today / Yesterday /
 /// older absolute dates) at render time.
-final tripUnifiedTimelineProvider = StreamProvider.autoDispose
-    .family<List<TimelineItem>, String>(
+final tripUnifiedTimelineProvider =
+    StreamProvider.autoDispose.family<List<TimelineItem>, String>(
   (ref, tripId) {
     final attachmentsDao = ref.watch(mediaAttachmentsDaoProvider);
     final mediaDao = ref.watch(mediaDaoProvider);
@@ -137,7 +141,9 @@ final tripUnifiedTimelineProvider = StreamProvider.autoDispose
               capturedAt: m.capturedAt,
               latitude: lat,
               longitude: lng,
+              localUri: m.localUri,
               thumbnailLocalPath: m.thumbnailLocalPath,
+              remoteUrl: m.remoteUrl,
               thumbnailRemoteUrl: m.remoteThumbnailUrl,
               rotationDegrees: _rotationFor(m.id),
             ),

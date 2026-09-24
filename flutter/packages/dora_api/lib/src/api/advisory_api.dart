@@ -25,7 +25,6 @@ import 'package:dora_api/src/model/send_message_request.dart';
 import 'package:dora_api/src/model/send_message_response.dart';
 
 class AdvisoryApi {
-
   final Dio _dio;
 
   final Serializers _serializers;
@@ -33,12 +32,12 @@ class AdvisoryApi {
   const AdvisoryApi(this._dio, this._serializers);
 
   /// Answer Conversation Question
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [answerQuestionRequest] 
+  /// * [answerQuestionRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -48,7 +47,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AnswerQuestionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AnswerQuestionResponse>> answerConversationQuestionApiV1TripsTripIdConversationAnswerPost({ 
+  Future<Response<AnswerQuestionResponse>>
+      answerConversationQuestionApiV1TripsTripIdConversationAnswerPost({
     required String tripId,
     required String authorization,
     required AnswerQuestionRequest answerQuestionRequest,
@@ -59,7 +59,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/conversation/answer'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/conversation/answer'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -78,11 +81,11 @@ class AdvisoryApi {
 
     try {
       const _type = FullType(AnswerQuestionRequest);
-      _bodyData = _serializers.serialize(answerQuestionRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(answerQuestionRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -105,11 +108,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AnswerQuestionResponse),
-      ) as AnswerQuestionResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AnswerQuestionResponse),
+            ) as AnswerQuestionResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -136,7 +140,7 @@ class AdvisoryApi {
   /// Return sanitized brain state for debugging.  Gated: requires owner + settings.EXPOSE_ADVISORY_STATE_ENDPOINT.
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -147,7 +151,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [JsonObject] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<JsonObject>> getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet({ 
+  Future<Response<JsonObject>>
+      getAdvisoryStateApiV1TripsTripIdAdvisoryStateGet({
     required String tripId,
     required String authorization,
     CancelToken? cancelToken,
@@ -157,7 +162,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/state'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/state'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -183,11 +191,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(JsonObject),
-      ) as JsonObject;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(JsonObject),
+            ) as JsonObject;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -214,11 +223,11 @@ class AdvisoryApi {
   /// Get advisories for inbox: status IN (&#39;pending&#39;, &#39;delivered&#39;).
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [category] 
-  /// * [page] 
-  /// * [pageSize] 
+  /// * [category]
+  /// * [page]
+  /// * [pageSize]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -228,7 +237,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AdvisoryInsightListResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AdvisoryInsightListResponse>> listAdvisoryInsightsApiV1TripsTripIdAdvisoryInsightsGet({ 
+  Future<Response<AdvisoryInsightListResponse>>
+      listAdvisoryInsightsApiV1TripsTripIdAdvisoryInsightsGet({
     required String tripId,
     required String authorization,
     String? category,
@@ -241,7 +251,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/insights'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/insights'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -256,9 +269,13 @@ class AdvisoryApi {
     );
 
     final _queryParameters = <String, dynamic>{
-      r'category': encodeQueryParameter(_serializers, category, const FullType(String)),
-      if (page != null) r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
-      if (pageSize != null) r'page_size': encodeQueryParameter(_serializers, pageSize, const FullType(int)),
+      r'category':
+          encodeQueryParameter(_serializers, category, const FullType(String)),
+      if (page != null)
+        r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
+      if (pageSize != null)
+        r'page_size':
+            encodeQueryParameter(_serializers, pageSize, const FullType(int)),
     };
 
     final _response = await _dio.request<Object>(
@@ -274,11 +291,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AdvisoryInsightListResponse),
-      ) as AdvisoryInsightListResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AdvisoryInsightListResponse),
+            ) as AdvisoryInsightListResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -302,14 +320,14 @@ class AdvisoryApi {
   }
 
   /// List Advisory Jobs
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [status] 
-  /// * [page] 
-  /// * [pageSize] 
+  /// * [status]
+  /// * [page]
+  /// * [pageSize]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -319,7 +337,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AdvisoryJobListResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AdvisoryJobListResponse>> listAdvisoryJobsApiV1TripsTripIdAdvisoryJobsGet({ 
+  Future<Response<AdvisoryJobListResponse>>
+      listAdvisoryJobsApiV1TripsTripIdAdvisoryJobsGet({
     required String tripId,
     required String authorization,
     String? status,
@@ -332,7 +351,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/jobs'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/jobs'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -347,9 +369,13 @@ class AdvisoryApi {
     );
 
     final _queryParameters = <String, dynamic>{
-      r'status': encodeQueryParameter(_serializers, status, const FullType(String)),
-      if (page != null) r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
-      if (pageSize != null) r'page_size': encodeQueryParameter(_serializers, pageSize, const FullType(int)),
+      r'status':
+          encodeQueryParameter(_serializers, status, const FullType(String)),
+      if (page != null)
+        r'page': encodeQueryParameter(_serializers, page, const FullType(int)),
+      if (pageSize != null)
+        r'page_size':
+            encodeQueryParameter(_serializers, pageSize, const FullType(int)),
     };
 
     final _response = await _dio.request<Object>(
@@ -365,11 +391,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AdvisoryJobListResponse),
-      ) as AdvisoryJobListResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AdvisoryJobListResponse),
+            ) as AdvisoryJobListResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -393,13 +420,13 @@ class AdvisoryApi {
   }
 
   /// List Conversation Messages
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [limit] 
-  /// * [before] 
+  /// * [limit]
+  /// * [before]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -409,7 +436,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [ConversationListResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<ConversationListResponse>> listConversationMessagesApiV1TripsTripIdConversationMessagesGet({ 
+  Future<Response<ConversationListResponse>>
+      listConversationMessagesApiV1TripsTripIdConversationMessagesGet({
     required String tripId,
     required String authorization,
     int? limit = 50,
@@ -421,7 +449,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/conversation/messages'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/conversation/messages'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -436,8 +467,15 @@ class AdvisoryApi {
     );
 
     final _queryParameters = <String, dynamic>{
-      if (limit != null) r'limit': encodeQueryParameter(_serializers, limit, const FullType(int)),
-      r'before': encodeQueryParameter(_serializers, before, const FullType(DateTime)),
+      if (limit != null)
+        r'limit':
+            encodeQueryParameter(_serializers, limit, const FullType(int)),
+      if (before != null)
+        r'before': encodeQueryParameter(
+          _serializers,
+          before,
+          const FullType(DateTime),
+        ),
     };
 
     final _response = await _dio.request<Object>(
@@ -453,11 +491,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(ConversationListResponse),
-      ) as ConversationListResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(ConversationListResponse),
+            ) as ConversationListResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -484,7 +523,7 @@ class AdvisoryApi {
   /// Manually pause the advisory brain for this trip (reason&#x3D;&#39;user&#39;).  Manual pauses are sticky: only an explicit resume call clears them; incoming advisory actions won&#39;t auto-resume the pipeline.
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -495,7 +534,7 @@ class AdvisoryApi {
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> pauseAdvisoryApiV1TripsTripIdAdvisoryPausePost({ 
+  Future<Response<void>> pauseAdvisoryApiV1TripsTripIdAdvisoryPausePost({
     required String tripId,
     required String authorization,
     CancelToken? cancelToken,
@@ -505,7 +544,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/pause'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/pause'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -534,9 +576,9 @@ class AdvisoryApi {
   /// Submit a natural-language query. Intent parsing happens in the worker, not here.
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [advisoryQueryRequest] 
+  /// * [advisoryQueryRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -546,7 +588,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AdvisoryJobResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AdvisoryJobResponse>> queryAdvisoryApiV1TripsTripIdAdvisoryQueryPost({ 
+  Future<Response<AdvisoryJobResponse>>
+      queryAdvisoryApiV1TripsTripIdAdvisoryQueryPost({
     required String tripId,
     required String authorization,
     required AdvisoryQueryRequest advisoryQueryRequest,
@@ -557,7 +600,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/query'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/query'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -576,11 +622,11 @@ class AdvisoryApi {
 
     try {
       const _type = FullType(AdvisoryQueryRequest);
-      _bodyData = _serializers.serialize(advisoryQueryRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(advisoryQueryRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -603,11 +649,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AdvisoryJobResponse),
-      ) as AdvisoryJobResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AdvisoryJobResponse),
+            ) as AdvisoryJobResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -634,9 +681,9 @@ class AdvisoryApi {
   /// Record a user engagement action (append-only) and update the brain.
   ///
   /// Parameters:
-  /// * [advisoryId] 
+  /// * [advisoryId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [advisoryActionRequest] 
+  /// * [advisoryActionRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -646,7 +693,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AdvisoryActionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AdvisoryActionResponse>> recordAdvisoryActionApiV1AdvisoryAdvisoryIdActionPost({ 
+  Future<Response<AdvisoryActionResponse>>
+      recordAdvisoryActionApiV1AdvisoryAdvisoryIdActionPost({
     required String advisoryId,
     required String authorization,
     required AdvisoryActionRequest advisoryActionRequest,
@@ -657,7 +705,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/advisory/{advisory_id}/action'.replaceAll('{' r'advisory_id' '}', encodeQueryParameter(_serializers, advisoryId, const FullType(String)).toString());
+    final _path = r'/api/v1/advisory/{advisory_id}/action'.replaceAll(
+        '{' r'advisory_id' '}',
+        encodeQueryParameter(_serializers, advisoryId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -676,11 +727,11 @@ class AdvisoryApi {
 
     try {
       const _type = FullType(AdvisoryActionRequest);
-      _bodyData = _serializers.serialize(advisoryActionRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(advisoryActionRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -703,11 +754,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AdvisoryActionResponse),
-      ) as AdvisoryActionResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AdvisoryActionResponse),
+            ) as AdvisoryActionResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -734,7 +786,7 @@ class AdvisoryApi {
   /// Explicit user resume — clears manual pauses.
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -745,7 +797,7 @@ class AdvisoryApi {
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost({ 
+  Future<Response<void>> resumeAdvisoryApiV1TripsTripIdAdvisoryResumePost({
     required String tripId,
     required String authorization,
     CancelToken? cancelToken,
@@ -755,7 +807,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/resume'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/resume'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -781,12 +836,12 @@ class AdvisoryApi {
   }
 
   /// Send Conversation Message
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [sendMessageRequest] 
+  /// * [sendMessageRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -796,7 +851,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [SendMessageResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<SendMessageResponse>> sendConversationMessageApiV1TripsTripIdConversationSendPost({ 
+  Future<Response<SendMessageResponse>>
+      sendConversationMessageApiV1TripsTripIdConversationSendPost({
     required String tripId,
     required String authorization,
     required SendMessageRequest sendMessageRequest,
@@ -807,7 +863,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/conversation/send'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/conversation/send'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -826,11 +885,11 @@ class AdvisoryApi {
 
     try {
       const _type = FullType(SendMessageRequest);
-      _bodyData = _serializers.serialize(sendMessageRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(sendMessageRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -853,11 +912,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(SendMessageResponse),
-      ) as SendMessageResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(SendMessageResponse),
+            ) as SendMessageResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -884,9 +944,9 @@ class AdvisoryApi {
   /// Create a pre_trip or location_trigger advisory job.
   ///
   /// Parameters:
-  /// * [tripId] 
+  /// * [tripId]
   /// * [authorization] - Bearer token from Supabase Auth
-  /// * [advisoryStartRequest] 
+  /// * [advisoryStartRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -896,7 +956,8 @@ class AdvisoryApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AdvisoryJobResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AdvisoryJobResponse>> startAdvisoryApiV1TripsTripIdAdvisoryStartPost({ 
+  Future<Response<AdvisoryJobResponse>>
+      startAdvisoryApiV1TripsTripIdAdvisoryStartPost({
     required String tripId,
     required String authorization,
     required AdvisoryStartRequest advisoryStartRequest,
@@ -907,7 +968,10 @@ class AdvisoryApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/trips/{trip_id}/advisory/start'.replaceAll('{' r'trip_id' '}', encodeQueryParameter(_serializers, tripId, const FullType(String)).toString());
+    final _path = r'/api/v1/trips/{trip_id}/advisory/start'.replaceAll(
+        '{' r'trip_id' '}',
+        encodeQueryParameter(_serializers, tripId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -926,11 +990,11 @@ class AdvisoryApi {
 
     try {
       const _type = FullType(AdvisoryStartRequest);
-      _bodyData = _serializers.serialize(advisoryStartRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(advisoryStartRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -953,11 +1017,12 @@ class AdvisoryApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AdvisoryJobResponse),
-      ) as AdvisoryJobResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AdvisoryJobResponse),
+            ) as AdvisoryJobResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -979,5 +1044,4 @@ class AdvisoryApi {
       extra: _response.extra,
     );
   }
-
 }

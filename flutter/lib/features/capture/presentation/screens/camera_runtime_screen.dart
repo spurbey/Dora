@@ -5,6 +5,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart';
 import 'package:disk_space_plus/disk_space_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -329,6 +330,42 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Web MVP: camerawesome has no web implementation. Route users to the
+    // browser file picker (gallery upload) instead of a dead camera.
+    if (kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Capture')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.photo_camera_outlined, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'Live camera is mobile-only in this web preview',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Use Media upload on your trip to add photos and videos '
+                  'from this device instead.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Go back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final runtime = ref.watch(cameraRuntimeControllerProvider);
     final scopedTripId = widget.args.preferredTripId;
     final activeSession = scopedTripId == null

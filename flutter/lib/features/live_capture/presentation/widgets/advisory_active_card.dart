@@ -1,7 +1,6 @@
 import 'package:dora_api/dora_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -39,37 +38,22 @@ _CategoryDisplay _displayFor(String? category) {
 
 /// Floating card shown above the bottom panel when a pending advisory exists.
 ///
-/// Google-Maps-style compact suggestion card with Dora branding. Three
-/// actions: Save (like), Navigate (open in external Maps), Dismiss. Swipe
-/// right to dismiss. Tap body to open full detail in the bottom sheet.
+/// Compact suggestion card with Dora branding. Three actions: Save,
+/// Show on map, Dismiss. Swipe right to dismiss. Tap body to open full
+/// detail in the bottom sheet.
 class AdvisoryActiveCard extends ConsumerWidget {
   const AdvisoryActiveCard({
     super.key,
     required this.localTripId,
     required this.advisory,
     required this.onOpenDetail,
+    this.onShowOnMap,
   });
 
   final String localTripId;
   final AdvisoryInsightResponse advisory;
   final VoidCallback onOpenDetail;
-
-  Future<void> _openInMaps() async {
-    final lat = advisory.placeLat;
-    final lng = advisory.placeLng;
-    final name = advisory.placeName ?? advisory.title;
-    final Uri uri;
-    if (lat != null && lng != null) {
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
-      );
-    } else {
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(name)}',
-      );
-    }
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  final void Function(double lat, double lng)? onShowOnMap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -197,12 +181,16 @@ class AdvisoryActiveCard extends ConsumerWidget {
                             );
                       },
                     ),
-                    if (advisory.placeLat != null ||
-                        advisory.placeName != null)
+                    if (advisory.placeLat != null &&
+                        advisory.placeLng != null &&
+                        onShowOnMap != null)
                       _ActionIcon(
-                        icon: Icons.directions_outlined,
-                        tooltip: 'Open in Maps',
-                        onTap: _openInMaps,
+                        icon: Icons.map_outlined,
+                        tooltip: 'Show on map',
+                        onTap: () => onShowOnMap!(
+                          advisory.placeLat!.toDouble(),
+                          advisory.placeLng!.toDouble(),
+                        ),
                       ),
                     _ActionIcon(
                       icon: Icons.close,

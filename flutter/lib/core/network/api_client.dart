@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -29,7 +27,9 @@ class ApiClient {
     }
 
     // Android emulator can't reach host machine via localhost.
-    if (Platform.isAndroid &&
+    // Web uses the browser's own network stack — never rewrite.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
         (parsed.host == 'localhost' || parsed.host == '127.0.0.1')) {
       return parsed.replace(host: '10.0.2.2').toString();
     }

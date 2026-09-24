@@ -1,7 +1,6 @@
 import 'package:dora_api/dora_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dora/core/theme/animation_tokens.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -55,11 +54,13 @@ class LiveCaptureBottomDetailSheet extends ConsumerWidget {
     required this.localTripId,
     required this.content,
     required this.onDismiss,
+    this.onShowOnMap,
   });
 
   final String localTripId;
   final BottomSheetContent content;
   final VoidCallback onDismiss;
+  final void Function(double lat, double lng)? onShowOnMap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,6 +126,7 @@ class LiveCaptureBottomDetailSheet extends ConsumerWidget {
           localTripId: localTripId,
           scrollController: scrollController,
           onDismiss: onDismiss,
+          onShowOnMap: onShowOnMap,
         ),
       CapturedMediaDetail(eventId: final _, title: final title) =>
         _SimpleDetailPlaceholder(
@@ -167,29 +169,14 @@ class _AdvisoryDetailView extends ConsumerWidget {
     required this.localTripId,
     required this.scrollController,
     required this.onDismiss,
+    required this.onShowOnMap,
   });
 
   final AdvisoryInsightResponse advisory;
   final String localTripId;
   final ScrollController scrollController;
   final VoidCallback onDismiss;
-
-  Future<void> _openInMaps() async {
-    final lat = advisory.placeLat;
-    final lng = advisory.placeLng;
-    final name = advisory.placeName ?? advisory.title;
-    final Uri uri;
-    if (lat != null && lng != null) {
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
-      );
-    } else {
-      uri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(name)}',
-      );
-    }
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  final void Function(double lat, double lng)? onShowOnMap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -263,13 +250,13 @@ class _AdvisoryDetailView extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: AppRadius.borderMd,
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.info_outline,
                     size: 16,
                     color: AppColors.textSecondary,
@@ -306,13 +293,21 @@ class _AdvisoryDetailView extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              if (advisory.placeLat != null || advisory.placeName != null)
+              if (advisory.placeLat != null &&
+                  advisory.placeLng != null &&
+                  onShowOnMap != null)
                 Expanded(
                   child: _ActionButton(
-                    icon: Icons.directions_outlined,
-                    label: 'Navigate',
+                    icon: Icons.map_outlined,
+                    label: 'Show on map',
                     filled: false,
-                    onTap: _openInMaps,
+                    onTap: () {
+                      onShowOnMap!(
+                        advisory.placeLat!.toDouble(),
+                        advisory.placeLng!.toDouble(),
+                      );
+                      onDismiss();
+                    },
                   ),
                 ),
             ],
@@ -343,7 +338,7 @@ class _AdvisoryDetailView extends ConsumerWidget {
       case 'tripadvisor':
         return 'TripAdvisor';
       case 'google_maps':
-        return 'Google Maps';
+        return 'Places';
       case 'combined':
         return 'Multiple';
       default:
@@ -392,8 +387,7 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        destructive ? AppColors.error : AppColors.accent;
+    final color = destructive ? AppColors.error : AppColors.accent;
     return SizedBox(
       height: 48,
       child: filled
@@ -452,8 +446,7 @@ class _SimpleDetailPlaceholder extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             subtitle,
-            style: AppTypography.body
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

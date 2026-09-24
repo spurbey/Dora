@@ -102,6 +102,7 @@ class _BubbleEntry extends StatelessWidget {
               Flexible(
                 child: Text(
                   bubble.message,
+                  textScaler: const TextScaler.linear(1.0),
                   style: DoraTypography.bubble.copyWith(
                     color: _textColorOn(color),
                   ),

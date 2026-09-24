@@ -47,10 +47,32 @@ class _StartupScreenState extends ConsumerState<StartupScreen>
   }
 
   Future<void> _resolveStartupFlow() async {
+    // Fail-open: startup must never strand users on splash. Any bootstrap
+    // failure (e.g. web localStorage/IndexedDB unavailable) falls through
+    // to onboarding/login instead of hanging.
+    try {
+      await _resolveStartupFlowInner().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          if (mounted) context.go(Routes.onboarding);
+        },
+      );
+    } catch (_) {
+      if (mounted) context.go(Routes.onboarding);
+    }
+  }
+
+  Future<void> _resolveStartupFlowInner() async {
     await Future<void>.delayed(const Duration(milliseconds: 1700));
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeenOnboarding =
-        prefs.getBool(OnboardingKeys.hasSeenOnboarding) ?? false;
+    bool hasSeenOnboarding = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      hasSeenOnboarding =
+          prefs.getBool(OnboardingKeys.hasSeenOnboarding) ?? false;
+    } catch (_) {
+      // Web private mode / blocked storage: treat as first launch.
+      hasSeenOnboarding = false;
+    }
 
     if (!mounted) {
       return;

@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Mapbox is mobile-only (no web implementation). Import conditionally so
+// `flutter build web` doesn't pull native view code into the web bundle.
+import 'package:dora/core/map/mapbox_stub.dart'
+    if (dart.library.io) 'package:dora/core/map/mapbox_mobile.dart';
 
 import 'package:dora/app.dart';
 import 'package:dora/core/config/env_config.dart';
@@ -26,17 +31,18 @@ Future<void> main() async {
     anonKey: Env.supabaseAnonKey,
   );
 
-  if (Env.mapboxToken.isNotEmpty) {
-    MapboxOptions.setAccessToken(Env.mapboxToken);
-  }
+  configureMapbox(Env.mapboxToken);
 
   if (firebaseReady) {
     await FeatureFlags.initialize();
   }
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(statusBarBrightness: Brightness.light),
-  );
+  // SystemChrome is mobile-only — no-op on web.
+  if (!kIsWeb) {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(statusBarBrightness: Brightness.light),
+    );
+  }
 
   await SentryFlutter.init(
     (options) {

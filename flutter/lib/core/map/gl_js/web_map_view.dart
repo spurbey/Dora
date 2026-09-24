@@ -90,15 +90,17 @@ class _WebMapViewState extends State<WebMapView> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _createMap());
   }
 
-  void _createMap() {
+  Future<void> _createMap() async {
     if (!mounted || _map != null) return;
     try {
       const token = Env.mapboxToken;
       if (token.isEmpty) {
+        if (!mounted) return;
         setState(() => _error = 'Mapbox token is missing.');
         return;
       }
-      final container = _claimContainer();
+      final container = await _claimContainer();
+      if (!mounted) return;
       if (container == null) {
         setState(() => _error = 'Map container not ready.');
         return;
@@ -149,23 +151,29 @@ class _WebMapViewState extends State<WebMapView> {
   }
 
   /// Claims this instance's platform-view div (the one factory-stamped div
-  /// not yet owned by another live map).
-  web.HTMLDivElement? _claimContainer() {
-    try {
-      final divs =
-          web.document.querySelectorAll('div[id^="dora-map-"]');
-      for (var i = 0; i < divs.length; i++) {
-        final node = divs.item(i);
-        if (node is! web.HTMLDivElement) continue;
-        if (_claimedDivIds.contains(node.id)) continue;
-        _claimedDivIds.add(node.id);
-        _claimedDivId = node.id;
-        return node;
+  /// not yet owned by another live map). The browser inserts platform-view
+  /// elements asynchronously after the frame renders, so poll briefly
+  /// instead of failing on the first check.
+  Future<web.HTMLDivElement?> _claimContainer() async {
+    for (var attempt = 0; attempt < 50; attempt++) {
+      if (!mounted) return null;
+      try {
+        final divs =
+            web.document.querySelectorAll('div[id^="dora-map-"]');
+        for (var i = 0; i < divs.length; i++) {
+          final node = divs.item(i);
+          if (node is! web.HTMLDivElement) continue;
+          if (_claimedDivIds.contains(node.id)) continue;
+          _claimedDivIds.add(node.id);
+          _claimedDivId = node.id;
+          return node;
+        }
+      } catch (_) {
+        // DOM not ready yet — retry below.
       }
-      return null;
-    } catch (_) {
-      return null;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     }
+    return null;
   }
 
   @override

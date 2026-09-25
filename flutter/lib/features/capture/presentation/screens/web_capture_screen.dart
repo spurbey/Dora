@@ -334,33 +334,35 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
               ),
             ),
           const SizedBox(height: 12),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ModeButton(
-              label: 'Photo',
-              icon: Icons.photo_camera_outlined,
-              selected: _mode == _WebCaptureMode.photo,
-              onTap: () {
-                debugPrint('[webcam] photo tap');
-                if (!_recording) {
-                  setState(() => _mode = _WebCaptureMode.photo);
-                }
-              },
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _recording
+                  ? null
+                  : () => setState(() {
+                        _mode = _mode == _WebCaptureMode.photo
+                            ? _WebCaptureMode.video
+                            : _WebCaptureMode.photo;
+                      }),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white70),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: Icon(
+                _mode == _WebCaptureMode.photo
+                    ? Icons.videocam_outlined
+                    : Icons.photo_camera_outlined,
+              ),
+              label: Text(
+                _mode == _WebCaptureMode.photo
+                    ? 'Switch to Video (● Photo now)'
+                    : 'Switch to Photo (● Video now)',
+              ),
             ),
-            const SizedBox(width: 12),
-            _ModeButton(
-              label: 'Video',
-              icon: Icons.videocam_outlined,
-              selected: _mode == _WebCaptureMode.video,
-              onTap: () {
-                debugPrint('[webcam] video tap');
-                if (!_recording) {
-                  setState(() => _mode = _WebCaptureMode.video);
-                }
-              },
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
         Padding(
@@ -452,54 +454,5 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
     final seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
-  }
-}
-
-/// Big-target photo/video mode toggle.
-class _ModeButton extends StatelessWidget {
-  const _ModeButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.white24,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white70),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 18,
-                color: selected ? Colors.black87 : Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              '${selected ? '● ' : ''}$label',
-              style: TextStyle(
-                color: selected ? Colors.black87 : Colors.white,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

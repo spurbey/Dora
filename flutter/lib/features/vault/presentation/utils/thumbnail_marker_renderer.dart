@@ -54,6 +54,38 @@ class ThumbnailMarkerRenderer {
     return future;
   }
 
+  /// Web-capture variant: renders from in-memory bytes (for `memory://`
+  /// URIs that have no filesystem path). Same cache semantics as [ensure].
+  Future<Uint8List?> ensureBytes({
+    required String cacheKey,
+    required Uint8List bytes,
+    Color borderColor = Colors.white,
+    Color backgroundColor = const Color(0xFFE8E8E8),
+  }) {
+    final cached = _cache[cacheKey];
+    if (cached != null) {
+      return Future<Uint8List?>.value(cached);
+    }
+    final running = _inFlight[cacheKey];
+    if (running != null) {
+      return running;
+    }
+    final future = _renderBytes(
+      bytes: bytes,
+      borderColor: borderColor,
+      backgroundColor: backgroundColor,
+    ).then((rendered) {
+      if (rendered != null) {
+        _remember(cacheKey, rendered);
+      }
+      return rendered;
+    }).whenComplete(() {
+      _inFlight.remove(cacheKey);
+    });
+    _inFlight[cacheKey] = future;
+    return future;
+  }
+
   void invalidate(String cacheKey) {
     _cache.remove(cacheKey);
   }
@@ -84,6 +116,18 @@ class ThumbnailMarkerRenderer {
     }
 
     final bytes = await file.readAsBytes();
+    return _renderBytes(
+      bytes: bytes,
+      borderColor: borderColor,
+      backgroundColor: backgroundColor,
+    );
+  }
+
+  Future<Uint8List?> _renderBytes({
+    required Uint8List bytes,
+    required Color borderColor,
+    required Color backgroundColor,
+  }) async {
     final codec = await ui.instantiateImageCodec(
       bytes,
       targetWidth: 96,

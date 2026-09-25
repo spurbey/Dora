@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:dora/shared/widgets/memory_aware_image.dart';
 
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/core/theme/app_colors.dart';
@@ -383,6 +384,8 @@ class _PlaceDetailFormState extends State<PlaceDetailForm> {
   }
 
   ImageProvider<Object>? _imageProviderForMedia(MediaItem item) {
+    final memImage = memoryImageIfHot(item.localUri, item.thumbnailLocalPath);
+    if (memImage != null) return memImage;
     final thumb = item.thumbnailLocalPath;
     if (thumb != null && thumb.isNotEmpty) {
       if (thumb.startsWith('http')) {

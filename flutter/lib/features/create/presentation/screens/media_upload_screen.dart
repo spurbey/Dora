@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -249,7 +250,9 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
     if (file == null) {
       return;
     }
-    if (!File(file.path).existsSync()) {
+    // Web: no filesystem — the picked XFile is valid by construction and
+    // File() would throw; downstream handles browser paths.
+    if (!kIsWeb && !File(file.path).existsSync()) {
       return;
     }
     controller.addSelectedPaths([file.path]);
@@ -285,7 +288,15 @@ class _MediaUploadScreenState extends ConsumerState<MediaUploadScreen> {
     }
     final paths = pickerResult.assets
         .map((asset) => asset.path)
-        .where((path) => path.isNotEmpty && File(path).existsSync())
+        .where((path) {
+          if (path.isEmpty) return false;
+          if (kIsWeb) return true;
+          try {
+            return File(path).existsSync();
+          } catch (_) {
+            return false;
+          }
+        })
         .toList();
     controller.addSelectedPaths(paths);
   }

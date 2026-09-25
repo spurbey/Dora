@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:dora/core/media/web_capture_bytes_store.dart';
+import 'package:dora/shared/widgets/memory_aware_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/theme/dora_theme.dart';
@@ -184,6 +186,13 @@ class _Visual extends StatelessWidget {
       final localPath = _firstNonEmpty([m.thumbnailLocalPath, m.localUri]);
       final remotePath = _firstNonEmpty([m.thumbnailRemoteUrl, m.remoteUrl]);
       if (localPath != null) {
+        if (isMemoryUri(localPath)) {
+          return MemoryAwareImage(
+            localUri: localPath,
+            fit: BoxFit.cover,
+            placeholder: const _Fallback(),
+          );
+        }
         return Image(
           image: FileImage(_fileFromPath(localPath)),
           fit: BoxFit.cover,

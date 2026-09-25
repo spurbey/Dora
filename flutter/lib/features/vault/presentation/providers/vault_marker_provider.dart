@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dora/core/media/thumbnail_generator.dart';
+import 'package:dora/core/media/web_capture_bytes_store.dart';
 import 'package:dora/core/storage/database_provider.dart';
 import 'package:dora/core/storage/drift_database.dart';
 import 'package:dora/features/vault/presentation/providers/vault_provider.dart';
@@ -105,10 +106,23 @@ class VaultMarkerController extends Notifier<VaultMarkerState> {
       return;
     }
 
-    final bytes = await renderer.ensure(
-      cacheKey: cacheKey,
-      sourcePath: sourcePath,
-    );
+    // Web captures have no filesystem path — render the marker from the
+    // stored bytes instead.
+    final Uint8List? bytes;
+    final memId = mediaIdFromMemoryUri(sourcePath);
+    if (memId != null) {
+      final stored = await WebCaptureBytesStore.instance.read(memId);
+      if (stored == null) return;
+      bytes = await renderer.ensureBytes(
+        cacheKey: cacheKey,
+        bytes: stored,
+      );
+    } else {
+      bytes = await renderer.ensure(
+        cacheKey: cacheKey,
+        sourcePath: sourcePath,
+      );
+    }
     if (bytes != null) {
       final next = Map<String, Uint8List>.from(state.bytesById);
       next[item.id] = bytes;
@@ -129,6 +143,8 @@ class VaultMarkerController extends Notifier<VaultMarkerState> {
   Future<void> _generateThumbnail(MediaItem item) async {
     final sourcePath = item.localUri;
     if (sourcePath == null || sourcePath.isEmpty) return;
+    // Web captures are already in the bytes store; file thumbnails N/A.
+    if (isMemoryUri(sourcePath)) return;
     if (!_generating.add(item.id)) return;
     try {
       final source = File(sourcePath);

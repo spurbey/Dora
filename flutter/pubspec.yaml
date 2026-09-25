@@ -45,6 +45,7 @@ dependencies:
   # Search & Media
   cached_network_image: ^3.3.1
   camerawesome: ^2.5.0
+  camera: ^0.11.0
   audio_session: ^0.1.23
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0

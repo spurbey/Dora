@@ -9,6 +9,7 @@ import 'package:dora/core/theme/app_radius.dart';
 import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/vault/presentation/providers/vault_provider.dart';
+import 'package:dora/shared/widgets/memory_aware_image.dart';
 
 /// Horizontally-paged list of media thumbnails at the bottom of the Vault
 /// screen. Acts as the counterpart to [VaultMap] — swiping updates the
@@ -150,6 +151,8 @@ class _CarouselCard extends StatelessWidget {
   }
 
   ImageProvider<Object>? _resolveImage(MediaItem item) {
+    final memImage = memoryImageIfHot(item.localUri, item.thumbnailLocalPath);
+    if (memImage != null) return memImage;
     final thumb = item.thumbnailLocalPath;
     if (thumb != null && thumb.isNotEmpty) {
       if (thumb.startsWith('http')) return NetworkImage(thumb);

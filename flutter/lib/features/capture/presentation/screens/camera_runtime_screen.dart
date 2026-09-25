@@ -23,6 +23,7 @@ import 'package:dora/features/capture/domain/capture_models.dart';
 import 'package:dora/features/capture/presentation/providers/active_live_session_provider.dart';
 import 'package:dora/features/capture/presentation/providers/camera_runtime_controller.dart';
 import 'package:dora/features/capture/presentation/providers/capture_orchestrator_provider.dart';
+import 'package:dora/features/capture/presentation/screens/web_capture_screen.dart';
 import 'package:dora/features/live_tracking/v2/v2_providers.dart';
 import 'package:dora/features/stories/presentation/providers/stories_providers.dart';
 
@@ -330,41 +331,10 @@ class _CameraRuntimeScreenState extends ConsumerState<CameraRuntimeScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Web MVP: camerawesome has no web implementation. Route users to the
-    // browser file picker (gallery upload) instead of a dead camera.
+    // Web: browser camera via the `camera` plugin (getUserMedia). The
+    // native camerawesome stack has no web implementation.
     if (kIsWeb) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Capture')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.photo_camera_outlined, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  'Live camera is mobile-only in this web preview',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Use Media upload on your trip to add photos and videos '
-                  'from this device instead.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Go back'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const WebCaptureScreen();
     }
     final runtime = ref.watch(cameraRuntimeControllerProvider);
     final scopedTripId = widget.args.preferredTripId;

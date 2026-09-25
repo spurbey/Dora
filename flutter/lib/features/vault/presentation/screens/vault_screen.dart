@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dora/core/media/web_capture_bytes_store.dart';
 
 import 'package:dora/core/theme/app_colors.dart';
 import 'package:dora/core/theme/app_spacing.dart';
@@ -13,6 +15,7 @@ import 'package:dora/features/vault/presentation/widgets/vault_filter_bar.dart';
 import 'package:dora/features/vault/presentation/widgets/vault_map.dart';
 import 'package:dora/shared/widgets/empty_state.dart';
 import 'package:dora/shared/widgets/error_view.dart';
+import 'package:dora/shared/widgets/memory_aware_image.dart';
 
 /// Full-screen Vault experience. Pushed from the "Vault" entry point inside
 /// Profile. Map on top, thumbnail grid below — carousel + filter bar land in
@@ -280,13 +283,24 @@ class _StoryThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget child;
-    if (item.media?.localUri != null && item.media!.localUri!.isNotEmpty) {
-      child = Image.file(
-        File(item.media!.localUri!),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.image, color: Colors.white),
-      );
+    final localUri = item.media?.localUri;
+    if (localUri != null &&
+        localUri.isNotEmpty &&
+        (isMemoryUri(localUri) || !kIsWeb)) {
+      if (isMemoryUri(localUri)) {
+        child = MemoryAwareImage(
+          localUri: localUri,
+          fit: BoxFit.cover,
+          placeholder: const Icon(Icons.image, color: Colors.white),
+        );
+      } else {
+        child = Image.file(
+          File(localUri),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.image, color: Colors.white),
+        );
+      }
     } else if (item.media?.remoteThumbnailUrl != null &&
         item.media!.remoteThumbnailUrl!.isNotEmpty) {
       child = Image.network(

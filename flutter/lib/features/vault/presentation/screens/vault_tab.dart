@@ -12,6 +12,7 @@ import 'package:dora/core/theme/app_spacing.dart';
 import 'package:dora/core/theme/app_typography.dart';
 import 'package:dora/features/vault/presentation/providers/vault_provider.dart';
 import 'package:dora/shared/widgets/empty_state.dart';
+import 'package:dora/shared/widgets/memory_aware_image.dart';
 
 /// Compact Vault entry shown under the Profile "Vault" sub-tab. It only
 /// advertises that the Vault exists and renders a short preview of recent
@@ -172,6 +173,9 @@ class _PreviewTile extends StatelessWidget {
   }
 
   ImageProvider<Object>? _resolveImage(MediaItem item) {
+    // Web captures live behind memory:// URIs (no filesystem on web).
+    final memImage = memoryImageIfHot(item.localUri, item.thumbnailLocalPath);
+    if (memImage != null) return memImage;
     final thumb = item.thumbnailLocalPath;
     if (thumb != null && thumb.isNotEmpty) {
       if (thumb.startsWith('http')) return NetworkImage(thumb);

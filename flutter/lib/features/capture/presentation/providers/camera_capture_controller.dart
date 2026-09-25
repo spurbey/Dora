@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show LiveTrackingEventType;
 import 'package:dora/core/media/custom_gallery_picker.dart';
+import 'package:dora/core/media/web_capture_bytes_store.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -88,11 +90,168 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
     }
   }
 
+  /// Web-only entry point: persists already-captured bytes (browser camera
+  /// has no filesystem paths). Mirrors [_run]'s destinations — active live
+  /// session journal, else vault — with `memory://` URIs backed by
+  /// [WebCaptureBytesStore].
+  Future<CameraCaptureResult> persistWebCapture({
+    required Uint8List bytes,
+    required String filename,
+    required String? mimeType,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final mediaType =
+          (mimeType ?? '').startsWith('video') ? 'video' : 'photo';
+      final mediaId = const Uuid().v4();
+      await WebCaptureBytesStore.instance.write(mediaId, bytes);
+
+      final position = await ref
+          .read(locationServiceProvider)
+          .getCurrentPosition(timeLimit: const Duration(seconds: 10));
+      final latitude = position?.latitude;
+      final longitude = position?.longitude;
+
+      final activeSession = await ref.read(activeLiveSessionProvider.future);
+      CameraCaptureResult result;
+      if (activeSession != null) {
+        if (latitude == null || longitude == null) {
+          result = await _writeVaultBytes(
+            mediaId: mediaId,
+            bytes: bytes,
+            filename: filename,
+            mediaType: mediaType,
+            mimeType: mimeType,
+            latitude: latitude,
+            longitude: longitude,
+          );
+        } else {
+          result = await _writeTripAttachedBytes(
+            mediaId: mediaId,
+            mimeType: mimeType,
+            mediaType: mediaType,
+            session: activeSession,
+            latitude: latitude,
+            longitude: longitude,
+          );
+        }
+      } else {
+        result = await _writeVaultBytes(
+          mediaId: mediaId,
+          bytes: bytes,
+          filename: filename,
+          mediaType: mediaType,
+          mimeType: mimeType,
+          latitude: latitude,
+          longitude: longitude,
+        );
+      }
+      state = const AsyncValue.data(null);
+      return result;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      return CameraCaptureResult(
+        kind: CameraCaptureResultKind.error,
+        errorMessage: error.toString(),
+      );
+    }
+  }
+
+  Future<CameraCaptureResult> _writeTripAttachedBytes({
+    required String mediaId,
+    required String? mimeType,
+    required String mediaType,
+    required ActiveLiveSessionSummary session,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final repo = ref.read(v2LiveCaptureJournalRepositoryProvider);
+    try {
+      final result = await repo.createMediaCaptureNow(
+        tripId: session.tripId,
+        eventType: mediaType == 'video'
+            ? LiveTrackingEventType.media
+            : LiveTrackingEventType.photo,
+        mediaKind: mediaType == 'video'
+            ? V2CapturedMediaKind.video
+            : V2CapturedMediaKind.photo,
+        localPath: memoryUriFor(mediaId),
+        latitude: latitude,
+        longitude: longitude,
+        mimeType: mimeType,
+      );
+      return CameraCaptureResult(
+        kind: CameraCaptureResultKind.attachedToTrip,
+        mediaId: result.mediaId,
+        tripId: session.tripId,
+        tripName: session.tripName,
+      );
+    } on V2LiveCaptureWriteException catch (error) {
+      if (error.code == 'no_active_session') {
+        final stored =
+            WebCaptureBytesStore.instance.peek(mediaId);
+        return _writeVaultBytes(
+          mediaId: mediaId,
+          bytes: stored ?? Uint8List(0),
+          filename: mediaId,
+          mediaType: mediaType,
+          mimeType: mimeType,
+          latitude: latitude,
+          longitude: longitude,
+        );
+      }
+      return CameraCaptureResult(
+        kind: CameraCaptureResultKind.error,
+        errorMessage: error.message,
+      );
+    }
+  }
+
+  Future<CameraCaptureResult> _writeVaultBytes({
+    required String mediaId,
+    required Uint8List bytes,
+    required String filename,
+    required String mediaType,
+    required String? mimeType,
+    required double? latitude,
+    required double? longitude,
+  }) async {
+    final userId = _resolveOwnerUserId();
+    final db = ref.read(appDatabaseProvider);
+    final now = DateTime.now().toUtc();
+
+    await db.mediaDao.insertMedia(
+      MediaCompanion.insert(
+        id: mediaId,
+        ownerUserId: userId,
+        originScope: 'vault',
+        mediaType: Value(mediaType),
+        localUri: Value(memoryUriFor(mediaId)),
+        mimeType: Value(mimeType ?? _guessMime(filename)),
+        bytesSize: Value(bytes.length),
+        capturedAt: now,
+        latitude: Value(latitude),
+        longitude: Value(longitude),
+        uploadState: const Value('local_only'),
+        uploadProgress: const Value(0.0),
+        retryCount: const Value(0),
+        syncStatus: const Value('pending'),
+        localUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    return CameraCaptureResult(
+      kind: CameraCaptureResultKind.savedToVault,
+      mediaId: mediaId,
+    );
+  }
+
   Future<CameraCaptureResult> _run(
     CaptureKind kind, {
     required BuildContext context,
-  }) async {
-    const permissions = MediaPermissions();
+  }) async {    const permissions = MediaPermissions();
     _PickedMedia? picked;
     if (kind == CaptureKind.gallery) {
       if (!context.mounted) {

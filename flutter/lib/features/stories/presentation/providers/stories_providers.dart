@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:dora/core/media/image_compressor.dart';
+import 'package:dora/core/media/web_capture_bytes_store.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/network/api_providers.dart';
 import 'package:dora/core/storage/daos/media_dao.dart';
@@ -320,6 +321,35 @@ class StoryPublishController extends Notifier<AsyncValue<void>> {
       final mediaType = media.mediaType.toLowerCase() == 'video'
           ? StoryMediaType.video
           : StoryMediaType.photo;
+      // Web captures have no filesystem path — upload stored bytes directly.
+      final memId = mediaIdFromMemoryUri(media.localUri);
+      if (memId != null) {
+        final bytes = await WebCaptureBytesStore.instance.read(memId);
+        if (bytes == null) {
+          throw StoriesApiException(
+            'Local capture bytes are missing (media $memId).',
+            statusCode: 410,
+          );
+        }
+        final ext = mediaType == StoryMediaType.video ? 'webm' : 'jpg';
+        final result = await _api.publishStoryBytes(
+          clientStoryId: story.id,
+          bytes: bytes,
+          filename: '$memId.$ext',
+          mediaType: mediaType,
+          centerLat: story.centerLat,
+          centerLng: story.centerLng,
+          durationMs: media.durationMs,
+        );
+        await _storiesDao.markPublished(
+          id: story.id,
+          publishedAt: result.publishedAt ?? DateTime.now().toUtc(),
+          expiresAt: result.expiresAt ??
+              DateTime.now().toUtc().add(const Duration(hours: 24)),
+          serverId: result.serverId,
+        );
+        return;
+      }
       var uploadFilePath = media.localUri!;
       if (mediaType == StoryMediaType.photo) {
         try {

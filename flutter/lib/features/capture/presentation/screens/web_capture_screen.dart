@@ -15,8 +15,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:web/web.dart' as web;
 
+import 'package:dora/features/capture/domain/capture_models.dart';
 import 'package:dora/features/capture/presentation/providers/camera_capture_controller.dart';
 import 'package:dora/features/capture/presentation/screens/web_camera.dart';
+import 'package:dora/features/stories/presentation/providers/stories_providers.dart';
 
 const String _kCamViewType = 'dora-camera-preview';
 bool _kCamFactoryRegistered = false;
@@ -194,6 +196,9 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
   Future<void> _onConfirm() async {
     final pending = _pending;
     if (pending == null || _busy) return;
+    final destination = await _showDestinationChooser();
+    if (destination == null) return;
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       final result = await ref
@@ -202,17 +207,30 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
             bytes: pending.bytes,
             filename: pending.filename,
             mimeType: pending.mime,
+            destination: destination,
           );
       if (!mounted) return;
+      if (result.storyId != null) {
+        unawaited(
+          ref
+              .read(storyPublishControllerProvider.notifier)
+              .publishLocalStory(result.storyId!, bestEffort: true),
+        );
+      }
       switch (result.kind) {
         case CameraCaptureResultKind.attachedToTrip:
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Saved to ${result.tripName ?? 'trip'}')),
+            SnackBar(
+                content:
+                    Text('Saved to ${result.tripName ?? 'trip'}')),
           );
           context.pop(result);
         case CameraCaptureResultKind.savedToVault:
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved to vault')),
+            SnackBar(
+                content: Text(result.storyId != null
+                    ? 'Story queued for publishing'
+                    : 'Saved to vault')),
           );
           context.pop(result);
         case CameraCaptureResultKind.permissionDenied:
@@ -235,6 +253,34 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Native parity: after capture the user picks Vault vs Story.
+  Future<CaptureDestination?> _showDestinationChooser() {
+    return showModalBottomSheet<CaptureDestination>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.bookmark_outline),
+              title: const Text('Save to Vault'),
+              onTap: () =>
+                  Navigator.of(context).pop(CaptureDestination.vault),
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('Share as Story'),
+              subtitle: const Text(
+                  'Publishes now; retries from Vault on failure.'),
+              onTap: () => Navigator.of(context)
+                  .pop(CaptureDestination.storyDraft),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -401,10 +447,10 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
       child: Column(
         children: [
           Expanded(
-          child: Center(
             child: pending.mime.startsWith('video')
                 ? const Column(
                     mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.videocam,
                           size: 64, color: Colors.white70),
@@ -413,9 +459,13 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
                           style: TextStyle(color: Colors.white)),
                     ],
                   )
-                : Image.memory(pending.bytes, fit: BoxFit.contain),
+                : SizedBox.expand(
+                    child: Image.memory(
+                      pending.bytes,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
           ),
-        ),
         Padding(
           padding: const EdgeInsets.only(bottom: 28, left: 24, right: 24),
           child: Row(

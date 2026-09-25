@@ -13,6 +13,7 @@ import 'package:dora/core/live_tracking/live_tracking_shared_models.dart'
     show LiveTrackingEventType;
 import 'package:dora/core/media/custom_gallery_picker.dart';
 import 'package:dora/core/media/web_capture_bytes_store.dart';
+import 'package:dora/features/capture/domain/capture_models.dart';
 import 'package:dora/core/location/location_provider.dart';
 import 'package:dora/core/media/media_permissions.dart';
 import 'package:dora/core/storage/database_provider.dart';
@@ -43,6 +44,7 @@ class CameraCaptureResult {
     this.tripId,
     this.tripName,
     this.errorMessage,
+    this.storyId,
   });
 
   const CameraCaptureResult.cancelled()
@@ -50,13 +52,15 @@ class CameraCaptureResult {
         mediaId = null,
         tripId = null,
         tripName = null,
-        errorMessage = null;
+        errorMessage = null,
+        storyId = null;
 
   final CameraCaptureResultKind kind;
   final String? mediaId;
   final String? tripId;
   final String? tripName;
   final String? errorMessage;
+  final String? storyId;
 }
 
 /// Riverpod notifier that orchestrates the Camera FAB capture pipeline.
@@ -93,11 +97,13 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
   /// Web-only entry point: persists already-captured bytes (browser camera
   /// has no filesystem paths). Mirrors [_run]'s destinations — active live
   /// session journal, else vault — with `memory://` URIs backed by
-  /// [WebCaptureBytesStore].
+  /// [WebCaptureBytesStore]. [destination] selects vault vs story-draft
+  /// (story also requires location, like mobile).
   Future<CameraCaptureResult> persistWebCapture({
     required Uint8List bytes,
     required String filename,
     required String? mimeType,
+    CaptureDestination destination = CaptureDestination.vault,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -114,7 +120,18 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
 
       final activeSession = await ref.read(activeLiveSessionProvider.future);
       CameraCaptureResult result;
-      if (activeSession != null) {
+      if (destination == CaptureDestination.storyDraft) {
+        result = await _writeStoryDraftBytes(
+          mediaId: mediaId,
+          bytes: bytes,
+          filename: filename,
+          mediaType: mediaType,
+          mimeType: mimeType,
+          latitude: latitude,
+          longitude: longitude,
+          session: activeSession,
+        );
+      } else if (activeSession != null) {
         if (latitude == null || longitude == null) {
           result = await _writeVaultBytes(
             mediaId: mediaId,
@@ -155,6 +172,71 @@ class CameraCaptureController extends Notifier<AsyncValue<void>> {
         errorMessage: error.toString(),
       );
     }
+  }
+
+  /// Story-draft destination (mirrors the native orchestrator): persists the
+  /// media first (trip-attached when a session is live, else vault), then
+  /// inserts a draft story row. The caller triggers
+  /// `storyPublishController.publishLocalStory(storyId)` like mobile does.
+  Future<CameraCaptureResult> _writeStoryDraftBytes({
+    required String mediaId,
+    required Uint8List bytes,
+    required String filename,
+    required String mediaType,
+    required String? mimeType,
+    required double? latitude,
+    required double? longitude,
+    required ActiveLiveSessionSummary? session,
+  }) async {
+    if (latitude == null || longitude == null) {
+      return const CameraCaptureResult(
+        kind: CameraCaptureResultKind.error,
+        errorMessage: 'Location is required to create a story draft.',
+      );
+    }
+    final base = session != null
+        ? await _writeTripAttachedBytes(
+            mediaId: mediaId,
+            mimeType: mimeType,
+            mediaType: mediaType,
+            session: session,
+            latitude: latitude,
+            longitude: longitude,
+          )
+        : await _writeVaultBytes(
+            mediaId: mediaId,
+            bytes: bytes,
+            filename: filename,
+            mediaType: mediaType,
+            mimeType: mimeType,
+            latitude: latitude,
+            longitude: longitude,
+          );
+    if (base.kind != CameraCaptureResultKind.attachedToTrip &&
+        base.kind != CameraCaptureResultKind.savedToVault) {
+      return base;
+    }
+    final storyId = const Uuid().v4();
+    final now = DateTime.now().toUtc();
+    await ref.read(storiesDaoProvider).insertStory(
+          StoriesCompanion.insert(
+            id: storyId,
+            mediaId: base.mediaId ?? mediaId,
+            authorUserId: _resolveOwnerUserId(),
+            centerLat: latitude,
+            centerLng: longitude,
+            visibility: const Value('draft'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    return CameraCaptureResult(
+      kind: base.kind,
+      mediaId: base.mediaId,
+      tripId: base.tripId,
+      tripName: base.tripName,
+      storyId: storyId,
+    );
   }
 
   Future<CameraCaptureResult> _writeTripAttachedBytes({

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -29,11 +30,43 @@ class StoriesApi {
     required double centerLat,
     required double centerLng,
     int? durationMs,
-  }) async {
-    try {
+  }) async {    try {
       final fileName = filePath.split(Platform.pathSeparator).last;
       final multipart =
           await MultipartFile.fromFile(filePath, filename: fileName);
+      final response = await _api.publishStoryApiV1StoriesPublishPost(
+        authorization: await _authHeader(),
+        clientStoryId: clientStoryId,
+        mediaType: mediaType.name,
+        centerLat: centerLat,
+        centerLng: centerLng,
+        durationMs: durationMs,
+        file: multipart,
+      );
+      final payload = response.data;
+      if (payload == null) {
+        throw StoriesApiException('Empty publish response', statusCode: 502);
+      }
+      return StoryPublishResult.fromApi(payload);
+    } on DioException catch (error) {
+      throw _wrap(error);
+    }
+  }
+
+  /// Web-capture variant: uploads from in-memory bytes (for `memory://`
+  /// media that has no filesystem path). Same endpoint/contract as
+  /// [publishStory].
+  Future<StoryPublishResult> publishStoryBytes({
+    required String clientStoryId,
+    required Uint8List bytes,
+    required String filename,
+    required StoryMediaType mediaType,
+    required double centerLat,
+    required double centerLng,
+    int? durationMs,
+  }) async {
+    try {
+      final multipart = MultipartFile.fromBytes(bytes, filename: filename);
       final response = await _api.publishStoryApiV1StoriesPublishPost(
         authorization: await _authHeader(),
         clientStoryId: clientStoryId,

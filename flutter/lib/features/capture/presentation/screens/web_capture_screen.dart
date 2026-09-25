@@ -136,7 +136,10 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
   }
 
   Future<void> _onShutter() async {
-    if (_busy || _starting || _error != null) return;
+    if (_starting || _error != null) return;
+    // NOTE: _busy stays true while recording is being started; the stop tap
+    // must always go through, so only photo-mode work is gated on _busy.
+    if (_busy && !_recording) return;
     setState(() => _busy = true);
     try {
       if (_mode == _WebCaptureMode.photo) {
@@ -182,10 +185,9 @@ class _WebCaptureScreenState extends ConsumerState<WebCaptureScreen> {
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
-      if (mounted && !_recording) setState(() => _busy = false);
-      if (mounted && _mode == _WebCaptureMode.photo) {
-        setState(() => _busy = false);
-      }
+      // Always release the gate: recording continues in the background and
+      // the stop tap must never be blocked.
+      if (mounted) setState(() => _busy = false);
     }
   }
 
